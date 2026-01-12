@@ -74,6 +74,7 @@ public class Node
     public Node? GetParent()
     {
         // get parent node
+        return null;
     }
 
     public void AddChild(Node child)
