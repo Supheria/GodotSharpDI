@@ -1,11 +1,11 @@
 ﻿namespace GodotSharp.DI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class TransientService : Attribute
+public sealed class TransientServiceAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public TransientService(params Type[] serviceTypes)
+    public TransientServiceAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }

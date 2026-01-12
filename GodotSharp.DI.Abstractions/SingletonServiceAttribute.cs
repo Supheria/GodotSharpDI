@@ -4,11 +4,11 @@
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
     Inherited = false
 )]
-public sealed class SingletonService : Attribute
+public sealed class SingletonServiceAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public SingletonService(params Type[] serviceTypes)
+    public SingletonServiceAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }

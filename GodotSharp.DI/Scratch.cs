@@ -12,22 +12,22 @@ namespace GodotSharp.DI;
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
     Inherited = false
 )]
-public sealed class SingletonService : Attribute
+public sealed class SingletonServiceAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public SingletonService(params Type[] serviceTypes)
+    public SingletonServiceAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }
 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class TransientService : Attribute
+public sealed class TransientServiceAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public TransientService(params Type[] serviceTypes)
+    public TransientServiceAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }
@@ -439,7 +439,7 @@ partial class MyServiceScope
         {
             return;
         }
-        var waitTypes = new StringBuilder().AppendJoin(',', _waiters.Select(w => w.Key));
+        var waitTypes = new StringBuilder().AppendJoin(',', _waiters.Keys);
         throw new Exception($"存在未完成注入的服务类型：{waitTypes}");
     }
 
@@ -475,7 +475,7 @@ partial class MyServiceScope
 // 实现了IServiceScope才生成
 partial class MyServiceScope
 {
-    private static readonly HashSet<Type> ExpectTypes = new()
+    private static readonly HashSet<Type> SingletonTypes = new()
     {
         // 注册为 SingletonService 特性指定的类型
         // 如果没有指定服务类型则注册为原类型
@@ -514,7 +514,7 @@ partial class MyServiceScope
             onResolved.Invoke((T)singleton);
             return;
         }
-        if (!ExpectTypes.Contains(type))
+        if (!SingletonTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -536,7 +536,7 @@ partial class MyServiceScope
     void IServiceScope.RegisterService<T>(T instance)
     {
         var type = typeof(T);
-        if (!ExpectTypes.Contains(type))
+        if (!SingletonTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
