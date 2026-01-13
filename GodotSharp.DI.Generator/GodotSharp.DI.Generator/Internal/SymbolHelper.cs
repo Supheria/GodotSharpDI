@@ -37,34 +37,34 @@ internal static class SymbolHelper
         return false;
     }
 
-    private static List<ITypeSymbol> ParseServiceTypes(AttributeData attr)
+    private static List<INamedTypeSymbol> ParseServiceTypes(AttributeData attr)
     {
         if (attr.ConstructorArguments.Length == 0)
         {
             return [];
         }
-        var result = new List<ITypeSymbol>();
+        var result = new List<INamedTypeSymbol>();
         var arg = attr.ConstructorArguments[0];
         // 多个参数 → 数组
         if (arg.Kind == TypedConstantKind.Array)
         {
             foreach (var v in arg.Values)
             {
-                if (v.Value is ITypeSymbol t)
+                if (v.Value is INamedTypeSymbol t)
                 {
                     result.Add(t);
                 }
             }
         }
         // 单个参数 → Copilot 说有可能 Type
-        else if (arg.Value is ITypeSymbol singleType)
+        else if (arg.Value is INamedTypeSymbol singleType)
         {
             result.Add(singleType);
         }
         return result;
     }
 
-    public static ITypeSymbol[] GetServiceTypesFromAttribute(
+    public static INamedTypeSymbol[] GetServiceTypesFromAttribute(
         ISymbol symbol,
         INamedTypeSymbol? attributeSymbol
     )
@@ -86,16 +86,20 @@ internal static class SymbolHelper
         {
             switch (symbol)
             {
-                case INamedTypeSymbol t:
-                    // 类型级 fallback：自身类型
-                    result.Add(t);
+                case INamedTypeSymbol type:
+                    result.Add(type);
                     break;
                 case IPropertySymbol p:
-                    // 成员级 fallback：成员类型
-                    result.Add(p.Type);
+                    if (p.Type is INamedTypeSymbol t1)
+                    {
+                        result.Add(t1);
+                    }
                     break;
                 case IFieldSymbol f:
-                    result.Add(f.Type);
+                    if (f.Type is INamedTypeSymbol t2)
+                    {
+                        result.Add(t2);
+                    }
                     break;
             }
         }

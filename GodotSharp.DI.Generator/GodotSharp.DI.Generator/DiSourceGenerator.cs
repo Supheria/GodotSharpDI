@@ -38,7 +38,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
         if (classDecls.IsDefaultOrEmpty)
             return;
 
-        var cached = new CachedSymbol(compilation);
+        var symbol = new CachedSymbol(compilation);
 
         // 收集所有类型符号
         var allTypes = classDecls
@@ -46,60 +46,87 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
             .OfType<INamedTypeSymbol>()
             .ToArray();
 
-        // 分类
-        var hosts = new List<INamedTypeSymbol>();
-        var users = new List<INamedTypeSymbol>();
-        var scopes = new List<INamedTypeSymbol>();
+        var registry = new ServiceRegistry();
 
         foreach (var type in allTypes)
         {
-            var isHost = SymbolHelper.ImplementsInterface(type, cached.ServiceHostInterface);
-            var isUser = SymbolHelper.ImplementsInterface(type, cached.ServiceUserInterface);
-            var isScope = SymbolHelper.ImplementsInterface(type, cached.ServiceScopeInterface);
-            if (isHost || isUser)
+            var isHost = SymbolHelper.ImplementsInterface(type, symbol.ServiceHostInterface);
+            var isUser = SymbolHelper.ImplementsInterface(type, symbol.ServiceUserInterface);
+            var isScope = SymbolHelper.ImplementsInterface(type, symbol.ServiceScopeInterface);
+
+            var serviceTypeInfo = ServiceTypeCollector.Analyze(type, symbol);
+            if (serviceTypeInfo is not null)
             {
-                if (isScope)
+                if (!isHost && !isUser && !isScope)
                 {
-                    continue;
+                    registry.Services[type] = serviceTypeInfo;
                 }
-                var utilsSource = CodeWriter.GenerateHostAndUserUtilsCode(
-                    type,
-                    cached,
-                    isHost,
-                    isUser
-                );
-                if (!string.IsNullOrWhiteSpace(utilsSource))
-                {
-                    context.AddSource($"{type.Name}.ServiceUtils.g.cs", utilsSource);
-                }
+                continue;
             }
 
-            if (SymbolHelper.ImplementsInterface(type, cached.ServiceHostInterface))
-                hosts.Add(type);
-            if (SymbolHelper.ImplementsInterface(type, cached.ServiceUserInterface))
-                users.Add(type);
-            if (SymbolHelper.ImplementsInterface(type, cached.ServiceScopeInterface))
-                scopes.Add(type);
+            if (isHost || isUser)
+            {
+                if (!isScope)
+                {
+                    var isNode = false;
+                    if (isHost)
+                    {
+                        var info = HostServiceCollector.Analyze(type, symbol);
+                        registry.Hosts[type] = info;
+                        isNode = info.IsNode;
+                    }
+                    if (isUser)
+                    {
+                        var info = UserDependencyCollector.Analyze(type, symbol);
+                        registry.Users[type] = info;
+                        isNode = info.IsNode;
+                    }
+                    if (isNode)
+                    {
+                        var utils = CodeWriter.GenerateUtilsCode(type, isHost, isUser);
+                        // context.AddSource($"{type.Name}.ServiceUtils.g.cs", utils);
+                    }
+                }
+                continue;
+            }
+
+            if (isScope)
+            {
+                registry.Scopes[type] = ScopeServiceCollector.Analyze(type, symbol);
+            }
         }
 
-        foreach (var host in hosts)
+        foreach (var host in registry.Hosts.Values)
         {
-            var source = CodeWriter.GenerateHostCode(host, cached);
-            context.AddSource($"{host.Name}.ServiceHost.g.cs", source);
+            if (!host.IsNode)
+            {
+                continue;
+            }
+            var source = CodeWriter.GenerateHostCode(host);
+            context.AddSource($"{host.HostType.Name}.ServiceHost.g.cs", source);
         }
-        foreach (var user in users)
-        {
-            var source = CodeWriter.GenerateUserCode(user, cached);
-            context.AddSource($"{user.Name}.ServiceUser.g.cs", source);
-        }
-        foreach (var scope in scopes)
-        {
-            var source = CodeWriter.GenerateScopeCode(scope, cached);
-            context.AddSource($"{scope.Name}.ServiceScope.g.cs", source);
 
-            var utils = CodeWriter.GenerateScopeUtilsCode(scope, cached);
-            if (!string.IsNullOrWhiteSpace(utils))
-                context.AddSource($"{scope.Name}.ServiceUtils.g.cs", utils);
+        foreach (var user in registry.Users.Values)
+        {
+            if (!user.IsNode)
+            {
+                continue;
+            }
+            var source = CodeWriter.GenerateUserCode(user);
+            context.AddSource($"{user.UserType.Name}.ServiceUser.g.cs", source);
+        }
+
+        foreach (var scope in registry.Scopes.Values)
+        {
+            if (!scope.IsNode)
+            {
+                continue;
+            }
+            var source = CodeWriter.GenerateScopeCode(scope, registry);
+            context.AddSource($"{scope.ScopeType.Name}.ServiceScope.g.cs", source);
+
+            var utils = CodeWriter.GenerateUtilsCode(scope, registry);
+            context.AddSource($"{scope.ScopeType.Name}.ServiceUtils.g.cs", utils);
         }
     }
 }

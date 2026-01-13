@@ -8,59 +8,19 @@ namespace GodotSharp.DI.Generator.Internal;
 
 internal static class CodeWriter
 {
-    private static readonly SymbolDisplayFormat ClassNameFormat = new(
-        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
-        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
-        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
-    );
-    private static readonly SymbolDisplayFormat FullyQualifiedNoAliasFormat = new(
-        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
-        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
-        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
-    );
-
-    private static bool GetNamespace(INamedTypeSymbol type, out string ns)
-    {
-        if (type.ContainingNamespace.IsGlobalNamespace)
-        {
-            ns = string.Empty;
-            return false;
-        }
-        ns = type.ContainingNamespace.ToDisplayString();
-        return true;
-    }
-
-    private static string GetClassName(INamedTypeSymbol type)
-    {
-        return type.ToDisplayString(ClassNameFormat);
-    }
-
-    private static string GetFullQualifiedName(ITypeSymbol type)
-    {
-        return type.ToDisplayString(FullyQualifiedNoAliasFormat);
-    }
-
     // ============================================================
     // 生成 Host 代码
     // ============================================================
-    public static string GenerateHostCode(INamedTypeSymbol type, CachedSymbol cached)
+    public static string GenerateHostCode(HostServiceInfo host)
     {
-        // 找出属性级 SingletonService
-        var singletonProps = type.GetMembers()
-            .OfType<IPropertySymbol>()
-            .Where(p => SymbolHelper.HasAttribute(p, cached.SingletonServiceAttribute))
-            .ToArray();
+        var f = new CodeFormatter();
 
-        var f = new Formatter();
-
-        if (GetNamespace(type, out var ns))
+        if (TypeFormatter.GetNamespace(host.HostType, out var ns))
         {
             f.AppendLine($"namespace {ns};");
             f.AppendLine();
         }
-        f.AppendLine($"partial class {GetClassName(type)}");
+        f.AppendLine($"partial class {TypeFormatter.GetClassName(host.HostType)}");
         f.BeginBlock();
         {
             f.AppendLine(
@@ -68,18 +28,11 @@ internal static class CodeWriter
             );
             f.BeginBlock();
             {
-                foreach (var prop in singletonProps)
+                foreach (var service in host.SingletonServices)
                 {
-                    var serviceTypes = SymbolHelper.GetServiceTypesFromAttribute(
-                        prop,
-                        cached.SingletonServiceAttribute
+                    f.AppendLine(
+                        $"scope.RegisterService<{TypeFormatter.GetFullQualifiedName(service.ServiceType)}>({service.Name});"
                     );
-                    foreach (var serviceType in serviceTypes)
-                    {
-                        f.AppendLine(
-                            $"scope.RegisterService<{GetFullQualifiedName(serviceType)}>({prop.Name});"
-                        );
-                    }
                 }
             }
             f.EndBlock();
@@ -104,37 +57,29 @@ internal static class CodeWriter
     // ============================================================
     // 生成 User 代码
     // ============================================================
-    public static string GenerateUserCode(INamedTypeSymbol type, CachedSymbol cached)
+    public static string GenerateUserCode(UserDependencyInfo user)
     {
-        // 找出 Dependency 字段
-        var deps = type.GetMembers()
-            .Where(m => SymbolHelper.HasAttribute(m, cached.DependencyAttribute))
-            .OfType<IFieldSymbol>()
-            .ToArray();
+        var f = new CodeFormatter();
 
-        var isAware = SymbolHelper.ImplementsInterface(type, cached.ServiceAwareInterface);
-
-        var f = new Formatter();
-
-        if (GetNamespace(type, out var ns))
+        if (TypeFormatter.GetNamespace(user.UserType, out var ns))
         {
             f.AppendLine($"namespace {ns};");
             f.AppendLine();
         }
 
-        f.AppendLine($"partial class {GetClassName(type)}");
+        f.AppendLine($"partial class {TypeFormatter.GetClassName(user.UserType)}");
         f.BeginBlock();
         {
-            if (isAware)
+            if (user.IsServiceAware)
             {
                 f.AppendLine(
                     "private readonly global::System.Collections.Generic.HashSet<global::System.Type> _unresolvedDependencies = new()"
                 );
                 f.BeginBlock();
                 {
-                    foreach (var dep in deps)
+                    foreach (var dep in user.Dependencies)
                     {
-                        f.AppendLine($"typeof({GetFullQualifiedName(dep.Type)}),");
+                        f.AppendLine($"typeof({TypeFormatter.GetFullQualifiedName(dep.Type)}),");
                     }
                 }
                 f.EndBlock(";");
@@ -162,20 +107,19 @@ internal static class CodeWriter
             );
             f.BeginBlock();
             {
-                foreach (var dep in deps)
+                foreach (var dep in user.Dependencies)
                 {
-                    var depType = GetFullQualifiedName(dep.Type);
+                    var depType = TypeFormatter.GetFullQualifiedName(dep.Type);
                     f.AppendLine($"scope.ResolveService<{depType}>(service =>");
                     f.BeginBlock();
                     {
                         f.AppendLine($"{dep.Name} = service;");
-                        if (isAware)
+                        if (user.IsServiceAware)
                         {
                             f.AppendLine($"OnDependencyResolved(typeof({depType}));");
                         }
                     }
                     f.EndBlock(");");
-                    f.AppendLine();
                 }
             }
             f.EndBlock();
@@ -203,48 +147,17 @@ internal static class CodeWriter
     // 生成 Scope 代码
     // ============================================================
 
-    private static INamedTypeSymbol[] ReadTypeArray(AttributeData attr, string name)
+    public static string GenerateScopeCode(ScopeServiceInfo scope, ServiceRegistry registry)
     {
-        var arg = attr.NamedArguments.FirstOrDefault(kv => kv.Key == name).Value;
-
-        if (arg.Kind == TypedConstantKind.Array)
-        {
-            return arg
-                .Values.Select(v => v.Value as INamedTypeSymbol)
-                .Where(t => t is not null)
-                .Cast<INamedTypeSymbol>()
-                .ToArray();
-        }
-
-        return Array.Empty<INamedTypeSymbol>();
-    }
-
-    public static string GenerateScopeCode(INamedTypeSymbol scope, CachedSymbol cached)
-    {
-        // 必须有 ServiceModuleAttribute
-        var moduleAttr = scope
-            .GetAttributes()
-            .FirstOrDefault(a =>
-                SymbolEqualityComparer.Default.Equals(
-                    a.AttributeClass,
-                    cached.ServiceModuleAttribute
-                )
-            );
-        if (moduleAttr is null)
-            return "";
-
-        var instantiateTypes = ReadTypeArray(moduleAttr, "Instantiate");
-        var expectTypes = ReadTypeArray(moduleAttr, "Expect");
-
-        var f = new Formatter();
+        var f = new CodeFormatter();
         // namespace
-        if (GetNamespace(scope, out var ns))
+        if (TypeFormatter.GetNamespace(scope.ScopeType, out var ns))
         {
             f.AppendLine($"namespace {ns};");
             f.AppendLine();
         }
         // class header
-        f.AppendLine($"partial class {GetClassName(scope)}");
+        f.AppendLine($"partial class {TypeFormatter.GetClassName(scope.ScopeType)}");
         f.BeginBlock();
         {
             //
@@ -255,26 +168,31 @@ internal static class CodeWriter
             );
             f.BeginBlock();
             {
-                foreach (var t in instantiateTypes)
+                foreach (var type in scope.Instantiate)
                 {
-                    var serviceTypes = SymbolHelper.GetServiceTypesFromAttribute(
-                        t,
-                        cached.SingletonServiceAttribute
-                    );
-                    foreach (var serviceType in serviceTypes)
+                    var info = registry.Services[type];
+                    if (info.IsSingleton)
                     {
-                        f.AppendLine($"typeof({GetFullQualifiedName(serviceType)}),");
+                        f.AppendLine($"// {type.Name}");
+                        foreach (var exposed in info.ExposedServiceTypes)
+                        {
+                            var exposedName = TypeFormatter.GetFullQualifiedName(exposed);
+                            f.AppendLine($"typeof({exposedName}),");
+                        }
                     }
                 }
-                foreach (var t in expectTypes)
+                foreach (var type in scope.Expect)
                 {
-                    var serviceTypes = SymbolHelper.GetServiceTypesFromAttribute(
-                        t,
-                        cached.SingletonServiceAttribute
-                    );
-                    foreach (var serviceType in serviceTypes)
+                    var info = registry.Hosts[type];
+                    if (info.IsNode)
                     {
-                        f.AppendLine($"typeof({GetFullQualifiedName(serviceType)}),");
+                        f.AppendLine($"// {type.Name}");
+                        foreach (var (_, serviceType) in info.SingletonServices)
+                        {
+                            f.AppendLine(
+                                $"typeof({TypeFormatter.GetFullQualifiedName(serviceType)}),"
+                            );
+                        }
                     }
                 }
             }
@@ -288,20 +206,18 @@ internal static class CodeWriter
             );
             f.BeginBlock();
             {
-                foreach (var type in instantiateTypes)
+                foreach (var type in scope.Instantiate)
                 {
-                    // 仅生成瞬态服务（TransientServiceAttribute）
-                    if (!SymbolHelper.HasAttribute(type, cached.TransientServiceAttribute))
-                        continue;
-                    var serviceTypes = SymbolHelper.GetServiceTypesFromAttribute(
-                        type,
-                        cached.TransientServiceAttribute
-                    );
-                    foreach (var t in serviceTypes)
+                    var info = registry.Services[type];
+                    if (info.IsTransient)
                     {
-                        f.AppendLine(
-                            $"[typeof({GetFullQualifiedName(t)})] = () => new {GetFullQualifiedName(t)}(),"
-                        );
+                        var impl = TypeFormatter.GetFullQualifiedName(type);
+                        f.AppendLine($"// {type.Name}");
+                        foreach (var exposed in info.ExposedServiceTypes)
+                        {
+                            var exposedName = TypeFormatter.GetFullQualifiedName(exposed);
+                            f.AppendLine($"[typeof({exposedName})] = () => new {impl}(),");
+                        }
                     }
                 }
             }
@@ -426,21 +342,16 @@ internal static class CodeWriter
     // 生成 utils 代码
     // ============================================================
 
-    public static string GenerateHostAndUserUtilsCode(
-        INamedTypeSymbol type,
-        CachedSymbol cached,
-        bool isHost,
-        bool isUser
-    )
+    public static string GenerateUtilsCode(INamedTypeSymbol type, bool isHost, bool isUser)
     {
-        var f = new Formatter();
+        var f = new CodeFormatter();
 
-        if (GetNamespace(type, out var ns))
+        if (TypeFormatter.GetNamespace(type, out var ns))
         {
             f.AppendLine($"namespace {ns};");
             f.AppendLine();
         }
-        f.AppendLine($"partial class {GetClassName(type)}");
+        f.AppendLine($"partial class {TypeFormatter.GetClassName(type)}");
         f.BeginBlock();
         {
             f.AppendLine("#nullable enable");
@@ -473,7 +384,7 @@ internal static class CodeWriter
                 }
                 f.EndBlock();
                 f.AppendLine(
-                    $"{TypeNamesGlobal.Gd}.PushError(\"{GetClassName(type)} 没有最近的 Service Scope\");"
+                    $"{TypeNamesGlobal.Gd}.PushError(\"{TypeFormatter.GetClassName(type)} 没有最近的 Service Scope\");"
                 );
                 f.AppendLine("return null;");
             }
@@ -490,14 +401,18 @@ internal static class CodeWriter
                 f.BeginBlock();
                 {
                     f.AppendLine("case 13:", "Godot.Node.NotificationReady");
-                    if (isHost)
+                    f.BeginBlock();
                     {
-                        f.AppendLine("RegisterToServiceScopeAsHost();");
+                        if (isHost)
+                        {
+                            f.AppendLine("RegisterToServiceScopeAsHost();");
+                        }
+                        if (isUser)
+                        {
+                            f.AppendLine("RegisterToServiceScopeAsUser();");
+                        }
                     }
-                    if (isUser)
-                    {
-                        f.AppendLine("RegisterToServiceScopeAsUser();");
-                    }
+                    f.EndBlock();
                     f.AppendLine("break;");
                     f.AppendLine("case 10:", "Godot.Node.NotificationEnterTree");
                     f.AppendLine("case 11:", "Godot.Node.NotificationExitTree");
@@ -519,29 +434,16 @@ internal static class CodeWriter
         return f.ToString();
     }
 
-    public static string GenerateScopeUtilsCode(INamedTypeSymbol scope, CachedSymbol cached)
+    public static string GenerateUtilsCode(ScopeServiceInfo scope, ServiceRegistry registry)
     {
-        // 必须有 ServiceModuleAttribute
-        var moduleAttr = scope
-            .GetAttributes()
-            .FirstOrDefault(a =>
-                SymbolEqualityComparer.Default.Equals(
-                    a.AttributeClass,
-                    cached.ServiceModuleAttribute
-                )
-            );
-        if (moduleAttr is null)
-            return "";
-        // 读取 Instantiate 列表
-        var instantiateTypes = ReadTypeArray(moduleAttr, "Instantiate");
-        var f = new Formatter();
+        var f = new CodeFormatter();
         // namespace
-        if (GetNamespace(scope, out var ns))
+        if (TypeFormatter.GetNamespace(scope.ScopeType, out var ns))
         {
             f.AppendLine($"namespace {ns};");
             f.AppendLine();
         }
-        f.AppendLine($"partial class {GetClassName(scope)}");
+        f.AppendLine($"partial class {TypeFormatter.GetClassName(scope.ScopeType)}");
         f.BeginBlock();
         {
             f.AppendLine("#nullable enable");
@@ -612,25 +514,23 @@ internal static class CodeWriter
             f.AppendLine("private void RegisterServiceInstances()");
             f.BeginBlock();
             {
-                foreach (var t in instantiateTypes)
+                for (var i = 0; i < scope.Instantiate.Length; i++)
                 {
-                    var typeName = GetFullQualifiedName(t);
-                    var varName = "_" + t.Name.Substring(0, 1).ToLower() + t.Name.Substring(1);
-                    // 实例化
-                    f.AppendLine($"var {varName} = new {typeName}();");
-                    f.AppendLine();
-
-                    var serviceTypes = SymbolHelper.GetServiceTypesFromAttribute(
-                        t,
-                        cached.SingletonServiceAttribute
-                    );
-                    foreach (var serviceType in serviceTypes)
+                    var type = scope.Instantiate[i];
+                    var info = registry.Services[type];
+                    if (info.IsSingleton)
                     {
-                        f.AppendLine(
-                            $"RegisterServiceInstance<{GetFullQualifiedName(serviceType)}>({varName});"
-                        );
+                        var typeName = TypeFormatter.GetFullQualifiedName(type);
+                        var varName =
+                            $"{type.Name.Substring(0, 1).ToLower()}{type.Name.Substring(1)}_{i}";
+                        f.AppendLine($"// {type.Name}");
+                        f.AppendLine($"var {varName} = new {typeName}();");
+                        foreach (var exposed in info.ExposedServiceTypes)
+                        {
+                            var exposedName = TypeFormatter.GetFullQualifiedName(exposed);
+                            f.AppendLine($"RegisterServiceInstance<{exposedName}>({varName});");
+                        }
                     }
-                    f.AppendLine();
                 }
             }
             f.EndBlock();

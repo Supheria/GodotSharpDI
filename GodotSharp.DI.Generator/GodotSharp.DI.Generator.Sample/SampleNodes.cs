@@ -9,13 +9,16 @@ public interface IChunkGetter;
 
 public interface IChunkGenerator;
 
-public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator, IServiceHost, IServiceUser
+public partial class ChunkManager : Node, IChunkGetter, IServiceHost, IChunkGenerator
 {
     [SingletonService(typeof(IChunkGetter), typeof(IChunkGenerator))]
     private ChunkManager Self => this;
+
+    [Dependency]
+    private CellManager _cellManager;
 }
 
-public partial class CellManager : Node, IServiceHost, IServiceAware
+public partial class CellManager : Node, IServiceHost, IServiceUser, IServiceAware
 {
     [SingletonService]
     private CellManager Self => this;
@@ -39,10 +42,17 @@ public interface IDataReader;
 [SingletonService(typeof(IDataWriter), typeof(IDataReader))]
 public class DataBase : IDataWriter, IDataReader { }
 
-[ServiceModule(
-    Instantiate = [typeof(DataBase)],
-    Expect = [typeof(ChunkManager), typeof(CellManager)]
-)]
+public interface IFinder;
+
+public interface ISearcher;
+
+[TransientService(typeof(IFinder), typeof(ISearcher))]
+public class PathFinder : IFinder, ISearcher;
+
+// [ServiceModule(
+//     Instantiate = [typeof(DataBase), typeof(PathFinder)],
+//     Expect = [typeof(ChunkManager), typeof(CellManager)]
+// )]
 public partial class Scope : Node, IServiceScope
 {
     [Dependency]

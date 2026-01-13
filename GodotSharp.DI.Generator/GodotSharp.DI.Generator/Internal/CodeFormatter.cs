@@ -3,7 +3,7 @@ using System.Text;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal sealed class Formatter
+internal sealed class CodeFormatter
 {
     private readonly StringBuilder _sb = new();
     private int _level;
