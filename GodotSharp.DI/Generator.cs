@@ -621,3 +621,20 @@ partial class MyScope // MyContext.DI.Scope.g.cs
 // 生成器根据该类别自动补全 ServiceScope 的 InstantiateScopeSingletons()、SingletonTypes、TransientFactories
 [AutoModules]
 public partial class AutoScanScope : Godot.Node, IScope { }
+
+// A.B.Part1.cs
+public class A
+{
+    public partial class B
+    {
+        public void Method1() { }
+    }
+}
+
+public partial class B
+{
+    public void Method2()
+    {
+        
+    }
+}

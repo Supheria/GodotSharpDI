@@ -44,14 +44,14 @@ public interface IDataWriter;
 public interface IDataReader;
 
 [Singleton(typeof(IDataWriter), typeof(IDataReader))]
-public class DataBase : IDataWriter, IDataReader { }
+public partial class DataBase : IDataWriter, IDataReader { }
 
 public interface IFinder;
 
 public interface ISearcher;
 
 [Transient(typeof(IFinder), typeof(ISearcher))]
-public class PathFinder : IFinder, ISearcher;
+public partial class PathFinder : IFinder, ISearcher;
 
 [Modules(
     Instantiate = [typeof(DataBase), typeof(PathFinder)],

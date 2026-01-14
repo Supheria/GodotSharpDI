@@ -3,7 +3,10 @@
 public static class TypeNamesFull
 {
     public const string InjectAttribute = "GodotSharp.DI.Abstractions.InjectAttribute";
+    public const string InjectConstructorAttribute =
+        "GodotSharp.DI.Abstractions.InjectConstructorAttribute";
     public const string ModulesAttribute = "GodotSharp.DI.Abstractions.ModulesAttribute";
+    public const string AutoModulesAttribute = "GodotSharp.DI.Abstractions.AutoModulesAttribute";
     public const string SingletonAttribute = "GodotSharp.DI.Abstractions.SingletonAttribute";
     public const string TransientAttribute = "GodotSharp.DI.Abstractions.TransientAttribute";
     public const string HostAttribute = "GodotSharp.DI.Abstractions.HostAttribute";

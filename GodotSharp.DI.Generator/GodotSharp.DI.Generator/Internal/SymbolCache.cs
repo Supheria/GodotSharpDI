@@ -6,36 +6,40 @@ namespace GodotSharp.DI.Generator.Internal;
 
 internal sealed class SymbolCache
 {
-    // === Attribute Symbols ===
-    public INamedTypeSymbol InjectAttribute { get; }
-    public INamedTypeSymbol ModulesAttribute { get; }
-    public INamedTypeSymbol SingletonAttribute { get; }
-    public INamedTypeSymbol TransientAttribute { get; }
-    public INamedTypeSymbol HostAttribute { get; }
-    public INamedTypeSymbol UserAttribute { get; }
+    public INamedTypeSymbol? InjectAttribute { get; }
+    public INamedTypeSymbol? InjectConstructorAttribute { get; }
+    public INamedTypeSymbol? ModulesAttribute { get; }
+    public INamedTypeSymbol? AutoModulesAttribute { get; }
+    public INamedTypeSymbol? SingletonAttribute { get; }
+    public INamedTypeSymbol? TransientAttribute { get; }
+    public INamedTypeSymbol? HostAttribute { get; }
+    public INamedTypeSymbol? UserAttribute { get; }
 
-    // === Interface Symbols ===
-    public INamedTypeSymbol ScopeInterface { get; }
-    public INamedTypeSymbol ServicesReadyInterface { get; }
+    public INamedTypeSymbol? ScopeInterface { get; }
+    public INamedTypeSymbol? ServicesReadyInterface { get; }
 
-    // === Godot Node Symbol ===
-    public INamedTypeSymbol? GodotNode { get; }
+    public INamedTypeSymbol? GodotNodeType { get; }
 
-    // === Constructor ===
     public SymbolCache(Compilation compilation)
     {
-        InjectAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.InjectAttribute)!;
-        ModulesAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ModulesAttribute)!;
-        SingletonAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.SingletonAttribute)!;
-        TransientAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.TransientAttribute)!;
-        HostAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.HostAttribute)!;
-        UserAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.UserAttribute)!;
+        InjectAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.InjectAttribute);
+        InjectConstructorAttribute = compilation.GetTypeByMetadataName(
+            TypeNamesFull.InjectConstructorAttribute
+        );
+        ModulesAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ModulesAttribute);
+        AutoModulesAttribute = compilation.GetTypeByMetadataName(
+            TypeNamesFull.AutoModulesAttribute
+        );
+        SingletonAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.SingletonAttribute);
+        TransientAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.TransientAttribute);
+        HostAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.HostAttribute);
+        UserAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.UserAttribute);
 
-        ScopeInterface = compilation.GetTypeByMetadataName(TypeNamesFull.ScopeInterface)!;
+        ScopeInterface = compilation.GetTypeByMetadataName(TypeNamesFull.ScopeInterface);
         ServicesReadyInterface = compilation.GetTypeByMetadataName(
             TypeNamesFull.ServicesReadyInterface
-        )!;
+        );
 
-        GodotNode = compilation.GetTypeByMetadataName(TypeNamesFull.GodotNode);
+        GodotNodeType = compilation.GetTypeByMetadataName(TypeNamesFull.GodotNode);
     }
 }

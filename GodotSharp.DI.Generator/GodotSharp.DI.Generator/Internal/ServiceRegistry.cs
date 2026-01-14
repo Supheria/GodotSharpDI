@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using GodotSharp.DI.Generator.Internal.Descriptors;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;

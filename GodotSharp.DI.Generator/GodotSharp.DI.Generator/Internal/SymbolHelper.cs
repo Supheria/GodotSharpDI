@@ -7,33 +7,52 @@ namespace GodotSharp.DI.Generator.Internal;
 
 internal static class SymbolHelper
 {
-    public static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol)
+    public static bool HasAttribute(INamedTypeSymbol type, INamedTypeSymbol? attributeSymbol)
     {
         if (attributeSymbol is null)
             return false;
-
-        return symbol
-            .GetAttributes()
+        return type.GetAttributes()
             .Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, attributeSymbol));
     }
 
-    public static bool ImplementsInterface(INamedTypeSymbol type, INamedTypeSymbol? iface)
+    public static AttributeData? GetAttribute(
+        INamedTypeSymbol type,
+        INamedTypeSymbol? attributeSymbol
+    )
     {
-        if (iface is null)
-            return false;
-
-        return type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iface));
+        if (attributeSymbol is null)
+            return null;
+        return type.GetAttributes()
+            .FirstOrDefault(a =>
+                SymbolEqualityComparer.Default.Equals(a.AttributeClass, attributeSymbol)
+            );
     }
 
-    public static bool IsNode(INamedTypeSymbol type, SymbolCache symbolCache)
+    public static bool ImplementsInterface(INamedTypeSymbol type, INamedTypeSymbol? interfaceSymbol)
     {
-        var current = type;
-        while (current is not null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, symbolCache.GodotNode))
-                return true;
+        if (interfaceSymbol is null)
+            return false;
+        return type.AllInterfaces.Any(i =>
+            SymbolEqualityComparer.Default.Equals(i, interfaceSymbol)
+        );
+    }
 
-            current = current.BaseType;
+    public static bool IsServicesReady(
+        INamedTypeSymbol type,
+        INamedTypeSymbol? servicesReadyInterface
+    )
+    {
+        return ImplementsInterface(type, servicesReadyInterface);
+    }
+
+    public static bool IsGodotNode(INamedTypeSymbol type, INamedTypeSymbol? godotNodeType)
+    {
+        if (godotNodeType is null)
+            return false;
+        for (var t = type; t is not null; t = t.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(t, godotNodeType))
+                return true;
         }
         return false;
     }
