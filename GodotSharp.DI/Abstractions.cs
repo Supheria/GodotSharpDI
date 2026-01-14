@@ -1,57 +1,54 @@
 ﻿namespace GodotSharp.DI;
 
 [AttributeUsage(AttributeTargets.Constructor)]
-public sealed class InjectionConstructorAttribute : Attribute;
+public sealed class InjectConstructorAttribute : Attribute { }
 
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-public sealed class DependencyAttribute : Attribute;
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
+public sealed class InjectAttribute : Attribute { }
 
 [AttributeUsage(
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
-    Inherited = false
+    Inherited = false,
+    AllowMultiple = false
 )]
-public sealed class SingletonServiceAttribute : Attribute
+public sealed class SingletonAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public SingletonServiceAttribute(params Type[] serviceTypes)
+    public SingletonAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }
 }
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class TransientServiceAttribute : Attribute
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class TransientAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public TransientServiceAttribute(params Type[] serviceTypes)
+    public TransientAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }
 }
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class ServiceHostAttribute : Attribute;
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class HostAttribute : Attribute { }
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class ServiceUserAttribute : Attribute;
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class UserAttribute : Attribute { }
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class ServiceModulesAttribute : Attribute
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class ModulesAttribute : Attribute
 {
     public Type[] Instantiate { get; set; } = [];
     public Type[] Expect { get; set; } = [];
 }
 
-[AttributeUsage(AttributeTargets.Class)]
-public sealed class AutoScanServiceModulesAttribute : Attribute;
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class AutoModulesAttribute : Attribute { }
 
-public interface IServiceHost;
-
-public interface IServiceUser;
-
-public interface IServiceScope
+public interface IScope
 {
     void RegisterService<T>(T instance)
         where T : notnull { } // no default block in real project
@@ -61,7 +58,7 @@ public interface IServiceScope
         where T : notnull { } // no default block in real project
 }
 
-public interface IServiceAware
+public interface IServicesReady
 {
     void OnServicesReady();
 }

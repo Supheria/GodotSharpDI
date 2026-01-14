@@ -6,7 +6,7 @@ namespace GodotSharp.DI;
 // --- 非节点类型服务 ---
 //
 
-[SingletonService(typeof(IDataWriter), typeof(IDataReader))]
+[Singleton(typeof(IDataWriter), typeof(IDataReader))]
 public partial class DatabaseWriter : IDataWriter, IDataReader, IDisposable
 {
     void IDataReader.Read() { }
@@ -16,9 +16,9 @@ public partial class DatabaseWriter : IDataWriter, IDataReader, IDisposable
 
 // - generated code begin -
 
-partial class DatabaseWriter // DatabaseWriter.ServiceFactory.g.cs
+partial class DatabaseWriter // DatabaseWriter.DI.Factory.g.cs
 {
-    public static void CreateService(IServiceScope scope, Action<object> onCreated)
+    public static void CreateService(IScope scope, Action<object> onCreated)
     {
         // 仅当注入构造函数参数等于0时按照如下模板生成
 
@@ -29,13 +29,13 @@ partial class DatabaseWriter // DatabaseWriter.ServiceFactory.g.cs
 
 // - generated code end -
 
-[TransientService(typeof(IPathFinder), typeof(IAStartPathFinder))]
+[Transient(typeof(IPathFinder), typeof(IAStartPathFinder))]
 public partial class PathFinder : IPathFinder, IAStartPathFinder
 {
     private readonly IDataWriter _dataWriter;
     private readonly IDataReader _dataReader;
 
-    [InjectionConstructor]
+    [InjectConstructor]
     private PathFinder(IDataWriter dataWriter, IDataReader dataReader)
     {
         _dataWriter = dataWriter;
@@ -46,9 +46,9 @@ public partial class PathFinder : IPathFinder, IAStartPathFinder
 // - generated code begin -
 
 // 标记为 SingletonService 或 TransientService 才生成
-partial class PathFinder // MovementManager.ServiceFactory.g.cs
+partial class PathFinder // MovementManager.DI.Factory.g.cs
 {
-    public static void CreateService(IServiceScope scope, Action<object> onCreated)
+    public static void CreateService(IScope scope, Action<object> onCreated)
     {
         // 仅当注入构造函数参数大于0时按照如下模板生成
 
@@ -93,29 +93,29 @@ partial class PathFinder // MovementManager.ServiceFactory.g.cs
 // --- 非节点类型 host 和 user ---
 //
 
-[ServiceHost]
-[ServiceUser]
-public partial class MovementManager : IPathProvider, IPathGenerator, IServiceAware
+[Host]
+[User]
+public partial class MovementManager : IPathProvider, IPathGenerator, IServicesReady
 {
-    [SingletonService(typeof(IPathProvider), typeof(IPathGenerator))]
+    [Singleton(typeof(IPathProvider), typeof(IPathGenerator))]
     private MovementManager Self => this;
 
-    [Dependency]
+    [Inject]
     private IPathFinder _pathFinder;
 
-    [Dependency]
+    [Inject]
     private IAStartPathFinder _aStartPathFinder;
 
-    void IServiceAware.OnServicesReady() { }
+    void IServicesReady.OnServicesReady() { }
 }
 
 // - generated code begin -
 
 // 标记为 ServiceHost 或 ServiceUser 才生成
-partial class MovementManager // MovementManager.ServiceUtils.g.cs
+partial class MovementManager // MovementManager.DI.g.cs
 {
     // 非节点类型 ServiceHost 或 ServiceUser 才生成
-    public void AttachToScope(IServiceScope scope)
+    public void AttachToScope(IScope scope)
     {
         // 标记为 ServiceHost 才生成
         AttachHostServices(scope);
@@ -124,7 +124,7 @@ partial class MovementManager // MovementManager.ServiceUtils.g.cs
     }
 
     // 非节点类型 ServiceHost 或 ServiceUser 才生成
-    public void UnattachToScope(IServiceScope scope)
+    public void UnattachToScope(IScope scope)
     {
         // 标记为 ServiceHost 才生成
         UnattachHostServices(scope);
@@ -132,13 +132,13 @@ partial class MovementManager // MovementManager.ServiceUtils.g.cs
 }
 
 // 标记为 ServiceHost 才生成
-partial class MovementManager // MovementManager.ServiceHost.g.cs
+partial class MovementManager // MovementManager.DI.Host.g.cs
 {
     /// <summary>
     /// 注册所有标记为 [SingletonService] 的字段或属性
     /// </summary>
     /// <param name="scope"></param>
-    private void AttachHostServices(IServiceScope scope)
+    private void AttachHostServices(IScope scope)
     {
         // 注册为 SingletonService 特性指定的类型
         scope.RegisterService<IPathProvider>(Self);
@@ -149,7 +149,7 @@ partial class MovementManager // MovementManager.ServiceHost.g.cs
     /// 取消注册所有标记为 [SingletonService] 的字段或属性
     /// </summary>
     /// <param name="scope"></param>
-    private static void UnattachHostServices(IServiceScope scope)
+    private static void UnattachHostServices(IScope scope)
     {
         // 取消注册 SingletonService 特性指定的类型
         scope.UnregisterService<IPathProvider>();
@@ -158,9 +158,10 @@ partial class MovementManager // MovementManager.ServiceHost.g.cs
 }
 
 // 标记为 ServiceUser 才生成
-partial class MovementManager // MovementManager.ServiceUser.g.cs
+partial class MovementManager // MovementManager.DI.User.g.cs
 {
     // 实现了IInjectionAware才生成
+    private readonly object _dependencyLock = new();
     private readonly HashSet<Type> _unresolvedDependencies = new()
     {
         // 列举字段或属性中所有标记为 [Dependency] 的类型
@@ -171,10 +172,13 @@ partial class MovementManager // MovementManager.ServiceUser.g.cs
     // 实现了IInjectionAware才生成
     private void OnDependencyResolved(Type type)
     {
-        _unresolvedDependencies.Remove(type);
-        if (_unresolvedDependencies.Count == 0)
+        lock (_dependencyLock)
         {
-            ((IServiceAware)this).OnServicesReady();
+            _unresolvedDependencies.Remove(type);
+            if (_unresolvedDependencies.Count == 0)
+            {
+                ((IServicesReady)this).OnServicesReady();
+            }
         }
     }
 
@@ -182,7 +186,7 @@ partial class MovementManager // MovementManager.ServiceUser.g.cs
     /// 解析所有标记为 [Dependency] 的字段或属性
     /// </summary>
     /// <param name="scope"></param>
-    private void ResolveUserDependencies(IServiceScope scope)
+    private void ResolveUserDependencies(IScope scope)
     {
         scope.ResolveDependency<IPathFinder>(dependency =>
         {
@@ -205,17 +209,17 @@ partial class MovementManager // MovementManager.ServiceUser.g.cs
 // --- 节点类型 host 和 user ---
 //
 
-[ServiceHost]
-[ServiceUser]
-public partial class CellManager : Godot.Node, ICellGetter, ICellEditor, IServiceAware
+[Host]
+[User]
+public partial class CellManager : Godot.Node, ICellGetter, ICellEditor, IServicesReady
 {
-    [SingletonService(typeof(ICellGetter), typeof(ICellEditor))]
+    [Singleton(typeof(ICellGetter), typeof(ICellEditor))]
     private CellManager Self => this;
 
-    [Dependency]
+    [Inject]
     private IDataReader _dataReader;
 
-    [Dependency]
+    [Inject]
     private IDataWriter _dataWriter;
 
     private readonly MovementManager _movementManager = new();
@@ -226,13 +230,13 @@ public partial class CellManager : Godot.Node, ICellGetter, ICellEditor, IServic
 // - generated code begin -
 
 // 标记为 ServiceHost 或 ServiceUser 才生成
-partial class CellManager // CellManager.ServiceUtils.g.cs
+partial class CellManager // CellManager.DI.g.cs
 {
     // 节点类型的 ServiceHost 或 ServiceUser 才生成
-    private IServiceScope? _serviceScope;
+    private IScope? _serviceScope;
 
     // 节点类型的 ServiceHost 或 ServiceUser 才生成
-    private IServiceScope? GetServiceScope()
+    private IScope? GetServiceScope()
     {
         if (_serviceScope is not null)
         {
@@ -241,7 +245,7 @@ partial class CellManager // CellManager.ServiceUtils.g.cs
         var parent = GetParent();
         while (parent is not null)
         {
-            if (parent is IServiceScope scope)
+            if (parent is IScope scope)
             {
                 _serviceScope = scope;
                 return _serviceScope;
@@ -303,15 +307,14 @@ partial class CellManager // CellManager.ServiceUtils.g.cs
     }
 }
 
-// CellManager.IServiceHost.g.cs
 // 标记为 ServiceHost 才生成
-partial class CellManager
+partial class CellManager // CellManager.DI.Host.g.cs
 {
     /// <summary>
     /// 注册所有标记为 [SingletonService] 的字段或属性
     /// </summary>
     /// <param name="scope"></param>
-    private void AttachHostServices(IServiceScope scope)
+    private void AttachHostServices(IScope scope)
     {
         // 注册为 SingletonService 特性指定的类型
         scope.RegisterService<ICellGetter>(Self);
@@ -322,7 +325,7 @@ partial class CellManager
     /// 取消注册所有标记为 [SingletonService] 的字段或属性
     /// </summary>
     /// <param name="scope"></param>
-    private void UnattachHostServices(IServiceScope scope)
+    private void UnattachHostServices(IScope scope)
     {
         // 取消注册 SingletonService 特性指定的类型
         scope.UnregisterService<ICellGetter>();
@@ -330,11 +333,11 @@ partial class CellManager
     }
 }
 
-// CellManager.ServiceUser.g.cs
 // 标记为 ServiceUser 才生成
-partial class CellManager
+partial class CellManager // CellManager.DI.User.g.cs
 {
     // 实现了IInjectionAware才生成
+    private readonly object _dependencyLock = new();
     private readonly HashSet<Type> _unresolvedDependencies = new()
     {
         // 列举字段或属性中所有标记为 [Dependency] 的类型
@@ -345,12 +348,12 @@ partial class CellManager
     // 实现了IInjectionAware才生成
     private void OnDependencyResolved(Type type)
     {
-        lock (_unresolvedDependencies)
+        lock (_dependencyLock)
         {
             _unresolvedDependencies.Remove(type);
             if (_unresolvedDependencies.Count == 0)
             {
-                ((IServiceAware)this).OnServicesReady();
+                ((IServicesReady)this).OnServicesReady();
             }
         }
     }
@@ -359,7 +362,7 @@ partial class CellManager
     /// 解析所有标记为 [Dependency] 的字段或属性
     /// </summary>
     /// <param name="scope"></param>
-    private void ResolveUserDependencies(IServiceScope scope)
+    private void ResolveUserDependencies(IScope scope)
     {
         scope.ResolveDependency<IDataReader>(dependency =>
         {
@@ -378,20 +381,20 @@ partial class CellManager
 
 // - generated code end -
 
-[ServiceModules(
+[Modules(
     Instantiate = [typeof(DatabaseWriter), typeof(PathFinder)],
     Expect = [typeof(CellManager), typeof(MovementManager)]
 )]
-public partial class MyServiceScope : Godot.Node, IServiceScope { }
+public partial class MyScope : Godot.Node, IScope { }
 
 // - generated code begin -
 
 // 实现了 IServiceScope 才生成
-partial class MyServiceScope // ChunkManager.ServiceUtils.g.cs
+partial class MyScope // ChunkManager.DI.g.cs
 {
-    private IServiceScope? _parentScope;
+    private IScope? _parentScope;
 
-    private IServiceScope? GetParentScope()
+    private IScope? GetParentScope()
     {
         if (_parentScope is not null)
         {
@@ -400,7 +403,7 @@ partial class MyServiceScope // ChunkManager.ServiceUtils.g.cs
         var parent = GetParent();
         while (parent is not null)
         {
-            if (parent is IServiceScope scope)
+            if (parent is IScope scope)
             {
                 _parentScope = scope;
                 return _parentScope;
@@ -415,15 +418,13 @@ partial class MyServiceScope // ChunkManager.ServiceUtils.g.cs
     {
         var type = typeof(T);
         _singletons.Add(type, instance);
-        if (!_waiters.TryGetValue(type, out var waiterList))
+        if (_waiters.Remove(type, out var waiterList))
         {
-            return;
+            foreach (var callback in waiterList)
+            {
+                callback.Invoke(instance);
+            }
         }
-        foreach (var callback in waiterList)
-        {
-            callback.Invoke(instance);
-        }
-        _waiters.Remove(type);
     }
 
     /// <summary>
@@ -505,9 +506,8 @@ partial class MyServiceScope // ChunkManager.ServiceUtils.g.cs
     }
 }
 
-// MyContext.ServiceScope.g.cs
 // 实现了IServiceScope才生成
-partial class MyServiceScope
+partial class MyScope // MyContext.DI.Scope.g.cs
 {
     private static readonly HashSet<Type> SingletonTypes = new()
     {
@@ -516,7 +516,7 @@ partial class MyServiceScope
 
         // DatabaseWriter 提供的单例服务
         typeof(IDataWriter),
-        typeof(IDataWriter),
+        typeof(IDataReader),
         // CellManager 提供的单例服务
         typeof(ICellGetter),
         typeof(ICellEditor),
@@ -525,22 +525,20 @@ partial class MyServiceScope
         typeof(IPathGenerator),
     };
 
-    private static readonly Dictionary<
-        Type,
-        Action<IServiceScope, Action<object>>
-    > TransientFactories = new()
-    {
-        // 在此创建 TransientService 瞬态服务
-        // 创建为 SingletonService 特性指定的类型
-        // 如果没有指定服务类型则注册为原类型
-        [typeof(PathFinder)] = PathFinder.CreateService,
-    };
+    private static readonly Dictionary<Type, Action<IScope, Action<object>>> TransientFactories =
+        new()
+        {
+            // 在此创建 TransientService 瞬态服务
+            // 创建为 SingletonService 特性指定的类型
+            // 如果没有指定服务类型则注册为原类型
+            [typeof(PathFinder)] = PathFinder.CreateService,
+        };
 
     private readonly Dictionary<Type, object> _singletons = new();
     private readonly HashSet<object> _singletonInstances = new();
     private readonly Dictionary<Type, List<Action<object>>> _waiters = new();
 
-    void IServiceScope.ResolveDependency<T>(Action<T> onResolved)
+    void IScope.ResolveDependency<T>(Action<T> onResolved)
     {
         var type = typeof(T);
         if (TransientFactories.TryGetValue(type, out var factory))
@@ -566,13 +564,13 @@ partial class MyServiceScope
         }
         if (!_waiters.TryGetValue(type, out var waiters))
         {
-            waiters = [];
+            waiters = new List<Action<object>>();
             _waiters[type] = waiters;
         }
         waiters.Add(obj => onResolved.Invoke((T)obj));
     }
 
-    void IServiceScope.RegisterService<T>(T instance)
+    void IScope.RegisterService<T>(T instance)
     {
         var type = typeof(T);
         if (!SingletonTypes.Contains(type))
@@ -599,7 +597,7 @@ partial class MyServiceScope
         }
     }
 
-    void IServiceScope.UnregisterService<T>()
+    void IScope.UnregisterService<T>()
     {
         var type = typeof(T);
         if (!SingletonTypes.Contains(type))
@@ -621,5 +619,5 @@ partial class MyServiceScope
 
 // 生成器中自动扫描，将同一命名空间及其子命名空间下的所有 SingletonService、TransientService 和 ServiceHost 与 ServiceScope 归纳在同一类别。
 // 生成器根据该类别自动补全 ServiceScope 的 InstantiateScopeSingletons()、SingletonTypes、TransientFactories
-[AutoScanServiceModules]
-public partial class AutoScanServiceScope : Godot.Node, IServiceScope { }
+[AutoModules]
+public partial class AutoScanScope : Godot.Node, IScope { }
