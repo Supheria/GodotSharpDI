@@ -9,7 +9,7 @@ public interface IChunkGetter;
 
 public interface IChunkGenerator;
 
-public partial class ChunkManager : Node, IChunkGetter, IServiceHost, IChunkGenerator
+public partial class ChunkManager : Node, IChunkGetter, IServiceHost, IChunkGenerator, IServiceUser
 {
     [SingletonService(typeof(IChunkGetter), typeof(IChunkGenerator))]
     private ChunkManager Self => this;
@@ -49,10 +49,10 @@ public interface ISearcher;
 [TransientService(typeof(IFinder), typeof(ISearcher))]
 public class PathFinder : IFinder, ISearcher;
 
-// [ServiceModule(
-//     Instantiate = [typeof(DataBase), typeof(PathFinder)],
-//     Expect = [typeof(ChunkManager), typeof(CellManager)]
-// )]
+[ServiceModule(
+    Instantiate = [typeof(DataBase), typeof(PathFinder)],
+    Expect = [typeof(ChunkManager), typeof(CellManager)]
+)]
 public partial class Scope : Node, IServiceScope
 {
     [Dependency]

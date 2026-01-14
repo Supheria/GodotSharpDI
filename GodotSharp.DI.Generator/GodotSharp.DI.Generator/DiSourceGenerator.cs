@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using GodotSharp.DI.Generator.Internal;
+using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -14,119 +15,95 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 1. 语法筛选：只关心 class 声明
-        var classDeclarations = context
-            .SyntaxProvider.CreateSyntaxProvider(
-                predicate: static (node, _) => node is ClassDeclarationSyntax,
-                transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node
-            )
-            .Where(static cls => cls is not null);
-        // 2. 收集 Compilation + 所有 class
-        var compilationAndClasses = context.CompilationProvider.Combine(
-            classDeclarations.Collect()
+        // 1. CachedSymbol（仅用于最终阶段）
+        var symbolsProvider = context.CompilationProvider.Select(
+            static (c, _) => new CachedSymbol(c)
         );
-        // 3. 注册生成
-        context.RegisterSourceOutput(compilationAndClasses, Execute);
-    }
 
-    private static void Execute(
-        SourceProductionContext context,
-        (Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes) input
-    )
-    {
-        var (compilation, classDecls) = input;
-        if (classDecls.IsDefaultOrEmpty)
-            return;
-
-        var symbol = new CachedSymbol(compilation);
-
-        // 收集所有类型符号
-        var allTypes = classDecls
-            .Select(cls => compilation.GetSemanticModel(cls.SyntaxTree).GetDeclaredSymbol(cls))
-            .OfType<INamedTypeSymbol>()
-            .ToArray();
-
-        var registry = new ServiceRegistry();
-
-        foreach (var type in allTypes)
-        {
-            var isHost = SymbolHelper.ImplementsInterface(type, symbol.ServiceHostInterface);
-            var isUser = SymbolHelper.ImplementsInterface(type, symbol.ServiceUserInterface);
-            var isScope = SymbolHelper.ImplementsInterface(type, symbol.ServiceScopeInterface);
-
-            var serviceTypeInfo = ServiceTypeCollector.Analyze(type, symbol);
-            if (serviceTypeInfo is not null)
-            {
-                if (!isHost && !isUser && !isScope)
+        // 2. transform 阶段做语义筛选（不依赖 CachedSymbol）
+        var filteredTypes = context
+            .SyntaxProvider.CreateSyntaxProvider(
+                predicate: static (n, _) => n is ClassDeclarationSyntax,
+                transform: static (ctx, _) =>
                 {
-                    registry.Services[type] = serviceTypeInfo;
+                    var symbol = ctx.SemanticModel.GetDeclaredSymbol(
+                        (ClassDeclarationSyntax)ctx.Node
+                    );
+                    if (symbol is INamedTypeSymbol type)
+                    {
+                        return SymbolHelper.IsDiRelevant(type) ? type : null;
+                    }
+                    return null;
                 }
-                continue;
-            }
+            )
+            .Where(static t => t is not null)!
+            .Collect();
 
-            if (isHost || isUser)
-            {
-                if (!isScope)
+        // 3. 构建 DI 图（此时才使用 CachedSymbol）
+        var graphProvider = filteredTypes
+            .Combine(symbolsProvider)
+            .Select(
+                static (pair, _) =>
                 {
-                    var isNode = false;
-                    if (isHost)
-                    {
-                        var info = HostServiceCollector.Analyze(type, symbol);
-                        registry.Hosts[type] = info;
-                        isNode = info.IsNode;
-                    }
-                    if (isUser)
-                    {
-                        var info = UserDependencyCollector.Analyze(type, symbol);
-                        registry.Users[type] = info;
-                        isNode = info.IsNode;
-                    }
-                    if (isNode)
-                    {
-                        var utils = CodeWriter.GenerateUtilsCode(type, isHost, isUser);
-                        // context.AddSource($"{type.Name}.ServiceUtils.g.cs", utils);
-                    }
+                    var (types, cached) = pair;
+                    return ServiceGraphBuilder.Build(types!, cached);
                 }
-                continue;
-            }
+            );
 
-            if (isScope)
+        // 4. 生成代码
+        context.RegisterSourceOutput(
+            graphProvider,
+            static (spc, graph) =>
             {
-                registry.Scopes[type] = ScopeServiceCollector.Analyze(type, symbol);
-            }
-        }
+                var allHostUser = new Dictionary<INamedTypeSymbol, (bool IsHost, bool IsUser)>(
+                    SymbolEqualityComparer.Default
+                );
 
-        foreach (var host in registry.Hosts.Values)
-        {
-            if (!host.IsNode)
-            {
-                continue;
-            }
-            var source = CodeWriter.GenerateHostCode(host);
-            context.AddSource($"{host.HostType.Name}.ServiceHost.g.cs", source);
-        }
+                foreach (var host in graph.Hosts)
+                {
+                    var type = host.HostType;
+                    spc.AddSource($"{type.Name}.ServiceHost.g.cs", CodeWriter.GenerateHost(host));
+                    if (!allHostUser.ContainsKey(type))
+                    {
+                        allHostUser[type] = (false, false);
+                    }
+                    allHostUser[type] = allHostUser[type] with { IsHost = true };
+                }
 
-        foreach (var user in registry.Users.Values)
-        {
-            if (!user.IsNode)
-            {
-                continue;
-            }
-            var source = CodeWriter.GenerateUserCode(user);
-            context.AddSource($"{user.UserType.Name}.ServiceUser.g.cs", source);
-        }
+                foreach (var user in graph.Users)
+                {
+                    var type = user.UserType;
+                    spc.AddSource($"{type.Name}.ServiceUser.g.cs", CodeWriter.GenerateUser(user));
+                    if (!allHostUser.ContainsKey(type))
+                    {
+                        allHostUser[type] = (false, false);
+                    }
+                    allHostUser[type] = allHostUser[type] with { IsUser = true };
+                }
 
-        foreach (var scope in registry.Scopes.Values)
-        {
-            if (!scope.IsNode)
-            {
-                continue;
-            }
-            var source = CodeWriter.GenerateScopeCode(scope, registry);
-            context.AddSource($"{scope.ScopeType.Name}.ServiceScope.g.cs", source);
+                foreach (var pair in allHostUser)
+                {
+                    var type = pair.Key;
+                    var value = pair.Value;
+                    spc.AddSource(
+                        $"{type.Name}.ServiceUtils.g.cs",
+                        CodeWriter.GenerateHostUserUtils(type, value.IsHost, value.IsUser)
+                    );
+                }
 
-            var utils = CodeWriter.GenerateUtilsCode(scope, registry);
-            context.AddSource($"{scope.ScopeType.Name}.ServiceUtils.g.cs", utils);
-        }
+                foreach (var scope in graph.Scopes)
+                {
+                    spc.AddSource(
+                        $"{scope.ScopeType.Name}.ServiceScope.g.cs",
+                        CodeWriter.GenerateScope(scope, graph)
+                    );
+
+                    spc.AddSource(
+                        $"{scope.ScopeType.Name}.ServiceUtils.g.cs",
+                        CodeWriter.GenerateScopeUtils(scope, graph)
+                    );
+                }
+            }
+        );
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
@@ -104,5 +105,70 @@ internal static class SymbolHelper
             }
         }
         return result.ToArray();
+    }
+
+    private static bool IsDiNamespace(INamedTypeSymbol iface)
+    {
+        var ns = iface.ContainingNamespace?.ToString();
+        return ns == NamespaceNames.Abstractions;
+    }
+
+    private static bool IsDiInterface(INamedTypeSymbol iface)
+    {
+        if (!IsDiNamespace(iface))
+        {
+            return false;
+        }
+        return iface.MetadataName switch
+        {
+            TypeNames.ServiceHostInterface => true,
+            TypeNames.ServiceUserInterface => true,
+            TypeNames.ServiceScopeInterface => true,
+            TypeNames.ServiceAwareInterface => true,
+            _ => false,
+        };
+    }
+
+    private static bool IsDiAttribute(INamedTypeSymbol? attr)
+    {
+        if (attr is null)
+        {
+            return false;
+        }
+        if (!IsDiNamespace(attr))
+        {
+            return false;
+        }
+        return attr.MetadataName switch
+        {
+            TypeNames.SingletonServiceAttribute => true,
+            TypeNames.TransientServiceAttribute => true,
+            TypeNames.ServiceModuleAttribute => true,
+            TypeNames.DependencyAttribute => true,
+            _ => false,
+        };
+    }
+
+    public static bool IsDiRelevant(INamedTypeSymbol type)
+    {
+        if (type.TypeKind != TypeKind.Class)
+        {
+            return false;
+        }
+        foreach (var attr in type.GetAttributes())
+        {
+            if (IsDiAttribute(attr.AttributeClass))
+            {
+                return true;
+            }
+        }
+        foreach (var iface in type.AllInterfaces)
+        {
+            if (IsDiInterface(iface))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

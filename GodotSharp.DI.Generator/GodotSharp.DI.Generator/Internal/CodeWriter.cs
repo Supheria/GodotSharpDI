@@ -11,7 +11,7 @@ internal static class CodeWriter
     // ============================================================
     // 生成 Host 代码
     // ============================================================
-    public static string GenerateHostCode(HostServiceInfo host)
+    public static string GenerateHost(HostServiceInfo host)
     {
         var f = new CodeFormatter();
 
@@ -57,7 +57,7 @@ internal static class CodeWriter
     // ============================================================
     // 生成 User 代码
     // ============================================================
-    public static string GenerateUserCode(UserDependencyInfo user)
+    public static string GenerateUser(UserDependencyInfo user)
     {
         var f = new CodeFormatter();
 
@@ -147,7 +147,33 @@ internal static class CodeWriter
     // 生成 Scope 代码
     // ============================================================
 
-    public static string GenerateScopeCode(ScopeServiceInfo scope, ServiceRegistry registry)
+    private static ScopeServiceKind GetScopeServiceKind(
+        INamedTypeSymbol implType,
+        List<ServiceDescriptor> descriptors,
+        ScopeServiceInfo scope
+    )
+    {
+        if (scope.Instantiate.Contains(implType))
+        {
+            var lifetime = descriptors[0].Lifetime;
+            return lifetime switch
+            {
+                ServiceLifetime.Singleton => ScopeServiceKind.ScopeSingleton,
+                ServiceLifetime.Transient => ScopeServiceKind.ScopeTransient,
+                _ => ScopeServiceKind.None,
+            };
+        }
+        if (descriptors[0].ProvidedByHost)
+        {
+            if (scope.Expect.Contains(implType))
+            {
+                return ScopeServiceKind.HostSingleton;
+            }
+        }
+        return ScopeServiceKind.None;
+    }
+
+    public static string GenerateScope(ScopeServiceInfo scope, ServiceGraph graph)
     {
         var f = new CodeFormatter();
         // namespace
@@ -168,30 +194,21 @@ internal static class CodeWriter
             );
             f.BeginBlock();
             {
-                foreach (var type in scope.Instantiate)
+                foreach (var group in graph.ServicesByImplementation)
                 {
-                    var info = registry.Services[type];
-                    if (info.IsSingleton)
+                    var implType = group.Key;
+                    var descriptors = group.Value;
+
+                    var kind = GetScopeServiceKind(implType, descriptors, scope);
+                    if (kind is ScopeServiceKind.ScopeSingleton or ScopeServiceKind.HostSingleton)
                     {
-                        f.AppendLine($"// {type.Name}");
-                        foreach (var exposed in info.ExposedServiceTypes)
+                        f.AppendLine($"// {implType.Name}");
+                        foreach (var descriptor in descriptors)
                         {
-                            var exposedName = TypeFormatter.GetFullQualifiedName(exposed);
-                            f.AppendLine($"typeof({exposedName}),");
-                        }
-                    }
-                }
-                foreach (var type in scope.Expect)
-                {
-                    var info = registry.Hosts[type];
-                    if (info.IsNode)
-                    {
-                        f.AppendLine($"// {type.Name}");
-                        foreach (var (_, serviceType) in info.SingletonServices)
-                        {
-                            f.AppendLine(
-                                $"typeof({TypeFormatter.GetFullQualifiedName(serviceType)}),"
+                            var serviceName = TypeFormatter.GetFullQualifiedName(
+                                descriptor.ServiceType
                             );
+                            f.AppendLine($"typeof({serviceName}),");
                         }
                     }
                 }
@@ -206,17 +223,25 @@ internal static class CodeWriter
             );
             f.BeginBlock();
             {
-                foreach (var type in scope.Instantiate)
+                foreach (var group in graph.ServicesByImplementation)
                 {
-                    var info = registry.Services[type];
-                    if (info.IsTransient)
+                    var implType = group.Key;
+                    var descriptors = group.Value;
+
+                    var kind = GetScopeServiceKind(implType, descriptors, scope);
+                    if (kind == ScopeServiceKind.ScopeTransient)
                     {
-                        var impl = TypeFormatter.GetFullQualifiedName(type);
-                        f.AppendLine($"// {type.Name}");
-                        foreach (var exposed in info.ExposedServiceTypes)
+                        var implName = TypeFormatter.GetFullQualifiedName(implType);
+
+                        f.AppendLine($"// {implType.Name}");
+
+                        // TODO:为该实现类型的所有暴露服务类型生成工厂
+                        foreach (var descriptor in descriptors)
                         {
-                            var exposedName = TypeFormatter.GetFullQualifiedName(exposed);
-                            f.AppendLine($"[typeof({exposedName})] = () => new {impl}(),");
+                            var serviceName = TypeFormatter.GetFullQualifiedName(
+                                descriptor.ServiceType
+                            );
+                            f.AppendLine($"[typeof({serviceName})] = () => new {implName}(),");
                         }
                     }
                 }
@@ -342,7 +367,7 @@ internal static class CodeWriter
     // 生成 utils 代码
     // ============================================================
 
-    public static string GenerateUtilsCode(INamedTypeSymbol type, bool isHost, bool isUser)
+    public static string GenerateHostUserUtils(INamedTypeSymbol type, bool isHost, bool isUser)
     {
         var f = new CodeFormatter();
 
@@ -434,7 +459,7 @@ internal static class CodeWriter
         return f.ToString();
     }
 
-    public static string GenerateUtilsCode(ScopeServiceInfo scope, ServiceRegistry registry)
+    public static string GenerateScopeUtils(ScopeServiceInfo scope, ServiceGraph graph)
     {
         var f = new CodeFormatter();
         // namespace
@@ -514,27 +539,33 @@ internal static class CodeWriter
             f.AppendLine("private void RegisterServiceInstances()");
             f.BeginBlock();
             {
-                for (var i = 0; i < scope.Instantiate.Length; i++)
+                var index = 0;
+                foreach (var group in graph.ServicesByImplementation)
                 {
-                    var type = scope.Instantiate[i];
-                    var info = registry.Services[type];
-                    if (info.IsSingleton)
+                    var implType = group.Key;
+                    var descriptors = group.Value;
+
+                    var kind = GetScopeServiceKind(implType, descriptors, scope);
+                    if (kind == ScopeServiceKind.ScopeSingleton)
                     {
-                        var typeName = TypeFormatter.GetFullQualifiedName(type);
-                        var varName =
-                            $"{type.Name.Substring(0, 1).ToLower()}{type.Name.Substring(1)}_{i}";
-                        f.AppendLine($"// {type.Name}");
-                        f.AppendLine($"var {varName} = new {typeName}();");
-                        foreach (var exposed in info.ExposedServiceTypes)
+                        var implName = TypeFormatter.GetFullQualifiedName(implType);
+                        var varName = $"{implType.Name.ToLowerInvariant()}_{index++}";
+
+                        f.AppendLine($"// {implType.Name}");
+                        f.AppendLine($"var {varName} = new {implName}();");
+                        foreach (var descriptor in descriptors)
                         {
-                            var exposedName = TypeFormatter.GetFullQualifiedName(exposed);
-                            f.AppendLine($"RegisterServiceInstance<{exposedName}>({varName});");
+                            var serviceName = TypeFormatter.GetFullQualifiedName(
+                                descriptor.ServiceType
+                            );
+                            f.AppendLine($"RegisterServiceInstance<{serviceName}>({varName});");
                         }
                     }
                 }
             }
             f.EndBlock();
             f.AppendLine();
+
             //
             // === CheckWaitList ===
             //

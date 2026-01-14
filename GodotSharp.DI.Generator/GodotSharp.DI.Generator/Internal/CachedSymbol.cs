@@ -6,6 +6,8 @@ namespace GodotSharp.DI.Generator.Internal;
 
 internal sealed class CachedSymbol
 {
+    public Compilation Compilation { get; }
+
     // === Attribute Symbols ===
     public INamedTypeSymbol SingletonServiceAttribute { get; }
     public INamedTypeSymbol TransientServiceAttribute { get; }
@@ -24,6 +26,8 @@ internal sealed class CachedSymbol
     // === Constructor ===
     public CachedSymbol(Compilation compilation)
     {
+        Compilation = compilation;
+
         SingletonServiceAttribute = compilation.GetTypeByMetadataName(
             TypeNamesFull.SingletonServiceAttribute
         )!;

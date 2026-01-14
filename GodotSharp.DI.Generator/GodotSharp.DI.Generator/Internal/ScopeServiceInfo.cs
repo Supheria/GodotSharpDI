@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections.Generic;
+using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
@@ -6,19 +7,19 @@ public sealed class ScopeServiceInfo
 {
     public bool IsNode { get; }
     public INamedTypeSymbol ScopeType { get; }
-    public INamedTypeSymbol[] Instantiate { get; }
-    public INamedTypeSymbol[] Expect { get; }
+    public HashSet<INamedTypeSymbol> Instantiate { get; }
+    public HashSet<INamedTypeSymbol> Expect { get; }
 
     public ScopeServiceInfo(
         bool isNode,
         INamedTypeSymbol scopeType,
-        INamedTypeSymbol[] instantiate,
-        INamedTypeSymbol[] expect
+        IEnumerable<INamedTypeSymbol> instantiate,
+        IEnumerable<INamedTypeSymbol> expect
     )
     {
         IsNode = isNode;
         ScopeType = scopeType;
-        Instantiate = instantiate;
-        Expect = expect;
+        Instantiate = new HashSet<INamedTypeSymbol>(instantiate, SymbolEqualityComparer.Default);
+        Expect = new HashSet<INamedTypeSymbol>(expect, SymbolEqualityComparer.Default);
     }
 }
