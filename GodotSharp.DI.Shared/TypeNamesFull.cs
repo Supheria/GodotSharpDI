@@ -2,18 +2,15 @@
 
 public static class TypeNamesFull
 {
-    public const string SingletonServiceAttribute =
-        "GodotSharp.DI.Abstractions.SingletonServiceAttribute";
-    public const string TransientServiceAttribute =
-        "GodotSharp.DI.Abstractions.TransientServiceAttribute";
-    public const string DependencyAttribute = "GodotSharp.DI.Abstractions.DependencyAttribute";
-    public const string ServiceModuleAttribute =
-        "GodotSharp.DI.Abstractions.ServiceModuleAttribute";
+    public const string InjectAttribute = "GodotSharp.DI.Abstractions.InjectAttribute";
+    public const string ModulesAttribute = "GodotSharp.DI.Abstractions.ModulesAttribute";
+    public const string SingletonAttribute = "GodotSharp.DI.Abstractions.SingletonAttribute";
+    public const string TransientAttribute = "GodotSharp.DI.Abstractions.TransientAttribute";
+    public const string HostAttribute = "GodotSharp.DI.Abstractions.HostAttribute";
+    public const string UserAttribute = "GodotSharp.DI.Abstractions.UserAttribute";
 
-    public const string ServiceHostInterface = "GodotSharp.DI.Abstractions.IServiceHost";
-    public const string ServiceUserInterface = "GodotSharp.DI.Abstractions.IServiceUser";
-    public const string ServiceScopeInterface = "GodotSharp.DI.Abstractions.IServiceScope";
-    public const string ServiceAwareInterface = "GodotSharp.DI.Abstractions.IServiceAware";
+    public const string ScopeInterface = "GodotSharp.DI.Abstractions.IScope";
+    public const string ServicesReadyInterface = "GodotSharp.DI.Abstractions.IServicesReady";
 
     public const string GodotNode = "Godot.Node";
 }

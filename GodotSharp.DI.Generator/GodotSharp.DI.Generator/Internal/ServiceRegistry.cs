@@ -8,12 +8,12 @@ internal sealed class ServiceRegistry
     public Dictionary<INamedTypeSymbol, ServiceTypeInfo> Services { get; } =
         new(SymbolEqualityComparer.Default);
 
-    public Dictionary<INamedTypeSymbol, HostServiceInfo> Hosts { get; } =
+    public Dictionary<INamedTypeSymbol, HostDescriptor> Hosts { get; } =
         new(SymbolEqualityComparer.Default);
 
-    public Dictionary<INamedTypeSymbol, UserDependencyInfo> Users { get; } =
+    public Dictionary<INamedTypeSymbol, UserDescriptor> Users { get; } =
         new(SymbolEqualityComparer.Default);
 
-    public Dictionary<INamedTypeSymbol, ScopeServiceInfo> Scopes { get; } =
+    public Dictionary<INamedTypeSymbol, ScopeDescriptor> Scopes { get; } =
         new(SymbolEqualityComparer.Default);
 }

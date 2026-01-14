@@ -11,7 +11,7 @@ internal static class CodeWriter
     // ============================================================
     // 生成 Host 代码
     // ============================================================
-    public static string GenerateHost(HostServiceInfo host)
+    public static string GenerateHost(HostDescriptor host)
     {
         var f = new CodeFormatter();
 
@@ -24,7 +24,7 @@ internal static class CodeWriter
         f.BeginBlock();
         {
             f.AppendLine(
-                $"private void RegisterServices({TypeNamesGlobal.ServiceScopeInterface} scope)"
+                $"private void RegisterServices({TypeNamesGlobal.ScopeInterface} scope)"
             );
             f.BeginBlock();
             {
@@ -57,7 +57,7 @@ internal static class CodeWriter
     // ============================================================
     // 生成 User 代码
     // ============================================================
-    public static string GenerateUser(UserDependencyInfo user)
+    public static string GenerateUser(UserDescriptor user)
     {
         var f = new CodeFormatter();
 
@@ -93,7 +93,7 @@ internal static class CodeWriter
                     f.BeginBlock();
                     {
                         f.AppendLine(
-                            $"(({TypeNamesGlobal.ServiceAwareInterface})this).OnServicesReady();"
+                            $"(({TypeNamesGlobal.ServicesReadyInterface})this).OnServicesReady();"
                         );
                     }
                     f.EndBlock();
@@ -103,7 +103,7 @@ internal static class CodeWriter
             }
 
             f.AppendLine(
-                $"private void ResolveServices({TypeNamesGlobal.ServiceScopeInterface} scope)"
+                $"private void ResolveServices({TypeNamesGlobal.ScopeInterface} scope)"
             );
             f.BeginBlock();
             {
@@ -150,7 +150,7 @@ internal static class CodeWriter
     private static ScopeServiceKind GetScopeServiceKind(
         INamedTypeSymbol implType,
         List<ServiceDescriptor> descriptors,
-        ScopeServiceInfo scope
+        ScopeDescriptor scope
     )
     {
         if (scope.Instantiate.Contains(implType))
@@ -173,7 +173,7 @@ internal static class CodeWriter
         return ScopeServiceKind.None;
     }
 
-    public static string GenerateScope(ScopeServiceInfo scope, ServiceGraph graph)
+    public static string GenerateScope(ScopeDescriptor scope, ServiceGraph graph)
     {
         var f = new CodeFormatter();
         // namespace
@@ -262,7 +262,7 @@ internal static class CodeWriter
             // === ResolveService ===
             //
             f.AppendLine(
-                $"void {TypeNamesGlobal.ServiceScopeInterface}.ResolveService<T>(global::System.Action<T> onResolved)"
+                $"void {TypeNamesGlobal.ScopeInterface}.ResolveService<T>(global::System.Action<T> onResolved)"
             );
             f.BeginBlock();
             {
@@ -313,7 +313,7 @@ internal static class CodeWriter
             // === RegisterService ===
             //
             f.AppendLine(
-                $"void {TypeNamesGlobal.ServiceScopeInterface}.RegisterService<T>(T instance)"
+                $"void {TypeNamesGlobal.ScopeInterface}.RegisterService<T>(T instance)"
             );
             f.BeginBlock();
             {
@@ -364,7 +364,7 @@ internal static class CodeWriter
     }
 
     // ============================================================
-    // 生成 utils 代码
+    // 生成 DI 部分代码
     // ============================================================
 
     public static string GenerateHostUserUtils(INamedTypeSymbol type, bool isHost, bool isUser)
@@ -382,10 +382,10 @@ internal static class CodeWriter
             f.AppendLine("#nullable enable");
             f.AppendLine();
 
-            f.AppendLine($"private {TypeNamesGlobal.ServiceScopeInterface}? _serviceScope;");
+            f.AppendLine($"private {TypeNamesGlobal.ScopeInterface}? _serviceScope;");
             f.AppendLine();
 
-            f.AppendLine($"private {TypeNamesGlobal.ServiceScopeInterface}? GetServiceScope()");
+            f.AppendLine($"private {TypeNamesGlobal.ScopeInterface}? GetServiceScope()");
             f.BeginBlock();
             {
                 f.AppendLine("if (_serviceScope is not null)");
@@ -398,7 +398,7 @@ internal static class CodeWriter
                 f.AppendLine("while (parent is not null)");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"if (parent is {TypeNamesGlobal.ServiceScopeInterface} scope)");
+                    f.AppendLine($"if (parent is {TypeNamesGlobal.ScopeInterface} scope)");
                     f.BeginBlock();
                     {
                         f.AppendLine("_serviceScope = scope;");
@@ -459,7 +459,7 @@ internal static class CodeWriter
         return f.ToString();
     }
 
-    public static string GenerateScopeUtils(ScopeServiceInfo scope, ServiceGraph graph)
+    public static string GenerateScopeUtils(ScopeDescriptor scope, ServiceGraph graph)
     {
         var f = new CodeFormatter();
         // namespace
@@ -477,12 +477,12 @@ internal static class CodeWriter
             //
             // === _parentScope ===
             //
-            f.AppendLine($"private {TypeNamesGlobal.ServiceScopeInterface}? _parentScope;");
+            f.AppendLine($"private {TypeNamesGlobal.ScopeInterface}? _parentScope;");
             f.AppendLine();
             //
             // === GetParentScope ===
             //
-            f.AppendLine($"private {TypeNamesGlobal.ServiceScopeInterface}? GetParentScope()");
+            f.AppendLine($"private {TypeNamesGlobal.ScopeInterface}? GetParentScope()");
             f.BeginBlock();
             {
                 f.AppendLine("if (_parentScope is not null)");
@@ -495,7 +495,7 @@ internal static class CodeWriter
                 f.AppendLine("while (parent is not null)");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"if (parent is {TypeNamesGlobal.ServiceScopeInterface} scope)");
+                    f.AppendLine($"if (parent is {TypeNamesGlobal.ScopeInterface} scope)");
                     f.BeginBlock();
                     {
                         f.AppendLine("_parentScope = scope;");

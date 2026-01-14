@@ -2,12 +2,12 @@
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal static class ServiceTypeCollector
+internal static class ServiceScanner
 {
-    public static ServiceTypeInfo? Analyze(INamedTypeSymbol type, CachedSymbol cachedSymbol)
+    public static ServiceTypeInfo? Analyze(INamedTypeSymbol type, SymbolCache symbolCache)
     {
-        var isSingleton = SymbolHelper.HasAttribute(type, cachedSymbol.SingletonServiceAttribute);
-        var isTransient = SymbolHelper.HasAttribute(type, cachedSymbol.TransientServiceAttribute);
+        var isSingleton = SymbolHelper.HasAttribute(type, symbolCache.SingletonAttribute);
+        var isTransient = SymbolHelper.HasAttribute(type, symbolCache.TransientAttribute);
         if (isSingleton && isTransient)
         {
             return null;
@@ -17,8 +17,8 @@ internal static class ServiceTypeCollector
             return null;
         }
         var attr = isSingleton
-            ? cachedSymbol.SingletonServiceAttribute
-            : cachedSymbol.TransientServiceAttribute;
+            ? symbolCache.SingletonAttribute
+            : symbolCache.TransientAttribute;
         var exposedTypes = SymbolHelper.GetServiceTypesFromAttribute(type, attr);
         return new ServiceTypeInfo(exposedTypes, isSingleton, isTransient);
     }

@@ -2,13 +2,14 @@
 
 [AttributeUsage(
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
-    Inherited = false
+    Inherited = false,
+    AllowMultiple = false
 )]
-public sealed class SingletonServiceAttribute : Attribute
+public sealed class SingletonAttribute : Attribute
 {
     public Type[] ServiceTypes { get; }
 
-    public SingletonServiceAttribute(params Type[] serviceTypes)
+    public SingletonAttribute(params Type[] serviceTypes)
     {
         ServiceTypes = serviceTypes;
     }

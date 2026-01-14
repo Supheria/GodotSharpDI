@@ -3,14 +3,14 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal sealed class UserDependencyInfo
+internal sealed class UserDescriptor
 {
     public bool IsNode { get; }
     public INamedTypeSymbol UserType { get; }
     public List<(string Name, INamedTypeSymbol Type)> Dependencies { get; }
     public bool IsServiceAware { get; }
 
-    public UserDependencyInfo(
+    public UserDescriptor(
         bool isNode,
         INamedTypeSymbol userType,
         List<(string, INamedTypeSymbol)> dependencies,

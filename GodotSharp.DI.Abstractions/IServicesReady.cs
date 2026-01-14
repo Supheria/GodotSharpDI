@@ -1,6 +1,6 @@
 ﻿namespace GodotSharp.DI.Abstractions;
 
-public interface IServiceAware
+public interface IServicesReady
 {
     void OnServicesReady();
 }

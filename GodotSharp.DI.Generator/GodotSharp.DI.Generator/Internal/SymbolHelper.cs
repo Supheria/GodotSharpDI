@@ -25,12 +25,12 @@ internal static class SymbolHelper
         return type.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iface));
     }
 
-    public static bool IsNode(INamedTypeSymbol type, CachedSymbol cached)
+    public static bool IsNode(INamedTypeSymbol type, SymbolCache symbolCache)
     {
         var current = type;
         while (current is not null)
         {
-            if (SymbolEqualityComparer.Default.Equals(current, cached.GodotNode))
+            if (SymbolEqualityComparer.Default.Equals(current, symbolCache.GodotNode))
                 return true;
 
             current = current.BaseType;
@@ -113,22 +113,6 @@ internal static class SymbolHelper
         return ns == NamespaceNames.Abstractions;
     }
 
-    private static bool IsDiInterface(INamedTypeSymbol iface)
-    {
-        if (!IsDiNamespace(iface))
-        {
-            return false;
-        }
-        return iface.MetadataName switch
-        {
-            TypeNames.ServiceHostInterface => true,
-            TypeNames.ServiceUserInterface => true,
-            TypeNames.ServiceScopeInterface => true,
-            TypeNames.ServiceAwareInterface => true,
-            _ => false,
-        };
-    }
-
     private static bool IsDiAttribute(INamedTypeSymbol? attr)
     {
         if (attr is null)
@@ -141,10 +125,26 @@ internal static class SymbolHelper
         }
         return attr.MetadataName switch
         {
-            TypeNames.SingletonServiceAttribute => true,
-            TypeNames.TransientServiceAttribute => true,
-            TypeNames.ServiceModuleAttribute => true,
-            TypeNames.DependencyAttribute => true,
+            TypeNames.ModulesAttribute => true,
+            TypeNames.InjectAttribute => true,
+            TypeNames.SingletonAttribute => true,
+            TypeNames.TransientAttribute => true,
+            TypeNames.HostAttribute => true,
+            TypeNames.UserAttribute => true,
+            _ => false,
+        };
+    }
+
+    private static bool IsDiInterface(INamedTypeSymbol iface)
+    {
+        if (!IsDiNamespace(iface))
+        {
+            return false;
+        }
+        return iface.MetadataName switch
+        {
+            TypeNames.ScopeInterface => true,
+            TypeNames.ServicesReadyInterface => true,
             _ => false,
         };
     }

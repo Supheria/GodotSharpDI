@@ -3,9 +3,9 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal static class UserDependencyCollector
+internal static class UserScanner
 {
-    public static UserDependencyInfo Analyze(INamedTypeSymbol type, CachedSymbol cachedSymbol)
+    public static UserDescriptor Analyze(INamedTypeSymbol type, SymbolCache symbolCache)
     {
         var dependencies = new List<(string, INamedTypeSymbol)>();
         foreach (var member in type.GetMembers())
@@ -15,7 +15,7 @@ internal static class UserDependencyCollector
                 case IPropertySymbol p:
                 {
                     if (
-                        SymbolHelper.HasAttribute(p, cachedSymbol.DependencyAttribute)
+                        SymbolHelper.HasAttribute(p, symbolCache.InjectAttribute)
                         && p.Type is INamedTypeSymbol propertyType
                     )
                     {
@@ -26,7 +26,7 @@ internal static class UserDependencyCollector
                 case IFieldSymbol f:
                 {
                     if (
-                        SymbolHelper.HasAttribute(f, cachedSymbol.DependencyAttribute)
+                        SymbolHelper.HasAttribute(f, symbolCache.InjectAttribute)
                         && f.Type is INamedTypeSymbol fieldType
                     )
                     {
@@ -36,11 +36,11 @@ internal static class UserDependencyCollector
                 }
             }
         }
-        var isNode = SymbolHelper.IsNode(type, cachedSymbol);
+        var isNode = SymbolHelper.IsNode(type, symbolCache);
         var isServiceAware = SymbolHelper.ImplementsInterface(
             type,
-            cachedSymbol.ServiceAwareInterface
+            symbolCache.ServicesReadyInterface
         );
-        return new UserDependencyInfo(isNode, type, dependencies, isServiceAware);
+        return new UserDescriptor(isNode, type, dependencies, isServiceAware);
     }
 }

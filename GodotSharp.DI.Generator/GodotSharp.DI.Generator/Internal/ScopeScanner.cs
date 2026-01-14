@@ -3,22 +3,22 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal static class ScopeServiceCollector
+internal static class ScopeScanner
 {
-    public static ScopeServiceInfo Analyze(INamedTypeSymbol type, CachedSymbol cachedSymbol)
+    public static ScopeDescriptor Analyze(INamedTypeSymbol type, SymbolCache symbolCache)
     {
         var attr = type.GetAttributes()
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(
                     a.AttributeClass,
-                    cachedSymbol.ServiceModuleAttribute
+                    symbolCache.ModulesAttribute
                 )
             );
         var instantiate = GetTypeArrayFromNamedArgument(attr, "Instantiate");
         var expect = GetTypeArrayFromNamedArgument(attr, "Expect");
 
-        var isNode = SymbolHelper.IsNode(type, cachedSymbol);
-        return new ScopeServiceInfo(isNode, type, instantiate, expect);
+        var isNode = SymbolHelper.IsNode(type, symbolCache);
+        return new ScopeDescriptor(isNode, type, instantiate, expect);
     }
 
     private static INamedTypeSymbol[] GetTypeArrayFromNamedArgument(

@@ -7,7 +7,7 @@ namespace GodotSharp.DI.Generator.Internal;
 
 internal static class ServiceGraphBuilder
 {
-    public static ServiceGraph Build(ImmutableArray<INamedTypeSymbol> types, CachedSymbol symbol)
+    public static ServiceGraph Build(ImmutableArray<INamedTypeSymbol> types, SymbolCache symbolCache)
     {
         var graph = new ServiceGraph();
 
@@ -25,12 +25,12 @@ internal static class ServiceGraphBuilder
         foreach (var type in uniqueTypes)
         {
             // 角色判定
-            var isHost = SymbolHelper.ImplementsInterface(type, symbol.ServiceHostInterface);
-            var isUser = SymbolHelper.ImplementsInterface(type, symbol.ServiceUserInterface);
-            var isScope = SymbolHelper.ImplementsInterface(type, symbol.ServiceScopeInterface);
+            var isHost = SymbolHelper.HasAttribute(type, symbolCache.HostAttribute);
+            var isUser = SymbolHelper.HasAttribute(type, symbolCache.UserAttribute);
+            var isScope = SymbolHelper.ImplementsInterface(type, symbolCache.ScopeInterface);
 
             // 生命周期 Attribute 判定（Singleton / Transient）
-            var serviceInfo = ServiceTypeCollector.Analyze(type, symbol);
+            var serviceInfo = ServiceScanner.Analyze(type, symbolCache);
 
             //
             // 规则 A：类型可以同时是 Host 和 User
@@ -62,7 +62,7 @@ internal static class ServiceGraphBuilder
             // 2. Scope（只能单独作为 Scope）
             if (isScope)
             {
-                var scope = ScopeServiceCollector.Analyze(type, symbol);
+                var scope = ScopeScanner.Analyze(type, symbolCache);
                 graph.Scopes.Add(scope);
                 AddEdgesFromScope(scope, graph);
                 continue;
@@ -71,14 +71,14 @@ internal static class ServiceGraphBuilder
             // 3. Host / User（允许 Host+User 叠加）
             if (isHost)
             {
-                var host = HostServiceCollector.Analyze(type, symbol);
+                var host = HostScanner.Analyze(type, symbolCache);
                 graph.Hosts.Add(host);
                 AddServicesFromHost(host, graph);
             }
 
             if (isUser)
             {
-                var user = UserDependencyCollector.Analyze(type, symbol);
+                var user = UserScanner.Analyze(type, symbolCache);
                 graph.Users.Add(user);
                 AddEdgesFromUser(user, graph);
             }
@@ -119,7 +119,7 @@ internal static class ServiceGraphBuilder
         }
     }
 
-    private static void AddServicesFromHost(HostServiceInfo host, ServiceGraph graph)
+    private static void AddServicesFromHost(HostDescriptor host, ServiceGraph graph)
     {
         foreach (var (_, serviceType) in host.SingletonServices)
         {
@@ -143,7 +143,7 @@ internal static class ServiceGraphBuilder
     //  User / Scope 边信息
     // --------------------------------------------------
 
-    private static void AddEdgesFromUser(UserDependencyInfo user, ServiceGraph graph)
+    private static void AddEdgesFromUser(UserDescriptor user, ServiceGraph graph)
     {
         foreach (var (_, depType) in user.Dependencies)
         {
@@ -151,7 +151,7 @@ internal static class ServiceGraphBuilder
         }
     }
 
-    private static void AddEdgesFromScope(ScopeServiceInfo scope, ServiceGraph graph)
+    private static void AddEdgesFromScope(ScopeDescriptor scope, ServiceGraph graph)
     {
         // Scope.Instantiate：这个 Scope 会主动创建这些实现类型
         foreach (var impl in scope.Instantiate)

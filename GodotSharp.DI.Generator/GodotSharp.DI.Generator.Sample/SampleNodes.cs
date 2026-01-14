@@ -9,24 +9,28 @@ public interface IChunkGetter;
 
 public interface IChunkGenerator;
 
-public partial class ChunkManager : Node, IChunkGetter, IServiceHost, IChunkGenerator, IServiceUser
+[Host]
+[User]
+public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
 {
-    [SingletonService(typeof(IChunkGetter), typeof(IChunkGenerator))]
+    [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
     private ChunkManager Self => this;
 
-    [Dependency]
+    [Inject]
     private CellManager _cellManager;
 }
 
-public partial class CellManager : Node, IServiceHost, IServiceUser, IServiceAware
+[Host]
+[User]
+public partial class CellManager : Node, IServicesReady
 {
-    [SingletonService]
+    [Singleton]
     private CellManager Self => this;
 
-    [Dependency]
+    [Inject]
     private IChunkGenerator _chunkGenerator;
 
-    [Dependency]
+    [Inject]
     private IChunkGetter _chunkGetter;
 
     public void OnServicesReady()
@@ -39,26 +43,26 @@ public interface IDataWriter;
 
 public interface IDataReader;
 
-[SingletonService(typeof(IDataWriter), typeof(IDataReader))]
+[Singleton(typeof(IDataWriter), typeof(IDataReader))]
 public class DataBase : IDataWriter, IDataReader { }
 
 public interface IFinder;
 
 public interface ISearcher;
 
-[TransientService(typeof(IFinder), typeof(ISearcher))]
+[Transient(typeof(IFinder), typeof(ISearcher))]
 public class PathFinder : IFinder, ISearcher;
 
-[ServiceModule(
+[Modules(
     Instantiate = [typeof(DataBase), typeof(PathFinder)],
     Expect = [typeof(ChunkManager), typeof(CellManager)]
 )]
-public partial class Scope : Node, IServiceScope
+public partial class Scope : Node, IScope
 {
-    [Dependency]
+    [Inject]
     private IChunkGenerator _chunkGenerator;
 
-    [Dependency]
+    [Inject]
     private IChunkGetter _chunkGetter;
 
     public void RegisterService<T>(T instance)

@@ -2,13 +2,13 @@
 
 public static class TypeNames
 {
-    public const string SingletonServiceAttribute = "SingletonServiceAttribute";
-    public const string TransientServiceAttribute = "TransientServiceAttribute";
-    public const string DependencyAttribute = "DependencyAttribute";
-    public const string ServiceModuleAttribute = "ServiceModuleAttribute";
+    public const string InjectAttribute = "InjectAttribute";
+    public const string ModulesAttribute = "ServiceModuleAttribute";
+    public const string SingletonAttribute = "SingletonAttribute";
+    public const string TransientAttribute = "TransientAttribute";
+    public const string HostAttribute = "HostAttribute";
+    public const string UserAttribute = "UserAttribute";
 
-    public const string ServiceHostInterface = "IServiceHost";
-    public const string ServiceUserInterface = "IServiceUser";
-    public const string ServiceScopeInterface = "IServiceScope";
-    public const string ServiceAwareInterface = "IServiceAware";
+    public const string ScopeInterface = "IScope";
+    public const string ServicesReadyInterface = "IServicesReady";
 }

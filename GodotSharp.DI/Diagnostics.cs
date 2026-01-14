@@ -132,7 +132,7 @@ public sealed class Problem08A : Godot.Node
     {
         base._Ready();
 
-        _reader.Read(); // GDI008：避免在 _Ready() 中使用标记为 [Dependency] 的字段或属性。实现 IServiceAware 可以确保在 OnServicesReady() 中所有依赖的字段或属性都已经完成初始化。
+        _reader.Read(); // GDI008：避免在 _Ready() 中使用标记为 [Dependency] 的字段或属性。实现 IServicesReady 可以确保在 OnServicesReady() 中所有依赖的字段或属性都已经完成初始化。
     }
 }
 

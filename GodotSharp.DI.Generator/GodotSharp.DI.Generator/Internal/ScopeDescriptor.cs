@@ -3,14 +3,14 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-public sealed class ScopeServiceInfo
+public sealed class ScopeDescriptor
 {
     public bool IsNode { get; }
     public INamedTypeSymbol ScopeType { get; }
     public HashSet<INamedTypeSymbol> Instantiate { get; }
     public HashSet<INamedTypeSymbol> Expect { get; }
 
-    public ScopeServiceInfo(
+    public ScopeDescriptor(
         bool isNode,
         INamedTypeSymbol scopeType,
         IEnumerable<INamedTypeSymbol> instantiate,

@@ -1,6 +1,6 @@
 ﻿namespace GodotSharp.DI.Abstractions;
 
-public interface IServiceScope
+public interface IScope
 {
     void RegisterService<T>(T instance)
         where T : notnull;

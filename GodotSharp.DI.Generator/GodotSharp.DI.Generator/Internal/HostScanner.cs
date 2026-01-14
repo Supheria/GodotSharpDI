@@ -3,9 +3,9 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal static class HostServiceCollector
+internal static class HostScanner
 {
-    public static HostServiceInfo Analyze(INamedTypeSymbol type, CachedSymbol cachedSymbol)
+    public static HostDescriptor Analyze(INamedTypeSymbol type, SymbolCache symbolCache)
     {
         var singletonServices = new List<(string, INamedTypeSymbol)>();
         foreach (var member in type.GetMembers())
@@ -14,7 +14,7 @@ internal static class HostServiceCollector
             {
                 var services = SymbolHelper.GetServiceTypesFromAttribute(
                     member,
-                    cachedSymbol.SingletonServiceAttribute
+                    symbolCache.SingletonAttribute
                 );
                 foreach (var s in services)
                 {
@@ -22,7 +22,7 @@ internal static class HostServiceCollector
                 }
             }
         }
-        var isNode = SymbolHelper.IsNode(type, cachedSymbol);
-        return new HostServiceInfo(isNode, type, singletonServices);
+        var isNode = SymbolHelper.IsNode(type, symbolCache);
+        return new HostDescriptor(isNode, type, singletonServices);
     }
 }
