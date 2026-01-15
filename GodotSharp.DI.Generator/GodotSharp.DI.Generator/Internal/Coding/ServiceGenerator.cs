@@ -21,7 +21,6 @@ internal static class ServiceGenerator
     {
         foreach (var service in graph.Services)
         {
-            // 没有构造函数（或不需要注入） → 只生成无参工厂
             var source = GenerateFactorySource(service);
             var hintName = $"{service.Symbol.Name}.DI.Factory.g.cs";
             context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
