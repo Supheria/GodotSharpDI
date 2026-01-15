@@ -53,7 +53,10 @@ public interface ISearcher;
 [Transient(typeof(IFinder), typeof(ISearcher))]
 public partial class PathFinder : IFinder, ISearcher
 {
-    public PathFinder(IDataWriter writer, IDataReader reader) { }
+    private PathFinder(IDataWriter writer, IDataReader reader) { }
+
+    [InjectConstructor]
+    private PathFinder(IDataWriter writer) { }
 }
 
 [Modules(

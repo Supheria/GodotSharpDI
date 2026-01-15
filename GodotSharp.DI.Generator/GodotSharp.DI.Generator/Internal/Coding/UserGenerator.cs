@@ -9,7 +9,7 @@ internal static class UserGenerator
 {
     private static string FormatType(ITypeSymbol type)
     {
-        return type.ToDisplayString(DisplayFormats.TypeFormat);
+        return type.ToDisplayString(DisplayFormats.TypeFullQualified);
     }
 
     public static void Generate(SourceProductionContext context, ServiceGraph graph)
@@ -41,7 +41,7 @@ internal static class UserGenerator
         f.BeginBlock();
         {
             // 如果实现了 IServicesReady，则生成依赖跟踪
-            if (user.IsServicesReady && user.InjectedMembers.Count > 0)
+            if (user.IsServicesReady && user.InjectedMembers.Length > 0)
             {
                 f.AppendLine("private readonly global::System.Object _dependencyLock = new();");
                 f.AppendLine(
@@ -51,20 +51,20 @@ internal static class UserGenerator
                 {
                     foreach (var dep in user.InjectedMembers)
                     {
-                        var depType = FormatType(dep.MemberType);
+                        var depType = FormatType(dep.ParameterType);
                         f.AppendLine($"typeof({depType}),");
                     }
                 }
                 f.EndBlock(";");
                 f.AppendLine();
 
-                f.AppendLine($"private void OnDependencyResolved(global::System.Object type)");
+                f.AppendLine($"private void OnDependencyResolved<T>()");
                 f.BeginBlock();
                 {
                     f.AppendLine("lock (_dependencyLock)");
                     f.BeginBlock();
                     {
-                        f.AppendLine("_unresolvedDependencies.Remove(type);");
+                        f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
                         f.AppendLine("if (_unresolvedDependencies.Count == 0)");
                         f.BeginBlock();
                         {
@@ -86,10 +86,9 @@ internal static class UserGenerator
             );
             f.BeginBlock();
             {
-                foreach (var dep in user.InjectedMembers)
+                foreach (var (parameterType, memberName) in user.InjectedMembers)
                 {
-                    var depType = FormatType(dep.MemberType);
-                    var memberName = dep.MemberName;
+                    var depType = FormatType(parameterType);
 
                     f.AppendLine($"scope.ResolveDependency<{depType}>(dependency =>");
                     f.BeginBlock();
@@ -97,7 +96,7 @@ internal static class UserGenerator
                         f.AppendLine($"{memberName} = dependency;");
                         if (user.IsServicesReady)
                         {
-                            f.AppendLine($"OnDependencyResolved(typeof({depType}));");
+                            f.AppendLine($"OnDependencyResolved<{depType}>();");
                         }
                     }
                     f.EndBlock(");");

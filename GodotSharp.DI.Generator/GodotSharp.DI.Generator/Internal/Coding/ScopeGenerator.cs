@@ -10,7 +10,7 @@ internal static class ScopeGenerator
 {
     private static string FormatType(ITypeSymbol type)
     {
-        return type.ToDisplayString(DisplayFormats.TypeFormat);
+        return type.ToDisplayString(DisplayFormats.TypeFullQualified);
     }
 
     public static void Generate(SourceProductionContext context, ServiceGraph graph)
@@ -18,9 +18,6 @@ internal static class ScopeGenerator
         foreach (var scope in graph.Scopes)
         {
             var source = GenerateScopeSource(scope, graph);
-            if (source is null)
-                continue;
-
             var hintName = $"{scope.Symbol.Name}.DI.Scope.g.cs";
             context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
         }

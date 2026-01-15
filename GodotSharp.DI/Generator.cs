@@ -170,11 +170,11 @@ partial class MovementManager // MovementManager.DI.User.g.cs
     };
 
     // 实现了IInjectionAware才生成
-    private void OnDependencyResolved(Type type)
+    private void OnDependencyResolved<T>()
     {
         lock (_dependencyLock)
         {
-            _unresolvedDependencies.Remove(type);
+            _unresolvedDependencies.Remove(typeof(T));
             if (_unresolvedDependencies.Count == 0)
             {
                 ((IServicesReady)this).OnServicesReady();
@@ -192,13 +192,13 @@ partial class MovementManager // MovementManager.DI.User.g.cs
         {
             _pathFinder = dependency;
             // 实现了IInjectionAware才生成
-            OnDependencyResolved(typeof(IPathFinder));
+            OnDependencyResolved<IPathFinder>();
         });
         scope.ResolveDependency<IAStartPathFinder>(dependency =>
         {
             _aStartPathFinder = dependency;
             // 实现了IInjectionAware才生成
-            OnDependencyResolved(typeof(IAStartPathFinder));
+            OnDependencyResolved<IAStartPathFinder>();
         });
     }
 }
@@ -346,11 +346,11 @@ partial class CellManager // CellManager.DI.User.g.cs
     };
 
     // 实现了IInjectionAware才生成
-    private void OnDependencyResolved(Type type)
+    private void OnDependencyResolved<T>()
     {
         lock (_dependencyLock)
         {
-            _unresolvedDependencies.Remove(type);
+            _unresolvedDependencies.Remove(typeof(T));
             if (_unresolvedDependencies.Count == 0)
             {
                 ((IServicesReady)this).OnServicesReady();
@@ -368,13 +368,13 @@ partial class CellManager // CellManager.DI.User.g.cs
         {
             _dataReader = dependency;
             // 实现了IInjectionAware才生成
-            OnDependencyResolved(typeof(IDataReader));
+            OnDependencyResolved<IDataReader>();
         });
         scope.ResolveDependency<IDataWriter>(dependency =>
         {
             _dataWriter = dependency;
             // 实现了IInjectionAware才生成
-            OnDependencyResolved(typeof(IDataWriter));
+            OnDependencyResolved<IDataWriter>();
         });
     }
 }
@@ -633,8 +633,5 @@ public class A
 
 public partial class B
 {
-    public void Method2()
-    {
-        
-    }
+    public void Method2() { }
 }

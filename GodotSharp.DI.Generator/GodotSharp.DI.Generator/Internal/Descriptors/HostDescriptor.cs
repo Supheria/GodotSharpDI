@@ -7,5 +7,5 @@ namespace GodotSharp.DI.Generator.Internal.Descriptors;
 internal sealed record HostDescriptor(
     INamedTypeSymbol Type,
     IReadOnlyList<ProvidedServiceDescriptor> ProvidedServices,
-    IReadOnlyList<InjectedMemberDescriptor> InjectedMembers
+    IReadOnlyList<InjectParameterDescriptor> InjectedMembers
 );

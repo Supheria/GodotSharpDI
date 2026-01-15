@@ -19,8 +19,12 @@ internal sealed class CodeFormatter
         _sb.Append(' ', _level * 4);
     }
 
-    public void AppendRaw(string text)
+    public void AppendRaw(string text, bool indent = false)
     {
+        if (indent)
+        {
+            Indent();
+        }
         _sb.Append(text);
     }
 
