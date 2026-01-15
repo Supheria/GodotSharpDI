@@ -2,6 +2,7 @@
 
 internal enum ServiceLifetime
 {
+    None,
     Singleton,
     Transient,
 }

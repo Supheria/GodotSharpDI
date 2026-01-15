@@ -51,7 +51,10 @@ public interface IFinder;
 public interface ISearcher;
 
 [Transient(typeof(IFinder), typeof(ISearcher))]
-public partial class PathFinder : IFinder, ISearcher;
+public partial class PathFinder : IFinder, ISearcher
+{
+    public PathFinder(IDataWriter writer, IDataReader reader) { }
+}
 
 [Modules(
     Instantiate = [typeof(DataBase), typeof(PathFinder)],

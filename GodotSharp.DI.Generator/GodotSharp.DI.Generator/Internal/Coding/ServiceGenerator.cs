@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace GodotSharp.DI.Generator.Internal.Coding;
 
-internal static class ServiceFactoryGenerator
+internal static class ServiceGenerator
 {
     private static string FormatType(ITypeSymbol type)
     {

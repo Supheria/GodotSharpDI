@@ -60,5 +60,5 @@ public interface IScope
 
 public interface IServicesReady
 {
-    void OnServicesReady();
+    void OnServicesReady() { } // no default block in real project
 }

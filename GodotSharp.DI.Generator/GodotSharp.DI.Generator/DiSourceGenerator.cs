@@ -27,7 +27,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                     );
                     if (symbol is INamedTypeSymbol type)
                     {
-                        return SymbolHelper.IsDiRelevant(type) ? type : null;
+                        return TypeHelper.IsDiRelevant(type) ? type : null;
                     }
 
                     return null;
@@ -53,8 +53,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 static (pair, _) =>
                 {
                     var (types, cached) = pair;
-                    var builder = new ServiceGraphBuilder();
-                    return builder.Build(types, cached);
+                    return ServiceGraphBuilder.Build(types, cached);
                 }
             );
 
@@ -64,7 +63,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
 
     private static void Generate(SourceProductionContext context, ServiceGraph graph)
     {
-        ServiceFactoryGenerator.Generate(context, graph);
+        ServiceGenerator.Generate(context, graph);
         HostGenerator.Generate(context, graph);
         UserGenerator.Generate(context, graph);
         ScopeGenerator.Generate(context, graph);

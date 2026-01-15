@@ -1,13 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using GodotSharp.DI.Generator.Internal.Descriptors;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal sealed record TypeInfo
+internal sealed record TypeInfo(INamedTypeSymbol Symbol)
 {
-    public INamedTypeSymbol Symbol { get; init; }
-    public string Namespace { get; init; }
+    public string Namespace => Symbol.ContainingNamespace.ToDisplayString();
 
     // Roles
     public bool IsHost { get; init; }
@@ -18,19 +18,19 @@ internal sealed record TypeInfo
     public bool IsServicesReady { get; init; }
 
     // Service lifetime
-    public ServiceLifetime? Lifetime { get; init; } // Singleton / Transient / null
+    public ServiceLifetime Lifetime { get; init; } = ServiceLifetime.None;
 
     // Service info
-    public IReadOnlyList<ITypeSymbol> ServiceTypes { get; init; }
+    public IReadOnlyList<ITypeSymbol> ServiceTypes { get; init; } = [];
     public InjectConstructorDescriptor? Constructor { get; init; }
 
     // Host info
-    public IReadOnlyList<ProvidedServiceDescriptor> ProvidedServices { get; init; }
+    public IReadOnlyList<ProvidedServiceDescriptor> ProvidedServices { get; init; } = [];
 
     // User info
-    public IReadOnlyList<InjectedMemberDescriptor> InjectedMembers { get; init; }
+    public IReadOnlyList<InjectedMemberDescriptor> InjectedMembers { get; init; } = [];
 
     // Scope info
-    public IReadOnlyList<INamedTypeSymbol> ScopeInstantiate { get; init; }
-    public IReadOnlyList<INamedTypeSymbol> ScopeExpect { get; init; }
+    public IReadOnlyList<INamedTypeSymbol> ScopeInstantiate { get; init; } = [];
+    public IReadOnlyList<INamedTypeSymbol> ScopeExpect { get; init; } = [];
 }

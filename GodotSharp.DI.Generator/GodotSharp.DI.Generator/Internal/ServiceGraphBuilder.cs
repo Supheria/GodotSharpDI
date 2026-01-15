@@ -6,9 +6,9 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal;
 
-internal sealed class ServiceGraphBuilder
+internal static class ServiceGraphBuilder
 {
-    public ServiceGraph Build(IReadOnlyList<INamedTypeSymbol> types, SymbolCache symbolCache)
+    public static ServiceGraph Build(IReadOnlyList<INamedTypeSymbol> types, SymbolCache symbols)
     {
         var services = new List<TypeInfo>();
         var hosts = new List<TypeInfo>();
@@ -17,75 +17,117 @@ internal sealed class ServiceGraphBuilder
 
         foreach (var type in types)
         {
-            // 角色判定
-            var isSingleton = SymbolHelper.HasAttribute(type, symbolCache.SingletonAttribute);
-            var isTransient = SymbolHelper.HasAttribute(type, symbolCache.TransientAttribute);
-            var isHost = SymbolHelper.HasAttribute(type, symbolCache.HostAttribute);
-            var isUser = SymbolHelper.HasAttribute(type, symbolCache.UserAttribute);
-            var isScope = SymbolHelper.ImplementsInterface(type, symbolCache.ScopeInterface);
+            var isNode = TypeHelper.Inherits(type, symbols.GodotNodeType);
 
-            // ---------------------------
-            // 角色冲突（生成器忽略，Analyzer 报错）
-            // ---------------------------
+            var isSingleton = TypeHelper.HasAttribute(type, symbols.SingletonAttribute);
+            var isTransient = TypeHelper.HasAttribute(type, symbols.TransientAttribute);
+            var isHost = TypeHelper.HasAttribute(type, symbols.HostAttribute);
+            var isUser = TypeHelper.HasAttribute(type, symbols.UserAttribute);
+            var isScope = TypeHelper.ImplementsInterface(type, symbols.ScopeInterface);
+
+            var hasModules = TypeHelper.HasAttribute(type, symbols.ModulesAttribute);
+            var hasAutoModules = TypeHelper.HasAttribute(type, symbols.AutoModulesAttribute);
+
+            // ============================================================
+            // 角色冲突检查（生成器忽略，Analyzer 报错）
+            // ============================================================
+
+            // Singleton 与 Transient 互斥
             if (isSingleton && isTransient)
-            {
                 continue;
-            }
-            if (isScope && (isHost || isUser))
+
+            // Singleton 或 Transient 省略标记 InjectConstructor 时默认使用唯一的构造函数
+            // 如果存在多个构造函数必须标记唯一的 InjectConstructor
+            if (isSingleton || isTransient)
             {
-                continue;
-            }
-            if ((isSingleton || isTransient) && (isHost || isUser || isScope))
-            {
-                continue;
+                var ctors = type.InstanceConstructors.Where(c => !c.IsStatic).ToArray();
+                if (ctors.Length == 0)
+                    continue;
+
+                var injectCtors = ctors
+                    .Where(ctor =>
+                        TypeHelper.HasAttribute(ctor, symbols.InjectConstructorAttribute)
+                    )
+                    .ToArray();
+
+                // 多个构造函数但没有唯一 InjectConstructor
+                if (ctors.Length > 1 && injectCtors.Length != 1)
+                    continue;
             }
 
-            // ---------------------------
-            // Service
-            // ---------------------------
-            if (isSingleton)
-            {
-                var info = TypeInfoFactory.FromService(
-                    type,
-                    ServiceLifetime.Singleton,
-                    symbolCache
-                );
-                services.Add(info);
+            // Service 不能是 Node
+            if ((isSingleton || isTransient) && isNode)
                 continue;
-            }
-            if (isTransient)
-            {
-                var info = TypeInfoFactory.FromService(
-                    type,
-                    ServiceLifetime.Transient,
-                    symbolCache
-                );
-                services.Add(info);
+
+            // Service 不能与 Host/User/Scope 共存
+            if ((isSingleton || isTransient) && (isHost || isUser || isScope))
                 continue;
-            }
-            // ---------------------------
-            // Scope
-            // ---------------------------
+
+            // Scope 必须是 Node
+            if (isScope && !isNode)
+                continue;
+
+            // Scope 不能与 Host/User/Service 共存
+            if (isScope && (isHost || isUser || isSingleton || isTransient))
+                continue;
+
+            // Scope 必须有 Modules 或 AutoModules（二选一）
             if (isScope)
             {
-                var info = TypeInfoFactory.FromScope(type, symbolCache);
-                scopes.Add(info);
+                if (hasModules && hasAutoModules)
+                    continue;
+                if (!hasModules && !hasAutoModules)
+                    continue;
+            }
+
+            // Host 或 User 成员级 Singleton 与 Inject 互斥
+            if (isHost || isUser)
+            {
+                var hasMemberConflict = type.GetMembers()
+                    .Any(member =>
+                        TypeHelper.HasAttribute(member, symbols.SingletonAttribute)
+                        && TypeHelper.HasAttribute(member, symbols.InjectAttribute)
+                    );
+                if (hasMemberConflict)
+                    continue;
+            }
+
+            // ============================================================
+            // Service
+            // ============================================================
+            if (isSingleton)
+            {
+                services.Add(
+                    TypeInfoFactory.CreateService(type, symbols, ServiceLifetime.Singleton)
+                );
                 continue;
             }
 
-            // ---------------------------
+            if (isTransient)
+            {
+                services.Add(
+                    TypeInfoFactory.CreateService(type, symbols, ServiceLifetime.Transient)
+                );
+                continue;
+            }
+
+            // ============================================================
+            // Scope
+            // ============================================================
+            if (isScope)
+            {
+                scopes.Add(TypeInfoFactory.CreateScope(type, symbols));
+                continue;
+            }
+
+            // ============================================================
             // Host / User（允许叠加）
-            // ---------------------------
+            // ============================================================
             if (isHost)
-            {
-                var info = TypeInfoFactory.FromHost(type, symbolCache);
-                hosts.Add(info);
-            }
+                hosts.Add(TypeInfoFactory.CreateHost(type, symbols, isNode));
+
             if (isUser)
-            {
-                var info = TypeInfoFactory.FromUser(type, symbolCache);
-                users.Add(info);
-            }
+                users.Add(TypeInfoFactory.CreateUser(type, symbols, isNode));
         }
 
         return new ServiceGraph(services, hosts, users, scopes);

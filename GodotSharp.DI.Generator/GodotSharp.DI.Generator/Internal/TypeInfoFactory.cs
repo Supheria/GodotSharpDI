@@ -6,117 +6,77 @@ namespace GodotSharp.DI.Generator.Internal;
 
 internal static class TypeInfoFactory
 {
-    public static TypeInfo FromService(
+    // ============================================================
+    // Service
+    // ============================================================
+    public static TypeInfo CreateService(
         INamedTypeSymbol type,
-        ServiceLifetime lifetime,
-        SymbolCache symbols
+        SymbolCache symbolCache,
+        ServiceLifetime lifetime
     )
     {
-        var serviceTypes = type.ExtractServiceTypes(symbols);
-        var ctor = type.ExtractInjectConstructor(symbols);
-        var ns = type.ContainingNamespace.ToDisplayString();
-        var isNode = SymbolHelper.IsGodotNode(type, symbols.GodotNodeType);
+        var ctor = TypeInfoCollectors.CollectInjectConstructor(type, symbolCache);
+        var serviceTypes = TypeInfoCollectors.CollectServiceTypes(type, symbolCache);
 
-        return new TypeInfo
+        return new TypeInfo(type)
         {
-            Symbol = type,
-            Namespace = ns,
             IsService = true,
-            IsHost = false,
-            IsUser = false,
-            IsScope = false,
-            IsNode = isNode,
-            IsServicesReady = SymbolHelper.IsServicesReady(type, symbols.ServicesReadyInterface),
             Lifetime = lifetime,
             ServiceTypes = serviceTypes,
             Constructor = ctor,
-            ProvidedServices = Array.Empty<ProvidedServiceDescriptor>(),
-            InjectedMembers = Array.Empty<InjectedMemberDescriptor>(),
-            ScopeInstantiate = Array.Empty<INamedTypeSymbol>(),
-            ScopeExpect = Array.Empty<INamedTypeSymbol>(),
+            IsServicesReady = TypeHelper.IsServicesReady(type, symbolCache.ServicesReadyInterface),
         };
     }
 
-    public static TypeInfo FromHost(INamedTypeSymbol type, SymbolCache symbols)
+    // ============================================================
+    // Host
+    // ============================================================
+    public static TypeInfo CreateHost(INamedTypeSymbol type, SymbolCache symbolCache, bool isNode)
     {
-        var ns = type.ContainingNamespace.ToDisplayString();
-        var isNode = SymbolHelper.IsGodotNode(type, symbols.GodotNodeType);
-        var provided = type.ExtractProvidedServices(symbols);
-        var injected = type.ExtractInjectedMembers(symbols);
+        var provided = TypeInfoCollectors.CollectProvidedServices(type, symbolCache);
 
-        return new TypeInfo
+        return new TypeInfo(type)
         {
-            Symbol = type,
-            Namespace = ns,
-            IsService = false,
+            IsNode = isNode,
             IsHost = true,
-            IsUser = false,
-            IsScope = false,
-            IsNode = isNode,
-            IsServicesReady = SymbolHelper.IsServicesReady(type, symbols.ServicesReadyInterface),
-            Lifetime = null,
-            ServiceTypes = Array.Empty<ITypeSymbol>(),
-            Constructor = null,
             ProvidedServices = provided,
-            InjectedMembers = injected,
-            ScopeInstantiate = Array.Empty<INamedTypeSymbol>(),
-            ScopeExpect = Array.Empty<INamedTypeSymbol>(),
+            IsServicesReady = TypeHelper.IsServicesReady(type, symbolCache.ServicesReadyInterface),
         };
     }
 
-    public static TypeInfo FromUser(INamedTypeSymbol type, SymbolCache symbols)
+    // ============================================================
+    // User
+    // ============================================================
+    public static TypeInfo CreateUser(INamedTypeSymbol type, SymbolCache symbolCache, bool isNode)
     {
-        var ns = type.ContainingNamespace.ToDisplayString();
-        var isNode = SymbolHelper.IsGodotNode(type, symbols.GodotNodeType);
-        var injected = type.ExtractInjectedMembers(symbols);
+        var injected = TypeInfoCollectors.CollectInjectedMembers(type, symbolCache);
 
-        return new TypeInfo
+        return new TypeInfo(type)
         {
-            Symbol = type,
-            Namespace = ns,
-            IsService = false,
-            IsHost = false,
+            IsNode = isNode,
             IsUser = true,
-            IsScope = false,
-            IsNode = isNode,
-            IsServicesReady = SymbolHelper.IsServicesReady(type, symbols.ServicesReadyInterface),
-            Lifetime = null,
-            ServiceTypes = Array.Empty<ITypeSymbol>(),
-            Constructor = null,
-            ProvidedServices = Array.Empty<ProvidedServiceDescriptor>(),
             InjectedMembers = injected,
-            ScopeInstantiate = Array.Empty<INamedTypeSymbol>(),
-            ScopeExpect = Array.Empty<INamedTypeSymbol>(),
+            IsServicesReady = TypeHelper.IsServicesReady(type, symbolCache.ServicesReadyInterface),
         };
     }
 
-    public static TypeInfo FromScope(INamedTypeSymbol type, SymbolCache symbols)
+    // ============================================================
+    // Scope
+    // ============================================================
+    public static TypeInfo CreateScope(INamedTypeSymbol type, SymbolCache symbolCache)
     {
-        var ns = type.ContainingNamespace.ToDisplayString();
-        var isNode = SymbolHelper.IsGodotNode(type, symbols.GodotNodeType);
-        var modules = SymbolHelper.GetAttribute(type, symbols.ModulesAttribute);
-        var auto = SymbolHelper.GetAttribute(type, symbols.AutoModulesAttribute);
+        var modules = TypeHelper.GetAttribute(type, symbolCache.ModulesAttribute);
+        var auto = TypeHelper.GetAttribute(type, symbolCache.AutoModulesAttribute);
 
-        var instantiate = type.ExtractInstantiate(modules, auto);
-        var expect = type.ExtractExpect(modules, auto);
+        var instantiate = TypeInfoCollectors.CollectInstantiate(type, modules, auto);
+        var expect = TypeInfoCollectors.CollectExpect(type, modules, auto);
 
-        return new TypeInfo
+        return new TypeInfo(type)
         {
-            Symbol = type,
-            Namespace = ns,
-            IsService = false,
-            IsHost = false,
-            IsUser = false,
             IsScope = true,
-            IsNode = isNode,
-            IsServicesReady = SymbolHelper.IsServicesReady(type, symbols.ServicesReadyInterface),
-            Lifetime = null,
-            ServiceTypes = Array.Empty<ITypeSymbol>(),
-            Constructor = null,
-            ProvidedServices = Array.Empty<ProvidedServiceDescriptor>(),
-            InjectedMembers = Array.Empty<InjectedMemberDescriptor>(),
             ScopeInstantiate = instantiate,
             ScopeExpect = expect,
+            IsServicesReady = TypeHelper.IsServicesReady(type, symbolCache.ServicesReadyInterface),
         };
     }
 }
