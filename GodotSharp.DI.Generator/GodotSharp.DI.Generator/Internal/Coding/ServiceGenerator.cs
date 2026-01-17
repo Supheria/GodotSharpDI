@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -17,7 +18,7 @@ internal static class ServiceGenerator
         return type.ToDisplayString(DisplayFormats.ClassName);
     }
 
-    public static void Generate(SourceProductionContext context, ServiceGraph graph)
+    public static void Generate(SourceProductionContext context, DiGraph graph)
     {
         foreach (var service in graph.Services)
         {
@@ -27,7 +28,7 @@ internal static class ServiceGenerator
         }
     }
 
-    private static string GenerateFactorySource(TypeInfo info)
+    private static string GenerateFactorySource(ClassTypeInfo info)
     {
         var f = new CodeFormatter();
 
@@ -54,7 +55,7 @@ internal static class ServiceGenerator
             );
             f.BeginBlock();
             {
-                var ctor = info.Constructor!;
+                var ctor = info.ServiceConstructor!;
                 if (ctor.Parameters.Length < 1)
                 {
                     // ---------------------------
@@ -76,7 +77,7 @@ internal static class ServiceGenerator
                     // 临时变量
                     for (int i = 0; i < paramCount; i++)
                     {
-                        var pType = FormatType(ctor.Parameters[i].ParameterType);
+                        var pType = FormatType(ctor.Parameters[i].Symbol);
                         f.AppendLine($"{pType}? p{i} = default;");
                     }
                     f.AppendLine();
@@ -84,7 +85,7 @@ internal static class ServiceGenerator
                     // ResolveDependency 调用
                     for (int i = 0; i < paramCount; i++)
                     {
-                        var pType = FormatType(ctor.Parameters[i].ParameterType);
+                        var pType = FormatType(ctor.Parameters[i].Symbol);
 
                         f.AppendLine($"scope.ResolveDependency<{pType}>(dependency =>");
                         f.BeginBlock();

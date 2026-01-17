@@ -2,9 +2,9 @@
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 
-namespace GodotSharp.DI.Generator.Internal;
+namespace GodotSharp.DI.Generator.Internal.Data;
 
-internal sealed class SymbolCache
+internal sealed class CachedSymbols
 {
     public INamedTypeSymbol? InjectAttribute { get; }
     public INamedTypeSymbol? InjectConstructorAttribute { get; }
@@ -20,7 +20,7 @@ internal sealed class SymbolCache
 
     public INamedTypeSymbol? GodotNodeType { get; }
 
-    public SymbolCache(Compilation compilation)
+    public CachedSymbols(Compilation compilation)
     {
         InjectAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.InjectAttribute);
         InjectConstructorAttribute = compilation.GetTypeByMetadataName(

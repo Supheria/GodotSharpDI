@@ -417,7 +417,7 @@ partial class MyScope // MyScope.DI.g.cs
         where T : notnull
     {
         var type = typeof(T);
-        _singletons.Add(type, instance);
+        _scopeSingletons.Add(type, instance);
         if (_waiters.Remove(type, out var waiterList))
         {
             foreach (var callback in waiterList)
@@ -436,7 +436,7 @@ partial class MyScope // MyScope.DI.g.cs
             this,
             instance =>
             {
-                _singletonInstances.Add(instance);
+                _scopeSingletonInstances.Add(instance);
                 // 在此注册 Singleton 单例服务
                 // 注册为 Singleton 特性指定的类型
                 // 如果没有指定服务类型则注册为原类型
@@ -451,7 +451,7 @@ partial class MyScope // MyScope.DI.g.cs
     /// </summary>
     private void DisposeScopeSingletons()
     {
-        foreach (var instance in _singletonInstances)
+        foreach (var instance in _scopeSingletonInstances)
         {
             if (instance is IDisposable disposable)
             {
@@ -465,8 +465,8 @@ partial class MyScope // MyScope.DI.g.cs
                 }
             }
         }
-        _singletonInstances.Clear();
-        _singletons.Clear();
+        _scopeSingletonInstances.Clear();
+        _scopeSingletons.Clear();
     }
 
     private void CheckWaitList()
@@ -534,8 +534,8 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             [typeof(PathFinder)] = PathFinder.CreateService,
         };
 
-    private readonly Dictionary<Type, object> _singletons = new();
-    private readonly HashSet<object> _singletonInstances = new();
+    private readonly Dictionary<Type, object> _scopeSingletons = new();
+    private readonly HashSet<object> _scopeSingletonInstances = new();
     private readonly Dictionary<Type, List<Action<object>>> _waiters = new();
 
     void IScope.ResolveDependency<T>(Action<T> onResolved)
@@ -557,7 +557,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法找到服务类型：{type.Name}");
             return;
         }
-        if (_singletons.TryGetValue(type, out var singleton))
+        if (_scopeSingletons.TryGetValue(type, out var singleton))
         {
             onResolved.Invoke((T)singleton);
             return;
@@ -584,7 +584,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
             return;
         }
-        if (!_singletons.TryAdd(type, instance))
+        if (!_scopeSingletons.TryAdd(type, instance))
         {
             Godot.GD.PushError($"重复注册类型: {type.Name}。");
         }
@@ -611,7 +611,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
             return;
         }
-        _singletons.Remove(type);
+        _scopeSingletons.Remove(type);
     }
 }
 

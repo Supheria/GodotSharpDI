@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -17,17 +18,21 @@ internal static class HostGenerator
         return type.ToDisplayString(DisplayFormats.ClassName);
     }
 
-    public static void Generate(SourceProductionContext context, ServiceGraph graph)
+    public static void Generate(SourceProductionContext context, DiGraph graph)
     {
-        foreach (var host in graph.Hosts)
+        foreach (var host in graph.HostOrUsers)
         {
+            if (host.IsUser)
+            {
+                continue;
+            }
             var hintName = $"{host.Symbol.Name}.DI.Host.g.cs";
             var source = GenerateHostSource(host);
             context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
         }
     }
 
-    private static string GenerateHostSource(TypeInfo info)
+    private static string GenerateHostSource(ClassTypeInfo info)
     {
         var f = new CodeFormatter();
 

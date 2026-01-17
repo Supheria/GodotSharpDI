@@ -1,9 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Threading;
 using GodotSharp.DI.Generator.Internal;
 using GodotSharp.DI.Generator.Internal.Coding;
+using GodotSharp.DI.Generator.Internal.Data;
+using GodotSharp.DI.Generator.Internal.DiBuild;
+using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -14,114 +20,143 @@ namespace GodotSharp.DI.Generator;
 [Generator]
 public sealed class DiSourceGenerator : IIncrementalGenerator
 {
-    public void Initialize(IncrementalGeneratorInitializationContext context)
+    private sealed class ClassTypeComparer : IEqualityComparer<ClassType>
+    {
+        public static readonly ClassTypeComparer Default = new();
+
+        private ClassTypeComparer() { }
+
+        public bool Equals(ClassType? x, ClassType? y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+            if (x is null || y is null)
+            {
+                return false;
+            }
+            return SymbolEqualityComparer.Default.Equals(x.Symbol, y.Symbol);
+        }
+
+        public int GetHashCode(ClassType obj)
+        {
+            return SymbolEqualityComparer.Default.GetHashCode(obj.Symbol);
+        }
+    }
+
+    private static ClassType? TypeFilter(GeneratorSyntaxContext context, CancellationToken _)
+    {
+        try
+        {
+            var classDecl = (ClassDeclarationSyntax)context.Node;
+            var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl);
+            if (symbol is INamedTypeSymbol type && TypeHelper.IsDiRelevant(type))
+            {
+                return new ClassType(type, classDecl);
+            }
+        }
+        catch
+        {
+            // ignored
+        }
+
+        return null;
+    }
+
+    private static DiGraphBuildResult BuildDiGraph(
+        (ImmutableArray<ClassType>, CachedSymbols) pair,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = Diagnostic.Create(
+                descriptor: DiagnosticDescriptors.RequestCancellation,
+                location: Location.None,
+                ex.Message
+            );
+            return DiGraphBuildResult.Failure(ImmutableArray.Create(diagnostic));
+        }
+
+        try
+        {
+            var (types, symbols) = pair;
+            var builder = new DiGraphBuilder(types, symbols);
+            return builder.Build();
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = Diagnostic.Create(
+                descriptor: DiagnosticDescriptors.GeneratorInternalError,
+                location: Location.None,
+                ex.Message
+            );
+            return DiGraphBuildResult.Failure(ImmutableArray.Create(diagnostic));
+        }
+    }
+
+    void IIncrementalGenerator.Initialize(IncrementalGeneratorInitializationContext context)
     {
         // 1. transform 阶段做语义筛选
         var filteredTypes = context
             .SyntaxProvider.CreateSyntaxProvider(
-                predicate: static (n, _) => n is ClassDeclarationSyntax,
-                transform: static (ctx, _) =>
-                {
-                    var symbol = ctx.SemanticModel.GetDeclaredSymbol(
-                        (ClassDeclarationSyntax)ctx.Node
-                    );
-                    if (symbol is INamedTypeSymbol type)
-                    {
-                        return TypeHelper.IsDiRelevant(type) ? type : null;
-                    }
-
-                    return null;
-                }
+                predicate: static (node, _) =>
+                    node is ClassDeclarationSyntax classDecl && classDecl.AttributeLists.Count > 0,
+                transform: TypeFilter
             )
-            .Where(static t => t is not null);
+            .Where(static t => t is not null)
+            .Select(static (t, _) => t!);
 
         // 2. 去重（避免重复处理 partial）
-        var distinctTypes = filteredTypes
-            .Select(static (t, _) => t!)
-            .WithComparer(SymbolEqualityComparer.Default)
-            .Collect();
+        var distinctTypes = filteredTypes.WithComparer(ClassTypeComparer.Default).Collect();
 
         // 3. CachedSymbol
         var symbolsProvider = context.CompilationProvider.Select(
-            static (c, _) => new SymbolCache(c)
+            static (c, _) => new CachedSymbols(c)
         );
 
-        // 4. 构建 ServiceGraph
-        var graphProvider = distinctTypes
-            .Combine(symbolsProvider)
-            .Select(
-                static (pair, _) =>
+        // 4. 构建 DiGraph
+        var graphProvider = distinctTypes.Combine(symbolsProvider).Select(BuildDiGraph);
+
+        // 5. 注册生成器模块
+        context.RegisterSourceOutput(
+            graphProvider,
+            static (spc, result) =>
+            {
+                foreach (var diagnostic in result.Diagnostics)
                 {
-                    var (types, cached) = pair;
-                    return ServiceGraphBuilder.Build(types, cached);
+                    spc.ReportDiagnostic(diagnostic);
                 }
-            );
-
-        // 4. 注册生成器模块
-        context.RegisterSourceOutput(graphProvider, Generate);
+                if (result.Graph is not null)
+                {
+                    GenerateAllSources(spc, result.Graph);
+                }
+            }
+        );
     }
 
-    private static void Generate(SourceProductionContext context, ServiceGraph graph)
+    private static void GenerateAllSources(SourceProductionContext context, DiGraph graph)
     {
-        ServiceGenerator.Generate(context, graph);
-        HostGenerator.Generate(context, graph);
-        UserGenerator.Generate(context, graph);
-        ScopeGenerator.Generate(context, graph);
+        try
+        {
+            ServiceGenerator.Generate(context, graph);
+            HostGenerator.Generate(context, graph);
+            UserGenerator.Generate(context, graph);
+            ScopeGenerator.Generate(context, graph);
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = Diagnostic.Create(
+                descriptor: DiagnosticDescriptors.GeneratorInternalError,
+                location: Location.None,
+                ex.Message
+            );
+            context.ReportDiagnostic(diagnostic);
+        }
     }
-
-    // // 4. 生成代码
-    // context.RegisterSourceOutput(
-    //     graphProvider,
-    //     static (spc, graph) =>
-    //     {
-    //         var allHostUser = new Dictionary<INamedTypeSymbol, (bool IsHost, bool IsUser)>(
-    //             SymbolEqualityComparer.Default
-    //         );
-    //
-    //         foreach (var host in graph.Hosts)
-    //         {
-    //             var type = host.HostType;
-    //             spc.AddSource($"{type.Name}.DI.Host.g.cs", CodeWriter.GenerateHost(host));
-    //             if (!allHostUser.ContainsKey(type))
-    //             {
-    //                 allHostUser[type] = (false, false);
-    //             }
-    //             allHostUser[type] = allHostUser[type] with { IsHost = true };
-    //         }
-    //
-    //         foreach (var user in graph.Users)
-    //         {
-    //             var type = user.UserType;
-    //             spc.AddSource($"{type.Name}.DI.User.g.cs", CodeWriter.GenerateUser(user));
-    //             if (!allHostUser.ContainsKey(type))
-    //             {
-    //                 allHostUser[type] = (false, false);
-    //             }
-    //             allHostUser[type] = allHostUser[type] with { IsUser = true };
-    //         }
-    //
-    //         foreach (var pair in allHostUser)
-    //         {
-    //             var type = pair.Key;
-    //             var value = pair.Value;
-    //             spc.AddSource(
-    //                 $"{type.Name}.DI.g.cs",
-    //                 CodeWriter.GenerateHostUserUtils(type, value.IsHost, value.IsUser)
-    //             );
-    //         }
-    //
-    //         foreach (var scope in graph.Scopes)
-    //         {
-    //             spc.AddSource(
-    //                 $"{scope.ScopeType.Name}.DI.Scope.g.cs",
-    //                 CodeWriter.GenerateScope(scope, graph)
-    //             );
-    //
-    //             spc.AddSource(
-    //                 $"{scope.ScopeType.Name}.DI.g.cs",
-    //                 CodeWriter.GenerateScopeUtils(scope, graph)
-    //             );
-    //         }
-    //     }
-    // );
 }

@@ -6,5 +6,5 @@ namespace GodotSharp.DI.Generator.Internal.Descriptors;
 
 internal sealed record InjectConstructorDescriptor(
     IMethodSymbol Constructor,
-    ImmutableArray<InjectParameterDescriptor> Parameters
+    ImmutableArray<InjectTypeDescriptor> Parameters
 );

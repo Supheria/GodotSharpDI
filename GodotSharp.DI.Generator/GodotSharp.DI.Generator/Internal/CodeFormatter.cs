@@ -66,6 +66,16 @@ internal sealed class CodeFormatter
         AppendLine("}" + append);
     }
 
+    public void BeginLevel()
+    {
+        _level++;
+    }
+
+    public void EndLevel()
+    {
+        _level--;
+    }
+
     public void AppendXmlComment(string text)
     {
         AppendLine("/// " + text);

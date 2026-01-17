@@ -1,7 +1,9 @@
 ﻿using System.Text;
+using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using TypeInfo = Microsoft.CodeAnalysis.TypeInfo;
 
 namespace GodotSharp.DI.Generator.Internal.Coding;
 
@@ -17,17 +19,21 @@ internal static class UserGenerator
         return type.ToDisplayString(DisplayFormats.ClassName);
     }
 
-    public static void Generate(SourceProductionContext context, ServiceGraph graph)
+    public static void Generate(SourceProductionContext context, DiGraph graph)
     {
-        foreach (var user in graph.Users)
+        foreach (var user in graph.HostOrUsers)
         {
+            if (user.IsHost)
+            {
+                continue;
+            }
             var source = GenerateUserSource(user);
             var hintName = $"{user.Symbol.Name}.DI.User.g.cs";
             context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
         }
     }
 
-    private static string GenerateUserSource(TypeInfo info)
+    private static string GenerateUserSource(ClassTypeInfo info)
     {
         var f = new CodeFormatter();
 
@@ -48,7 +54,7 @@ internal static class UserGenerator
                 {
                     foreach (var dep in info.InjectedMembers)
                     {
-                        var depType = FormatType(dep.ParameterType);
+                        var depType = FormatType(dep.Symbol);
                         f.AppendLine($"typeof({depType}),");
                     }
                 }

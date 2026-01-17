@@ -5,36 +5,13 @@ using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 
-namespace GodotSharp.DI.Generator.Internal;
+namespace GodotSharp.DI.Generator.Internal.Helpers;
 
 internal static class TypeHelper
 {
     // ============================================================
-    // Attribute / Interface / Inheritance
+    // Interface / Inheritance
     // ============================================================
-
-    public static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol)
-    {
-        if (attributeSymbol is null)
-            return false;
-
-        return symbol
-            .GetAttributes()
-            .Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, attributeSymbol));
-    }
-
-    public static AttributeData? GetAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol)
-    {
-        if (attributeSymbol is null)
-            return null;
-
-        return symbol
-            .GetAttributes()
-            .FirstOrDefault(a =>
-                SymbolEqualityComparer.Default.Equals(a.AttributeClass, attributeSymbol)
-            );
-    }
-
     public static bool ImplementsInterface(INamedTypeSymbol type, INamedTypeSymbol? interfaceSymbol)
     {
         if (interfaceSymbol is null)
@@ -56,11 +33,6 @@ internal static class TypeHelper
                 return true;
         }
         return false;
-    }
-
-    public static bool IsServicesReady(INamedTypeSymbol type, INamedTypeSymbol? iface)
-    {
-        return ImplementsInterface(type, iface);
     }
 
     // ============================================================

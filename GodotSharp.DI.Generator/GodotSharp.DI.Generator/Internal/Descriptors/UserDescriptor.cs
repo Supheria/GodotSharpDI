@@ -5,5 +5,5 @@ namespace GodotSharp.DI.Generator.Internal.Descriptors;
 
 internal sealed record UserDescriptor(
     INamedTypeSymbol Type,
-    IReadOnlyList<InjectParameterDescriptor> InjectedMembers
+    IReadOnlyList<InjectTypeDescriptor> InjectedMembers
 );
