@@ -25,6 +25,40 @@
 - 自动扫描模块
 - 与 ECS 协作
 
+## **线程安全说明**
+
+GodotSharp.DI 是基于 Godot 主线程模型设计的依赖注入框架：
+
+- 所有 `IScope` 方法（如 `ResolveDependency`、`RegisterService`）必须在主线程调用
+- 不支持从后台线程直接访问 Scope 或 Service
+- 如果需要在后台线程处理数据，请使用：
+
+csharp
+
+```
+Task.Run(() =>
+{
+    var data = ProcessData();
+    CallDeferred(nameof(RegisterServiceOnMainThread), data);
+});
+```
+
+在 Debug 模式下，框架可以启用主线程断言（AssertMainThread），帮助你在开发阶段发现错误调用。
+
+**以下方法绝不能在后台线程调用：**
+
+- ResolveDependency
+- RegisterService / UnregisterService
+- GetService
+- InstantiateScopeSingletons
+- DisposeScopeSingletons
+- ResolveUserDependencies
+- CreateService
+- OnDependencyResolved
+- OnServicesReady
+
+**后台线程只应该做纯计算，** **所有 DI 操作必须通过 CallDeferred 回到主线程执行。**
+
 ## **QuickStart**
 
 1. 定义服务
@@ -154,3 +188,100 @@ Service 注入构造函数参数（User 注入成员）类型验证
 | 参数是开放泛型             | ✖    | 无法静态分析         |
 | 参数是泛型闭包             | ✔    | 只要是服务类型       |
 | 参数重复                   | ✖    | 不支持多实例         |
+
+TodoList
+
+# 📘 GodotSharp.DI — Roadmap / TODO List
+
+GodotSharp.DI 正在持续演进中，以下是框架的未来规划与待办事项。 本清单按模块划分，涵盖文档、代码生成器、Scope 系统、Diagnostics、测试、多语言支持等核心领域。
+
+# 🧭 1. 文档与示例（Documentation & Samples）
+
+- [ ] **Quick Start**：从零开始使用 DI 的完整示例
+- [ ] **四大角色指南**：Service / Host / User / Scope
+- [ ] **生命周期图**：Godot 生命周期 vs DI 生命周期
+- [ ] **线程安全说明**：CallDeferred 模式、主线程限制
+- [ ] **完整示例项目**（Sample Project）
+- [ ] **FAQ**：常见错误与解决方案
+
+# 🧩 2. 代码生成器（Source Generator）
+
+- [ ] **统一文件头模板**（auto-generated + thread safety）
+- [ ] **统一 XML 文档注释模板**
+- [ ] **生成器多语言支持（.resx）**
+- [ ] **生成器配置（.editorconfig）**
+  - [ ] 是否生成调试信息
+  - [ ] 是否生成线程安全注释
+  - [ ] 注释语言（zh-Hans / en-US）
+- [ ] **性能优化**（减少重复扫描、减少字符串拼接）
+- [ ] **生成器诊断**（重复服务、循环依赖等）
+
+# 🧱 3. Service 构造函数注入（Service Factory）
+
+- [ ] **最终版 CreateService 模板**（remaining--）
+- [ ] 支持 **0 参数 / N 参数构造函数**
+- [ ] 生成 **构造函数参数的 XML 注释**
+- [ ] 生成 **构造函数参数的调试信息**
+- [ ] 多语言错误提示（服务未找到、构造失败）
+
+# 🧩 4. User 注入（User Injection）
+
+- [ ] **最终版 ResolveUserDependencies 模板**（无锁 HashSet）
+- [ ] 支持字段 / 属性注入
+- [ ] 生成注入成员的 XML 注释
+- [ ] 自动触发 OnServicesReady
+- [ ] 多语言错误提示（未解析依赖）
+
+# 🌲 5. Scope 系统（Scope Lifecycle）
+
+- [ ] **最终版 Scope 生命周期模板**（NotificationReady / Predelete）
+- [ ] 父子 Scope 自动继承
+- [ ] ScopeSingleton 生命周期管理
+- [ ] Scope 类 XML 文档注释（线程安全说明）
+- [ ] DEBUG 模式下的 AssertMainThread
+- [ ] 多语言错误提示（服务未找到、重复注册）
+
+# 🧪 6. Diagnostics（Analyzer + Validator）
+
+- [ ] 完成 Diagnostics ID 规范（GDI-M-xxx / GDI-U-xxx / GDI-S-xxx）
+- [ ] 完成 Diagnostics.md  文档
+- [ ] 诊断规则：
+  - [ ] 循环依赖
+  - [ ] 未注册服务
+  - [ ] 重复注册
+  - [ ] 无法解析的构造函数参数
+  - [ ] 无法注入的成员
+- [ ] 多语言诊断消息（.resx）
+
+# 🧰 7. 工具与辅助模块（Helpers）
+
+- [ ] SourceGenHelpers（文件头 + XML 注释 + 多语言）
+- [ ] TypeNameFormatter（统一类型格式化）
+- [ ] CodeFormatter（缩进与换行优化）
+- [ ] DebugHelpers（可选：打印 DI 调试信息）
+
+# 🧪 8. 测试（Testing）
+
+- [ ] 单元测试：Service 构造函数注入
+- [ ] 单元测试：User 注入
+- [ ] 单元测试：Scope 生命周期
+- [ ] 单元测试：父子 Scope 继承
+- [ ] 单元测试：Diagnostics
+- [ ] 集成测试：完整场景树注入流程
+
+# 🌐 9. 多语言支持（Localization）
+
+- [ ] 运行时错误信息使用 .resx
+- [ ] Diagnostics 使用 .resx
+- [ ] 文件头注释支持多语言（可选）
+- [ ] XML 文档注释支持多语言（可选）
+- [ ] 生成器根据 `.editorconfig` 选择语言
+
+# 🧭 10. 未来扩展（Future Work）
+
+- [ ] 后台服务容器（非 Godot Node）
+- [ ] 主线程调度器（Dispatcher）
+- [ ] 延迟服务（Lazy<T>）
+- [ ] 条件服务（Conditional Service）
+- [ ] 模块系统（AutoModule）
+- [ ] 服务标签（Service Tags）
