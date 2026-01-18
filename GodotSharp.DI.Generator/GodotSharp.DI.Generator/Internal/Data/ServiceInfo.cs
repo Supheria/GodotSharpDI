@@ -8,5 +8,6 @@ namespace GodotSharp.DI.Generator.Internal.Data;
 internal sealed record ServiceInfo(
     INamedTypeSymbol Symbol,
     string Namespace,
+    ServiceLifetime Lifetime,
     InjectConstructorDescriptor Constructor
 );

@@ -18,12 +18,13 @@ public partial class DatabaseWriter : IDataWriter, IDataReader, IDisposable
 
 partial class DatabaseWriter // DatabaseWriter.DI.Factory.g.cs
 {
-    public static void CreateService(IScope scope, Action<object> onCreated)
+    // 仅 Singleton 生成此函数名
+    public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {
         // 仅当注入构造函数参数等于0时按照如下模板生成
 
         var instance = new DatabaseWriter();
-        onCreated.Invoke(instance);
+        onCreated.Invoke(instance, scope);
     }
 }
 
@@ -48,6 +49,7 @@ public partial class PathFinder : IPathFinder, IAStartPathFinder
 // 标记为 Singleton 或 Transient 才生成
 partial class PathFinder // MovementManager.DI.Factory.g.cs
 {
+    // 仅 Transient 生成此函数名
     public static void CreateService(IScope scope, Action<object> onCreated)
     {
         // 仅当注入构造函数参数大于0时按照如下模板生成
@@ -56,33 +58,30 @@ partial class PathFinder // MovementManager.DI.Factory.g.cs
         var remaining = 2;
 
         // 声明所有注入构造函数中的参数类型临时变量
-        IDataWriter? iDataWriter0 = null;
-        IDataReader? iDataReader1 = null;
+        IDataWriter? p0 = null;
+        IDataReader? p1 = null;
 
         // 解析所有注入构造函数中的依赖参数
         scope.ResolveDependency<IDataWriter>(dependency =>
         {
-            iDataWriter0 = dependency;
-            if (Interlocked.Decrement(ref remaining) == 0)
-            {
-                Create();
-            }
+            p0 = dependency;
+            TryCreate();
         });
         scope.ResolveDependency<IDataReader>(dependency =>
         {
-            iDataReader1 = dependency;
-            if (Interlocked.Decrement(ref remaining) == 0)
-            {
-                Create();
-            }
+            p1 = dependency;
+            TryCreate();
         });
 
         return;
 
-        void Create()
+        void TryCreate()
         {
-            var instance = new PathFinder(iDataWriter0!, iDataReader1!);
-            onCreated.Invoke(instance);
+            if (--remaining == 0)
+            {
+                var instance = new PathFinder(p0!, p1!);
+                onCreated.Invoke(instance);
+            }
         }
     }
 }
@@ -413,20 +412,6 @@ partial class MyScope // MyScope.DI.g.cs
         return null;
     }
 
-    private void RegisterScopeSingleton<T>(T instance)
-        where T : notnull
-    {
-        var type = typeof(T);
-        _scopeSingletons.Add(type, instance);
-        if (_waiters.Remove(type, out var waiterList))
-        {
-            foreach (var callback in waiterList)
-            {
-                callback.Invoke(instance);
-            }
-        }
-    }
-
     /// <summary>
     /// 实例化所有 Scope 约束的单例服务
     /// </summary>
@@ -434,14 +419,14 @@ partial class MyScope // MyScope.DI.g.cs
     {
         DatabaseWriter.CreateService(
             this,
-            instance =>
+            (instance, scope) =>
             {
                 _scopeSingletonInstances.Add(instance);
                 // 在此注册 Singleton 单例服务
                 // 注册为 Singleton 特性指定的类型
                 // 如果没有指定服务类型则注册为原类型
-                RegisterScopeSingleton((IDataWriter)instance);
-                RegisterScopeSingleton((IDataReader)instance);
+                scope.RegisterService((IDataWriter)instance);
+                scope.RegisterService((IDataReader)instance);
             }
         );
     }
@@ -466,7 +451,7 @@ partial class MyScope // MyScope.DI.g.cs
             }
         }
         _scopeSingletonInstances.Clear();
-        _scopeSingletons.Clear();
+        _singletonServices.Clear();
     }
 
     private void CheckWaitList()
@@ -475,8 +460,19 @@ partial class MyScope // MyScope.DI.g.cs
         {
             return;
         }
-        var waitTypes = new StringBuilder().AppendJoin(',', _waiters.Keys);
-        Godot.GD.PushError($"存在未完成注入的服务类型：{waitTypes}");
+        var sb = new StringBuilder();
+        var first = true;
+        foreach (var type in _waiters.Keys)
+        {
+            if (!first)
+            {
+                sb.Append(',');
+            }
+            sb.Append(type.Name);
+            first = false;
+        }
+        Godot.GD.PushError($"存在未完成注入的服务类型：{sb}");
+        _waiters.Clear();
     }
 
     public override void _Notification(int what)
@@ -509,7 +505,7 @@ partial class MyScope // MyScope.DI.g.cs
 // 实现了IServiceScope才生成
 partial class MyScope // MyContext.DI.Scope.g.cs
 {
-    private static readonly HashSet<Type> SingletonTypes = new()
+    private static readonly HashSet<Type> SingletonServiceTypes = new()
     {
         // 注册为 Singleton 特性指定的类型
         // 如果没有指定服务类型则注册为原类型
@@ -534,7 +530,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             [typeof(PathFinder)] = PathFinder.CreateService,
         };
 
-    private readonly Dictionary<Type, object> _scopeSingletons = new();
+    private readonly Dictionary<Type, object> _singletonServices = new();
     private readonly HashSet<object> _scopeSingletonInstances = new();
     private readonly Dictionary<Type, List<Action<object>>> _waiters = new();
 
@@ -546,7 +542,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             factory.Invoke(this, instance => onResolved.Invoke((T)instance));
             return;
         }
-        if (!SingletonTypes.Contains(type))
+        if (!SingletonServiceTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -557,23 +553,23 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法找到服务类型：{type.Name}");
             return;
         }
-        if (_scopeSingletons.TryGetValue(type, out var singleton))
+        if (_singletonServices.TryGetValue(type, out var singleton))
         {
             onResolved.Invoke((T)singleton);
             return;
         }
-        if (!_waiters.TryGetValue(type, out var waiters))
+        if (!_waiters.TryGetValue(type, out var waiterList))
         {
-            waiters = new List<Action<object>>();
-            _waiters[type] = waiters;
+            waiterList = new List<Action<object>>();
+            _waiters[type] = waiterList;
         }
-        waiters.Add(obj => onResolved.Invoke((T)obj));
+        waiterList.Add(obj => onResolved.Invoke((T)obj));
     }
 
     void IScope.RegisterService<T>(T instance)
     {
         var type = typeof(T);
-        if (!SingletonTypes.Contains(type))
+        if (!SingletonServiceTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -584,7 +580,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
             return;
         }
-        if (!_scopeSingletons.TryAdd(type, instance))
+        if (!_singletonServices.TryAdd(type, instance))
         {
             Godot.GD.PushError($"重复注册类型: {type.Name}。");
         }
@@ -600,7 +596,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
     void IScope.UnregisterService<T>()
     {
         var type = typeof(T);
-        if (!SingletonTypes.Contains(type))
+        if (!SingletonServiceTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -611,7 +607,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
             return;
         }
-        _scopeSingletons.Remove(type);
+        _singletonServices.Remove(type);
     }
 }
 

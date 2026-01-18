@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using GodotSharp.DI.Generator.Internal.Data;
+using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -41,7 +42,8 @@ internal static class HostOrUserGenerator
     {
         var f = new CodeFormatter();
 
-        f.AppendLine();
+        SourceGenHelper.AppendFileHeader(f);
+
         f.AppendLine($"namespace {hostInfo.Namespace};");
         f.AppendLine();
 
@@ -59,9 +61,7 @@ internal static class HostOrUserGenerator
                     foreach (var serviceType in provided.ExposedServiceTypes)
                     {
                         var serviceTypeName = FormatType(serviceType);
-                        f.AppendLine(
-                            $"scope.RegisterService<{serviceTypeName}>({provided.Name});"
-                        );
+                        f.AppendLine($"scope.RegisterService<{serviceTypeName}>({provided.Name});");
                     }
                 }
             }
@@ -94,16 +94,19 @@ internal static class HostOrUserGenerator
     {
         var f = new CodeFormatter();
 
+        SourceGenHelper.AppendFileHeader(f);
+
         f.AppendLine($"namespace {userInfo.Namespace};");
         f.AppendLine();
 
         f.AppendLine($"partial class {FormatClassName(userInfo.Symbol)}");
         f.BeginBlock();
         {
-            // 如果实现了 IServicesReady，则生成依赖跟踪
+            // ============================================================
+            // 依赖跟踪（仅当实现 IServicesReady 且存在注入成员）
+            // ============================================================
             if (userInfo.IsServicesReady && userInfo.InjectedMembers.Length > 0)
             {
-                f.AppendLine("private readonly global::System.Object _dependencyLock = new();");
                 f.AppendLine(
                     "private readonly global::System.Collections.Generic.HashSet<global::System.Object> _unresolvedDependencies = new()"
                 );
@@ -121,18 +124,13 @@ internal static class HostOrUserGenerator
                 f.AppendLine("private void OnDependencyResolved<T>()");
                 f.BeginBlock();
                 {
-                    f.AppendLine("lock (_dependencyLock)");
+                    f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
+                    f.AppendLine("if (_unresolvedDependencies.Count == 0)");
                     f.BeginBlock();
                     {
-                        f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-                        f.AppendLine("if (_unresolvedDependencies.Count == 0)");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine(
-                                $"(({TypeNamesGlobal.ServicesReadyInterface})this).OnServicesReady();"
-                            );
-                        }
-                        f.EndBlock();
+                        f.AppendLine(
+                            $"(({TypeNamesGlobal.ServicesReadyInterface})this).OnServicesReady();"
+                        );
                     }
                     f.EndBlock();
                 }
@@ -140,7 +138,9 @@ internal static class HostOrUserGenerator
                 f.AppendLine();
             }
 
+            // ============================================================
             // ResolveUserDependencies
+            // ============================================================
             f.AppendLine(
                 $"private void ResolveUserDependencies({TypeNamesGlobal.ScopeInterface} scope)"
             );

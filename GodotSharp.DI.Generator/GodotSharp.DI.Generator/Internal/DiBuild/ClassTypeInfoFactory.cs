@@ -148,7 +148,7 @@ internal static class ClassTypeInfoFactory
             DeclarationSyntax: type.DeclarationSyntax,
             IsSingleton: roles.IsSingleton,
             IsTransient: roles.IsTransient,
-            Lifetime: lifetime,
+            ServiceLifetime: lifetime,
             ServiceExposedTypes: exposedTypes,
             ServiceConstructor: ctor
         );

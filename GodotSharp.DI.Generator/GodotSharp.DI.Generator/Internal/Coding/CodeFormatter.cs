@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 
-namespace GodotSharp.DI.Generator.Internal;
+namespace GodotSharp.DI.Generator.Internal.Coding;
 
 internal sealed record RemarkItem(string Type, string Name)
 {
@@ -76,14 +76,16 @@ internal sealed class CodeFormatter
         _level--;
     }
 
-    public void AppendXmlSummery(string text)
-    {
-        AppendLine("/// <summary>" + text + "</summary>");
-    }
-
     public void AppendXmlComment(string text)
     {
         AppendLine("/// " + text);
+    }
+
+    public void AppendXmlSummery(string text)
+    {
+        AppendXmlComment("<summary>");
+        AppendXmlComment(text);
+        AppendXmlComment("</summary>");
     }
 
     public void AppendXmlCodeBlock(IEnumerable<RemarkItem> items)

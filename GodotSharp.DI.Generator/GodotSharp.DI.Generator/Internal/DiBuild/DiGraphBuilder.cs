@@ -170,7 +170,7 @@ internal sealed class DiGraphBuilder
                 var service = new ScopeServiceDescriptor(
                     ImplementType: implType,
                     ExposedServiceTypes: implInfo.ServiceExposedTypes,
-                    Lifetime: implInfo.Lifetime,
+                    Lifetime: implInfo.ServiceLifetime,
                     IsHostProvided: false
                 );
                 builder.Add(service);

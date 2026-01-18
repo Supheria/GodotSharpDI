@@ -23,7 +23,7 @@ internal sealed record ClassTypeInfo(
     // -------------------------
     // Service（仅当 IsService = true）
     // -------------------------
-    ServiceLifetime Lifetime = ServiceLifetime.Singleton,
+    ServiceLifetime ServiceLifetime = ServiceLifetime.Singleton,
     ImmutableArray<ITypeSymbol> ServiceExposedTypes = default,
     InjectConstructorDescriptor? ServiceConstructor = null,
     // -------------------------

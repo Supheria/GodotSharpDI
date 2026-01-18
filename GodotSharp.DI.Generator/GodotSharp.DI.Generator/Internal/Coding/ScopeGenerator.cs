@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text;
 using GodotSharp.DI.Generator.Internal.Data;
+using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -38,15 +39,13 @@ internal static class ScopeGenerator
     {
         var f = new CodeFormatter();
 
-        f.AppendLine();
+        SourceGenHelper.AppendFileHeader(f);
+
         f.AppendLine($"namespace {scopeInfo.Namespace};");
         f.AppendLine();
         f.AppendLine($"partial class {FormatClassName(scopeInfo.Symbol)}");
         f.BeginBlock();
         {
-            f.AppendLine("#nullable enable");
-            f.AppendLine();
-
             // ============================================================
             // Parent Scope
             // ============================================================
@@ -84,30 +83,6 @@ internal static class ScopeGenerator
             f.AppendLine();
 
             // ============================================================
-            // RegisterScopeSingleton<T>
-            // ============================================================
-            f.AppendLine("private void RegisterScopeSingleton<T>(T instance) where T : notnull");
-            f.BeginBlock();
-            {
-                f.AppendLine("var type = typeof(T);");
-                f.AppendLine("_scopeSingletons[type] = instance;");
-
-                f.AppendLine("if (_waiters.Remove(type, out var waiterList))");
-                f.BeginBlock();
-                {
-                    f.AppendLine("foreach (var callback in waiterList)");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine("callback.Invoke(instance);");
-                    }
-                    f.EndBlock();
-                }
-                f.EndBlock();
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            // ============================================================
             // InstantiateScopeSingletons
             // ============================================================
             f.AppendXmlSummery("实例化所有 Scope 约束的单例服务");
@@ -126,15 +101,14 @@ internal static class ScopeGenerator
                     f.BeginLevel();
                     {
                         f.AppendLine("this,");
-                        f.AppendLine("instance =>");
+                        f.AppendLine("(instance, scope) =>");
                         f.BeginBlock();
                         {
                             f.AppendLine("_scopeSingletonInstances.Add(instance);");
-
                             foreach (var st in svc.ExposedServiceTypes)
                             {
                                 var stName = FormatType(st);
-                                f.AppendLine($"RegisterScopeSingleton(({stName})instance);");
+                                f.AppendLine($"scope.RegisterService(({stName})instance);");
                             }
                         }
                         f.EndBlock();
@@ -177,7 +151,7 @@ internal static class ScopeGenerator
                 f.EndBlock();
 
                 f.AppendLine("_scopeSingletonInstances.Clear();");
-                f.AppendLine("_scopeSingletons.Clear();");
+                f.AppendLine("_singletonServices.Clear();");
                 f.AppendLine("_waiters.Clear();");
             }
             f.EndBlock();
@@ -189,9 +163,30 @@ internal static class ScopeGenerator
             f.AppendLine("private void CheckWaitList()");
             f.BeginBlock();
             {
-                f.AppendLine("if (_waiters.Count == 0) return;");
-                f.AppendLine("var waitTypes = string.Join(\",\", _waiters.Keys);");
-                f.AppendLine("global::Godot.GD.PushError($\"存在未完成注入的服务类型：{waitTypes}\");");
+                f.AppendLine("if (_waiters.Count == 0)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("return;");
+                }
+                f.EndBlock();
+                f.AppendLine("var sb = new global::System.Text.StringBuilder();");
+                f.AppendLine("var first = true;");
+                f.AppendLine("foreach (var type in _waiters.Keys)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("if (!first)");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("sb.Append(',');");
+                    }
+                    f.EndBlock();
+
+                    f.AppendLine("sb.Append(type.Name);");
+                    f.AppendLine("first = false;");
+                }
+                f.EndBlock();
+                f.AppendLine("global::Godot.GD.PushError($\"存在未完成注入的服务类型：{sb}\");");
+                f.AppendLine("_waiters.Clear();");
             }
             f.EndBlock();
             f.AppendLine();
@@ -244,6 +239,8 @@ internal static class ScopeGenerator
     {
         var f = new CodeFormatter();
 
+        SourceGenHelper.AppendFileHeader(f);
+
         f.AppendLine($"namespace {scopeInfo.Namespace};");
         f.AppendLine();
         f.AppendLine($"partial class {FormatClassName(scopeInfo.Symbol)}");
@@ -253,7 +250,7 @@ internal static class ScopeGenerator
             // 1. SingletonTypes
             // ============================================================
             f.AppendLine(
-                "private static readonly global::System.Collections.Generic.HashSet<global::System.Type> SingletonTypes = new()"
+                "private static readonly global::System.Collections.Generic.HashSet<global::System.Type> SingletonServiceTypes = new()"
             );
             f.BeginBlock();
             {
@@ -300,7 +297,7 @@ internal static class ScopeGenerator
             // 3. Scope fields
             // ============================================================
             f.AppendLine(
-                "private readonly global::System.Collections.Generic.Dictionary<global::System.Type, global::System.Object> _scopeSingletons = new();"
+                "private readonly global::System.Collections.Generic.Dictionary<global::System.Type, global::System.Object> _singletonServices = new();"
             );
             f.AppendLine(
                 "private readonly global::System.Collections.Generic.HashSet<global::System.Object> _scopeSingletonInstances = new();"
@@ -319,8 +316,6 @@ internal static class ScopeGenerator
             f.BeginBlock();
             {
                 f.AppendLine("var type = typeof(T);");
-
-                // Transient
                 f.AppendLine("if (TransientFactories.TryGetValue(type, out var factory))");
                 f.BeginBlock();
                 {
@@ -328,18 +323,7 @@ internal static class ScopeGenerator
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
-
-                // Singleton in this scope
-                f.AppendLine("if (_scopeSingletons.TryGetValue(type, out var singleton))");
-                f.BeginBlock();
-                {
-                    f.AppendLine("onResolved.Invoke((T)singleton);");
-                    f.AppendLine("return;");
-                }
-                f.EndBlock();
-
-                // Not in this scope → try parent
-                f.AppendLine("if (!SingletonTypes.Contains(type))");
+                f.AppendLine("if (!SingletonServiceTypes.Contains(type))");
                 f.BeginBlock();
                 {
                     f.AppendLine("var parent = GetParentScope();");
@@ -356,19 +340,24 @@ internal static class ScopeGenerator
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
-
-                // Not created yet → add waiter
-                f.AppendLine("if (!_waiters.TryGetValue(type, out var waiters))");
+                f.AppendLine("if (_singletonServices.TryGetValue(type, out var singleton))");
+                f.BeginBlock();
+                {
+                    f.AppendLine("onResolved.Invoke((T)singleton);");
+                    f.AppendLine("return;");
+                }
+                f.EndBlock();
+                f.AppendLine("if (!_waiters.TryGetValue(type, out var waiterList))");
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        "waiters = new global::System.Collections.Generic.List<global::System.Action<global::System.Object>>();"
+                        "waiterList = new global::System.Collections.Generic.List<global::System.Action<global::System.Object>>();"
                     );
-                    f.AppendLine("_waiters[type] = waiters;");
+                    f.AppendLine("_waiters[type] = waiterList;");
                 }
                 f.EndBlock();
 
-                f.AppendLine("waiters.Add(obj => onResolved.Invoke((T)obj));");
+                f.AppendLine("waiterList.Add(obj => onResolved.Invoke((T)obj));");
             }
             f.EndBlock();
             f.AppendLine();
@@ -380,9 +369,7 @@ internal static class ScopeGenerator
             f.BeginBlock();
             {
                 f.AppendLine("var type = typeof(T);");
-
-                // Not in this scope → try parent
-                f.AppendLine("if (!SingletonTypes.Contains(type))");
+                f.AppendLine("if (!SingletonServiceTypes.Contains(type))");
                 f.BeginBlock();
                 {
                     f.AppendLine("var parent = GetParentScope();");
@@ -399,13 +386,16 @@ internal static class ScopeGenerator
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
-
-                // Register in this scope
-                f.AppendLine("_scopeSingletons[type] = instance!;");
-                f.AppendLine("if (_waiters.Remove(type, out var waiters))");
+                f.AppendLine("if (!_singletonServices.TryAdd(type, instance))");
                 f.BeginBlock();
                 {
-                    f.AppendLine("foreach (var callback in waiters)");
+                    f.AppendLine("global::Godot.GD.PushError($\"重复注册类型: {type.Name}。\");");
+                }
+                f.EndBlock();
+                f.AppendLine("if (_waiters.Remove(type, out var waiterList))");
+                f.BeginBlock();
+                {
+                    f.AppendLine("foreach (var callback in waiterList)");
                     f.BeginBlock();
                     {
                         f.AppendLine("callback.Invoke(instance!);");
@@ -426,7 +416,7 @@ internal static class ScopeGenerator
                 f.AppendLine("var type = typeof(T);");
 
                 // Not in this scope → try parent
-                f.AppendLine("if (!SingletonTypes.Contains(type))");
+                f.AppendLine("if (!SingletonServiceTypes.Contains(type))");
                 f.BeginBlock();
                 {
                     f.AppendLine("var parent = GetParentScope();");
@@ -446,7 +436,7 @@ internal static class ScopeGenerator
                 f.EndBlock();
 
                 // Remove from this scope
-                f.AppendLine("_scopeSingletons.Remove(type);");
+                f.AppendLine("_singletonServices.Remove(type);");
             }
             f.EndBlock();
         }

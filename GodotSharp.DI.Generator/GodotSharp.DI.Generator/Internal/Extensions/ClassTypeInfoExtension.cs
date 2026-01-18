@@ -6,7 +6,12 @@ internal static class ClassTypeInfoExtension
 {
     public static ServiceInfo GetServiceInfo(this ClassTypeInfo info)
     {
-        return new ServiceInfo(info.Symbol, info.Namespace, info.ServiceConstructor!);
+        return new ServiceInfo(
+            info.Symbol,
+            info.Namespace,
+            info.ServiceLifetime,
+            info.ServiceConstructor!
+        );
     }
 
     public static HostUserInfo GetHostUserInfo(this ClassTypeInfo info)

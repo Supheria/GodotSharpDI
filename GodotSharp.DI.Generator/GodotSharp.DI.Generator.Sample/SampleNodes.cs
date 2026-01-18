@@ -50,13 +50,13 @@ public interface IFinder;
 
 public interface ISearcher;
 
-[Transient(typeof(IFinder), typeof(ISearcher))]
+[Singleton(typeof(IFinder), typeof(ISearcher))]
 public partial class PathFinder : IFinder, ISearcher
 {
+    // [InjectConstructor]
     private PathFinder(IDataWriter writer, IDataReader reader) { }
 
-    [InjectConstructor]
-    private PathFinder(IDataWriter writer) { }
+    // private PathFinder(IDataWriter writer) { }
 }
 
 [Modules(
@@ -70,26 +70,4 @@ public partial class Scope : Node, IScope
     //
     // [Inject]
     // private IChunkGetter _chunkGetter;
-
-    public void RegisterService<T>(T instance)
-        where T : notnull
-    {
-        throw new NotImplementedException();
-    }
-
-    public void UnregisterService<T>() where T : notnull
-    {
-        throw new NotImplementedException();
-    }
-
-    public void ResolveDependency<T>(Action<T> onResolved) where T : notnull
-    {
-        throw new NotImplementedException();
-    }
-
-    public void ResolveService<T>(Action<T> onResolved)
-        where T : notnull
-    {
-        throw new NotImplementedException();
-    }
 }
