@@ -4,7 +4,4 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal.Descriptors;
 
-internal sealed record InjectConstructorDescriptor(
-    IMethodSymbol Constructor,
-    ImmutableArray<InjectTypeDescriptor> Parameters
-);
+internal sealed record InjectConstructorDescriptor(ImmutableArray<InjectTypeDescriptor> Parameters);

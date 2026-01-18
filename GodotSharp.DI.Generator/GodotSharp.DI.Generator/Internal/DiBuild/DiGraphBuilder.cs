@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Descriptors;
+using GodotSharp.DI.Generator.Internal.Extensions;
+using GodotSharp.DI.Generator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -32,23 +35,30 @@ internal sealed class DiGraphBuilder
 
     public DiGraphBuildResult Build()
     {
+        // 阶段 1: 构建基础 TypeInfoMap（带类型级别验证）
         BuildTypeInfoMap();
-
         if (HasErrors())
         {
             return DiGraphBuildResult.Failure(_diagnostics.ToImmutable());
         }
 
-        var hasErrors = diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+        // 阶段 2: 构建 ServiceGraph
+        var graph = BuildDiGraph();
 
-        var serviceGraph = BuildServiceGraph(typeInfoMap);
+        // 阶段 3: 图级别验证
+        ValidateServiceGraph(graph);
+        if (HasErrors())
+        {
+            return DiGraphBuildResult.Failure(_diagnostics.ToImmutable());
+        }
 
-        return ValidateServiceGraph(serviceGraph) ? serviceGraph : null;
+        return new DiGraphBuildResult(graph, _diagnostics.ToImmutable());
     }
 
-    // -------------------------
-    // 第一阶段：构建基础 TypeInfoMap
-    // -------------------------
+    // ============================================================
+    // 阶段 1: 构建 TypeInfoMap
+    // ============================================================
+
     private void BuildTypeInfoMap()
     {
         foreach (var type in _allTypes)
@@ -62,476 +72,171 @@ internal sealed class DiGraphBuilder
         }
     }
 
-    // -------------------------
-    // 第二阶段：Scope 补全
-    // -------------------------
-    private DiGraph BuildServiceGraph(IReadOnlyDictionary<INamedTypeSymbol, TypeInfo> typeInfoMap)
+    // ============================================================
+    // 阶段 2: 构建 ServiceGraph
+    // ============================================================
+
+    private DiGraph BuildDiGraph()
     {
-        var services = ImmutableArray.CreateBuilder<TypeInfo>();
-        var hostOrUsers = ImmutableArray.CreateBuilder<TypeInfo>();
-        var scopes = ImmutableArray.CreateBuilder<TypeInfo>();
+        var services = ImmutableArray.CreateBuilder<ServiceInfo>();
+        var hostOrUsers = ImmutableArray.CreateBuilder<HostUserInfo>();
+        var scopes = ImmutableArray.CreateBuilder<ScopeInfo>();
 
-        foreach (var info in typeInfoMap.Values)
+        foreach (var typeInfo in _typeInfoMap.Values)
         {
-            if (info.IsService)
+            if (typeInfo.IsService)
             {
-                services.Add(info);
-                continue;
+                services.Add(typeInfo.GetServiceInfo());
             }
-
-            if (info.IsHost || info.IsUser)
+            else if (typeInfo.IsHost || typeInfo.IsUser)
             {
-                hostOrUsers.Add(info);
-                continue;
+                hostOrUsers.Add(typeInfo.GetHostUserInfo());
             }
-
-            var scopeServices = BuildScopeServices(info, typeInfoMap);
-            var singletonTypes = BuildScopeSingletonTypes(scopeServices);
-            var transientFactories = BuildScopeTransientFactories(scopeServices);
-
-            var updated = info with
+            else if (typeInfo.IsScope)
             {
-                ScopeServices = scopeServices,
-                ScopeSingletonTypes = singletonTypes,
-                ScopeTransientFactories = transientFactories,
-            };
-
-            scopes.Add(updated);
+                var scopeInfo = CreateScopeInfo(typeInfo);
+                if (scopeInfo is not null)
+                {
+                    scopes.Add(scopeInfo);
+                }
+            }
         }
 
-        return new DiGraph(services.ToImmutable(), hostOrUsers.ToImmutable(), scopes.ToImmutable());
+        return new DiGraph(
+            Services: services.ToImmutable(),
+            HostOrUsers: hostOrUsers.ToImmutable(),
+            Scopes: scopes.ToImmutable()
+        );
     }
 
-    private static ImmutableArray<ScopeServiceDescriptor> BuildScopeServices(
-        TypeInfo scopeInfo,
-        IReadOnlyDictionary<INamedTypeSymbol, TypeInfo> allTypes
+    private ScopeInfo? CreateScopeInfo(ClassTypeInfo scopeInfo)
+    {
+        if (scopeInfo.Modules is not null)
+        {
+            var services = CollectScopeModules(scopeInfo, scopeInfo.Modules);
+            return new ScopeInfo(scopeInfo.Symbol, scopeInfo.Namespace, services);
+        }
+
+        if (scopeInfo.AutoModules is not null)
+        {
+            var services = CollectScopeModulesAuto(scopeInfo);
+            return new ScopeInfo(scopeInfo.Symbol, scopeInfo.Namespace, services);
+        }
+
+        var diagnostic = Diagnostic.Create(
+            descriptor: DiagnosticDescriptors.UnexpectScopeWithoutModules,
+            location: scopeInfo.DeclarationSyntax.GetLocation(),
+            scopeInfo.Symbol.Name
+        );
+        _diagnostics.Add(diagnostic);
+        return null;
+    }
+
+    private ImmutableArray<ScopeServiceDescriptor> CollectScopeModules(
+        ClassTypeInfo scopeInfo,
+        AttributeData modules
     )
     {
         var builder = ImmutableArray.CreateBuilder<ScopeServiceDescriptor>();
+        var location = scopeInfo.DeclarationSyntax.GetLocation();
 
-        foreach (var impl in scopeInfo.ScopeInstantiate)
+        var instantiateValues = modules.GetNamedArgument("Instantiate");
+        if (instantiateValues.Length < 1)
         {
-            if (!allTypes.TryGetValue(impl, out var info) || !info.IsService)
-                continue;
-
-            builder.Add(
-                new ScopeServiceDescriptor(
-                    Implementation: impl,
-                    ServiceTypes: info.ServiceTypes,
-                    Lifetime: info.Lifetime,
-                    IsHostProvided: false
-                )
+            var diagnostic = Diagnostic.Create(
+                descriptor: DiagnosticDescriptors.ScopeModulesInstantiateEmpty, // 没有指定任何 Instantiate
+                location: location,
+                scopeInfo.Symbol.Name
             );
+            _diagnostics.Add(diagnostic);
         }
-
-        foreach (var hostType in scopeInfo.ScopeExpect)
+        else
         {
-            if (!allTypes.TryGetValue(hostType, out var hostInfo) || !hostInfo.IsHost)
-                continue;
-
-            foreach (var provided in hostInfo.ProvidedServices)
+            foreach (var t in instantiateValues)
             {
-                builder.Add(
-                    new ScopeServiceDescriptor(
-                        Implementation: hostType,
-                        ServiceTypes: provided.ServiceTypes,
-                        Lifetime: ServiceLifetime.Singleton,
-                        IsHostProvided: true
-                    )
+                var implType = (INamedTypeSymbol)t.Value!;
+                if (!_typeInfoMap.TryGetValue(implType, out var implInfo) || !implInfo.IsService) // 未定义的服务类型
+                {
+                    var diagnostic = Diagnostic.Create(
+                        descriptor: DiagnosticDescriptors.ScopeServiceNotDefined,
+                        location: location,
+                        scopeInfo.Symbol.Name,
+                        implType.Name
+                    );
+                    _diagnostics.Add(diagnostic);
+                    continue;
+                }
+
+                var service = new ScopeServiceDescriptor(
+                    ImplementType: implType,
+                    ExposedServiceTypes: implInfo.ServiceExposedTypes,
+                    Lifetime: implInfo.Lifetime,
+                    IsHostProvided: false
                 );
+                builder.Add(service);
             }
         }
 
-        foreach (var info in allTypes.Values)
+        var expectValues = modules.GetNamedArgument("Expect");
+        if (expectValues.Length < 1)
         {
-            if (!info.IsService || info.Lifetime != ServiceLifetime.Transient)
-                continue;
-
-            builder.Add(
-                new ScopeServiceDescriptor(
-                    Implementation: info.Symbol,
-                    ServiceTypes: info.ServiceTypes,
-                    Lifetime: ServiceLifetime.Transient,
-                    IsHostProvided: false
-                )
+            var diagnostic = Diagnostic.Create(
+                descriptor: DiagnosticDescriptors.ScopeModulesExpectEmpty, // 没有指定任何 Expect
+                location,
+                scopeInfo.Symbol.Name
             );
+            _diagnostics.Add(diagnostic);
+        }
+        else
+        {
+            foreach (var t in expectValues)
+            {
+                var hostType = (INamedTypeSymbol)t.Value!;
+                if (!_typeInfoMap.TryGetValue(hostType, out var hostInfo) || !hostInfo.IsHost) // Expect 非 Host 类型
+                {
+                    var diagnostic = Diagnostic.Create(
+                        descriptor: DiagnosticDescriptors.ScopeExpectNotHost,
+                        location,
+                        scopeInfo.Symbol.Name,
+                        hostType.Name
+                    );
+                    _diagnostics.Add(diagnostic);
+                    continue;
+                }
+
+                foreach (var providedService in hostInfo.HostSingletonServices)
+                {
+                    var service = new ScopeServiceDescriptor(
+                        ImplementType: hostType,
+                        ExposedServiceTypes: providedService.ExposedServiceTypes,
+                        Lifetime: ServiceLifetime.Singleton,
+                        IsHostProvided: true
+                    );
+                    builder.Add(service);
+                }
+            }
         }
 
         return builder.ToImmutable();
     }
 
-    private static ImmutableHashSet<ITypeSymbol> BuildScopeSingletonTypes(
-        ImmutableArray<ScopeServiceDescriptor> scopeServices
-    )
+    private ImmutableArray<ScopeServiceDescriptor> CollectScopeModulesAuto(ClassTypeInfo scopeInfo)
     {
-        var set = ImmutableHashSet.CreateBuilder<ITypeSymbol>(SymbolEqualityComparer.Default);
-
-        foreach (var svc in scopeServices)
-        {
-            if (svc.Lifetime != ServiceLifetime.Singleton)
-                continue;
-
-            foreach (var st in svc.ServiceTypes)
-                set.Add(st);
-        }
-
-        return set.ToImmutable();
+        var builder = ImmutableArray.CreateBuilder<ScopeServiceDescriptor>();
+        return builder.ToImmutable();
     }
 
-    private static ImmutableDictionary<ITypeSymbol, INamedTypeSymbol> BuildScopeTransientFactories(
-        ImmutableArray<ScopeServiceDescriptor> scopeServices
-    )
+    // ============================================================
+    // 阶段 3: 图级别验证
+    // ============================================================
+
+    private void ValidateServiceGraph(DiGraph graph)
     {
-        var dict = ImmutableDictionary.CreateBuilder<ITypeSymbol, INamedTypeSymbol>(
-            SymbolEqualityComparer.Default
-        );
-
-        foreach (var svc in scopeServices)
-        {
-            if (svc.Lifetime != ServiceLifetime.Transient)
-                continue;
-
-            foreach (var st in svc.ServiceTypes)
-                dict[st] = svc.Implementation;
-        }
-
-        return dict.ToImmutable();
-    }
-
-    // -------------------------
-    // 第二阶段：图级检查（可扩展）
-    // -------------------------
-    private bool ValidateServiceGraph(DiGraph diGraph)
-    {
-        // ValidateLifetimes(typeInfos, map);
-        // ValidateConstructorCycles(typeInfos, map);
-        // ValidateHostScopeConflicts(typeInfos, map);
-        // ValidateDuplicateServices(typeInfos, map);
-
-        return true;
+        // ValidateDuplicateServiceRegistrations(graph);
+        // ValidateLifetimeRules(graph);
+        // ValidateConstructorDependencies(graph);
+        // ValidateCircularDependencies(graph);
+        // ValidateScopeDependencies(graph);
+        // ValidateUnusedServices(graph);
     }
 }
-
-// internal static class ServiceGraphBuilder
-// {
-// public static ServiceGraph Build(IReadOnlyList<INamedTypeSymbol> types, SymbolCache symbols)
-// {
-//     var services = new List<TypeInfo>();
-//     var hosts = new List<TypeInfo>();
-//     var users = new List<TypeInfo>();
-//     var scopes = new List<TypeInfo>();
-//
-//     foreach (var type in types)
-//     {
-//         var isNode = TypeHelper.Inherits(type, symbols.GodotNodeType);
-//
-//         var isSingleton = TypeHelper.HasAttribute(type, symbols.SingletonAttribute);
-//         var isTransient = TypeHelper.HasAttribute(type, symbols.TransientAttribute);
-//         var isHost = TypeHelper.HasAttribute(type, symbols.HostAttribute);
-//         var isUser = TypeHelper.HasAttribute(type, symbols.UserAttribute);
-//         var isScope = TypeHelper.ImplementsInterface(type, symbols.ScopeInterface);
-//
-//         var hasModules = TypeHelper.HasAttribute(type, symbols.ModulesAttribute);
-//         var hasAutoModules = TypeHelper.HasAttribute(type, symbols.AutoModulesAttribute);
-//
-//         // ============================================================
-//         // 角色冲突检查（生成器忽略，Analyzer 报错）
-//         // ============================================================
-//
-//         // Singleton 与 Transient 互斥
-//         if (isSingleton && isTransient)
-//             continue;
-//
-//         // Singleton 或 Transient 省略标记 InjectConstructor 时默认使用唯一的构造函数
-//         // 如果存在多个构造函数必须标记唯一的 InjectConstructor
-//         if (isSingleton || isTransient)
-//         {
-//             var ctors = type.InstanceConstructors.Where(c => !c.IsStatic).ToArray();
-//             if (ctors.Length == 0)
-//                 continue;
-//
-//             var injectCtors = ctors
-//                 .Where(ctor =>
-//                     TypeHelper.HasAttribute(ctor, symbols.InjectConstructorAttribute)
-//                 )
-//                 .ToArray();
-//
-//             // 多个构造函数但没有唯一 InjectConstructor
-//             if (ctors.Length > 1 && injectCtors.Length != 1)
-//                 continue;
-//         }
-//
-//         // Service 不能是 Node
-//         if ((isSingleton || isTransient) && isNode)
-//             continue;
-//
-//         // Service 不能与 Host/User/Scope 共存
-//         if ((isSingleton || isTransient) && (isHost || isUser || isScope))
-//             continue;
-//
-//         // Scope 必须是 Node
-//         if (isScope && !isNode)
-//             continue;
-//
-//         // Scope 不能与 Host/User/Service 共存
-//         if (isScope && (isHost || isUser || isSingleton || isTransient))
-//             continue;
-//
-//         // Scope 必须有 Modules 或 AutoModules（二选一）
-//         if (isScope)
-//         {
-//             if (hasModules && hasAutoModules)
-//                 continue;
-//             if (!hasModules && !hasAutoModules)
-//                 continue;
-//         }
-//
-//         // Host 或 User 成员级 Singleton 与 Inject 互斥
-//         if (isHost || isUser)
-//         {
-//             var hasMemberConflict = type.GetMembers()
-//                 .Any(member =>
-//                     TypeHelper.HasAttribute(member, symbols.SingletonAttribute)
-//                     && TypeHelper.HasAttribute(member, symbols.InjectAttribute)
-//                 );
-//             if (hasMemberConflict)
-//                 continue;
-//         }
-//
-//         // ============================================================
-//         // Service
-//         // ============================================================
-//         if (isSingleton)
-//         {
-//             services.Add(
-//                 TypeInfoFactory.CreateService(type, symbols, ServiceLifetime.Singleton)
-//             );
-//             continue;
-//         }
-//
-//         if (isTransient)
-//         {
-//             services.Add(
-//                 TypeInfoFactory.CreateService(type, symbols, ServiceLifetime.Transient)
-//             );
-//             continue;
-//         }
-//
-//         // ============================================================
-//         // Scope
-//         // ============================================================
-//         if (isScope)
-//         {
-//             scopes.Add(TypeInfoFactory.CreateScope(type, symbols));
-//             continue;
-//         }
-//
-//         // ============================================================
-//         // Host / User（允许叠加）
-//         // ============================================================
-//         if (isHost)
-//             hosts.Add(TypeInfoFactory.CreateHost(type, symbols, isNode));
-//
-//         if (isUser)
-//             users.Add(TypeInfoFactory.CreateUser(type, symbols, isNode));
-//     }
-//
-//     return new ServiceGraph(services, hosts, users, scopes);
-// }
-
-// public static ServiceGraph Build(
-//     ImmutableArray<INamedTypeSymbol> types,
-//     SymbolCache symbolCache
-// )
-// {
-//     var graph = new ServiceGraph();
-//
-//     if (types.IsDefaultOrEmpty)
-//     {
-//         return graph;
-//     }
-//
-//     // 去重，避免因为 partial 等原因导致重复分析
-//     var uniqueTypes = new HashSet<INamedTypeSymbol>(
-//         types.Where(t => t is not null),
-//         SymbolEqualityComparer.Default
-//     );
-//
-//     foreach (var type in uniqueTypes)
-//     {
-//         // 角色判定
-//         var isHost = SymbolHelper.HasAttribute(type, symbolCache.HostAttribute);
-//         var isUser = SymbolHelper.HasAttribute(type, symbolCache.UserAttribute);
-//         var isScope = SymbolHelper.ImplementsInterface(type, symbolCache.ScopeInterface);
-//
-//         // 生命周期 Attribute 判定（Singleton / Transient）
-//         var serviceInfo = ServiceScanner.Analyze(type, symbolCache);
-//
-//         //
-//         // 规则 A：类型可以同时是 Host 和 User
-//         // 规则 B：类型不能同时是 Scope 又是 Host 或 User
-//         // 规则 C：Scope / Host / User 不能带 SingletonService / TransientService
-//         //
-//         // 注意：诊断在独立的 Analyzer 项目中做，这里只“忽略不合法类型”
-//         //
-//
-//         // Scope + Host/User → 生成器忽略（Analyzer 负责报错）
-//         if (isScope && (isHost || isUser))
-//         {
-//             continue;
-//         }
-//
-//         // Host/User/Scope 上如果带了 Service Attribute → 生成器忽略（Analyzer 报错）
-//         if (serviceInfo is not null && (isHost || isUser || isScope))
-//         {
-//             continue;
-//         }
-//
-//         // 1. 普通 Service（带 Singleton/Transient Attribute，且不是 Host/User/Scope）
-//         if (serviceInfo is not null)
-//         {
-//             AddServiceFromServiceType(type, serviceInfo, graph);
-//             continue;
-//         }
-//
-//         // 2. Scope（只能单独作为 Scope）
-//         if (isScope)
-//         {
-//             var scope = ScopeScanner.Analyze(type, symbolCache);
-//             graph.Scopes.Add(scope);
-//             AddEdgesFromScope(scope, graph);
-//             continue;
-//         }
-//
-//         // 3. Host / User（允许 Host+User 叠加）
-//         if (isHost)
-//         {
-//             var host = HostScanner.Analyze(type, symbolCache);
-//             graph.Hosts.Add(host);
-//             AddServicesFromHost(host, graph);
-//         }
-//
-//         if (isUser)
-//         {
-//             var user = UserScanner.Analyze(type, symbolCache);
-//             graph.Users.Add(user);
-//             AddEdgesFromUser(user, graph);
-//         }
-//
-//         // 其他类型（既不是 Service，也不是 Host/User/Scope）→ 忽略
-//     }
-//
-//     // 未来：在这里对 graph 进行纯结构级处理（循环依赖、未解析服务等）
-//     // 诊断由单独 Analyzer 负责，这里只构建图
-//
-//     return graph;
-// }
-//
-// // --------------------------------------------------
-// //  Service 收集
-// // --------------------------------------------------
-//
-// private static void AddServiceFromServiceType(
-//     INamedTypeSymbol implementation,
-//     ServiceTypeInfo info,
-//     ServiceGraph graph
-// )
-// {
-//     var lifetime = info.IsSingleton ? ServiceLifetime.Singleton : ServiceLifetime.Transient;
-//
-//     foreach (var exposed in info.ExposedServiceTypes)
-//     {
-//         var isImplicit = SymbolEqualityComparer.Default.Equals(exposed, implementation);
-//         var descriptor = new ServiceDescriptor(
-//             serviceType: exposed,
-//             implementationType: implementation,
-//             lifetime: lifetime,
-//             providedByHost: false,
-//             providedByScope: false,
-//             isImplicit: isImplicit
-//         );
-//         AddServiceDescriptor(graph, descriptor);
-//     }
-// }
-//
-// private static void AddServicesFromHost(HostDescriptor host, ServiceGraph graph)
-// {
-//     foreach (var (_, serviceType) in host.SingletonServices)
-//     {
-//         // Host 提供的必然是 Singleton
-//         var descriptor = new ServiceDescriptor(
-//             serviceType: serviceType,
-//             implementationType: host.HostType,
-//             lifetime: ServiceLifetime.Singleton,
-//             providedByHost: true,
-//             providedByScope: false,
-//             isImplicit: false
-//         );
-//         AddServiceDescriptor(graph, descriptor);
-//
-//         // 依赖图：服务类型 → Host 类型（消费/提供该服务）
-//         AddEdge(graph, serviceType, host.HostType);
-//     }
-// }
-//
-// // --------------------------------------------------
-// //  User / Scope 边信息
-// // --------------------------------------------------
-//
-// private static void AddEdgesFromUser(UserDescriptor user, ServiceGraph graph)
-// {
-//     foreach (var (_, depType) in user.Dependencies)
-//     {
-//         AddEdge(graph, depType, user.UserType);
-//     }
-// }
-//
-// private static void AddEdgesFromScope(ScopeDescriptor scope, ServiceGraph graph)
-// {
-//     // Scope.Instantiate：这个 Scope 会主动创建这些实现类型
-//     foreach (var impl in scope.Instantiate)
-//     {
-//         AddEdge(graph, impl, scope.ScopeType);
-//     }
-//
-//     // Scope.Expect：这个 Scope 依赖这些 Host 提供的服务
-//     foreach (var hostType in scope.Expect)
-//     {
-//         AddEdge(graph, hostType, scope.ScopeType);
-//     }
-// }
-//
-// // --------------------------------------------------
-// //  公共辅助：添加 ServiceDescriptor / Edge
-// // --------------------------------------------------
-//
-// private static void AddServiceDescriptor(ServiceGraph graph, ServiceDescriptor descriptor)
-// {
-//     graph.Services.Add(descriptor);
-//
-//     if (
-//         !graph.ServicesByImplementation.TryGetValue(descriptor.ImplementationType, out var list)
-//     )
-//     {
-//         list = new List<ServiceDescriptor>();
-//         graph.ServicesByImplementation[descriptor.ImplementationType] = list;
-//     }
-//
-//     list.Add(descriptor);
-// }
-//
-// private static void AddEdge(
-//     ServiceGraph graph,
-//     INamedTypeSymbol serviceOrImpl,
-//     INamedTypeSymbol consumer
-// )
-// {
-//     if (!graph.Edges.TryGetValue(serviceOrImpl, out var list))
-//     {
-//         list = new List<INamedTypeSymbol>();
-//         graph.Edges[serviceOrImpl] = list;
-//     }
-//
-//     list.Add(consumer);
-// }
-// }

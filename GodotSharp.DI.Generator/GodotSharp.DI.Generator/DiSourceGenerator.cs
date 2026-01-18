@@ -145,8 +145,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
         try
         {
             ServiceGenerator.Generate(context, graph);
-            HostGenerator.Generate(context, graph);
-            UserGenerator.Generate(context, graph);
+            HostOrUserGenerator.Generate(context, graph);
             ScopeGenerator.Generate(context, graph);
         }
         catch (Exception ex)

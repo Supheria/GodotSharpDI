@@ -28,7 +28,7 @@ internal static class ServiceGenerator
         }
     }
 
-    private static string GenerateFactorySource(ClassTypeInfo info)
+    private static string GenerateFactorySource(ServiceInfo info)
     {
         var f = new CodeFormatter();
 
@@ -55,8 +55,9 @@ internal static class ServiceGenerator
             );
             f.BeginBlock();
             {
-                var ctor = info.ServiceConstructor!;
-                if (ctor.Parameters.Length < 1)
+                var ctor = info.Constructor;
+                var paramCount = ctor.Parameters.Length;
+                if (paramCount < 1)
                 {
                     // ---------------------------
                     // 无参构造
@@ -69,7 +70,6 @@ internal static class ServiceGenerator
                     // ---------------------------
                     // 多参数构造函数
                     // ---------------------------
-                    var paramCount = ctor.Parameters.Length;
 
                     f.AppendLine($"var remaining = {paramCount};");
                     f.AppendLine();

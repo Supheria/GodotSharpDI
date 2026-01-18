@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharp.DI.Generator.Internal.Data;
 
 internal sealed record DiGraph(
-    ImmutableArray<ClassTypeInfo> Services,
-    ImmutableArray<ClassTypeInfo> HostOrUsers,
-    ImmutableArray<ClassTypeInfo> Scopes
-) { }
+    ImmutableArray<ServiceInfo> Services,
+    ImmutableArray<HostUserInfo> HostOrUsers,
+    ImmutableArray<ScopeInfo> Scopes
+);

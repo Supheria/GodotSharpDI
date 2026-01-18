@@ -76,6 +76,11 @@ internal sealed class CodeFormatter
         _level--;
     }
 
+    public void AppendXmlSummery(string text)
+    {
+        AppendLine("/// <summary>" + text + "</summary>");
+    }
+
     public void AppendXmlComment(string text)
     {
         AppendLine("/// " + text);

@@ -13,33 +13,34 @@ internal sealed record ClassTypeInfo(
     // -------------------------
     // 角色标记
     // -------------------------
-    ClassTypeRoles Roles,
+    bool IsSingleton = false,
+    bool IsTransient = false,
+    bool IsHost = false,
+    bool IsUser = false,
+    bool IsScope = false,
+    bool IsNode = false,
+    bool IsServicesReady = false,
     // -------------------------
     // Service（仅当 IsService = true）
     // -------------------------
     ServiceLifetime Lifetime = ServiceLifetime.Singleton,
-    ImmutableArray<ITypeSymbol> ServiceTypes = default,
+    ImmutableArray<ITypeSymbol> ServiceExposedTypes = default,
     InjectConstructorDescriptor? ServiceConstructor = null,
-    // -------------------------
-    // User / Host+User（成员注入）
-    // -------------------------
-    ImmutableArray<InjectTypeDescriptor> InjectedMembers = default,
     // -------------------------
     // Host（成员提供服务）
     // -------------------------
-    ImmutableArray<ProvidedServiceDescriptor> ProvidedServices = default,
+    ImmutableArray<ProvidedServiceDescriptor> HostSingletonServices = default,
     // -------------------------
-    // Scope（Modules.Instantiate / Modules.Expect）
+    // User（成员注入）
     // -------------------------
-    ImmutableArray<INamedTypeSymbol> ScopeInstantiate = default,
-    ImmutableArray<INamedTypeSymbol> ScopeExpect = default,
+    ImmutableArray<InjectTypeDescriptor> UserInjectMembers = default,
     // -------------------------
-    // Scope（GraphBuilder 生成的最终结构）
+    // Scope
     // -------------------------
-    ImmutableArray<ScopeServiceDescriptor> ScopeServices = default,
-    ImmutableHashSet<ITypeSymbol>? ScopeSingletonTypes = null,
-    ImmutableDictionary<ITypeSymbol, INamedTypeSymbol>? ScopeTransientFactories = null
+    AttributeData? Modules = null,
+    AttributeData? AutoModules = null
 )
 {
     public string Namespace { get; } = Symbol.ContainingNamespace.ToDisplayString();
+    public bool IsService => IsSingleton || IsTransient;
 }

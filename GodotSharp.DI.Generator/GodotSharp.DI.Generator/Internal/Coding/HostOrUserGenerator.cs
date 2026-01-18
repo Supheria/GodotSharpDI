@@ -3,11 +3,10 @@ using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
-using TypeInfo = Microsoft.CodeAnalysis.TypeInfo;
 
 namespace GodotSharp.DI.Generator.Internal.Coding;
 
-internal static class UserGenerator
+internal static class HostOrUserGenerator
 {
     private static string FormatType(ITypeSymbol type)
     {
@@ -21,30 +20,88 @@ internal static class UserGenerator
 
     public static void Generate(SourceProductionContext context, DiGraph graph)
     {
-        foreach (var user in graph.HostOrUsers)
+        foreach (var info in graph.HostOrUsers)
         {
-            if (user.IsHost)
+            if (info.IsHost)
             {
-                continue;
+                var hintName = $"{info.Symbol.Name}.DI.Host.g.cs";
+                var source = GenerateHostSource(info);
+                context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
             }
-            var source = GenerateUserSource(user);
-            var hintName = $"{user.Symbol.Name}.DI.User.g.cs";
-            context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
+            if (info.IsUser)
+            {
+                var source = GenerateUserSource(info);
+                var hintName = $"{info.Symbol.Name}.DI.User.g.cs";
+                context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
+            }
         }
     }
 
-    private static string GenerateUserSource(ClassTypeInfo info)
+    private static string GenerateHostSource(HostUserInfo hostInfo)
     {
         var f = new CodeFormatter();
 
-        f.AppendLine($"namespace {info.Namespace};");
+        f.AppendLine();
+        f.AppendLine($"namespace {hostInfo.Namespace};");
         f.AppendLine();
 
-        f.AppendLine($"partial class {FormatClassName(info.Symbol)}");
+        f.AppendLine($"partial class {FormatClassName(hostInfo.Symbol)}");
+        f.BeginBlock();
+        {
+            // AttachHostServices
+            f.AppendLine(
+                $"private void AttachHostServices({TypeNamesGlobal.ScopeInterface} scope)"
+            );
+            f.BeginBlock();
+            {
+                foreach (var provided in hostInfo.ProvidedServices)
+                {
+                    foreach (var serviceType in provided.ExposedServiceTypes)
+                    {
+                        var serviceTypeName = FormatType(serviceType);
+                        f.AppendLine(
+                            $"scope.RegisterService<{serviceTypeName}>({provided.Name});"
+                        );
+                    }
+                }
+            }
+            f.EndBlock();
+            f.AppendLine();
+
+            // UnattachHostServices
+            f.AppendLine(
+                $"private void UnattachHostServices({TypeNamesGlobal.ScopeInterface} scope)"
+            );
+            f.BeginBlock();
+            {
+                foreach (var provided in hostInfo.ProvidedServices)
+                {
+                    foreach (var serviceType in provided.ExposedServiceTypes)
+                    {
+                        var serviceTypeName = FormatType(serviceType);
+                        f.AppendLine($"scope.UnregisterService<{serviceTypeName}>();");
+                    }
+                }
+            }
+            f.EndBlock();
+        }
+        f.EndBlock();
+
+        return f.ToString();
+    }
+
+    private static string GenerateUserSource(HostUserInfo userInfo)
+    {
+        var f = new CodeFormatter();
+
+        f.AppendLine($"namespace {userInfo.Namespace};");
+        f.AppendLine();
+
+        f.AppendLine($"partial class {FormatClassName(userInfo.Symbol)}");
         f.BeginBlock();
         {
             // 如果实现了 IServicesReady，则生成依赖跟踪
-            if (info.IsServicesReady && info.InjectedMembers.Length > 0)
+            if (userInfo.IsServicesReady && userInfo.InjectedMembers.Length > 0)
             {
                 f.AppendLine("private readonly global::System.Object _dependencyLock = new();");
                 f.AppendLine(
@@ -52,7 +109,7 @@ internal static class UserGenerator
                 );
                 f.BeginBlock();
                 {
-                    foreach (var dep in info.InjectedMembers)
+                    foreach (var dep in userInfo.InjectedMembers)
                     {
                         var depType = FormatType(dep.Symbol);
                         f.AppendLine($"typeof({depType}),");
@@ -89,7 +146,7 @@ internal static class UserGenerator
             );
             f.BeginBlock();
             {
-                foreach (var (parameterType, memberName) in info.InjectedMembers)
+                foreach (var (parameterType, memberName) in userInfo.InjectedMembers)
                 {
                     var depType = FormatType(parameterType);
 
@@ -97,7 +154,7 @@ internal static class UserGenerator
                     f.BeginBlock();
                     {
                         f.AppendLine($"{memberName} = dependency;");
-                        if (info.IsServicesReady)
+                        if (userInfo.IsServicesReady)
                         {
                             f.AppendLine($"OnDependencyResolved<{depType}>();");
                         }

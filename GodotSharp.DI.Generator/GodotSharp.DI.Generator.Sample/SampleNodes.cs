@@ -65,14 +65,24 @@ public partial class PathFinder : IFinder, ISearcher
 )]
 public partial class Scope : Node, IScope
 {
-    [Inject]
-    private IChunkGenerator _chunkGenerator;
-
-    [Inject]
-    private IChunkGetter _chunkGetter;
+    // [Inject]
+    // private IChunkGenerator _chunkGenerator;
+    //
+    // [Inject]
+    // private IChunkGetter _chunkGetter;
 
     public void RegisterService<T>(T instance)
         where T : notnull
+    {
+        throw new NotImplementedException();
+    }
+
+    public void UnregisterService<T>() where T : notnull
+    {
+        throw new NotImplementedException();
+    }
+
+    public void ResolveDependency<T>(Action<T> onResolved) where T : notnull
     {
         throw new NotImplementedException();
     }
