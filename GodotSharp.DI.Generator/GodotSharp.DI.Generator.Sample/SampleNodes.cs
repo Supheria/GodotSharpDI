@@ -20,8 +20,7 @@ public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
     private CellManager _cellManager;
 }
 
-[Host]
-[User]
+[Host, User]
 public partial class CellManager : Node, IServicesReady
 {
     [Singleton]
