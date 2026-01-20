@@ -92,13 +92,9 @@ partial class PathFinder // MovementManager.DI.Factory.g.cs
 // --- 非节点类型 host 和 user ---
 //
 
-[Host]
 [User]
 public partial class MovementManager : IPathProvider, IPathGenerator, IServicesReady
 {
-    [Singleton(typeof(IPathProvider), typeof(IPathGenerator))]
-    private MovementManager Self => this;
-
     [Inject]
     private IPathFinder _pathFinder;
 
@@ -113,46 +109,10 @@ public partial class MovementManager : IPathProvider, IPathGenerator, IServicesR
 // 标记为 Host 或 User 才生成
 partial class MovementManager // MovementManager.DI.g.cs
 {
-    // 非节点类型 Host 或 User 才生成
-    public void AttachToScope(IScope scope)
+    // 非节点类型 User 才生成
+    public void ResolveDependencies(IScope scope)
     {
-        // 标记为 Host 才生成
-        AttachHostServices(scope);
-        // 标记为 User 才生成
         ResolveUserDependencies(scope);
-    }
-
-    // 非节点类型 Host 或 User 才生成
-    public void UnattachToScope(IScope scope)
-    {
-        // 标记为 Host 才生成
-        UnattachHostServices(scope);
-    }
-}
-
-// 标记为 Host 才生成
-partial class MovementManager // MovementManager.DI.Host.g.cs
-{
-    /// <summary>
-    /// 注册所有标记为 [Singleton] 的字段或属性
-    /// </summary>
-    /// <param name="scope"></param>
-    private void AttachHostServices(IScope scope)
-    {
-        // 注册为 Singleton 特性指定的类型
-        scope.RegisterService<IPathProvider>(Self);
-        scope.RegisterService<IPathGenerator>(Self);
-    }
-
-    /// <summary>
-    /// 取消注册所有标记为 [Singleton] 的字段或属性
-    /// </summary>
-    /// <param name="scope"></param>
-    private static void UnattachHostServices(IScope scope)
-    {
-        // 取消注册 Singleton 特性指定的类型
-        scope.UnregisterService<IPathProvider>();
-        scope.UnregisterService<IPathGenerator>();
     }
 }
 
@@ -267,8 +227,8 @@ partial class CellManager // CellManager.DI.g.cs
         AttachHostServices(scope);
         // 标记为 User 才生成
         ResolveUserDependencies(scope);
-        // 处理任何标记为 [Host] 或 [User] 的类型成员
-        _movementManager.AttachToScope(scope);
+        // 处理任何标记为 [User] 的类型成员
+        _movementManager.ResolveDependencies(scope);
     }
 
     // 节点类型的 Host 或 User 才生成
@@ -280,8 +240,6 @@ partial class CellManager // CellManager.DI.g.cs
             return;
         }
         UnattachHostServices(scope);
-        // 处理任何标记为 [Host] 或 [User] 的类型成员
-        _movementManager.UnattachToScope(scope);
     }
 
     // 节点类型的 Host 或 User 才生成

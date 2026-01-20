@@ -3,8 +3,8 @@ using System.Collections.Immutable;
 using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Descriptors;
-using GodotSharp.DI.Generator.Internal.Extensions;
 using GodotSharp.DI.Generator.Internal.Helpers;
+using GodotSharp.DI.Generator.Internal.Validation;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal.DiBuild;
@@ -138,14 +138,14 @@ internal static class ClassTypeInfoFactory
     {
         var lifetime = roles.IsSingleton ? ServiceLifetime.Singleton : ServiceLifetime.Transient;
         var attribute = roles.IsSingleton
-            ? type.GetAttribute(symbols.SingletonAttribute)
-            : type.GetAttribute(symbols.TransientAttribute);
+            ? AttributeHelper.GetAttribute(type.Symbol, symbols.SingletonAttribute)
+            : AttributeHelper.GetAttribute(type.Symbol, symbols.TransientAttribute);
         var exposedTypes = CollectServiceExposedTypes(type.Symbol, attribute!);
         var ctor = CollectServiceInjectConstructor(type.Symbol, symbols);
 
         return new ClassTypeInfo(
             Symbol: type.Symbol,
-            DeclarationSyntax: type.DeclarationSyntax,
+            IdentifierLocation: type.IdentifierLocation,
             IsSingleton: roles.IsSingleton,
             IsTransient: roles.IsTransient,
             ServiceLifetime: lifetime,
@@ -169,7 +169,7 @@ internal static class ClassTypeInfoFactory
 
         return new ClassTypeInfo(
             Symbol: type.Symbol,
-            DeclarationSyntax: type.DeclarationSyntax,
+            IdentifierLocation: type.IdentifierLocation,
             IsHost: roles.IsHost,
             IsUser: roles.IsUser,
             IsNode: roles.IsNode,
@@ -185,12 +185,12 @@ internal static class ClassTypeInfoFactory
         CachedSymbols symbols
     )
     {
-        var modules = type.GetAttribute(symbols.ModulesAttribute);
-        var autoModules = type.GetAttribute(symbols.AutoModulesAttribute);
+        var modules = AttributeHelper.GetAttribute(type.Symbol, symbols.ModulesAttribute);
+        var autoModules = AttributeHelper.GetAttribute(type.Symbol, symbols.AutoModulesAttribute);
 
         return new ClassTypeInfo(
             Symbol: type.Symbol,
-            DeclarationSyntax: type.DeclarationSyntax,
+            IdentifierLocation: type.IdentifierLocation,
             IsScope: roles.IsScope,
             Modules: modules,
             AutoModules: autoModules

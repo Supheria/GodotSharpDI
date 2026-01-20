@@ -42,35 +42,32 @@ internal static class AttributeHelper
         return attribute?.ApplicationSyntaxReference?.GetSyntax().GetLocation() ?? fallbackLocation;
     }
 
-    // 泛型版本：读取单个命名参数
-    public static bool TryGetNamedArgument<T>(AttributeData attribute, string name, out T? value)
-    {
-        var arg = attribute.NamedArguments.FirstOrDefault(kvp => kvp.Key == name);
-
-        if (!arg.Value.IsNull && arg.Value.Value is T typedValue)
-        {
-            value = typedValue;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    // 读取类型数组参数（常用于 Modules.Instantiate）
     public static ImmutableArray<INamedTypeSymbol> GetTypeArrayArgument(
         AttributeData attribute,
         string name
     )
     {
-        if (!TryGetNamedArgument<ImmutableArray<TypedConstant>>(attribute, name, out var array))
+        foreach (var arg in attribute.NamedArguments)
         {
-            return ImmutableArray<INamedTypeSymbol>.Empty;
+            if (arg.Key != name)
+            {
+                continue;
+            }
+            var typedConstant = arg.Value;
+            if (typedConstant.Kind != TypedConstantKind.Array)
+            {
+                return ImmutableArray<INamedTypeSymbol>.Empty;
+            }
+            var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+            foreach (var element in typedConstant.Values)
+            {
+                if (element.Value is INamedTypeSymbol typeSymbol)
+                {
+                    builder.Add(typeSymbol);
+                }
+            }
+            return builder.ToImmutable();
         }
-
-        return array
-            .Where(tc => tc.Value is INamedTypeSymbol)
-            .Select(tc => (INamedTypeSymbol)tc.Value!)
-            .ToImmutableArray();
+        return ImmutableArray<INamedTypeSymbol>.Empty;
     }
 }

@@ -6,4 +6,5 @@ namespace GodotSharp.DI.Generator.Internal.Data;
 public sealed record ClassType(INamedTypeSymbol Symbol, ClassDeclarationSyntax DeclarationSyntax)
 {
     public string Name => Symbol.Name;
+    public Location IdentifierLocation { get; } = DeclarationSyntax.Identifier.GetLocation();
 }

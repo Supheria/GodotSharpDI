@@ -9,7 +9,7 @@ namespace GodotSharp.DI.Generator.Internal.Data;
 
 internal sealed record ClassTypeInfo(
     INamedTypeSymbol Symbol,
-    ClassDeclarationSyntax DeclarationSyntax,
+    Location IdentifierLocation,
     // -------------------------
     // 角色标记
     // -------------------------

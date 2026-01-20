@@ -1,0 +1,153 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+    <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+        <xsd:element name="root" msdata:IsDataSet="true">
+            
+        </xsd:element>
+    </xsd:schema>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    
+    <data name="ServiceLifetimeConflict" xml:space="preserve">
+    <value>Type '{0}' cannot be both [Singleton] and [Transient]</value>
+  </data>
+  <data name="ServiceReadyNeedUser" xml:space="preserve">
+    <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
+  </data>
+
+    <data name="ServiceCannotBeNode" xml:space="preserve">
+    <value>{0} service '{1}' cannot inherit from Godot.Node</value>
+  </data>
+
+    <data name="NoPublicConstructor" xml:space="preserve">
+    <value>Service '{0}' must define at least one constructor</value>
+  </data>
+
+    <data name="AmbiguousConstructor" xml:space="preserve">
+    <value>Service '{0}' has multiple constructors but no [InjectConstructor] is specified</value>
+  </data>
+
+    <data name="InvalidInjectConstructorAttribute" xml:space="preserve">
+    <value>Type '{0}' is not a Service but uses [InjectConstructor]</value>
+  </data>
+
+    <data name="ServiceConstructorParameterInvalid" xml:space="preserve">
+    <value>Service '{0}' has constructor parameter of type '{1}', which is not a Service</value>
+  </data>
+
+    <data name="SingletonCannotDependOnTransient" xml:space="preserve">
+    <value>Singleton service '{0}' cannot depend on transient service '{1}'</value>
+  </data>
+
+  <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
+    <value>Type '{0}' must be marked as [Host] to use [Singleton] on members</value>
+  </data>
+
+  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <value>[Singleton] and [Inject] cannot be applied to the same member</value>
+  </data>
+
+    <data name="InjectMemberNotAssignable" xml:space="preserve">
+    <value>[Inject] member must be writable (field must not be readonly, property must have setter)</value>
+  </data>
+
+    <data name="SingletonPropertyNotAccessible" xml:space="preserve">
+    <value>[Singleton] property must have a getter</value>
+  </data>
+
+    <data name="InjectMemberInvalidType" xml:space="preserve">
+    <value>Injected member in '{0}' has type '{1}', which is not a Service</value>
+  </data>
+
+    <data name="ScopeMustBeNode" xml:space="preserve">
+    <value>Scope '{0}' must inherit from Godot.Node</value>
+  </data>
+
+    <data name="InvalidModuleAttribute" xml:space="preserve">
+    <value>Type '{0}' is not a Scope but uses [Modules] or [AutoModules]</value>
+  </data>
+
+    <data name="ScopeModulesConflict" xml:space="preserve">
+    <value>Scope '{0}' cannot use both [Modules] and [AutoModules]</value>
+  </data>
+
+    <data name="ScopeMissingModules" xml:space="preserve">
+    <value>Scope '{0}' must specify either [Modules] or [AutoModules]</value>
+  </data>
+
+    <data name="ScopeInstantiateMustBeService" xml:space="preserve">
+    <value>Scope '{0}' Instantiate type '{1}' must be a Service</value>
+  </data>
+
+    <data name="ScopeExpectMustBeHost" xml:space="preserve">
+    <value>Scope '{0}' Expect type '{1}' must be a Host</value>
+  </data>
+
+    <data name="HostServiceNotFound" xml:space="preserve">
+    <value>Host '{0}' registers service '{1}' which does not exist</value>
+  </data>
+
+    <data name="HostServiceMustBeService" xml:space="preserve">
+    <value>Host '{0}' registers '{1}', which is not a Service</value>
+  </data>
+
+    <data name="CircularDependencyDetected" xml:space="preserve">
+    <value>Circular dependency detected: {0}</value>
+  </data>
+
+    <data name="ManualAttachToScope" xml:space="preserve">
+    <value>Do not call AttachToScope manually; injection is handled automatically by the framework</value>
+  </data>
+
+    <data name="ManualResolveUserDependencies" xml:space="preserve">
+    <value>Do not call ResolveUserDependencies manually; injection is handled automatically by the framework</value>
+  </data>
+
+    <data name="GeneratorInternalError" xml:space="preserve">
+    <value>Internal error in source generator: {0}</value>
+  </data>
+  <data name="UnknownTypeRole" xml:space="preserve">
+    <value>Unknown DI Type Role</value>
+  </data>
+  <data name="ScopeInvalidAttribute" xml:space="preserve">
+    <value>Scope '{0}' cannot use [{1}]</value>
+  </data>
+  <data name="HostMustBeNode" xml:space="preserve">
+    <value>Host '{0}' must inherit from Godot.Node</value>
+  </data>
+  <data name="HostInvalidAttribute" xml:space="preserve">
+    <value>Host '{0}' cannot use [{1}]</value>
+  </data>
+  <data name="UserInvalidAttribute" xml:space="preserve">
+    <value>User '{0}' cannot use [{1}]</value>
+  </data>
+  <data name="HostCannotBeMember" xml:space="preserve">
+    <value>Member cannot have Type marked as [Host]</value>
+  </data>
+  <data name="MemberHasInjectButNotInUser" xml:space="preserve">
+    <value>Type '{0}' must be marked as [User] to use [Inject] on members</value>
+  </data>
+  <data name="ScopeModulesInstantiateEmpty" xml:space="preserve">
+    <value>Scope '{0}' must specify at least one type in [Modules] Instantiate</value>
+  </data>
+  <data name="ScopeModulesExpectEmpty" xml:space="preserve">
+    <value>Scope '{0}' specifies no Host type in [Modules] Expect</value>
+  </data>
+  <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
+    <value>Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]</value>
+  </data>
+  <data name="RequestCancellation" xml:space="preserve">
+    <value>Generator receives cancellation request: {0}</value>
+  </data>
+</root>

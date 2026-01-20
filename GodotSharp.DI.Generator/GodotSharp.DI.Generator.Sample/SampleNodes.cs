@@ -9,22 +9,24 @@ public interface IChunkGetter;
 
 public interface IChunkGenerator;
 
+public interface ICellGenerator;
+
 [Host]
 [User]
 public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
 {
-    [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
-    private ChunkManager Self => this;
+    [Singleton]
+    private IChunkGetter Self => this;
 
     [Inject]
-    private CellManager _cellManager;
+    private ICellGenerator _cellManager;
 }
 
 [Host, User]
-public partial class CellManager : Node, IServicesReady
+public partial class CellManager : Node, ICellGenerator, IServicesReady
 {
     [Singleton]
-    private CellManager Self => this;
+    private ICellGenerator Self => this;
 
     [Inject]
     private IChunkGenerator _chunkGenerator;

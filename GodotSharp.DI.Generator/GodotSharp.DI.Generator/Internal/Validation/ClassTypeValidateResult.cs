@@ -3,7 +3,7 @@ using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
 using Microsoft.CodeAnalysis;
 
-namespace GodotSharp.DI.Generator.Internal.DiBuild;
+namespace GodotSharp.DI.Generator.Internal.Validation;
 
 internal sealed record ClassTypeValidateResult(
     ClassTypeRoles Roles,

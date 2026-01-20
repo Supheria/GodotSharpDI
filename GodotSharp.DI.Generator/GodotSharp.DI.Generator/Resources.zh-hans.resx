@@ -1,0 +1,146 @@
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+
+    <data name="ServiceLifetimeConflict" xml:space="preserve">
+    <value>类型 “{0}” 不能同时标记为 [Singleton] 和 [Transient]</value>
+  </data>
+  <data name="ServiceReadyNeedUser" xml:space="preserve">
+    <value>类型 “{0}” 实现了 IServicesReady，但未标记为 [User]</value>
+  </data>
+
+    <data name="ServiceCannotBeNode" xml:space="preserve">
+    <value>{0} 服务 “{1}” 不能继承自 Godot.Node</value>
+  </data>
+
+    <data name="NoPublicConstructor" xml:space="preserve">
+    <value>服务 “{0}” 必须至少定义一个构造函数</value>
+  </data>
+
+    <data name="AmbiguousConstructor" xml:space="preserve">
+    <value>服务 “{0}” 有多个构造函数，但未指定 [InjectConstructor]</value>
+  </data>
+
+    <data name="InvalidInjectConstructorAttribute" xml:space="preserve">
+    <value>类型 “{0}” 不是 Service 却使用了 [InjectConstructor]</value>
+  </data>
+
+  <data name="ServiceConstructorParameterInvalid" xml:space="preserve">
+    <value>服务 “{0}” 的构造函数参数类型 “{1}” 不是 Service</value>
+  </data>
+
+  <data name="SingletonCannotDependOnTransient" xml:space="preserve">
+    <value>Singleton 服务 “{0}” 不能依赖 Transient 服务 “{1}”</value>
+  </data>
+
+  <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
+    <value>类型 “{0}” 必须标记为 [Host] 才能在成员上使用 [Singleton]</value>
+  </data>
+
+  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <value>[Singleton] 和 [Inject] 不能同时应用于同一成员</value>
+  </data>
+
+    <data name="InjectMemberNotAssignable" xml:space="preserve">
+    <value>[Inject] 成员必须可写（字段不能是 readonly，属性必须有 setter）</value>
+  </data>
+
+    <data name="SingletonPropertyNotAccessible" xml:space="preserve">
+    <value>[Singleton] 属性必须有 getter</value>
+  </data>
+
+    <data name="InjectMemberInvalidType" xml:space="preserve">
+    <value>类型 “{0}” 的 Inject 成员类型 “{1}” 不是 Service</value>
+  </data>
+
+    <data name="ScopeMustBeNode" xml:space="preserve">
+    <value>Scope “{0}” 必须继承自 Godot.Node</value>
+  </data>
+
+    <data name="InvalidModuleAttribute" xml:space="preserve">
+    <value>类型 “{0}” 不是 Scope 却使用了 [Modules] 或 [AutoModules]</value>
+  </data>
+
+    <data name="ScopeModulesConflict" xml:space="preserve">
+    <value>Scope “{0}” 不能同时使用 [Modules] 和 [AutoModules]</value>
+  </data>
+
+    <data name="ScopeMissingModules" xml:space="preserve">
+    <value>Scope “{0}” 必须指定 [Modules] 或 [AutoModules]</value>
+  </data>
+
+    <data name="ScopeInstantiateMustBeService" xml:space="preserve">
+    <value>Scope “{0}” 的 Instantiate 类型 “{1}” 必须是 Service</value>
+  </data>
+
+    <data name="ScopeExpectMustBeHost" xml:space="preserve">
+    <value>Scope “{0}” 的 Expect 类型 “{1}” 必须是 Host</value>
+  </data>
+
+    <data name="HostServiceNotFound" xml:space="preserve">
+    <value>Host “{0}” 注册了不存在的服务 “{1}”</value>
+  </data>
+
+    <data name="HostServiceMustBeService" xml:space="preserve">
+    <value>Host “{0}” 注册的 “{1}” 不是 Service</value>
+  </data>
+
+    <data name="CircularDependencyDetected" xml:space="preserve">
+    <value>检测到循环依赖：{0}</value>
+  </data>
+
+    <data name="ManualAttachToScope" xml:space="preserve">
+    <value>禁止手动调用 AttachToScope；依赖注入由框架自动处理</value>
+  </data>
+
+    <data name="ManualResolveUserDependencies" xml:space="preserve">
+    <value>禁止手动调用 ResolveUserDependencies；依赖注入由框架自动处理</value>
+  </data>
+
+    <data name="GeneratorInternalError" xml:space="preserve">
+    <value>源生成器内部错误：{0}</value>
+  </data>
+  <data name="UnknownTypeRole" xml:space="preserve">
+    <value>未知的 DI 角色分类</value>
+  </data>
+  <data name="ScopeInvalidAttribute" xml:space="preserve">
+    <value>Scope “{0}” 不能使用 [{1}]</value>
+  </data>
+  <data name="HostMustBeNode" xml:space="preserve">
+    <value>Host “{0}” 必须继承自 Godot.Node</value>
+  </data>
+  <data name="HostInvalidAttribute" xml:space="preserve">
+    <value>Host “{0}” 不能使用 [{1}]</value>
+  </data>
+  <data name="UserInvalidAttribute" xml:space="preserve">
+    <value>User “{0}” 不能使用 [{1}]</value>
+  </data>
+  <data name="HostCannotBeMember" xml:space="preserve">
+    <value>成员类型不能是标记为 [Host] 的类型</value>
+  </data>
+  <data name="MemberHasInjectButNotInUser" xml:space="preserve">
+    <value>类型 “{0}” 必须标记为 [User] 才能在成员上使用 [Inject]</value>
+  </data>
+  <data name="ScopeModulesInstantiateEmpty" xml:space="preserve">
+    <value>Scope “{0}” 在 [Modules] Instantiate 中必须指定至少一个服务类型</value>
+  </data>
+  <data name="ScopeModulesExpectEmpty" xml:space="preserve">
+    <value>Scope “{0}” 没有在 [Modules] Expect 中指定任何任 Host 类型</value>
+  </data>
+  <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
+    <value>Scope "{0}" 意外缺失 [Modules] 或 [AutoModules]</value>
+  </data>
+  <data name="RequestCancellation" xml:space="preserve">
+    <value>源生成器在执行过程中收到取消请求：{0}</value>
+  </data>
+</root>
