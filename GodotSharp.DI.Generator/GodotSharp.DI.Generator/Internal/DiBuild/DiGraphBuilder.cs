@@ -219,6 +219,7 @@ internal static class DiGraphBuilder
         {
             var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
 
+            // 收集 Host 成员上标记的 [Singleton] 暴露的服务类型
             foreach (var member in host.Members)
             {
                 if (
@@ -226,6 +227,7 @@ internal static class DiGraphBuilder
                     || member.Kind == MemberKind.SingletonProperty
                 )
                 {
+                    // ExposedTypes 包含了 [Singleton(typeof(IXxx))] 中指定的接口类型
                     providedServices.AddRange(member.ExposedTypes);
                 }
             }
@@ -299,35 +301,34 @@ internal static class DiGraphBuilder
             var instantiate = scope.ModulesInfo.Instantiate;
             var expect = scope.ModulesInfo.Expect;
 
-            // 验证 Instantiate
+            // 验证 Instantiate - 检查类型是否有 Singleton 或 Transient 特性
             foreach (var type in instantiate)
             {
-                if (!serviceProviders.ContainsKey(type))
+                var hasLifetime = type.GetAttributes()
+                    .Any(attr =>
+                    {
+                        var attrClass = attr.AttributeClass;
+                        if (attrClass == null)
+                            return false;
+
+                        return SymbolEqualityComparer.Default.Equals(
+                                attrClass,
+                                symbols.SingletonAttribute
+                            )
+                            || SymbolEqualityComparer.Default.Equals(
+                                attrClass,
+                                symbols.TransientAttribute
+                            );
+                    });
+
+                if (!hasLifetime)
                 {
                     diagnostics.Add(
                         Diagnostic.Create(
                             DiagnosticDescriptors.ScopeInstantiateMustBeService,
                             scope.Location,
-                            scope.Symbol.Name,
                             type.ToDisplayString()
                         )
-                    );
-                }
-            }
-
-            // 收集所有提供的服务
-            var allProvided = ImmutableArray.CreateBuilder<ITypeSymbol>();
-            foreach (var type in instantiate)
-            {
-                if (serviceProviders.TryGetValue(type, out var provider))
-                {
-                    allProvided.AddRange(
-                        provider
-                            .Provider.Members.Where(m =>
-                                m.Kind == MemberKind.SingletonField
-                                || m.Kind == MemberKind.SingletonProperty
-                            )
-                            .SelectMany(m => m.ExposedTypes)
                     );
                 }
             }
@@ -337,7 +338,7 @@ internal static class DiGraphBuilder
                     TypeInfo: scope,
                     InstantiateServices: instantiate,
                     ExpectHosts: expect,
-                    AllProvidedServices: allProvided.ToImmutable()
+                    AllProvidedServices: ImmutableArray<ITypeSymbol>.Empty
                 )
             );
         }

@@ -39,6 +39,7 @@ internal static class ScopeInterfaceGenerator
             SymbolEqualityComparer.Default
         );
 
+        // 从 Instantiate 的服务中收集
         foreach (var serviceType in node.InstantiateServices)
         {
             var serviceNode = graph.ServiceNodes.FirstOrDefault(n =>
@@ -54,14 +55,17 @@ internal static class ScopeInterfaceGenerator
             }
         }
 
+        // 从 Expect 的 Host 中收集
         foreach (var hostType in node.ExpectHosts)
         {
+            // 在 HostNodes 中查找匹配的 Host
             var hostNode = graph.HostNodes.FirstOrDefault(n =>
                 SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, hostType)
             );
 
             if (hostNode != null)
             {
+                // 添加 Host 提供的所有服务类型
                 foreach (var exposedType in hostNode.ProvidedServices)
                 {
                     singletonServiceTypes.Add(exposedType);

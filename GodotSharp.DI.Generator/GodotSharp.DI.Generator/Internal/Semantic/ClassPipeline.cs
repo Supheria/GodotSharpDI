@@ -546,7 +546,28 @@ internal static class ClassPipeline
         if (singletonAttr == null)
             return ImmutableArray<ITypeSymbol>.Empty;
 
-        return GetTypesFromAttribute(singletonAttr, "ServiceTypes");
+        var exposedTypes = GetTypesFromAttribute(singletonAttr, "ServiceTypes");
+
+        // 如果没有指定服务类型，使用成员的类型
+        if (exposedTypes.IsEmpty)
+        {
+            ITypeSymbol? memberType = null;
+            if (member is IFieldSymbol field)
+            {
+                memberType = field.Type;
+            }
+            else if (member is IPropertySymbol property)
+            {
+                memberType = property.Type;
+            }
+
+            if (memberType != null)
+            {
+                return ImmutableArray.Create(memberType);
+            }
+        }
+
+        return exposedTypes;
     }
 
     private static ImmutableArray<ITypeSymbol> GetTypesFromAttribute(
