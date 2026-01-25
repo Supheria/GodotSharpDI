@@ -3,7 +3,7 @@
 <root>
     <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
         <xsd:element name="root" msdata:IsDataSet="true">
-            
+
         </xsd:element>
     </xsd:schema>
     <resheader name="resmimetype">
@@ -18,15 +18,15 @@
     <resheader name="writer">
         <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
     </resheader>
-    
+
     <data name="ServiceLifetimeConflict" xml:space="preserve">
     <value>Type '{0}' cannot be both [Singleton] and [Transient]</value>
   </data>
-  <data name="ServiceReadyNeedUser" xml:space="preserve">
+    <data name="ServiceReadyNeedUser" xml:space="preserve">
     <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
   </data>
 
-  <data name="ServiceCannotBeNode" xml:space="preserve">
+    <data name="ServiceCannotBeNode" xml:space="preserve">
     <value>Service '{0}' cannot inherit from Godot.Node</value>
   </data>
 
@@ -50,11 +50,11 @@
     <value>Singleton service '{0}' cannot depend on transient service '{1}'</value>
   </data>
 
-  <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
+    <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
     <value>Type '{0}' must be marked as [Host] to use [Singleton] on members</value>
   </data>
 
-  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
     <value>[Singleton] and [Inject] cannot be applied to the same member</value>
   </data>
 
@@ -117,49 +117,73 @@
     <data name="GeneratorInternalError" xml:space="preserve">
     <value>Internal error in source generator: {0}</value>
   </data>
-  <data name="UnknownTypeRole" xml:space="preserve">
+    <data name="UnknownTypeRole" xml:space="preserve">
     <value>Unknown DI Type Role</value>
   </data>
-  <data name="ScopeInvalidAttribute" xml:space="preserve">
+    <data name="ScopeInvalidAttribute" xml:space="preserve">
     <value>Scope '{0}' cannot use [{1}]</value>
   </data>
-  <data name="HostMustBeNode" xml:space="preserve">
+    <data name="HostMustBeNode" xml:space="preserve">
     <value>Host '{0}' must inherit from Godot.Node</value>
   </data>
-  <data name="HostInvalidAttribute" xml:space="preserve">
+    <data name="HostInvalidAttribute" xml:space="preserve">
     <value>Host '{0}' cannot use [{1}]</value>
   </data>
-  <data name="UserInvalidAttribute" xml:space="preserve">
+    <data name="UserInvalidAttribute" xml:space="preserve">
     <value>User '{0}' cannot use [{1}]</value>
   </data>
-  <data name="HostCannotBeMember" xml:space="preserve">
+    <data name="HostCannotBeMember" xml:space="preserve">
     <value>Member cannot have Type marked as [Host]</value>
   </data>
-  <data name="MemberHasInjectButNotInUser" xml:space="preserve">
+    <data name="MemberHasInjectButNotInUser" xml:space="preserve">
     <value>Type '{0}' must be marked as [User] to use [Inject] on members</value>
   </data>
-  <data name="ScopeModulesInstantiateEmpty" xml:space="preserve">
+    <data name="ScopeModulesInstantiateEmpty" xml:space="preserve">
     <value>Scope '{0}' must specify at least one type in [Modules] Instantiate</value>
   </data>
-  <data name="ScopeModulesExpectEmpty" xml:space="preserve">
+    <data name="ScopeModulesExpectEmpty" xml:space="preserve">
     <value>Scope '{0}' specifies no Host type in [Modules] Expect</value>
   </data>
-  <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
+    <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
     <value>Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]</value>
   </data>
-  <data name="RequestCancellation" xml:space="preserve">
+    <data name="RequestCancellation" xml:space="preserve">
     <value>Generator receives cancellation request: {0}</value>
   </data>
-  <data name="InjectConstructorParameterTypeInvalid" xml:space="preserve">
+    <data name="InjectConstructorParameterTypeInvalid" xml:space="preserve">
     <value>Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type</value>
   </data>
-  <data name="ServiceTypeIsInvalid" xml:space="preserve">
+    <data name="ServiceTypeIsInvalid" xml:space="preserve">
     <value>Service '{0}' must be non-abstract, non-static class type</value>
   </data>
-  <data name="DiClassMustBePartial" xml:space="preserve">
+    <data name="DiClassMustBePartial" xml:space="preserve">
     <value>DI-relative class '{0}' must be declared as partial to enable code generation</value>
   </data>
-  <data name="UserTypeIsInvalid" xml:space="preserve">
+    <data name="UserTypeIsInvalid" xml:space="preserve">
     <value>User '{0}' must be non-abstract, non-static class type</value>
+  </data>
+    <data name="InjectMemberIsHostType" xml:space="preserve">
+    <value>[Inject] member '{0}' has type '{1}', which is a [Host] type and cannot be injected</value>
+  </data>
+    <data name="InjectMemberIsUserType" xml:space="preserve">
+    <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
+  </data>
+    <data name="InjectMemberIsScopeType" xml:space="preserve">
+    <value>[Inject] member '{0}' has type '{1}', which is an IScope type and cannot be injected</value>
+  </data>
+    <data name="InjectMemberIsStatic" xml:space="preserve">
+    <value>[Inject] member '{0}' cannot be static</value>
+  </data>
+    <data name="SingletonMemberIsStatic" xml:space="preserve">
+    <value>[Singleton] member '{0}' cannot be static</value>
+  </data>
+    <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
+    <value>[Singleton] member '{0}' has type '{1}', which is already marked as a Service ([Singleton] or [Transient]). Host should not hold Service instances directly</value>
+  </data>
+    <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
+    <value>Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
+  </data>
+    <data name="ServiceTypeConflict" xml:space="preserve">
+    <value>Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope</value>
   </data>
 </root>

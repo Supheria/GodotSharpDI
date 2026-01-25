@@ -36,8 +36,9 @@ internal static class DiGraphBuilder
             .ToImmutableArray();
         var scopes = validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray();
 
-        // 构建服务提供映射
-        var serviceProviders = BuildServiceProviderMap(services, hosts, symbols);
+        // 构建服务提供映射（带冲突检测）
+        var (serviceProviders, providerDiags) = BuildServiceProviderMap(services, hosts, symbols);
+        diagnostics.AddRange(providerDiags);
 
         // 构建节点
         var (serviceNodes, serviceDiags) = BuildServiceNodes(services, serviceProviders, symbols);
@@ -79,18 +80,50 @@ internal static class DiGraphBuilder
         return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
     }
 
-    private static Dictionary<
-        ITypeSymbol,
-        (TypeInfo Provider, ServiceLifetime Lifetime)
-    > BuildServiceProviderMap(
+    private static (
+        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)>,
+        ImmutableArray<Diagnostic>
+    ) BuildServiceProviderMap(
         ImmutableArray<TypeInfo> services,
         ImmutableArray<TypeInfo> hosts,
         CachedSymbols symbols
     )
     {
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         var map = new Dictionary<ITypeSymbol, (TypeInfo, ServiceLifetime)>(
             SymbolEqualityComparer.Default
         );
+        // 用于跟踪冲突的提供者
+        var conflictTracker = new Dictionary<ITypeSymbol, List<string>>(
+            SymbolEqualityComparer.Default
+        );
+
+        void AddProvider(
+            ITypeSymbol exposedType,
+            TypeInfo provider,
+            ServiceLifetime lifetime,
+            string providerDescription
+        )
+        {
+            if (map.ContainsKey(exposedType))
+            {
+                // 存在冲突
+                if (!conflictTracker.ContainsKey(exposedType))
+                {
+                    // 添加第一个提供者到冲突列表
+                    var existingProvider = map[exposedType].Item1;
+                    conflictTracker[exposedType] = new List<string>
+                    {
+                        existingProvider.Symbol.ToDisplayString(),
+                    };
+                }
+                conflictTracker[exposedType].Add(providerDescription);
+            }
+            else
+            {
+                map[exposedType] = (provider, lifetime);
+            }
+        }
 
         // Service 提供的服务
         foreach (var service in services)
@@ -98,7 +131,12 @@ internal static class DiGraphBuilder
             var exposedTypes = GetServiceExposedTypes(service, symbols);
             foreach (var exposedType in exposedTypes)
             {
-                map[exposedType] = (service, service.Lifetime);
+                AddProvider(
+                    exposedType,
+                    service,
+                    service.Lifetime,
+                    service.Symbol.ToDisplayString()
+                );
             }
         }
 
@@ -114,13 +152,28 @@ internal static class DiGraphBuilder
                 {
                     foreach (var exposedType in member.ExposedTypes)
                     {
-                        map[exposedType] = (host, ServiceLifetime.Singleton);
+                        var providerDesc = $"{host.Symbol.ToDisplayString()}.{member.Symbol.Name}";
+                        AddProvider(exposedType, host, ServiceLifetime.Singleton, providerDesc);
                     }
                 }
             }
         }
 
-        return map;
+        // 报告所有冲突
+        foreach (var conflict in conflictTracker)
+        {
+            var providers = string.Join(", ", conflict.Value);
+            diagnostics.Add(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.ServiceTypeConflict,
+                    Location.None,
+                    conflict.Key.ToDisplayString(),
+                    providers
+                )
+            );
+        }
+
+        return (map, diagnostics.ToImmutable());
     }
 
     private static ImmutableArray<ITypeSymbol> GetServiceExposedTypes(

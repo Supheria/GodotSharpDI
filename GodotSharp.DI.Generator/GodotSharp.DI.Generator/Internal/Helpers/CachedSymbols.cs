@@ -62,6 +62,32 @@ internal sealed class CachedSymbols
             return false;
         return type.AllInterfaces.Contains(IServicesReady, SymbolEqualityComparer.Default);
     }
+
+    public bool IsHostType(ITypeSymbol type)
+    {
+        if (HostAttribute is null)
+            return false;
+        return type.GetAttributes()
+            .Any(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, HostAttribute));
+    }
+
+    public bool IsUserType(ITypeSymbol type)
+    {
+        if (UserAttribute is null)
+            return false;
+        return type.GetAttributes()
+            .Any(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, UserAttribute));
+    }
+
+    public bool IsServiceType(ITypeSymbol type)
+    {
+        if (SingletonAttribute is null && TransientAttribute is null)
+            return false;
+        return type.GetAttributes()
+            .Any(attr =>
+                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, SingletonAttribute) ||
+                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, TransientAttribute));
+    }
 }
 
 internal static class TypeSymbolExtensions

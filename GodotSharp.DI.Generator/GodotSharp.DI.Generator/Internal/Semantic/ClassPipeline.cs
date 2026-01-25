@@ -324,6 +324,33 @@ internal static class ClassPipeline
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         var location = member.Locations.FirstOrDefault() ?? Location.None;
 
+        // 检查 static 成员
+        if (member.IsStatic)
+        {
+            if (hasInject)
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.InjectMemberIsStatic,
+                        location,
+                        member.Name
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+            if (hasSingleton)
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.SingletonMemberIsStatic,
+                        location,
+                        member.Name
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+        }
+
         ITypeSymbol? memberType = null;
         MemberKind kind = MemberKind.None;
 
@@ -374,6 +401,48 @@ internal static class ClassPipeline
         // 验证类型
         if (hasInject)
         {
+            // 检查是否是 Host 类型
+            if (symbols.IsHostType(memberType))
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.InjectMemberIsHostType,
+                        location,
+                        member.Name,
+                        memberType.ToDisplayString()
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+
+            // 检查是否是 User 类型
+            if (symbols.IsUserType(memberType))
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.InjectMemberIsUserType,
+                        location,
+                        member.Name,
+                        memberType.ToDisplayString()
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+
+            // 检查是否是 Scope 类型
+            if (symbols.ImplementsIScope(memberType))
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.InjectMemberIsScopeType,
+                        location,
+                        member.Name,
+                        memberType.ToDisplayString()
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+
             if (!memberType.IsValidInjectType(symbols))
             {
                 diagnostics.Add(
@@ -392,7 +461,36 @@ internal static class ClassPipeline
         var exposedTypes = ImmutableArray<ITypeSymbol>.Empty;
         if (hasSingleton)
         {
+            // 检查成员类型是否是 Service 类型（Host 不应直接持有 Service 实例）
+            if (symbols.IsServiceType(memberType))
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.HostSingletonMemberIsServiceType,
+                        location,
+                        member.Name,
+                        memberType.ToDisplayString()
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+
             exposedTypes = GetExposedTypes(member, symbols);
+
+            // 检查暴露类型是否是接口（Warning）
+            foreach (var exposedType in exposedTypes)
+            {
+                if (exposedType.TypeKind != TypeKind.Interface)
+                {
+                    diagnostics.Add(
+                        Diagnostic.Create(
+                            DiagnosticDescriptors.ExposedTypeShouldBeInterface,
+                            location,
+                            exposedType.ToDisplayString()
+                        )
+                    );
+                }
+            }
         }
 
         var info = new MemberInfo(

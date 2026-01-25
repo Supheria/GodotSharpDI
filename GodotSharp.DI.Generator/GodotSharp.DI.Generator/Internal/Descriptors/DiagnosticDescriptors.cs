@@ -214,6 +214,42 @@ internal static class DiagnosticDescriptors
         Resources.InjectMemberInvalidType
     );
 
+    public static readonly DiagnosticDescriptor InjectMemberIsHostType = Member(
+        "051",
+        Resources.InjectMemberIsHostType
+    );
+
+    public static readonly DiagnosticDescriptor InjectMemberIsUserType = Member(
+        "052",
+        Resources.InjectMemberIsUserType
+    );
+
+    public static readonly DiagnosticDescriptor InjectMemberIsScopeType = Member(
+        "053",
+        Resources.InjectMemberIsScopeType
+    );
+
+    public static readonly DiagnosticDescriptor InjectMemberIsStatic = Member(
+        "054",
+        Resources.InjectMemberIsStatic
+    );
+
+    public static readonly DiagnosticDescriptor SingletonMemberIsStatic = Member(
+        "055",
+        Resources.SingletonMemberIsStatic
+    );
+
+    public static readonly DiagnosticDescriptor HostSingletonMemberIsServiceType = Member(
+        "060",
+        Resources.HostSingletonMemberIsServiceType
+    );
+
+    public static readonly DiagnosticDescriptor ExposedTypeShouldBeInterface = Member(
+        "070",
+        Resources.ExposedTypeShouldBeInterface,
+        DiagnosticSeverity.Warning
+    );
+
     // ============================================================
     // S — Constructor-level
     // ============================================================
@@ -289,6 +325,11 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor SingletonCannotDependOnTransient = DependencyGraph(
         "040",
         Resources.SingletonCannotDependOnTransient
+    );
+
+    public static readonly DiagnosticDescriptor ServiceTypeConflict = DependencyGraph(
+        "050",
+        Resources.ServiceTypeConflict
     );
 
     // ============================================================
