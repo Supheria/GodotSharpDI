@@ -1,102 +1,433 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
+using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.Helpers;
-using GodotSharp.DI.Generator.Internal.Validation;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using TypeInfo = GodotSharp.DI.Generator.Internal.Data.TypeInfo;
 
 namespace GodotSharp.DI.Generator.Internal.DiBuild;
 
-internal sealed class DiGraphBuilder
+internal static class DiGraphBuilder
 {
-    private readonly ImmutableArray<ClassType> _allTypes;
-    private readonly CachedSymbols _symbols;
-    private readonly ImmutableArray<Diagnostic>.Builder _diagnostics;
-
-    public DiGraphBuilder(ImmutableArray<ClassType> allTypes, CachedSymbols symbols)
+    public static DiGraphBuildResult Build(
+        ImmutableArray<ClassValidationResult> classResults,
+        CachedSymbols symbols
+    )
     {
-        _allTypes = allTypes;
-        _symbols = symbols;
-        _diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-    }
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
-    public DiGraphBuildResult Build()
-    {
-        var typeInfoMap = BuildTypeInfoMap();
-        var graph = BuildDiGraph(typeInfoMap);
-        _diagnostics.AddRange(DiGraphValidator.Validate(typeInfoMap, graph, _symbols));
-        return new DiGraphBuildResult(graph, _diagnostics.ToImmutable());
-    }
+        var validTypes = classResults
+            .Where(r => r.TypeInfo != null)
+            .Select(r => r.TypeInfo!)
+            .ToImmutableArray();
 
-    private IReadOnlyDictionary<INamedTypeSymbol, ClassTypeInfo> BuildTypeInfoMap()
-    {
-        var typeInfoMap = new Dictionary<INamedTypeSymbol, ClassTypeInfo>(
+        if (validTypes.IsEmpty)
+            return DiGraphBuildResult.Empty;
+
+        // 按角色分类
+        var services = validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray();
+        var hosts = validTypes
+            .Where(t => t.Role == TypeRole.Host || t.Role == TypeRole.HostAndUser)
+            .ToImmutableArray();
+        var users = validTypes
+            .Where(t => t.Role == TypeRole.User || t.Role == TypeRole.HostAndUser)
+            .ToImmutableArray();
+        var scopes = validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray();
+
+        // 构建服务提供映射
+        var serviceProviders = BuildServiceProviderMap(services, hosts, symbols);
+
+        // 构建节点
+        var (serviceNodes, serviceDiags) = BuildServiceNodes(services, serviceProviders, symbols);
+        diagnostics.AddRange(serviceDiags);
+
+        var (hostNodes, hostDiags) = BuildHostNodes(hosts);
+        diagnostics.AddRange(hostDiags);
+
+        var (userNodes, userDiags) = BuildUserNodes(users);
+        diagnostics.AddRange(userDiags);
+
+        var (scopeNodes, scopeDiags) = BuildScopeNodes(scopes, serviceProviders, symbols);
+        diagnostics.AddRange(scopeDiags);
+
+        // 依赖图验证
+        var graphDiags = ValidateDependencyGraph(serviceNodes, serviceProviders, symbols);
+        diagnostics.AddRange(graphDiags);
+
+        // 构建类型映射 - 使用 TypeNode 而不是 TypeInfo
+        var typeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
             SymbolEqualityComparer.Default
         );
-        foreach (var type in _allTypes)
-        {
-            var result = ClassTypeInfoFactory.Create(type, _symbols);
-            _diagnostics.AddRange(result.Diagnostics);
-            if (result.TypeInfo is not null)
-            {
-                typeInfoMap.Add(result.TypeInfo.Symbol, result.TypeInfo);
-            }
-        }
-        return typeInfoMap;
+
+        foreach (var node in serviceNodes)
+            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+        foreach (var node in hostNodes)
+            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+        foreach (var node in userNodes)
+            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+
+        var graph = new DiGraph(
+            ServiceNodes: serviceNodes,
+            HostNodes: hostNodes,
+            UserNodes: userNodes,
+            ScopeNodes: scopeNodes,
+            TypeMap: typeMapBuilder.ToImmutable()
+        );
+
+        return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
     }
 
-    private DiGraph BuildDiGraph(IReadOnlyDictionary<INamedTypeSymbol, ClassTypeInfo> typeInfoMap)
+    private static Dictionary<
+        ITypeSymbol,
+        (TypeInfo Provider, ServiceLifetime Lifetime)
+    > BuildServiceProviderMap(
+        ImmutableArray<TypeInfo> services,
+        ImmutableArray<TypeInfo> hosts,
+        CachedSymbols symbols
+    )
     {
-        var services = ImmutableArray.CreateBuilder<ServiceInfo>();
-        var hostOrUsers = ImmutableArray.CreateBuilder<HostUserInfo>();
-        var scopes = ImmutableArray.CreateBuilder<ScopeInfo>();
+        var map = new Dictionary<ITypeSymbol, (TypeInfo, ServiceLifetime)>(
+            SymbolEqualityComparer.Default
+        );
 
-        foreach (var typeInfo in typeInfoMap.Values)
+        // Service 提供的服务
+        foreach (var service in services)
         {
-            if (typeInfo.IsService)
+            var exposedTypes = GetServiceExposedTypes(service, symbols);
+            foreach (var exposedType in exposedTypes)
             {
-                services.Add(
-                    new ServiceInfo(
-                        typeInfo.Symbol,
-                        typeInfo.Namespace,
-                        typeInfo.ServiceLifetime,
-                        typeInfo.ServiceConstructor!
-                    )
-                );
+                map[exposedType] = (service, service.Lifetime);
             }
-            else if (typeInfo.IsHost || typeInfo.IsUser)
+        }
+
+        // Host 提供的服务
+        foreach (var host in hosts)
+        {
+            foreach (var member in host.Members)
             {
-                hostOrUsers.Add(
-                    new HostUserInfo(
-                        typeInfo.Symbol,
-                        typeInfo.Namespace,
-                        typeInfo.IsHost,
-                        typeInfo.IsUser,
-                        typeInfo.IsServicesReady,
-                        typeInfo.IsNode,
-                        typeInfo.HostSingletonServices,
-                        typeInfo.UserInjectMembers
-                    )
-                );
-            }
-            else if (typeInfo.IsScope)
-            {
-                var result = ScopeInfoCreator.Create(typeInfo, typeInfoMap);
-                _diagnostics.AddRange(result.Diagnostics);
-                if (result.ScopeInfo is not null)
+                if (
+                    member.Kind == MemberKind.SingletonField
+                    || member.Kind == MemberKind.SingletonProperty
+                )
                 {
-                    scopes.Add(result.ScopeInfo);
+                    foreach (var exposedType in member.ExposedTypes)
+                    {
+                        map[exposedType] = (host, ServiceLifetime.Singleton);
+                    }
                 }
             }
         }
 
-        return new DiGraph(
-            Services: services.ToImmutable(),
-            HostOrUsers: hostOrUsers.ToImmutable(),
-            Scopes: scopes.ToImmutable()
-        );
+        return map;
+    }
+
+    private static ImmutableArray<ITypeSymbol> GetServiceExposedTypes(
+        TypeInfo service,
+        CachedSymbols symbols
+    )
+    {
+        var builder = ImmutableArray.CreateBuilder<ITypeSymbol>();
+
+        var singletonAttr = service
+            .Symbol.GetAttributes()
+            .FirstOrDefault(a =>
+                SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.SingletonAttribute)
+            );
+
+        var transientAttr = service
+            .Symbol.GetAttributes()
+            .FirstOrDefault(a =>
+                SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.TransientAttribute)
+            );
+
+        var attr = singletonAttr ?? transientAttr;
+        if (attr != null)
+        {
+            foreach (var arg in attr.ConstructorArguments)
+            {
+                if (arg.Kind == TypedConstantKind.Array)
+                {
+                    foreach (var item in arg.Values)
+                    {
+                        if (item.Value is ITypeSymbol type)
+                            builder.Add(type);
+                    }
+                }
+            }
+        }
+
+        // 如果没有指定，使用类型本身
+        if (builder.Count == 0)
+        {
+            builder.Add(service.Symbol);
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildServiceNodes(
+        ImmutableArray<TypeInfo> services,
+        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        CachedSymbols symbols
+    )
+    {
+        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        foreach (var service in services)
+        {
+            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
+
+            if (service.Constructor != null)
+            {
+                foreach (var param in service.Constructor.Parameters)
+                {
+                    dependencies.Add(
+                        new DependencyEdge(
+                            TargetType: param.Type,
+                            Location: param.Location,
+                            Source: DependencySource.Constructor
+                        )
+                    );
+                }
+            }
+
+            var providedServices = GetServiceExposedTypes(service, symbols);
+
+            nodes.Add(
+                new TypeNode(
+                    TypeInfo: service,
+                    Dependencies: dependencies.ToImmutable(),
+                    ProvidedServices: providedServices
+                )
+            );
+        }
+
+        return (nodes.ToImmutable(), diagnostics.ToImmutable());
+    }
+
+    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostNodes(
+        ImmutableArray<TypeInfo> hosts
+    )
+    {
+        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        foreach (var host in hosts)
+        {
+            var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
+
+            foreach (var member in host.Members)
+            {
+                if (
+                    member.Kind == MemberKind.SingletonField
+                    || member.Kind == MemberKind.SingletonProperty
+                )
+                {
+                    providedServices.AddRange(member.ExposedTypes);
+                }
+            }
+
+            nodes.Add(
+                new TypeNode(
+                    TypeInfo: host,
+                    Dependencies: ImmutableArray<DependencyEdge>.Empty,
+                    ProvidedServices: providedServices.ToImmutable()
+                )
+            );
+        }
+
+        return (nodes.ToImmutable(), diagnostics.ToImmutable());
+    }
+
+    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildUserNodes(
+        ImmutableArray<TypeInfo> users
+    )
+    {
+        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        foreach (var user in users)
+        {
+            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
+
+            foreach (var member in user.Members)
+            {
+                if (
+                    member.Kind == MemberKind.InjectField
+                    || member.Kind == MemberKind.InjectProperty
+                )
+                {
+                    dependencies.Add(
+                        new DependencyEdge(
+                            TargetType: member.MemberType,
+                            Location: member.Location,
+                            Source: DependencySource.InjectMember
+                        )
+                    );
+                }
+            }
+
+            nodes.Add(
+                new TypeNode(
+                    TypeInfo: user,
+                    Dependencies: dependencies.ToImmutable(),
+                    ProvidedServices: ImmutableArray<ITypeSymbol>.Empty
+                )
+            );
+        }
+
+        return (nodes.ToImmutable(), diagnostics.ToImmutable());
+    }
+
+    private static (ImmutableArray<ScopeNode>, ImmutableArray<Diagnostic>) BuildScopeNodes(
+        ImmutableArray<TypeInfo> scopes,
+        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        CachedSymbols symbols
+    )
+    {
+        var nodes = ImmutableArray.CreateBuilder<ScopeNode>();
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        foreach (var scope in scopes)
+        {
+            if (scope.ModulesInfo == null)
+                continue;
+
+            var instantiate = scope.ModulesInfo.Instantiate;
+            var expect = scope.ModulesInfo.Expect;
+
+            // 验证 Instantiate
+            foreach (var type in instantiate)
+            {
+                if (!serviceProviders.ContainsKey(type))
+                {
+                    diagnostics.Add(
+                        Diagnostic.Create(
+                            DiagnosticDescriptors.ScopeInstantiateMustBeService,
+                            scope.Location,
+                            scope.Symbol.Name,
+                            type.ToDisplayString()
+                        )
+                    );
+                }
+            }
+
+            // 收集所有提供的服务
+            var allProvided = ImmutableArray.CreateBuilder<ITypeSymbol>();
+            foreach (var type in instantiate)
+            {
+                if (serviceProviders.TryGetValue(type, out var provider))
+                {
+                    allProvided.AddRange(
+                        provider
+                            .Provider.Members.Where(m =>
+                                m.Kind == MemberKind.SingletonField
+                                || m.Kind == MemberKind.SingletonProperty
+                            )
+                            .SelectMany(m => m.ExposedTypes)
+                    );
+                }
+            }
+
+            nodes.Add(
+                new ScopeNode(
+                    TypeInfo: scope,
+                    InstantiateServices: instantiate,
+                    ExpectHosts: expect,
+                    AllProvidedServices: allProvided.ToImmutable()
+                )
+            );
+        }
+
+        return (nodes.ToImmutable(), diagnostics.ToImmutable());
+    }
+
+    private static ImmutableArray<Diagnostic> ValidateDependencyGraph(
+        ImmutableArray<TypeNode> serviceNodes,
+        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        CachedSymbols symbols
+    )
+    {
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        // 检查循环依赖
+        foreach (var node in serviceNodes)
+        {
+            var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+            var path = new Stack<ITypeSymbol>();
+
+            if (HasCircularDependency(node.TypeInfo.Symbol, serviceProviders, visited, path))
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.CircularDependencyDetected,
+                        node.TypeInfo.Location,
+                        string.Join(" -> ", path.Reverse().Select(t => t.ToDisplayString()))
+                    )
+                );
+            }
+        }
+
+        // 检查 Singleton 依赖 Transient
+        foreach (var node in serviceNodes)
+        {
+            if (node.TypeInfo.Lifetime == ServiceLifetime.Singleton)
+            {
+                foreach (var dep in node.Dependencies)
+                {
+                    if (serviceProviders.TryGetValue(dep.TargetType, out var provider))
+                    {
+                        if (provider.Lifetime == ServiceLifetime.Transient)
+                        {
+                            diagnostics.Add(
+                                Diagnostic.Create(
+                                    DiagnosticDescriptors.SingletonCannotDependOnTransient,
+                                    dep.Location,
+                                    node.TypeInfo.Symbol.ToDisplayString(),
+                                    dep.TargetType.ToDisplayString()
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return diagnostics.ToImmutable();
+    }
+
+    private static bool HasCircularDependency(
+        ITypeSymbol current,
+        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        HashSet<ITypeSymbol> visited,
+        Stack<ITypeSymbol> path
+    )
+    {
+        if (path.Contains(current, SymbolEqualityComparer.Default))
+            return true;
+
+        if (visited.Contains(current))
+            return false;
+
+        visited.Add(current);
+        path.Push(current);
+
+        if (serviceProviders.TryGetValue(current, out var provider))
+        {
+            if (provider.Provider.Constructor != null)
+            {
+                foreach (var param in provider.Provider.Constructor.Parameters)
+                {
+                    if (HasCircularDependency(param.Type, serviceProviders, visited, path))
+                        return true;
+                }
+            }
+        }
+
+        path.Pop();
+        return false;
     }
 }

@@ -78,6 +78,15 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DI-relative class &apos;{0}&apos; must be declared as partial to enable code generation.
+        /// </summary>
+        internal static string DiClassMustBePartial {
+            get {
+                return ResourceManager.GetString("DiClassMustBePartial", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Internal error in source generator: {0}.
         /// </summary>
         internal static string GeneratorInternalError {
@@ -128,6 +137,15 @@ namespace GodotSharp.DI.Generator {
         internal static string HostServiceNotFound {
             get {
                 return ResourceManager.GetString("HostServiceNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type.
+        /// </summary>
+        internal static string InjectConstructorParameterTypeInvalid {
+            get {
+                return ResourceManager.GetString("InjectConstructorParameterTypeInvalid", resourceCulture);
             }
         }
         
@@ -312,7 +330,7 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to {0} service &apos;{1}&apos; cannot inherit from Godot.Node.
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node.
         /// </summary>
         internal static string ServiceCannotBeNode {
             get {
@@ -344,6 +362,15 @@ namespace GodotSharp.DI.Generator {
         internal static string ServiceReadyNeedUser {
             get {
                 return ResourceManager.GetString("ServiceReadyNeedUser", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; must be non-abstract, non-static class type.
+        /// </summary>
+        internal static string ServiceTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("ServiceTypeIsInvalid", resourceCulture);
             }
         }
         
@@ -380,6 +407,15 @@ namespace GodotSharp.DI.Generator {
         internal static string UserInvalidAttribute {
             get {
                 return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User &apos;{0}&apos; must be non-abstract, non-static class type.
+        /// </summary>
+        internal static string UserTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("UserTypeIsInvalid", resourceCulture);
             }
         }
     }

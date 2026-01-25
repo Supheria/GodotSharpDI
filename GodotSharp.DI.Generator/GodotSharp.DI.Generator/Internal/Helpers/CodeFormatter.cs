@@ -1,13 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 
-namespace GodotSharp.DI.Generator.Internal.Coding;
-
-internal sealed record RemarkItem(string Type, string Name)
-{
-    public string Type { get; } = Type;
-    public string Name { get; } = Name;
-}
+namespace GodotSharp.DI.Generator.Internal.Helpers;
 
 internal sealed class CodeFormatter
 {
@@ -44,7 +38,8 @@ internal sealed class CodeFormatter
     {
         Indent();
         _sb.Append(text);
-        _sb.Append(" // " + comment);
+        _sb.Append(" // ");
+        _sb.Append(comment);
         _sb.Append('\n');
     }
 
@@ -63,7 +58,10 @@ internal sealed class CodeFormatter
     public void EndBlock(string append)
     {
         _level--;
-        AppendLine("}" + append);
+        Indent();
+        _sb.Append('}');
+        _sb.Append(append);
+        _sb.Append('\n');
     }
 
     public void BeginLevel()
@@ -81,7 +79,7 @@ internal sealed class CodeFormatter
         AppendLine("/// " + text);
     }
 
-    public void AppendXmlSummery(string text)
+    public void AppendXmlSummary(string text)
     {
         AppendXmlComment("<summary>");
         AppendXmlComment(text);
@@ -108,3 +106,5 @@ internal sealed class CodeFormatter
 
     public override string ToString() => _sb.ToString();
 }
+
+internal readonly record struct RemarkItem(string Type, string Name);

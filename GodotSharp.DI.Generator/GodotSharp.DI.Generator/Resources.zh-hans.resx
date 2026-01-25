@@ -19,8 +19,8 @@
     <value>类型 “{0}” 实现了 IServicesReady，但未标记为 [User]</value>
   </data>
 
-    <data name="ServiceCannotBeNode" xml:space="preserve">
-    <value>{0} 服务 “{1}” 不能继承自 Godot.Node</value>
+  <data name="ServiceCannotBeNode" xml:space="preserve">
+    <value>服务 “{0}” 不能继承自 Godot.Node</value>
   </data>
 
     <data name="NoPublicConstructor" xml:space="preserve">
@@ -142,5 +142,17 @@
   </data>
   <data name="RequestCancellation" xml:space="preserve">
     <value>源生成器在执行过程中收到取消请求：{0}</value>
+  </data>
+  <data name="InjectConstructorParameterTypeInvalid" xml:space="preserve">
+    <value>Inject 构造函数的参数类型必须是接口类型，或是非 Node、非 Host、非 User、非 Scope 的 class 类型</value>
+  </data>
+  <data name="ServiceTypeIsInvalid" xml:space="preserve">
+    <value>服务 “{0}” 必须是非抽象、非静态的 class 类型</value>
+  </data>
+  <data name="DiClassMustBePartial" xml:space="preserve">
+    <value>与 DI 相关的类 “{0}” 必须声明为 partial，以启用代码生成</value>
+  </data>
+  <data name="UserTypeIsInvalid" xml:space="preserve">
+    <value>User “{0}” 必须是非抽象、非静态的 class 类型</value>
   </data>
 </root>

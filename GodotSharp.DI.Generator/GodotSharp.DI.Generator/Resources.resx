@@ -26,8 +26,8 @@
     <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
   </data>
 
-    <data name="ServiceCannotBeNode" xml:space="preserve">
-    <value>{0} service '{1}' cannot inherit from Godot.Node</value>
+  <data name="ServiceCannotBeNode" xml:space="preserve">
+    <value>Service '{0}' cannot inherit from Godot.Node</value>
   </data>
 
     <data name="NoPublicConstructor" xml:space="preserve">
@@ -149,5 +149,17 @@
   </data>
   <data name="RequestCancellation" xml:space="preserve">
     <value>Generator receives cancellation request: {0}</value>
+  </data>
+  <data name="InjectConstructorParameterTypeInvalid" xml:space="preserve">
+    <value>Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type</value>
+  </data>
+  <data name="ServiceTypeIsInvalid" xml:space="preserve">
+    <value>Service '{0}' must be non-abstract, non-static class type</value>
+  </data>
+  <data name="DiClassMustBePartial" xml:space="preserve">
+    <value>DI-relative class '{0}' must be declared as partial to enable code generation</value>
+  </data>
+  <data name="UserTypeIsInvalid" xml:space="preserve">
+    <value>User '{0}' must be non-abstract, non-static class type</value>
   </data>
 </root>

@@ -160,6 +160,21 @@ internal static class DiagnosticDescriptors
         Resources.ScopeMissingModules
     );
 
+    public static readonly DiagnosticDescriptor DiClassMustBePartial = Class(
+        "050",
+        Resources.DiClassMustBePartial
+    );
+
+    public static readonly DiagnosticDescriptor ServiceTypeIsInvalid = Class(
+        "060",
+        Resources.ServiceTypeIsInvalid
+    );
+
+    public static readonly DiagnosticDescriptor UserTypeIsInvalid = Class(
+        "060",
+        Resources.UserTypeIsInvalid
+    );
+
     // ============================================================
     // M — Member-level
     // ============================================================
@@ -221,6 +236,11 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InvalidInjectConstructorAttribute = Constructor(
         "022",
         Resources.InvalidInjectConstructorAttribute
+    );
+
+    public static readonly DiagnosticDescriptor InjectConstructorParameterTypeInvalid = Constructor(
+        "030",
+        Resources.InjectConstructorParameterTypeInvalid
     );
 
     // ============================================================

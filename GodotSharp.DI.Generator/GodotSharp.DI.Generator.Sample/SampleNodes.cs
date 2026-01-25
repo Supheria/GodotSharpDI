@@ -54,7 +54,7 @@ public interface ISearcher;
 [Singleton(typeof(IFinder), typeof(ISearcher))]
 public partial class PathFinder : IFinder, ISearcher
 {
-    // [InjectConstructor]
+    [InjectConstructor]
     private PathFinder(IDataWriter writer, IDataReader reader) { }
 
     // private PathFinder(IDataWriter writer) { }

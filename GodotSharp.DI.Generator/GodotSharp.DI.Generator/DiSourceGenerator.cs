@@ -11,6 +11,7 @@ using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.DiBuild;
 using GodotSharp.DI.Generator.Internal.Helpers;
+using GodotSharp.DI.Generator.Internal.Semantic;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -21,142 +22,95 @@ namespace GodotSharp.DI.Generator;
 [Generator]
 public sealed class DiSourceGenerator : IIncrementalGenerator
 {
-    private sealed class ClassTypeComparer : IEqualityComparer<ClassType>
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        public static readonly ClassTypeComparer Default = new();
+        // 1. 语法筛选
+        var candidateClasses = context.SyntaxProvider.CreateSyntaxProvider(
+            static (node, _) => node is ClassDeclarationSyntax c && c.AttributeLists.Count > 0,
+            static (ctx, _) => (ClassDeclarationSyntax)ctx.Node
+        );
 
-        private ClassTypeComparer() { }
-
-        public bool Equals(ClassType? x, ClassType? y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-            if (x is null || y is null)
-            {
-                return false;
-            }
-            return SymbolEqualityComparer.Default.Equals(x.Symbol, y.Symbol);
-        }
-
-        public int GetHashCode(ClassType obj)
-        {
-            return SymbolEqualityComparer.Default.GetHashCode(obj.Symbol);
-        }
-    }
-
-    private static ClassType? TypeFilter(GeneratorSyntaxContext context, CancellationToken _)
-    {
-        try
-        {
-            var classDecl = (ClassDeclarationSyntax)context.Node;
-            var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl);
-            if (symbol is INamedTypeSymbol type && TypeHelper.IsDiRelevant(type))
-            {
-                return new ClassType(type, classDecl);
-            }
-        }
-        catch
-        {
-            // ignored
-        }
-
-        return null;
-    }
-
-    private static DiGraphBuildResult BuildDiGraph(
-        (ImmutableArray<ClassType>, CachedSymbols) pair,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            ct.ThrowIfCancellationRequested();
-        }
-        catch (Exception ex)
-        {
-            var diagnostic = Diagnostic.Create(
-                descriptor: DiagnosticDescriptors.RequestCancellation,
-                location: Location.None,
-                ex.Message
+        // 2. Raw 构建（类级增量）+ Raw 诊断
+        var rawClassInfoResults = candidateClasses
+            .Combine(context.CompilationProvider)
+            .Select(
+                static (pair, _) =>
+                {
+                    var (syntax, compilation) = pair;
+                    return RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, syntax);
+                }
             );
-            return DiGraphBuildResult.Failure(ImmutableArray.Create(diagnostic));
-        }
 
-        try
-        {
-            var (types, symbols) = pair;
-            var builder = new DiGraphBuilder(types, symbols);
-            return builder.Build();
-        }
-        catch (Exception ex)
-        {
-            var diagnostic = Diagnostic.Create(
-                descriptor: DiagnosticDescriptors.GeneratorInternalError,
-                location: Location.None,
-                ex.Message
-            );
-            return DiGraphBuildResult.Failure(ImmutableArray.Create(diagnostic));
-        }
-    }
+        var rawInfos = rawClassInfoResults
+            .Select(static (r, _) => r.Info)
+            .Where(static info => info is not null)
+            .Select(static (info, _) => info!);
 
-    void IIncrementalGenerator.Initialize(IncrementalGeneratorInitializationContext context)
-    {
-        // 1. transform 阶段做语义筛选
-        var filteredTypes = context
-            .SyntaxProvider.CreateSyntaxProvider(
-                predicate: static (node, _) =>
-                    node is ClassDeclarationSyntax classDecl && classDecl.AttributeLists.Count > 0,
-                transform: TypeFilter
-            )
-            .Where(static t => t is not null)
-            .Select(static (t, _) => t!);
+        var rawDiagnostics = rawClassInfoResults.SelectMany(static (r, _) => r.Diagnostics);
 
-        // 2. 去重（避免重复处理 partial）
-        var distinctTypes = filteredTypes.WithComparer(ClassTypeComparer.Default).Collect();
+        // Raw 诊断输出
+        context.RegisterSourceOutput(
+            rawDiagnostics,
+            static (spc, diag) => spc.ReportDiagnostic(diag)
+        );
 
-        // 3. CachedSymbol
+        // 3. CachedSymbols（全局一次）
         var symbolsProvider = context.CompilationProvider.Select(
             static (c, _) => new CachedSymbols(c)
         );
 
-        // 4. 构建 DiGraph
-        var graphProvider = distinctTypes.Combine(symbolsProvider).Select(BuildDiGraph);
+        // 4. 类级验证（类级增量）
+        //    注意：ValidateAndClassify 返回的是“纯值”，不携带 symbols
+        var classValidationResults = rawInfos
+            .Combine(symbolsProvider)
+            .Select(
+                static (pair, _) =>
+                {
+                    var (raw, symbols) = pair;
+                    return ClassPipeline.ValidateAndClassify(raw, symbols);
+                }
+            );
 
-        // 5. 注册生成器模块
+        // 类级诊断输出（过滤无诊断）
+        var classValidationWithDiags = classValidationResults.Where(static r =>
+            r.Diagnostics.Length > 0
+        );
+
         context.RegisterSourceOutput(
-            graphProvider,
+            classValidationWithDiags,
             static (spc, result) =>
             {
-                foreach (var diagnostic in result.Diagnostics)
-                {
-                    spc.ReportDiagnostic(diagnostic);
-                }
-                if (result.Graph is not null)
-                {
-                    GenerateAllSources(spc, result.Graph);
-                }
+                foreach (var d in result.Diagnostics)
+                    spc.ReportDiagnostic(d);
             }
         );
-    }
 
-    private static void GenerateAllSources(SourceProductionContext context, DiGraph graph)
-    {
-        try
-        {
-            ServiceGenerator.Generate(context, graph);
-            HostOrUserGenerator.Generate(context, graph);
-            ScopeGenerator.Generate(context, graph);
-        }
-        catch (Exception ex)
-        {
-            var diagnostic = Diagnostic.Create(
-                descriptor: DiagnosticDescriptors.GeneratorInternalError,
-                location: Location.None,
-                ex.Message
+        // 5. 图级构建（全局 Collect + 一次 Combine）
+        var graphResult = classValidationResults
+            .Collect() // ← 纯 ClassValidationResult 数组
+            .Combine(symbolsProvider) // ← 全局一次 Combine
+            .Select(
+                static (pair, _) =>
+                {
+                    var (classes, symbols) = pair;
+                    if (classes.IsDefaultOrEmpty)
+                        return DiGraphBuildResult.Empty;
+
+                    return DiGraphBuilder.Build(classes, symbols);
+                }
             );
-            context.ReportDiagnostic(diagnostic);
-        }
+
+        // 6. 图级诊断 + 源码输出
+        context.RegisterSourceOutput(
+            graphResult,
+            static (spc, result) =>
+            {
+                foreach (var d in result.Diagnostics)
+                    spc.ReportDiagnostic(d);
+
+                if (result.Graph is not null)
+                    SourceEmitter.GenerateAll(spc, result.Graph);
+            }
+        );
     }
 }
