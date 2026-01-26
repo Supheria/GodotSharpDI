@@ -42,8 +42,8 @@ public partial class PlayerStatsService : IPlayerStats
 
 ```csharp
 [Modules(
-    Instantiate = [typeof(PlayerStatsService)],
-    Expect = [typeof(GameManager)]
+    Services = [typeof(PlayerStatsService)],
+    Hosts = [typeof(GameManager)]
 )]
 public partial class GameScope : Node, IScope
 {
@@ -96,28 +96,28 @@ GameScope (IScope)
 
 ### 四种角色类型
 
-| 角色 | 说明 | 约束 |
-|------|------|------|
-| **Service** | 纯逻辑服务，由 Scope 创建和管理 | 必须是非 Node 的 class |
-| **Host** | 场景级资源提供者，将 Node 资源桥接到 DI 世界 | 必须是 Node |
-| **User** | 依赖消费者，接收注入 | Node 或普通 class |
-| **Scope** | DI 容器，管理服务生命周期 | 必须是 Node，实现 IScope |
+| 角色        | 说明                                         | 约束                     |
+| ----------- | -------------------------------------------- | ------------------------ |
+| **Service** | 纯逻辑服务，由 Scope 创建和管理              | 必须是非 Node 的 class   |
+| **Host**    | 场景级资源提供者，将 Node 资源桥接到 DI 世界 | 必须是 Node              |
+| **User**    | 依赖消费者，接收注入                         | Node 或普通 class        |
+| **Scope**   | DI 容器，管理服务生命周期                    | 必须是 Node，实现 IScope |
 
 ### 服务生命周期
 
-| 生命周期 | 说明 | 使用场景 |
-|----------|------|----------|
+| 生命周期      | 说明                              | 使用场景             |
+| ------------- | --------------------------------- | -------------------- |
 | **Singleton** | 在 Scope 内唯一，Scope 销毁时释放 | 状态管理、配置、缓存 |
-| **Transient** | 每次请求创建新实例 | 无状态服务、工厂产品 |
+| **Transient** | 每次请求创建新实例                | 无状态服务、工厂产品 |
 
 ## 📖 详细文档
 
-- [角色详解](docs/ROLES.md) - 四种角色的详细说明和使用指南
-- [生命周期管理](docs/LIFECYCLE.md) - 服务生命周期和 Scope 层级
-- [最佳实践](docs/BEST_PRACTICES.md) - 推荐的使用模式和常见陷阱
-- [API 参考](docs/API.md) - 完整的 API 文档
-- [诊断代码](docs/DIAGNOSTICS.md) - 编译时错误和警告说明
-- [类型约束总表](docs/TYPE_CONSTRAINTS.md) - 完整的类型约束规则
+- [角色详解](https://claude.ai/chat/docs/ROLES.md) - 四种角色的详细说明和使用指南
+- [生命周期管理](https://claude.ai/chat/docs/LIFECYCLE.md) - 服务生命周期和 Scope 层级
+- [最佳实践](https://claude.ai/chat/docs/BEST_PRACTICES.md) - 推荐的使用模式和常见陷阱
+- [API 参考](https://claude.ai/chat/docs/API.md) - 完整的 API 文档
+- [诊断代码](https://claude.ai/chat/docs/DIAGNOSTICS.md) - 编译时错误和警告说明
+- [类型约束总表](https://claude.ai/chat/docs/TYPE_CONSTRAINTS.md) - 完整的类型约束规则
 
 ## ⚠️ 重要注意事项
 
@@ -156,7 +156,7 @@ GDI_D020: 检测到循环依赖
 ...
 ```
 
-完整诊断代码列表请参阅 [诊断文档](docs/DIAGNOSTICS.md)。
+完整诊断代码列表请参阅 [诊断文档](https://claude.ai/chat/docs/DIAGNOSTICS.md)。
 
 ## 📄 许可证
 

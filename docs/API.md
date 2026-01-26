@@ -25,6 +25,7 @@ public sealed class SingletonAttribute : Attribute
 #### 用法
 
 **在类上（Service）**：
+
 ```csharp
 // 暴露单个接口
 [Singleton(typeof(IPlayerStats))]
@@ -40,6 +41,7 @@ public partial class ConfigService { }
 ```
 
 **在成员上（Host）**：
+
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState
@@ -49,7 +51,7 @@ public partial class GameManager : Node, IGameState
 }
 ```
 
----
+------
 
 ### TransientAttribute
 
@@ -74,7 +76,7 @@ public sealed class TransientAttribute : Attribute
 public partial class Bullet : IBullet { }
 ```
 
----
+------
 
 ### HostAttribute
 
@@ -98,7 +100,7 @@ public partial class ChunkManager : Node3D, IChunkGetter
 }
 ```
 
----
+------
 
 ### UserAttribute
 
@@ -121,7 +123,7 @@ public partial class PlayerUI : Control
 }
 ```
 
----
+------
 
 ### InjectAttribute
 
@@ -145,7 +147,7 @@ public partial class MyComponent : Node
 }
 ```
 
----
+------
 
 ### InjectConstructorAttribute
 
@@ -171,7 +173,7 @@ public partial class MyService : IService
 }
 ```
 
----
+------
 
 ### ModulesAttribute
 
@@ -183,29 +185,29 @@ namespace GodotSharp.DI.Abstractions;
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class ModulesAttribute : Attribute
 {
-    public Type[] Instantiate { get; set; }
-    public Type[] Expect { get; set; }
+    public Type[] Services { get; set; }
+    public Type[] Hosts { get; set; }
 }
 ```
 
 #### 参数
 
-| 参数 | 说明 |
-|------|------|
-| `Instantiate` | Scope 创建和管理的 Service 类型列表 |
-| `Expect` | Scope 期望接收的 Host 类型列表 |
+| 参数       | 说明                                |
+| ---------- | ----------------------------------- |
+| `Services` | Scope 创建和管理的 Service 类型列表 |
+| `Hosts`    | Scope 期望接收的 Host 类型列表      |
 
 #### 用法
 
 ```csharp
 [Modules(
-    Instantiate = [typeof(PlayerStatsService), typeof(CombatSystem)],
-    Expect = [typeof(GameManager), typeof(WorldManager)]
+    Services = [typeof(PlayerStatsService), typeof(CombatSystem)],
+    Hosts = [typeof(GameManager), typeof(WorldManager)]
 )]
 public partial class GameScope : Node, IScope { }
 ```
 
----
+------
 
 ## 接口（Interfaces）
 
@@ -227,21 +229,27 @@ public interface IScope
 #### 方法
 
 **RegisterService<T>**
+
 ```csharp
 void RegisterService<T>(T instance) where T : notnull;
 ```
+
 注册服务实例。通常由框架自动调用，不建议手动调用。
 
 **UnregisterService<T>**
+
 ```csharp
 void UnregisterService<T>() where T : notnull;
 ```
+
 注销服务。通常由框架在 Host 退出场景树时自动调用。
 
 **ResolveDependency<T>**
+
 ```csharp
 void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
 ```
+
 解析依赖。如果服务已注册，立即回调；否则加入等待队列。
 
 #### 用法
@@ -258,7 +266,7 @@ scope.ResolveDependency<IService>(service =>
 });
 ```
 
----
+------
 
 ### IServicesReady
 
@@ -291,7 +299,7 @@ public partial class MyComponent : Node, IServicesReady
 }
 ```
 
----
+------
 
 ## 生成的代码
 
@@ -385,7 +393,7 @@ void IScope.RegisterService<T>(T instance);
 void IScope.UnregisterService<T>();
 ```
 
----
+------
 
 ## 场景树集成
 
@@ -393,12 +401,12 @@ void IScope.UnregisterService<T>();
 
 框架监听以下 Godot 通知：
 
-| 通知 | 处理 |
-|------|------|
+| 通知                    | 处理                                                         |
+| ----------------------- | ------------------------------------------------------------ |
 | `NotificationEnterTree` | User: 附加到 Scope，触发注入<br>Host: 注册服务<br>Scope: 清除父 Scope 缓存 |
-| `NotificationExitTree` | User: 清除 Scope 引用<br>Host: 注销服务<br>Scope: 清除父 Scope 缓存 |
-| `NotificationReady` | Scope: 创建 Singleton，检查等待队列 |
-| `NotificationPredelete` | Scope: 释放所有服务 |
+| `NotificationExitTree`  | User: 清除 Scope 引用<br>Host: 注销服务<br>Scope: 清除父 Scope 缓存 |
+| `NotificationReady`     | Scope: 创建 Singleton，检查等待队列                          |
+| `NotificationPredelete` | Scope: 释放所有服务                                          |
 
 ### 场景树查找
 

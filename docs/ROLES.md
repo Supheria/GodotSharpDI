@@ -10,13 +10,13 @@ Service 是纯逻辑服务，封装业务逻辑和数据处理，不依赖 Godot
 
 ### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制，与 DI 容器冲突 |
-| 修饰符 | 不能是 abstract 或 static | 需要实例化 |
-| 泛型 | 不能是开放泛型 | 需要具体类型来实例化 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| 约束项 | 要求                      | 原因                                       |
+| ------ | ------------------------- | ------------------------------------------ |
+| 类型   | 必须是 class              | 需要实例化                                 |
+| 继承   | 不能是 Node               | Node 生命周期由 Godot 控制，与 DI 容器冲突 |
+| 修饰符 | 不能是 abstract 或 static | 需要实例化                                 |
+| 泛型   | 不能是开放泛型            | 需要具体类型来实例化                       |
+| 声明   | 必须是 partial            | 源生成器需要扩展类                         |
 
 ### 生命周期标记
 
@@ -87,7 +87,7 @@ public partial class ConfigService { }
 
 > ⚠️ **最佳实践**：始终暴露接口而非具体类，以保持松耦合和可测试性。
 
----
+------
 
 ## Host（宿主）
 
@@ -97,11 +97,11 @@ Host 是 Godot Node 世界与 DI 世界的**桥接器（Adapter）**。它将 No
 
 ### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 必须是 Node | 需要接入场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| 约束项 | 要求           | 原因                   |
+| ------ | -------------- | ---------------------- |
+| 类型   | 必须是 class   | 需要实例化             |
+| 继承   | 必须是 Node    | 需要接入场景树生命周期 |
+| 声明   | 必须是 partial | 源生成器需要扩展类     |
 
 ### 典型使用模式
 
@@ -147,11 +147,11 @@ Host 可以持有和管理其他对象，并将它们暴露为服务。这些对
 
 ### Host 成员约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 成员类型 | 不能是已标记为 Service 的类型 | 避免生命周期冲突 |
-| static 成员 | 不允许 | 需要实例级别的服务 |
-| 属性 | 必须有 getter | 需要读取值来注册服务 |
+| 约束项      | 要求                          | 原因                 |
+| ----------- | ----------------------------- | -------------------- |
+| 成员类型    | 不能是已标记为 Service 的类型 | 避免生命周期冲突     |
+| static 成员 | 不允许                        | 需要实例级别的服务   |
+| 属性        | 必须有 getter                 | 需要读取值来注册服务 |
 
 ```csharp
 // ❌ 错误：成员类型是 Service
@@ -177,7 +177,7 @@ public partial class GoodHost : Node
 }
 ```
 
----
+------
 
 ## User（消费者）
 
@@ -187,11 +187,11 @@ User 是依赖消费者，通过字段或属性注入接收服务依赖。
 
 ### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | Node 或普通 class 均可 | 灵活支持两种场景 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| 约束项 | 要求                   | 原因               |
+| ------ | ---------------------- | ------------------ |
+| 类型   | 必须是 class           | 需要实例化         |
+| 继承   | Node 或普通 class 均可 | 灵活支持两种场景   |
+| 声明   | 必须是 partial         | 源生成器需要扩展类 |
 
 ### Node User（自动注入）
 
@@ -212,35 +212,88 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 
 Node 类型的 User 会在进入场景树时自动触发注入，无需手动操作。
 
-### 非 Node User（手动注入）
+### 非 Node User（作为 Node User 的成员）
+
+非 Node User 主要用于将复杂逻辑模块化，作为 Node User 的成员使用，通过递归注入自动解析依赖。
 
 ```csharp
+// 定义非 Node User
 [User]
 public partial class GameLogic  // 非 Node
 {
     [Inject] private IPlayerStats _stats;
+    [Inject] private ICombatSystem _combat;
     
-    // 生成的方法
-    // public void ResolveDependencies(IScope scope)
+    public void ProcessTurn()
+    {
+        // 使用注入的服务
+        _stats.UpdateStats();
+        _combat.ResolveCombat();
+    }
 }
 
-// 使用时需要手动调用
-var logic = new GameLogic();
-logic.ResolveDependencies(scope);  // 需要提供 Scope 引用
+// 在 Node User 中使用非 Node User
+[User]
+public partial class GameManager : Node
+{
+    [Inject] private IConfig _config;
+    
+    // 自动识别为 UserMember，框架会递归注入其依赖
+    private GameLogic _logic = new();
+    
+    public override void _Ready()
+    {
+        // 此时 _logic 的依赖已经自动注入完成
+        _logic.ProcessTurn();
+    }
+}
 ```
 
-> ⚠️ **注意**：非 Node User 需要调用者提供 Scope 引用。这通常意味着：
-> 1. 调用者是 Node，可以通过场景树找到 Scope
-> 2. 或者通过其他方式获得 Scope 引用
+**生成的代码**：
+
+非 Node User 会生成 `public void ResolveDependencies(IScope scope)` 方法，但通常不需要手动调用。框架会在 Node User 的依赖解析过程中自动调用此方法。
+
+**重要约束**：
+
+1. **必须初始化**：非 Node User 成员必须有字段初始化器（如 `private GameLogic _logic = new();`）
+2. **只能作为 Node User 的成员**：非 Node User 不能包含其他非 Node User 成员（防止嵌套层级过深）
+3. **不能是 Node 类型**：非 Node User 成员的类型不能是 Node
+
+**手动使用场景**：
+
+如果确实需要在非 Node User 之外手动创建和注入，可以这样做：
+
+```csharp
+[User]
+public partial class SomeNode : Node
+{
+    private void CreateLogicManually()
+    {
+        var scope = GetServiceScope();
+        if (scope != null)
+        {
+            var logic = new GameLogic();
+            logic.ResolveDependencies(scope);  // 手动触发依赖注入
+            // 使用 logic...
+        }
+    }
+}
+```
+
+> ⚠️ **设计建议**：
+>
+> - 如果逻辑类需要独立实例化和使用，考虑改为 Service（通过构造函数注入）
+> - 如果需要与场景树生命周期绑定，考虑改为 Node User
+> - 非 Node User 主要用于将 Node User 的逻辑拆分为多个模块，保持代码清晰
 
 ### Inject 成员约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 成员类型 | interface 或普通 class | 必须是可注入类型 |
-| 成员类型 | 不能是 Node/Host/User/Scope | 这些不是服务类型 |
-| static 成员 | 不允许 | 需要实例级别的注入 |
-| 属性 | 必须有 setter | 需要写入注入值 |
+| 约束项      | 要求                        | 原因               |
+| ----------- | --------------------------- | ------------------ |
+| 成员类型    | interface 或普通 class      | 必须是可注入类型   |
+| 成员类型    | 不能是 Node/Host/User/Scope | 这些不是服务类型   |
+| static 成员 | 不允许                      | 需要实例级别的注入 |
+| 属性        | 必须有 setter               | 需要写入注入值     |
 
 ```csharp
 [User]
@@ -275,26 +328,27 @@ public partial class MyComponent : Node, IServicesReady
 }
 ```
 
----
+------
 
 ## Scope（容器）
 
 ### 职责
 
 Scope 是 DI 容器，负责：
+
 1. 创建和管理 Service 实例
 2. 处理依赖解析请求
 3. 管理服务生命周期
 
 ### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 必须是 Node | 利用场景树实现 Scope 层级 |
-| 接口 | 必须实现 IScope | 框架识别标志 |
-| 特性 | 必须有 [Modules] | 声明管理的服务 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| 约束项 | 要求                              | 原因                      |
+| ------ | --------------------------------- | ------------------------- |
+| 类型   | 必须是 class                      | 需要实例化                |
+| 继承   | 必须是 Node                       | 利用场景树实现 Scope 层级 |
+| 接口   | 必须实现 IScope                   | 框架识别标志              |
+| 特性   | 必须有 [Modules] 或 [AutoModules] | 声明管理的服务            |
+| 声明   | 必须是 partial                    | 源生成器需要扩展类        |
 
 ### 定义 Scope
 
@@ -311,10 +365,10 @@ public partial class GameScope : Node, IScope
 
 #### Modules 参数说明
 
-| 参数 | 说明 | 约束 |
-|------|------|------|
+| 参数       | 说明                                | 约束                                            |
+| ---------- | ----------------------------------- | ----------------------------------------------- |
 | `Services` | Scope 创建和管理的 Service 类型列表 | 必须是 Service（有 [Singleton] 或 [Transient]） |
-| `Hosts` | Scope 期望接收的 Host 类型列表 | 必须是 Host（有 [Host]） |
+| `Hosts`    | Scope 期望接收的 Host 类型列表      | 必须是 Host（有 [Host]）                        |
 
 ### Scope 层级
 
@@ -334,18 +388,19 @@ RootScope
 ```
 
 依赖解析规则：
+
 1. 首先在当前 Scope 查找
 2. 如果未找到且服务类型不属于当前 Scope，向父 Scope 查找
 3. 递归直到根 Scope 或找到服务
 
 ### Scope 生命周期事件
 
-| 事件 | 触发时机 | 行为 |
-|------|----------|------|
-| `NotificationReady` | Node 准备就绪 | 创建所有 Singleton Service |
+| 事件                    | 触发时机      | 行为                                         |
+| ----------------------- | ------------- | -------------------------------------------- |
+| `NotificationReady`     | Node 准备就绪 | 创建所有 Singleton Service                   |
 | `NotificationPredelete` | Node 即将删除 | 释放所有 Service（调用 IDisposable.Dispose） |
 
----
+------
 
 ## Host + User 组合
 

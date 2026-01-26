@@ -12,12 +12,17 @@ public interface IChunkGenerator;
 public interface ICellGenerator;
 
 [User]
-public partial class PureUser
+public partial class PureUser : IServicesReady
 {
     [Inject]
     private ICellGenerator _cellManager;
 
     public void Test() { }
+
+    public void OnServicesReady()
+    {
+        throw new NotImplementedException();
+    }
 }
 
 [Host]

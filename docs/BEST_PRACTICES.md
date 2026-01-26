@@ -18,6 +18,7 @@ public partial class PlayerStatsService { }
 ```
 
 **原因**：
+
 - **依赖倒置原则**：高层模块不应依赖低层模块的实现
 - **可测试性**：接口易于 Mock
 - **可替换性**：可以轻松替换实现
@@ -46,9 +47,6 @@ public partial class ChunkManager : Node3D, IChunkLoader, IChunkGetter
     [Singleton(typeof(IChunkLoader), typeof(IChunkGetter))]
     private IChunkLoader Self => this;
 }
-```
-
-```csharp
 // ❌ 避免：接口过于庞大
 public interface IChunkSystem
 {
@@ -62,7 +60,7 @@ public interface IChunkSystem
 }
 ```
 
----
+------
 
 ## Scope 设计
 
@@ -70,20 +68,20 @@ public interface IChunkSystem
 
 ```csharp
 // 游戏结构示例
-[Modules(Instantiate = [typeof(ConfigService), typeof(SaveService)])]
+[Modules(Services = [typeof(ConfigService), typeof(SaveService)])]
 public partial class RootScope : Node, IScope { }
     // 全局服务，整个应用生命周期
 
 [Modules(
-    Instantiate = [typeof(EnemySpawner), typeof(LootSystem)],
-    Expect = [typeof(LevelManager)]
+    Services = [typeof(EnemySpawner), typeof(LootSystem)],
+    Hosts = [typeof(LevelManager)]
 )]
 public partial class LevelScope : Node, IScope { }
     // 关卡服务，随关卡加载/卸载
 
 [Modules(
-    Instantiate = [typeof(InventoryService)],
-    Expect = [typeof(PlayerController)]
+    Services = [typeof(InventoryService)],
+    Hosts = [typeof(PlayerController)]
 )]
 public partial class PlayerScope : Node, IScope { }
     // 玩家服务，随玩家实例化/销毁
@@ -97,7 +95,7 @@ public partial class ButtonScope : Node, IScope { }  // 没必要
 public partial class LabelScope : Node, IScope { }   // 没必要
 
 // ❌ 划分不足：整个游戏一个 Scope
-[Modules(Instantiate = [
+[Modules(Services = [
     typeof(ConfigService),
     typeof(SaveService),
     typeof(EnemySpawner),
@@ -123,7 +121,7 @@ Application
         └── UIScope           ← UI 服务
 ```
 
----
+------
 
 ## 依赖设计
 
@@ -249,7 +247,7 @@ public partial class Manager : IManager
 }
 ```
 
----
+------
 
 ## Host 设计
 
@@ -319,7 +317,7 @@ public partial class GoodHost : Node
 }
 ```
 
----
+------
 
 ## User 设计
 
@@ -346,79 +344,120 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 }
 ```
 
-### ✅ 非 Node User 的正确使用
+### ✅ 非 Node User 的正确使用（作为 Node User 成员）
+
+非 Node User 主要用于将 Node User 的复杂逻辑模块化，通过自动递归注入来解析依赖。
 
 ```csharp
+// 定义非 Node User 逻辑模块
 [User]
 public partial class GameLogic  // 非 Node
 {
     [Inject] private IConfig _config;
-    [Inject] private ICalculator _calc;
-}
-
-// 使用场景 1：从 Node 中创建
-[User]
-public partial class GameManager : Node
-{
-    private GameLogic _logic;
+    [Inject] private ICombatSystem _combat;
     
-    public override void _Ready()
+    public void ProcessTurn()
     {
-        // 使用 GetServiceScope 获取 Scope
-        var scope = GetServiceScope();
-        if (scope != null)
-        {
-            _logic = new GameLogic();
-            _logic.ResolveDependencies(scope);
-        }
+        // 使用注入的服务
+        var damage = _combat.CalculateDamage();
+        // ...
     }
 }
 
-// 使用场景 2：从 Service 中创建
-[Singleton(typeof(IGameService))]
-public partial class GameService : IGameService
+// ✅ 推荐：作为 Node User 的成员使用
+[User]
+public partial class GameManager : Node
 {
-    // ⚠️ Service 无法直接获取 Scope
-    // 需要通过构造函数或其他方式传入
+    [Inject] private ISaveService _save;
+    
+    // 自动识别为 UserMember，框架会递归注入其依赖
+    private GameLogic _logic = new();
+    
+    public override void _Ready()
+    {
+        // 此时 _logic 的依赖已经自动注入完成
+        _logic.ProcessTurn();
+    }
 }
 ```
 
-### ❌ 避免在非 Node User 中依赖 Scope 查找
+**优点**：
+
+- **代码组织清晰**：将复杂逻辑拆分为多个小模块
+- **依赖自动注入**：框架自动处理递归注入，无需手动调用
+- **易于测试**：逻辑模块可以独立测试
+
+**重要约束**：
+
+- 必须初始化：`private GameLogic _logic = new();`
+- 只能作为 Node User 的成员（不能嵌套非 Node User）
+- 不能是 Node 类型
+
+### ❌ 避免错误的非 Node User 使用模式
 
 ```csharp
-// ❌ 问题设计：非 Node User 无法自动获取 Scope
+// ❌ 错误 1：非 Node User 包含非 Node User（编译错误 GDI_M071）
+[User]
+public partial class OuterLogic
+{
+    private InnerLogic _inner = new();  // 错误！不能嵌套
+}
+
+[User]
+public partial class InnerLogic
+{
+    [Inject] private IService _service;
+}
+
+// ❌ 错误 2：非 Node User 成员未初始化（编译错误 GDI_M072）
+[User]
+public partial class GameManager : Node
+{
+    private GameLogic _logic;  // 错误！必须初始化
+}
+
+// ❌ 错误 3：期望独立使用的逻辑使用非 Node User
 [User]
 public partial class BadDesign
 {
     [Inject] private IService _service;
     
-    public void Init()
+    // 问题：如果这个类需要独立创建和使用，应该改为 Service
+}
+
+// ✅ 正确：根据使用场景选择合适的角色
+
+// 场景 1：需要独立实例化 → 使用 Service
+[Singleton(typeof(IMyLogic))]
+public partial class MyLogic : IMyLogic
+{
+    public MyLogic(IService service)  // 构造函数注入
     {
-        // 问题：从哪里获取 scope？
-        // ResolveDependencies(scope);
     }
 }
 
-// ✅ 改进设计 1：改为 Node
+// 场景 2：需要场景树生命周期 → 使用 Node User
 [User]
-public partial class BetterDesign : Node
+public partial class MyLogic : Node
+{
+    [Inject] private IService _service;  // 自动注入
+}
+
+// 场景 3：作为 Node User 的逻辑模块 → 使用非 Node User
+[User]
+public partial class MyLogic  // 非 Node
 {
     [Inject] private IService _service;
-    // 自动注入，无需手动调用
 }
 
-// ✅ 改进设计 2：改为 Service
-[Singleton(typeof(IMyLogic))]
-public partial class BetterDesign : IMyLogic
+[User]
+public partial class ParentNode : Node
 {
-    public BetterDesign(IService service)
-    {
-        // 构造函数注入
-    }
+    private MyLogic _logic = new();  // 作为成员使用
 }
 ```
 
----
+------
 
 ## 资源管理
 
@@ -484,7 +523,7 @@ public partial class NetworkManager : Node
 }
 ```
 
----
+------
 
 ## 测试
 
@@ -558,7 +597,7 @@ public class DamageCalculatorTests
 }
 ```
 
----
+------
 
 ## 常见陷阱
 

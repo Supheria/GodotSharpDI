@@ -236,7 +236,7 @@ public partial class ServiceA : IService { }
 [Singleton(typeof(IService))]
 public partial class ServiceB : IService { }
 
-[Modules(Instantiate = [typeof(ServiceA), typeof(ServiceB)])]
+[Modules(Services = [typeof(ServiceA), typeof(ServiceB)])]
 public partial class MyScope : Node, IScope { }
 // 错误：IService 被 ServiceA 和 ServiceB 同时提供
 
@@ -247,7 +247,7 @@ public partial class ServiceA : IServiceA { }
 [Singleton(typeof(IServiceB))]
 public partial class ServiceB : IServiceB { }
 
-[Modules(Instantiate = [typeof(ServiceA), typeof(ServiceB)])]
+[Modules(Services = [typeof(ServiceA), typeof(ServiceB)])]
 public partial class MyScope : Node, IScope { }
 // 正确：各自提供不同的接口
 ```
