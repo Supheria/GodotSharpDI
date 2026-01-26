@@ -156,6 +156,8 @@ internal static class UserGenerator
         System.Collections.Generic.List<MemberInfo> userMembersList
     )
     {
+        // ResolveUserDependencies - 添加 IDE 隐藏特性
+        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
         f.AppendLine($"private void ResolveUserDependencies({GlobalNames.IScope} scope)");
         f.BeginBlock();
         {

@@ -240,20 +240,11 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Do not call AttachToScope manually; injection is handled automatically by the framework.
+        ///   Looks up a localized string similar to Do not manually call generated method &apos;{0}&apos; on &apos;{1}&apos;. This method is managed by the DI framework and will be called automatically at the appropriate time.
         /// </summary>
-        internal static string ManualAttachToScope {
+        internal static string ManualCallGeneratedMethod {
             get {
-                return ResourceManager.GetString("ManualAttachToScope", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Do not call ResolveUserDependencies manually; injection is handled automatically by the framework.
-        /// </summary>
-        internal static string ManualResolveUserDependencies {
-            get {
-                return ResourceManager.GetString("ManualResolveUserDependencies", resourceCulture);
+                return ResourceManager.GetString("ManualCallGeneratedMethod", resourceCulture);
             }
         }
         

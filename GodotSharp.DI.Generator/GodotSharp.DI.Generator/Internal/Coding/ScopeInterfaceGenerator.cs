@@ -144,6 +144,8 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateResolveDependency(CodeFormatter f)
     {
+        // ResolveDependency - 添加 IDE 隐藏特性
+        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
         f.AppendLine(
             $"void {GlobalNames.IScope}.ResolveDependency<T>({GlobalNames.Action}<T> onResolved)"
         );
@@ -213,6 +215,8 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateRegisterService(CodeFormatter f)
     {
+        // RegisterService - 添加 IDE 隐藏特性
+        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
         f.AppendLine($"void {GlobalNames.IScope}.RegisterService<T>(T instance)");
         f.BeginBlock();
         {
@@ -268,6 +272,8 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateUnregisterService(CodeFormatter f)
     {
+        // UnregisterService - 添加 IDE 隐藏特性
+        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
         f.AppendLine($"void {GlobalNames.IScope}.UnregisterService<T>()");
         f.BeginBlock();
         {

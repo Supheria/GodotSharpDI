@@ -98,13 +98,8 @@
     <data name="CircularDependencyDetected" xml:space="preserve">
     <value>检测到循环依赖：{0}</value>
   </data>
-
-    <data name="ManualAttachToScope" xml:space="preserve">
-    <value>禁止手动调用 AttachToScope；依赖注入由框架自动处理</value>
-  </data>
-
-    <data name="ManualResolveUserDependencies" xml:space="preserve">
-    <value>禁止手动调用 ResolveUserDependencies；依赖注入由框架自动处理</value>
+  <data name="ManualCallGeneratedMethod" xml:space="preserve">
+    <value>禁止手动调用生成的方法 '{0}' （位于 '{1}'）。此方法由 DI 框架管理，将在适当时机自动调用</value>
   </data>
 
     <data name="GeneratorInternalError" xml:space="preserve">

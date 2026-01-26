@@ -65,7 +65,8 @@ internal static class HostGenerator
         f.AppendLine($"partial class {className}");
         f.BeginBlock();
 
-        // AttachHostServices
+        // AttachHostServices - 添加 IDE 隐藏特性
+        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
         f.AppendLine($"private void AttachHostServices({GlobalNames.IScope} scope)");
         f.BeginBlock();
         {
@@ -88,7 +89,8 @@ internal static class HostGenerator
         f.EndBlock();
         f.AppendLine();
 
-        // UnattachHostServices
+        // UnattachHostServices - 添加 IDE 隐藏特性
+        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
         f.AppendLine($"private void UnattachHostServices({GlobalNames.IScope} scope)");
         f.BeginBlock();
         {

@@ -16,6 +16,8 @@ public partial class PureUser
 {
     [Inject]
     private ICellGenerator _cellManager;
+
+    public void Test() { }
 }
 
 [Host]
@@ -46,10 +48,7 @@ public partial class CellManager : Node, ICellGenerator, IServicesReady
 
     private readonly PureUser _pureUser = new();
 
-    public void OnServicesReady()
-    {
-        throw new System.NotImplementedException();
-    }
+    public void OnServicesReady() { }
 }
 
 public interface IDataWriter;
@@ -69,7 +68,7 @@ public partial class PathFinder : IFinder, ISearcher
     [InjectConstructor]
     private PathFinder(IDataWriter writer, IDataReader reader) { }
 
-    // private PathFinder(IDataWriter writer) { }
+    private PathFinder(IDataWriter writer) { }
 }
 
 [Modules(
@@ -83,4 +82,7 @@ public partial class Scope : Node, IScope
     //
     // [Inject]
     // private IChunkGetter _chunkGetter;
+    public void Test()
+    {
+    }
 }

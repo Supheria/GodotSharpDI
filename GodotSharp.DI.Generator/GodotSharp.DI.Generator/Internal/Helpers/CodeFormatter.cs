@@ -104,6 +104,19 @@ internal sealed class CodeFormatter
         AppendXmlComment("</remarks>");
     }
 
+    public void AppendAttribute(string attribute)
+    {
+        AppendLine(attribute);
+    }
+
+    public void AppendAttributes(params string[] attributes)
+    {
+        foreach (var attr in attributes)
+        {
+            AppendLine(attr);
+        }
+    }
+
     public override string ToString() => _sb.ToString();
 }
 

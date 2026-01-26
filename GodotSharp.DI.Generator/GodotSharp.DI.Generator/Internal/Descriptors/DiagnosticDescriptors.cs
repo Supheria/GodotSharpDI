@@ -380,13 +380,8 @@ internal static class DiagnosticDescriptors
     // U — User Behavior
     // ============================================================
 
-    public static readonly DiagnosticDescriptor ManualAttachToScope = UserBehavior(
+    public static readonly DiagnosticDescriptor ManualCallGeneratedMethod = UserBehavior(
         "001",
-        Resources.ManualAttachToScope
-    );
-
-    public static readonly DiagnosticDescriptor ManualResolveUserDependencies = UserBehavior(
-        "002",
-        Resources.ManualResolveUserDependencies
+        Resources.ManualCallGeneratedMethod
     );
 }

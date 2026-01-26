@@ -105,13 +105,8 @@
     <data name="CircularDependencyDetected" xml:space="preserve">
     <value>Circular dependency detected: {0}</value>
   </data>
-
-    <data name="ManualAttachToScope" xml:space="preserve">
-    <value>Do not call AttachToScope manually; injection is handled automatically by the framework</value>
-  </data>
-
-    <data name="ManualResolveUserDependencies" xml:space="preserve">
-    <value>Do not call ResolveUserDependencies manually; injection is handled automatically by the framework</value>
+  <data name="ManualCallGeneratedMethod" xml:space="preserve">
+    <value>Do not manually call generated method '{0}' on '{1}'. This method is managed by the DI framework and will be called automatically at the appropriate time</value>
   </data>
 
     <data name="GeneratorInternalError" xml:space="preserve">
