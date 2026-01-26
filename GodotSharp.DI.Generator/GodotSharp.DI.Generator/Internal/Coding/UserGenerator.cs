@@ -112,7 +112,6 @@ internal static class UserGenerator
         System.Collections.Generic.List<MemberInfo> injectMembersList
     )
     {
-        f.AppendLine($"private readonly {GlobalNames.Object} _dependencyLock = new();");
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
         );
@@ -129,16 +128,11 @@ internal static class UserGenerator
         f.AppendLine("private void OnDependencyResolved<T>()");
         f.BeginBlock();
         {
-            f.AppendLine("lock (_dependencyLock)");
+            f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
+            f.AppendLine("if (_unresolvedDependencies.Count == 0)");
             f.BeginBlock();
             {
-                f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-                f.AppendLine("if (_unresolvedDependencies.Count == 0)");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"(({GlobalNames.IServicesReady})this).OnServicesReady();");
-                }
-                f.EndBlock();
+                f.AppendLine($"(({GlobalNames.IServicesReady})this).OnServicesReady();");
             }
             f.EndBlock();
         }

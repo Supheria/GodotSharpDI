@@ -120,7 +120,6 @@ partial class MovementManager // MovementManager.DI.g.cs
 partial class MovementManager // MovementManager.DI.User.g.cs
 {
     // 实现了 IServicesReady 才生成
-    private readonly object _dependencyLock = new();
     private readonly HashSet<Type> _unresolvedDependencies = new()
     {
         // 列举字段或属性中所有标记为 [Inject] 的类型
@@ -131,13 +130,10 @@ partial class MovementManager // MovementManager.DI.User.g.cs
     // 实现了 IServicesReady 才生成
     private void OnDependencyResolved<T>()
     {
-        lock (_dependencyLock)
+        _unresolvedDependencies.Remove(typeof(T));
+        if (_unresolvedDependencies.Count == 0)
         {
-            _unresolvedDependencies.Remove(typeof(T));
-            if (_unresolvedDependencies.Count == 0)
-            {
-                ((IServicesReady)this).OnServicesReady();
-            }
+            ((IServicesReady)this).OnServicesReady();
         }
     }
 
@@ -294,7 +290,6 @@ partial class CellManager // CellManager.DI.Host.g.cs
 partial class CellManager // CellManager.DI.User.g.cs
 {
     // 实现了 IServicesReady 才生成
-    private readonly object _dependencyLock = new();
     private readonly HashSet<Type> _unresolvedDependencies = new()
     {
         // 列举字段或属性中所有标记为 [Inject] 的类型
@@ -305,13 +300,10 @@ partial class CellManager // CellManager.DI.User.g.cs
     // 实现了 IServicesReady 才生成
     private void OnDependencyResolved<T>()
     {
-        lock (_dependencyLock)
+        _unresolvedDependencies.Remove(typeof(T));
+        if (_unresolvedDependencies.Count == 0)
         {
-            _unresolvedDependencies.Remove(typeof(T));
-            if (_unresolvedDependencies.Count == 0)
-            {
-                ((IServicesReady)this).OnServicesReady();
-            }
+            ((IServicesReady)this).OnServicesReady();
         }
     }
 
