@@ -219,7 +219,7 @@ internal static class ClassPipeline
                         )
                     );
                 }
-                if (!raw.HasModulesAttribute && !raw.HasAutoModulesAttribute)
+                if (!raw.HasModulesAttribute)
                 {
                     diagnostics.Add(
                         Diagnostic.Create(
@@ -732,23 +732,10 @@ internal static class ClassPipeline
         CachedSymbols symbols
     )
     {
-        if (!raw.HasModulesAttribute && !raw.HasAutoModulesAttribute)
+        if (!raw.HasModulesAttribute)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        if (raw.HasAutoModulesAttribute)
-        {
-            // AutoModules 将在图构建阶段处理
-            return (
-                new ModulesInfo(
-                    ImmutableArray<ITypeSymbol>.Empty,
-                    ImmutableArray<ITypeSymbol>.Empty,
-                    true
-                ),
-                diagnostics.ToImmutable()
-            );
-        }
 
         var modulesAttr = raw
             .Symbol.GetAttributes()
@@ -762,7 +749,7 @@ internal static class ClassPipeline
         var instantiate = GetTypesFromAttribute(modulesAttr, "Instantiate");
         var expect = GetTypesFromAttribute(modulesAttr, "Expect");
 
-        return (new ModulesInfo(instantiate, expect, false), diagnostics.ToImmutable());
+        return (new ModulesInfo(instantiate, expect), diagnostics.ToImmutable());
     }
 
     private static ImmutableArray<ITypeSymbol> GetExposedTypes(

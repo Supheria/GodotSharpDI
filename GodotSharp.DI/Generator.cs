@@ -565,9 +565,3 @@ partial class MyScope // MyContext.DI.Scope.g.cs
 }
 
 // - generated code end -
-
-// 生成器中自动扫描，将同一命名空间及其子命名空间下的所有 Singleton、Transient 和 Host 与 Scope 归纳在同一类别。
-// 生成器根据该类别自动补全 Scope 的 InstantiateScopeSingletons()、SingletonTypes、TransientFactories
-
-[AutoModules]
-public partial class AutoScanScope : Godot.Node, IScope { }

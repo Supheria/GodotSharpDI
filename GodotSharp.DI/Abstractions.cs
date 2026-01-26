@@ -45,9 +45,6 @@ public sealed class ModulesAttribute : Attribute
     public Type[] Expect { get; set; } = [];
 }
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class AutoModulesAttribute : Attribute { }
-
 public interface IScope
 {
     void RegisterService<T>(T instance)

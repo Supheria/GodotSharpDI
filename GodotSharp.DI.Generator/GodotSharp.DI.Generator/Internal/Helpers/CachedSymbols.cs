@@ -16,7 +16,6 @@ internal sealed class CachedSymbols
     public INamedTypeSymbol? InjectAttribute { get; }
     public INamedTypeSymbol? InjectConstructorAttribute { get; }
     public INamedTypeSymbol? ModulesAttribute { get; }
-    public INamedTypeSymbol? AutoModulesAttribute { get; }
     public INamedTypeSymbol? IScope { get; }
     public INamedTypeSymbol? IServicesReady { get; }
     public INamedTypeSymbol? GodotNode { get; }
@@ -33,9 +32,6 @@ internal sealed class CachedSymbols
             TypeNamesFull.InjectConstructorAttribute
         );
         ModulesAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ModulesAttribute);
-        AutoModulesAttribute = compilation.GetTypeByMetadataName(
-            TypeNamesFull.AutoModulesAttribute
-        );
         IScope = compilation.GetTypeByMetadataName(TypeNamesFull.ScopeInterface);
         IServicesReady = compilation.GetTypeByMetadataName(TypeNamesFull.ServicesReadyInterface);
         GodotNode = compilation.GetTypeByMetadataName(TypeNamesFull.GodotNode);
@@ -85,8 +81,9 @@ internal sealed class CachedSymbols
             return false;
         return type.GetAttributes()
             .Any(attr =>
-                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, SingletonAttribute) ||
-                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, TransientAttribute));
+                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, SingletonAttribute)
+                || SymbolEqualityComparer.Default.Equals(attr.AttributeClass, TransientAttribute)
+            );
     }
 }
 

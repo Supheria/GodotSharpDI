@@ -28,17 +28,9 @@ internal static class RawClassSemanticInfoFactory
         var hasHost = HasAttribute(symbol, symbols.HostAttribute);
         var hasUser = HasAttribute(symbol, symbols.UserAttribute);
         var hasModules = HasAttribute(symbol, symbols.ModulesAttribute);
-        var hasAutoModules = HasAttribute(symbol, symbols.AutoModulesAttribute);
 
         // 如果没有任何 DI 相关特性，跳过
-        if (
-            !hasSingleton
-            && !hasTransient
-            && !hasHost
-            && !hasUser
-            && !hasModules
-            && !hasAutoModules
-        )
+        if (!hasSingleton && !hasTransient && !hasHost && !hasUser && !hasModules)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
         var implementsIScope = symbols.ImplementsIScope(symbol);
@@ -63,7 +55,6 @@ internal static class RawClassSemanticInfoFactory
             HasHostAttribute: hasHost,
             HasUserAttribute: hasUser,
             HasModulesAttribute: hasModules,
-            HasAutoModulesAttribute: hasAutoModules,
             ImplementsIScope: implementsIScope,
             ImplementsIServicesReady: implementsIServicesReady,
             IsNode: isNode,

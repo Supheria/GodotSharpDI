@@ -38,7 +38,6 @@ internal sealed record RawClassSemanticInfo(
     bool HasHostAttribute,
     bool HasUserAttribute,
     bool HasModulesAttribute,
-    bool HasAutoModulesAttribute,
     bool ImplementsIScope,
     bool ImplementsIServicesReady,
     bool IsNode,
@@ -88,8 +87,8 @@ internal enum MemberKind
     InjectProperty,
     SingletonField,
     SingletonProperty,
-    UserMemberField,     // User 类型字段，需要递归注入
-    UserMemberProperty,  // User 类型属性，需要递归注入
+    UserMemberField, // User 类型字段，需要递归注入
+    UserMemberProperty, // User 类型属性，需要递归注入
 }
 
 /// <summary>
@@ -111,8 +110,7 @@ internal sealed record ParameterInfo(IParameterSymbol Symbol, Location Location,
 /// </summary>
 internal sealed record ModulesInfo(
     ImmutableArray<ITypeSymbol> Instantiate,
-    ImmutableArray<ITypeSymbol> Expect,
-    bool IsAutoModules
+    ImmutableArray<ITypeSymbol> Expect
 );
 
 /// <summary>
