@@ -105,15 +105,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Member cannot have Type marked as [Host].
-        /// </summary>
-        internal static string HostCannotBeMember {
-            get {
-                return ResourceManager.GetString("HostCannotBeMember", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Host &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string HostInvalidAttribute {
@@ -132,29 +123,20 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; registers &apos;{1}&apos;, which is not a Service.
-        /// </summary>
-        internal static string HostServiceMustBeService {
-            get {
-                return ResourceManager.GetString("HostServiceMustBeService", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; registers service &apos;{1}&apos; which does not exist.
-        /// </summary>
-        internal static string HostServiceNotFound {
-            get {
-                return ResourceManager.GetString("HostServiceNotFound", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is already marked as a Service ([Singleton] or [Transient]). Host should not hold Service instances directly.
         /// </summary>
         internal static string HostSingletonMemberIsServiceType {
             get {
                 return ResourceManager.GetString("HostSingletonMemberIsServiceType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Service but uses [InjectConstructor].
+        /// </summary>
+        internal static string InjectConstructorAttributeIsInvalid {
+            get {
+                return ResourceManager.GetString("InjectConstructorAttributeIsInvalid", resourceCulture);
             }
         }
         
@@ -222,24 +204,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Service but uses [InjectConstructor].
-        /// </summary>
-        internal static string InvalidInjectConstructorAttribute {
-            get {
-                return ResourceManager.GetString("InvalidInjectConstructorAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Scope but uses [Modules] or [AutoModules].
-        /// </summary>
-        internal static string InvalidModuleAttribute {
-            get {
-                return ResourceManager.GetString("InvalidModuleAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Do not manually call generated method &apos;{0}&apos; on &apos;{1}&apos;. This method is managed by the DI framework and will be called automatically at the appropriate time.
         /// </summary>
         internal static string ManualCallGeneratedMethod {
@@ -272,15 +236,6 @@ namespace GodotSharp.DI.Generator {
         internal static string MemberHasSingletonButNotInHost {
             get {
                 return ResourceManager.GetString("MemberHasSingletonButNotInHost", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Node User &apos;{0}&apos; cannot contain Node User member &apos;{1}&apos;. User members must be non-Node types.
-        /// </summary>
-        internal static string NodeUserCannotContainNodeUser {
-            get {
-                return ResourceManager.GetString("NodeUserCannotContainNodeUser", resourceCulture);
             }
         }
         
@@ -353,15 +308,6 @@ namespace GodotSharp.DI.Generator {
         internal static string ScopeMissingModules {
             get {
                 return ResourceManager.GetString("ScopeMissingModules", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use both [Modules] and [AutoModules].
-        /// </summary>
-        internal static string ScopeModulesConflict {
-            get {
-                return ResourceManager.GetString("ScopeModulesConflict", resourceCulture);
             }
         }
         
@@ -483,15 +429,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to User &apos;{0}&apos; cannot use [{1}].
-        /// </summary>
-        internal static string UserInvalidAttribute {
-            get {
-                return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to User member &apos;{0}&apos; has type &apos;{1}&apos; which is a Node. Node types cannot be User members.
         /// </summary>
         internal static string UserMemberCannotBeNode {
@@ -506,15 +443,6 @@ namespace GodotSharp.DI.Generator {
         internal static string UserMemberMustBeInitialized {
             get {
                 return ResourceManager.GetString("UserMemberMustBeInitialized", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to User &apos;{0}&apos; must be non-abstract, non-static class type.
-        /// </summary>
-        internal static string UserTypeIsInvalid {
-            get {
-                return ResourceManager.GetString("UserTypeIsInvalid", resourceCulture);
             }
         }
     }

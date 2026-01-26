@@ -646,14 +646,29 @@ internal static class ClassPipeline
         CachedSymbols symbols
     )
     {
-        if (role != TypeRole.Service)
-            return (null, ImmutableArray<Diagnostic>.Empty);
-
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
         var injectCtors = raw
             .Constructors.Where(c => HasAttribute(c, symbols.InjectConstructorAttribute))
             .ToImmutableArray();
+
+        if (role != TypeRole.Service)
+        {
+            if (injectCtors.Length > 0)
+            {
+                return (
+                    null,
+                    ImmutableArray.Create(
+                        Diagnostic.Create(
+                            DiagnosticDescriptors.InjectConstructorAttributeIsInvalid,
+                            raw.Location,
+                            raw.Symbol.Name
+                        )
+                    )
+                );
+            }
+            return (null, ImmutableArray<Diagnostic>.Empty);
+        }
+
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
         IMethodSymbol? selectedCtor = null;
 

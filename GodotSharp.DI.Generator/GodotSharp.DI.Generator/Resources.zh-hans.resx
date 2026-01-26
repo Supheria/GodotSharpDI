@@ -31,7 +31,7 @@
     <value>服务 “{0}” 有多个构造函数，但未指定 [InjectConstructor]</value>
   </data>
 
-    <data name="InvalidInjectConstructorAttribute" xml:space="preserve">
+    <data name="InjectConstructorAttributeIsInvalid" xml:space="preserve">
     <value>类型 “{0}” 不是 Service 却使用了 [InjectConstructor]</value>
   </data>
 

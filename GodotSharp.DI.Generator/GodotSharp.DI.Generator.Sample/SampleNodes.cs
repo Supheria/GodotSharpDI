@@ -82,7 +82,5 @@ public partial class Scope : Node, IScope
     //
     // [Inject]
     // private IChunkGetter _chunkGetter;
-    public void Test()
-    {
-    }
+    public Scope() { }
 }

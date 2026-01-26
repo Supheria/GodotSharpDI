@@ -424,6 +424,18 @@ internal static class DiGraphBuilder
                 }
             }
 
+            // 检查 Instantiate 是否为空 (Info 诊断)
+            if (instantiate.IsEmpty)
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.ScopeModulesInstantiateEmpty,
+                        scope.Location,
+                        scope.Symbol.Name
+                    )
+                );
+            }
+
             // 检查 Expect 是否为空 (Info 诊断)
             if (expect.IsEmpty)
             {

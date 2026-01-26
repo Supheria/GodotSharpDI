@@ -120,13 +120,8 @@ internal static class DiagnosticDescriptors
         Resources.HostInvalidAttribute
     );
 
-    public static readonly DiagnosticDescriptor UserInvalidAttribute = Class(
-        "011",
-        Resources.UserInvalidAttribute
-    );
-
     public static readonly DiagnosticDescriptor ScopeInvalidAttribute = Class(
-        "012",
+        "011",
         Resources.ScopeInvalidAttribute
     );
 
@@ -145,18 +140,8 @@ internal static class DiagnosticDescriptors
         Resources.ServiceReadyNeedUser
     );
 
-    public static readonly DiagnosticDescriptor InvalidModuleAttribute = Class(
-        "040",
-        Resources.InvalidModuleAttribute
-    );
-
-    public static readonly DiagnosticDescriptor ScopeModulesConflict = Class(
-        "041",
-        Resources.ScopeModulesConflict
-    );
-
     public static readonly DiagnosticDescriptor ScopeMissingModules = Class(
-        "042",
+        "040",
         Resources.ScopeMissingModules
     );
 
@@ -168,11 +153,6 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ServiceTypeIsInvalid = Class(
         "060",
         Resources.ServiceTypeIsInvalid
-    );
-
-    public static readonly DiagnosticDescriptor UserTypeIsInvalid = Class(
-        "060",
-        Resources.UserTypeIsInvalid
     );
 
     // ============================================================
@@ -204,69 +184,59 @@ internal static class DiagnosticDescriptors
         Resources.SingletonPropertyNotAccessible
     );
 
-    public static readonly DiagnosticDescriptor HostCannotBeMember = Member(
-        "040",
-        Resources.HostCannotBeMember
-    );
-
     public static readonly DiagnosticDescriptor InjectMemberInvalidType = Member(
-        "050",
+        "040",
         Resources.InjectMemberInvalidType
     );
 
     public static readonly DiagnosticDescriptor InjectMemberIsHostType = Member(
-        "051",
+        "041",
         Resources.InjectMemberIsHostType
     );
 
     public static readonly DiagnosticDescriptor InjectMemberIsUserType = Member(
-        "052",
+        "042",
         Resources.InjectMemberIsUserType
     );
 
     public static readonly DiagnosticDescriptor InjectMemberIsScopeType = Member(
-        "053",
+        "043",
         Resources.InjectMemberIsScopeType
     );
 
     public static readonly DiagnosticDescriptor InjectMemberIsStatic = Member(
-        "054",
+        "044",
         Resources.InjectMemberIsStatic
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberIsStatic = Member(
-        "055",
+        "045",
         Resources.SingletonMemberIsStatic
     );
 
     public static readonly DiagnosticDescriptor HostSingletonMemberIsServiceType = Member(
-        "060",
+        "050",
         Resources.HostSingletonMemberIsServiceType
     );
 
     public static readonly DiagnosticDescriptor ExposedTypeShouldBeInterface = Member(
-        "070",
+        "060",
         Resources.ExposedTypeShouldBeInterface,
         DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor UserMemberCannotBeNode = Member(
-        "080",
+        "070",
         Resources.UserMemberCannotBeNode
     );
 
     public static readonly DiagnosticDescriptor NonNodeUserCannotContainUserMember = Member(
-        "081",
+        "071",
         Resources.NonNodeUserCannotContainUserMember
     );
 
-    public static readonly DiagnosticDescriptor NodeUserCannotContainNodeUser = Member(
-        "082",
-        Resources.NodeUserCannotContainNodeUser
-    );
-
     public static readonly DiagnosticDescriptor UserMemberMustBeInitialized = Member(
-        "083",
+        "072",
         Resources.UserMemberMustBeInitialized
     );
 
@@ -289,9 +259,9 @@ internal static class DiagnosticDescriptors
         Resources.AmbiguousConstructor
     );
 
-    public static readonly DiagnosticDescriptor InvalidInjectConstructorAttribute = Constructor(
+    public static readonly DiagnosticDescriptor InjectConstructorAttributeIsInvalid = Constructor(
         "022",
-        Resources.InvalidInjectConstructorAttribute
+        Resources.InjectConstructorAttributeIsInvalid
     );
 
     public static readonly DiagnosticDescriptor InjectConstructorParameterTypeInvalid = Constructor(
@@ -324,31 +294,21 @@ internal static class DiagnosticDescriptors
         Resources.ScopeExpectMustBeHost
     );
 
-    public static readonly DiagnosticDescriptor HostServiceNotFound = DependencyGraph(
-        "010",
-        Resources.HostServiceNotFound
-    );
-
-    public static readonly DiagnosticDescriptor HostServiceMustBeService = DependencyGraph(
-        "011",
-        Resources.HostServiceMustBeService
-    );
-
     public static readonly DiagnosticDescriptor CircularDependencyDetected = DependencyGraph(
-        "020",
+        "010",
         Resources.CircularDependencyDetected
     );
 
     public static readonly DiagnosticDescriptor ServiceConstructorParameterInvalid =
-        DependencyGraph("030", Resources.ServiceConstructorParameterInvalid);
+        DependencyGraph("020", Resources.ServiceConstructorParameterInvalid);
 
     public static readonly DiagnosticDescriptor SingletonCannotDependOnTransient = DependencyGraph(
-        "040",
+        "030",
         Resources.SingletonCannotDependOnTransient
     );
 
     public static readonly DiagnosticDescriptor ServiceTypeConflict = DependencyGraph(
-        "050",
+        "040",
         Resources.ServiceTypeConflict
     );
 
