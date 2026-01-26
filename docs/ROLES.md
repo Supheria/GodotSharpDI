@@ -293,7 +293,7 @@ Scope 是 DI 容器，负责：
 | 类型 | 必须是 class | 需要实例化 |
 | 继承 | 必须是 Node | 利用场景树实现 Scope 层级 |
 | 接口 | 必须实现 IScope | 框架识别标志 |
-| 特性 | 必须有 [Modules] 或 [AutoModules] | 声明管理的服务 |
+| 特性 | 必须有 [Modules] | 声明管理的服务 |
 | 声明 | 必须是 partial | 源生成器需要扩展类 |
 
 ### 定义 Scope

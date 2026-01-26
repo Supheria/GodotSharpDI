@@ -4,16 +4,16 @@ GodotSharp.DI 在编译时提供完整的错误检查。本文档列出所有诊
 
 ## 诊断代码分类
 
-| 前缀 | 类别 | 说明 |
-|------|------|------|
-| GDI_C | Class | 类级别错误 |
-| GDI_M | Member | 成员级别错误 |
-| GDI_S | Constructor | 构造函数级别错误 |
-| GDI_D | Dependency Graph | 依赖图错误 |
-| GDI_E | Internal Error | 内部错误 |
-| GDI_U | User Behavior | 用户行为警告 |
+| 前缀  | 类别             | 说明             |
+| ----- | ---------------- | ---------------- |
+| GDI_C | Class            | 类级别错误       |
+| GDI_M | Member           | 成员级别错误     |
+| GDI_S | Constructor      | 构造函数级别错误 |
+| GDI_D | Dependency Graph | 依赖图错误       |
+| GDI_E | Internal Error   | 内部错误         |
+| GDI_U | User Behavior    | 用户行为警告     |
 
----
+------
 
 ## Class 级别错误 (GDI_C)
 
@@ -36,7 +36,7 @@ public partial class MyService : IService { }
 public partial class MyService : IService { }
 ```
 
----
+------
 
 ### GDI_C010: HostInvalidAttribute
 
@@ -61,23 +61,15 @@ public partial class GameManager : Node, IGameState
 }
 ```
 
----
+------
 
-### GDI_C011: UserInvalidAttribute
-
-**消息**: `User '{0}' cannot use [{1}]`
-
-**原因**: User 使用了不兼容的特性。
-
----
-
-### GDI_C012: ScopeInvalidAttribute
+### GDI_C011: ScopeInvalidAttribute
 
 **消息**: `Scope '{0}' cannot use [{1}]`
 
 **原因**: Scope 使用了不兼容的特性（如 `[Singleton]`、`[Host]`、`[User]`）。
 
----
+------
 
 ### GDI_C020: HostMustBeNode
 
@@ -97,7 +89,7 @@ public partial class MyHost { }  // 不是 Node
 public partial class MyHost : Node { }
 ```
 
----
+------
 
 ### GDI_C021: ScopeMustBeNode
 
@@ -105,7 +97,7 @@ public partial class MyHost : Node { }
 
 **原因**: 实现 `IScope` 的类不是 Node 子类。
 
----
+------
 
 ### GDI_C030: ServiceReadyNeedUser
 
@@ -130,31 +122,15 @@ public partial class MyComponent : Node, IServicesReady
 }
 ```
 
----
+------
 
-### GDI_C040: InvalidModuleAttribute
-
-**消息**: `Type '{0}' is not a Scope but uses [Modules] or [AutoModules]`
-
-**原因**: 非 Scope 类型使用了 `[Modules]` 或 `[AutoModules]`。
-
----
-
-### GDI_C041: ScopeModulesConflict
-
-**消息**: `Scope '{0}' cannot use both [Modules] and [AutoModules]`
-
-**原因**: Scope 同时使用了 `[Modules]` 和 `[AutoModules]`。
-
----
-
-### GDI_C042: ScopeMissingModules
+### GDI_C040: ScopeMissingModules
 
 **消息**: `Scope '{0}' must specify either [Modules] or [AutoModules]`
 
 **原因**: Scope 既没有 `[Modules]` 也没有 `[AutoModules]`。
 
----
+------
 
 ### GDI_C050: DiClassMustBePartial
 
@@ -174,15 +150,15 @@ public class MyService : IService { }
 public partial class MyService : IService { }
 ```
 
----
+------
 
-### GDI_C060: ServiceTypeIsInvalid / UserTypeIsInvalid
+### GDI_C060: ServiceTypeIsInvalid
 
 **消息**: `Service '{0}' must be non-abstract, non-static class type`
 
-**原因**: Service 或 User 类型不符合要求（抽象类、静态类等）。
+**原因**: Service 类型不符合要求（抽象类、静态类等）。
 
----
+------
 
 ## Member 级别错误 (GDI_M)
 
@@ -202,7 +178,7 @@ public partial class MyUser : Node
 }
 ```
 
----
+------
 
 ### GDI_M011: MemberHasInjectButNotInUser
 
@@ -210,7 +186,7 @@ public partial class MyUser : Node
 
 **原因**: 非 User 类的成员使用了 `[Inject]`。
 
----
+------
 
 ### GDI_M012: MemberConflictWithSingletonAndInject
 
@@ -218,7 +194,7 @@ public partial class MyUser : Node
 
 **原因**: 同一成员同时标记了 `[Singleton]` 和 `[Inject]`。
 
----
+------
 
 ### GDI_M020: InjectMemberNotAssignable
 
@@ -244,7 +220,7 @@ public partial class MyUser : Node
 }
 ```
 
----
+------
 
 ### GDI_M030: SingletonPropertyNotAccessible
 
@@ -252,17 +228,17 @@ public partial class MyUser : Node
 
 **原因**: Host 成员属性没有 getter。
 
----
+------
 
-### GDI_M050: InjectMemberInvalidType
+### GDI_M040: InjectMemberInvalidType
 
 **消息**: `Injected member in '{0}' has type '{1}', which is not a Service`
 
 **原因**: 注入目标的类型不是有效的服务类型。
 
----
+------
 
-### GDI_M051: InjectMemberIsHostType
+### GDI_M041: InjectMemberIsHostType
 
 **消息**: `[Inject] member '{0}' has type '{1}', which is a [Host] type and cannot be injected`
 
@@ -287,25 +263,25 @@ public partial class MyUser : Node
 }
 ```
 
----
+------
 
-### GDI_M052: InjectMemberIsUserType
+### GDI_M042: InjectMemberIsUserType
 
 **消息**: `[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected`
 
 **原因**: 试图注入 User 类型。
 
----
+------
 
-### GDI_M053: InjectMemberIsScopeType
+### GDI_M043: InjectMemberIsScopeType
 
 **消息**: `[Inject] member '{0}' has type '{1}', which is an IScope type and cannot be injected`
 
 **原因**: 试图注入 Scope 类型。
 
----
+------
 
-### GDI_M054: InjectMemberIsStatic
+### GDI_M044: InjectMemberIsStatic
 
 **消息**: `[Inject] member '{0}' cannot be static`
 
@@ -320,17 +296,17 @@ public partial class MyUser : Node
 }
 ```
 
----
+------
 
-### GDI_M055: SingletonMemberIsStatic
+### GDI_M045: SingletonMemberIsStatic
 
 **消息**: `[Singleton] member '{0}' cannot be static`
 
 **原因**: 静态成员使用了 `[Singleton]`。
 
----
+------
 
-### GDI_M060: HostSingletonMemberIsServiceType
+### GDI_M050: HostSingletonMemberIsServiceType
 
 **消息**: `[Singleton] member '{0}' has type '{1}', which is already marked as a Service. Host should not hold Service instances directly`
 
@@ -356,9 +332,9 @@ public partial class GoodHost : Node
 }
 ```
 
----
+------
 
-### GDI_M070: ExposedTypeShouldBeInterface (Warning)
+### GDI_M060: ExposedTypeShouldBeInterface (Warning)
 
 **消息**: `Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
 
@@ -376,7 +352,31 @@ public partial class ConfigService { }
 public partial class ConfigService : IConfig { }
 ```
 
----
+------
+
+### GDI_M070: UserMemberCannotBeNode
+
+**消息**: `User member '{0}' has type '{1}' which is a Node. Node types cannot be User members`
+
+**原因**: User 成员的类型是 Node，Node 类型不能作为 User 成员。
+
+------
+
+### GDI_M071: NonNodeUserCannotContainUserMember
+
+**消息**: `Non-Node User '{0}' cannot contain User member '{1}'. Only Node User can contain non-Node User members. Consider making '{0}' a Service instead`
+
+**原因**: 非 Node User 包含了 User 成员。只有 Node User 可以包含非 Node User 成员。
+
+------
+
+### GDI_M072: UserMemberMustBeInitialized
+
+**消息**: `User member '{0}' must be initialized with a field initializer (e.g., 'private MyUser _user = new();')`
+
+**原因**: User 成员必须使用字段初始化器初始化。
+
+------
 
 ## Constructor 级别错误 (GDI_S)
 
@@ -396,7 +396,7 @@ public partial class MyService : Node, IService { }  // 继承 Node
 public partial class MyService : Node, IService { }
 ```
 
----
+------
 
 ### GDI_S020: NoPublicConstructor
 
@@ -404,7 +404,7 @@ public partial class MyService : Node, IService { }
 
 **原因**: Service 没有公共构造函数。
 
----
+------
 
 ### GDI_S021: AmbiguousConstructor
 
@@ -432,7 +432,15 @@ public partial class MyService : IService
 }
 ```
 
----
+------
+
+### GDI_S022: InjectConstructorAttributeIsInvalid
+
+**消息**: `Type '{0}' is not a Service but uses [InjectConstructor]`
+
+**原因**: 非 Service 类型使用了 `[InjectConstructor]`。
+
+------
 
 ### GDI_S030: InjectConstructorParameterTypeInvalid
 
@@ -440,43 +448,43 @@ public partial class MyService : IService
 
 **原因**: 构造函数参数类型无效。
 
----
+------
 
 ## Dependency Graph 错误 (GDI_D)
 
-### GDI_D001: ScopeModulesInstantiateEmpty
+### GDI_D001: ScopeModulesServicesEmpty
 
-**消息**: `Scope '{0}' must specify at least one type in [Modules] Instantiate`
+**消息**: `Scope '{0}' must specify at least one type in [Modules] Services`
 
-**原因**: `[Modules]` 的 `Instantiate` 为空。
+**原因**: `[Modules]` 的 `Services` 为空。
 
----
+------
 
-### GDI_D002: ScopeModulesExpectEmpty (Info)
+### GDI_D002: ScopeModulesHostsEmpty (Info)
 
-**消息**: `Scope '{0}' specifies no Host type in [Modules] Expect`
+**消息**: `Scope '{0}' specifies no Host type in [Modules] Hosts`
 
 **严重程度**: 信息（提示）
 
----
+------
 
-### GDI_D003: ScopeInstantiateMustBeService
+### GDI_D003: ScopeModulesServiceMustBeService
 
-**消息**: `Scope '{0}' Instantiate type '{1}' must be a Service`
+**消息**: `Scope '{0}' Modules Service type '{1}' must be a Service`
 
-**原因**: `Instantiate` 中的类型不是 Service。
+**原因**: `Services` 中的类型不是 Service。
 
----
+------
 
-### GDI_D004: ScopeExpectMustBeHost
+### GDI_D004: ScopeModulesHostMustBeHost
 
-**消息**: `Scope '{0}' Expect type '{1}' must be a Host`
+**消息**: `Scope '{0}' Modules Host type '{1}' must be a Host`
 
-**原因**: `Expect` 中的类型不是 Host。
+**原因**: `Hosts` 中的类型不是 Host。
 
----
+------
 
-### GDI_D020: CircularDependencyDetected
+### GDI_D010: CircularDependencyDetected
 
 **消息**: `Circular dependency detected: {0}`
 
@@ -492,9 +500,17 @@ public partial class B : IB { public B(IA a) { } }
 // 检测到：A -> B -> A
 ```
 
----
+------
 
-### GDI_D040: SingletonCannotDependOnTransient
+### GDI_D020: ServiceConstructorParameterInvalid
+
+**消息**: `Service '{0}' has constructor parameter of type '{1}', which is not a Service`
+
+**原因**: Service 构造函数参数的类型不是有效的服务类型。
+
+------
+
+### GDI_D030: SingletonCannotDependOnTransient
 
 **消息**: `Singleton service '{0}' cannot depend on transient service '{1}'`
 
@@ -512,9 +528,9 @@ public partial class SingletonService : ISingleton
 }
 ```
 
----
+------
 
-### GDI_D050: ServiceTypeConflict
+### GDI_D040: ServiceTypeConflict
 
 **消息**: `Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope`
 
@@ -528,12 +544,12 @@ public partial class ServiceA : IService { }
 [Singleton(typeof(IService))]
 public partial class ServiceB : IService { }
 
-[Modules(Instantiate = [typeof(ServiceA), typeof(ServiceB)])]
+[Modules(Services = [typeof(ServiceA), typeof(ServiceB)])]
 public partial class MyScope : Node, IScope { }
 // 两个都提供 IService，冲突
 ```
 
----
+------
 
 ## Internal Error (GDI_E)
 
@@ -543,7 +559,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 源生成器执行被取消。
 
----
+------
 
 ### GDI_E910: GeneratorInternalError
 
@@ -551,22 +567,30 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 源生成器内部错误。
 
----
+------
+
+### GDI_E920: UnknownTypeRole
+
+**消息**: `Unknown DI Type Role`
+
+**原因**: 未知的 DI 角色分类。
+
+------
+
+### GDI_E930: ScopeLosesAttributeUnexpectedly
+
+**消息**: `Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]`
+
+**原因**: Scope 意外丢失了 `[Modules]` 或 `[AutoModules]`。
+
+------
 
 ## User Behavior 警告 (GDI_U)
 
-### GDI_U001: ManualAttachToScope
+### GDI_U001: ManualCallGeneratedMethod
 
-**消息**: `Do not call AttachToScope manually; injection is handled automatically by the framework`
+**消息**: `Do not manually call generated method '{0}' on '{1}'. This method is managed by the DI framework and will be called automatically at the appropriate time`
 
-**原因**: 手动调用了框架生成的 `AttachToScope` 方法。
-
----
-
-### GDI_U002: ManualResolveUserDependencies
-
-**消息**: `Do not call ResolveUserDependencies manually; injection is handled automatically by the framework`
-
-**原因**: 手动调用了框架生成的 `ResolveUserDependencies` 方法。
+**原因**: 手动调用了框架生成的方法（如 `AttachToScope`、`ResolveUserDependencies`、`RegisterService` 等）。
 
 **注意**: 对于非 Node 的 User，需要调用 `ResolveDependencies`（公共方法），而非 `ResolveUserDependencies`（私有方法）。

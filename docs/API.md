@@ -207,19 +207,6 @@ public partial class GameScope : Node, IScope { }
 
 ---
 
-### AutoModulesAttribute
-
-（保留功能）自动检测和收集服务。
-
-```csharp
-namespace GodotSharp.DI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class AutoModulesAttribute : Attribute { }
-```
-
----
-
 ## 接口（Interfaces）
 
 ### IScope
