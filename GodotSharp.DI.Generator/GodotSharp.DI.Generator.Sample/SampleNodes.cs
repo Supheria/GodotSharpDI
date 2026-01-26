@@ -20,10 +20,13 @@ public partial class PureUser
 
 [Host]
 [User]
-public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
+public partial class ChunkManager : Node, IChunkGenerator, IChunkGetter
 {
     [Singleton]
     private IChunkGetter Self => this;
+
+    [Singleton]
+    private IChunkGenerator Self2 => this;
 
     [Inject]
     private ICellGenerator _cellManager;

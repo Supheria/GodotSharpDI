@@ -37,8 +37,4 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Internal\Extensions\" />
-    <Folder Include="Internal\Validation\" />
-  </ItemGroup>
 </Project>

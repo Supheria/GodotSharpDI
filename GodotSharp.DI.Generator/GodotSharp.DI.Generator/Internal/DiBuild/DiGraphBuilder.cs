@@ -53,8 +53,17 @@ internal static class DiGraphBuilder
         var (scopeNodes, scopeDiags) = BuildScopeNodes(scopes, serviceProviders, symbols);
         diagnostics.AddRange(scopeDiags);
 
-        // 依赖图验证
-        var graphDiags = ValidateDependencyGraph(serviceNodes, serviceProviders, symbols);
+        // 验证 Host 服务引用
+        var hostServiceDiags = ValidateHostServices(hosts, serviceProviders);
+        diagnostics.AddRange(hostServiceDiags);
+
+        // 依赖图验证（修正：传入 userNodes）
+        var graphDiags = ValidateDependencyGraph(
+            serviceNodes,
+            userNodes,
+            serviceProviders,
+            symbols
+        );
         diagnostics.AddRange(graphDiags);
 
         // 构建类型映射 - 使用 TypeNode 而不是 TypeInfo
@@ -211,7 +220,7 @@ internal static class DiGraphBuilder
             }
         }
 
-        // 如果没有指定，使用类型本身
+        // 如果没有指定,使用类型本身
         if (builder.Count == 0)
         {
             builder.Add(service.Symbol);
@@ -386,6 +395,47 @@ internal static class DiGraphBuilder
                 }
             }
 
+            // 验证 Expect - 检查类型是否有 Host 特性
+            foreach (var type in expect)
+            {
+                var isHost = type.GetAttributes()
+                    .Any(attr =>
+                    {
+                        var attrClass = attr.AttributeClass;
+                        if (attrClass == null)
+                            return false;
+
+                        return SymbolEqualityComparer.Default.Equals(
+                            attrClass,
+                            symbols.HostAttribute
+                        );
+                    });
+
+                if (!isHost)
+                {
+                    diagnostics.Add(
+                        Diagnostic.Create(
+                            DiagnosticDescriptors.ScopeExpectMustBeHost,
+                            scope.Location,
+                            scope.Symbol.Name,
+                            type.ToDisplayString()
+                        )
+                    );
+                }
+            }
+
+            // 检查 Expect 是否为空 (Info 诊断)
+            if (expect.IsEmpty)
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.ScopeModulesExpectEmpty,
+                        scope.Location,
+                        scope.Symbol.Name
+                    )
+                );
+            }
+
             nodes.Add(
                 new ScopeNode(
                     TypeInfo: scope,
@@ -399,8 +449,31 @@ internal static class DiGraphBuilder
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
     }
 
+    /// <summary>
+    /// 验证 Host 暴露的服务类型
+    /// </summary>
+    private static ImmutableArray<Diagnostic> ValidateHostServices(
+        ImmutableArray<TypeInfo> hosts,
+        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders
+    )
+    {
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        // 注意：Host暴露的服务不需要在serviceProviders中预先注册
+        // Host自身就是服务的提供者，它通过成员上的[Singleton]特性暴露服务
+        // 这里的验证主要是确保Host暴露的类型是合理的（但这已经在ClassPipeline中完成）
+
+        // 由于当前设计中，Host可以暴露任意类型（只要不是已标记为Service的类型）
+        // 并且这个检查已经在ClassPipeline.ProcessSingleMember中通过
+        // DiagnosticDescriptors.HostSingletonMemberIsServiceType 完成
+        // 因此这里不需要额外的验证逻辑
+
+        return diagnostics.ToImmutable();
+    }
+
     private static ImmutableArray<Diagnostic> ValidateDependencyGraph(
         ImmutableArray<TypeNode> serviceNodes,
+        ImmutableArray<TypeNode> userNodes,
         Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
         CachedSymbols symbols
     )
@@ -445,6 +518,54 @@ internal static class DiGraphBuilder
                                 )
                             );
                         }
+                    }
+                }
+            }
+        }
+
+        // 修正：检查 Service 构造函数参数是否是已暴露的服务类型
+        foreach (var node in serviceNodes)
+        {
+            if (node.TypeInfo.Constructor != null)
+            {
+                foreach (var param in node.TypeInfo.Constructor.Parameters)
+                {
+                    // 检查参数类型（通常是接口）是否在 serviceProviders 的键中
+                    // serviceProviders 的键是暴露的服务类型（接口），值是提供者
+                    if (!serviceProviders.ContainsKey(param.Type))
+                    {
+                        diagnostics.Add(
+                            Diagnostic.Create(
+                                DiagnosticDescriptors.ServiceConstructorParameterInvalid,
+                                param.Location,
+                                node.TypeInfo.Symbol.Name,
+                                param.Type.ToDisplayString()
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
+        // 新增：检查 User 的 Inject 成员是否是已暴露的服务类型
+        foreach (var node in userNodes)
+        {
+            foreach (var dep in node.Dependencies)
+            {
+                // 只检查来自 InjectMember 的依赖
+                if (dep.Source == DependencySource.InjectMember)
+                {
+                    // 检查依赖的类型是否在 serviceProviders 中
+                    if (!serviceProviders.ContainsKey(dep.TargetType))
+                    {
+                        diagnostics.Add(
+                            Diagnostic.Create(
+                                DiagnosticDescriptors.InjectMemberInvalidType,
+                                dep.Location,
+                                node.TypeInfo.Symbol.Name,
+                                dep.TargetType.ToDisplayString()
+                            )
+                        );
                     }
                 }
             }
