@@ -109,8 +109,8 @@ internal sealed record ParameterInfo(IParameterSymbol Symbol, Location Location,
 /// 模块信息
 /// </summary>
 internal sealed record ModulesInfo(
-    ImmutableArray<ITypeSymbol> Instantiate,
-    ImmutableArray<ITypeSymbol> Expect
+    ImmutableArray<ITypeSymbol> Services,
+    ImmutableArray<ITypeSymbol> Hosts
 );
 
 /// <summary>

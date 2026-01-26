@@ -267,24 +267,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Expect type &apos;{1}&apos; must be a Host.
-        /// </summary>
-        internal static string ScopeExpectMustBeHost {
-            get {
-                return ResourceManager.GetString("ScopeExpectMustBeHost", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Instantiate type &apos;{1}&apos; must be a Service.
-        /// </summary>
-        internal static string ScopeInstantiateMustBeService {
-            get {
-                return ResourceManager.GetString("ScopeInstantiateMustBeService", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string ScopeInvalidAttribute {
@@ -312,20 +294,38 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Host type in [Modules] Expect.
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Host type &apos;{1}&apos; must be a Host.
         /// </summary>
-        internal static string ScopeModulesExpectEmpty {
+        internal static string ScopeModulesHostMustBeHost {
             get {
-                return ResourceManager.GetString("ScopeModulesExpectEmpty", resourceCulture);
+                return ResourceManager.GetString("ScopeModulesHostMustBeHost", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify at least one type in [Modules] Instantiate.
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Host type in [Modules] Hosts.
         /// </summary>
-        internal static string ScopeModulesInstantiateEmpty {
+        internal static string ScopeModulesHostsEmpty {
             get {
-                return ResourceManager.GetString("ScopeModulesInstantiateEmpty", resourceCulture);
+                return ResourceManager.GetString("ScopeModulesHostsEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Service type &apos;{1}&apos; must be a Service.
+        /// </summary>
+        internal static string ScopeModulesServiceMustBeService {
+            get {
+                return ResourceManager.GetString("ScopeModulesServiceMustBeService", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify at least one type in [Modules] Services.
+        /// </summary>
+        internal static string ScopeModulesServicesEmpty {
+            get {
+                return ResourceManager.GetString("ScopeModulesServicesEmpty", resourceCulture);
             }
         }
         

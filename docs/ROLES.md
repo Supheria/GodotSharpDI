@@ -300,8 +300,8 @@ Scope 是 DI 容器，负责：
 
 ```csharp
 [Modules(
-    Instantiate = [typeof(PlayerStatsService), typeof(CombatSystem)],
-    Expect = [typeof(GameManager), typeof(WorldManager)]
+    Services = [typeof(PlayerStatsService), typeof(CombatSystem)],
+    Hosts = [typeof(GameManager), typeof(WorldManager)]
 )]
 public partial class GameScope : Node, IScope
 {
@@ -313,8 +313,8 @@ public partial class GameScope : Node, IScope
 
 | 参数 | 说明 | 约束 |
 |------|------|------|
-| `Instantiate` | Scope 创建和管理的 Service 类型列表 | 必须是 Service（有 [Singleton] 或 [Transient]） |
-| `Expect` | Scope 期望接收的 Host 类型列表 | 必须是 Host（有 [Host]） |
+| `Services` | Scope 创建和管理的 Service 类型列表 | 必须是 Service（有 [Singleton] 或 [Transient]） |
+| `Hosts` | Scope 期望接收的 Host 类型列表 | 必须是 Host（有 [Host]） |
 
 ### Scope 层级
 

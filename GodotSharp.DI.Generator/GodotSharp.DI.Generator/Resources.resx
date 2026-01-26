@@ -77,12 +77,12 @@
     <value>Scope '{0}' must specify either [Modules] or [AutoModules]</value>
   </data>
 
-    <data name="ScopeInstantiateMustBeService" xml:space="preserve">
-    <value>Scope '{0}' Instantiate type '{1}' must be a Service</value>
+  <data name="ScopeModulesServiceMustBeService" xml:space="preserve">
+    <value>Scope '{0}' Modules Service type '{1}' must be a Service</value>
   </data>
 
-    <data name="ScopeExpectMustBeHost" xml:space="preserve">
-    <value>Scope '{0}' Expect type '{1}' must be a Host</value>
+  <data name="ScopeModulesHostMustBeHost" xml:space="preserve">
+    <value>Scope '{0}' Modules Host type '{1}' must be a Host</value>
   </data>
   <data name="CircularDependencyDetected" xml:space="preserve">
     <value>Circular dependency detected: {0}</value>
@@ -109,11 +109,11 @@
   <data name="MemberHasInjectButNotInUser" xml:space="preserve">
     <value>Type '{0}' must be marked as [User] to use [Inject] on members</value>
   </data>
-    <data name="ScopeModulesInstantiateEmpty" xml:space="preserve">
-    <value>Scope '{0}' must specify at least one type in [Modules] Instantiate</value>
+  <data name="ScopeModulesServicesEmpty" xml:space="preserve">
+    <value>Scope '{0}' must specify at least one type in [Modules] Services</value>
   </data>
-    <data name="ScopeModulesExpectEmpty" xml:space="preserve">
-    <value>Scope '{0}' specifies no Host type in [Modules] Expect</value>
+  <data name="ScopeModulesHostsEmpty" xml:space="preserve">
+    <value>Scope '{0}' specifies no Host type in [Modules] Hosts</value>
   </data>
     <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
     <value>Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]</value>

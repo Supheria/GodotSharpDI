@@ -3,6 +3,7 @@ using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.Helpers;
+using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 using TypeInfo = GodotSharp.DI.Generator.Internal.Data.TypeInfo;
 
@@ -761,10 +762,10 @@ internal static class ClassPipeline
         if (modulesAttr == null)
             return (null, diagnostics.ToImmutable());
 
-        var instantiate = GetTypesFromAttribute(modulesAttr, "Instantiate");
-        var expect = GetTypesFromAttribute(modulesAttr, "Expect");
+        var services = GetTypesFromAttribute(modulesAttr, ArgumentNames.Services);
+        var hosts = GetTypesFromAttribute(modulesAttr, ArgumentNames.Hosts);
 
-        return (new ModulesInfo(instantiate, expect), diagnostics.ToImmutable());
+        return (new ModulesInfo(services, hosts), diagnostics.ToImmutable());
     }
 
     private static ImmutableArray<ITypeSymbol> GetExposedTypes(
@@ -781,7 +782,7 @@ internal static class ClassPipeline
         if (singletonAttr == null)
             return ImmutableArray<ITypeSymbol>.Empty;
 
-        var exposedTypes = GetTypesFromAttribute(singletonAttr, "ServiceTypes");
+        var exposedTypes = GetTypesFromAttribute(singletonAttr, ArgumentNames.ServiceTypes);
 
         // 如果没有指定服务类型，使用成员的类型
         if (exposedTypes.IsEmpty)

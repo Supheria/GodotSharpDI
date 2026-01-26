@@ -2,6 +2,14 @@
 
 public static class ArgumentNames
 {
-    public const string Instantiate = "Instantiate";
-    public const string Expect = "Expect";
+    //
+    // Modules
+    //
+    public const string Services = "Services";
+    public const string Hosts = "Hosts";
+
+    //
+    // SingletonAttribute / TransientAttribute
+    //
+    public const string ServiceTypes = "ServiceTypes";
 }

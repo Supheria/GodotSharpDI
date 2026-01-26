@@ -360,11 +360,11 @@ internal static class DiGraphBuilder
             if (scope.ModulesInfo == null)
                 continue;
 
-            var instantiate = scope.ModulesInfo.Instantiate;
-            var expect = scope.ModulesInfo.Expect;
+            var services = scope.ModulesInfo.Services;
+            var hosts = scope.ModulesInfo.Hosts;
 
-            // 验证 Instantiate - 检查类型是否有 Singleton 或 Transient 特性
-            foreach (var type in instantiate)
+            // 验证 Services - 检查类型是否有 Singleton 或 Transient 特性
+            foreach (var type in services)
             {
                 var hasLifetime = type.GetAttributes()
                     .Any(attr =>
@@ -387,7 +387,7 @@ internal static class DiGraphBuilder
                 {
                     diagnostics.Add(
                         Diagnostic.Create(
-                            DiagnosticDescriptors.ScopeInstantiateMustBeService,
+                            DiagnosticDescriptors.ScopeModulesServiceMustBeService,
                             scope.Location,
                             type.ToDisplayString()
                         )
@@ -395,8 +395,8 @@ internal static class DiGraphBuilder
                 }
             }
 
-            // 验证 Expect - 检查类型是否有 Host 特性
-            foreach (var type in expect)
+            // 验证 Hosts - 检查类型是否有 Host 特性
+            foreach (var type in hosts)
             {
                 var isHost = type.GetAttributes()
                     .Any(attr =>
@@ -415,7 +415,7 @@ internal static class DiGraphBuilder
                 {
                     diagnostics.Add(
                         Diagnostic.Create(
-                            DiagnosticDescriptors.ScopeExpectMustBeHost,
+                            DiagnosticDescriptors.ScopeModulesHostMustBeHost,
                             scope.Location,
                             scope.Symbol.Name,
                             type.ToDisplayString()
@@ -425,11 +425,11 @@ internal static class DiGraphBuilder
             }
 
             // 检查 Instantiate 是否为空 (Info 诊断)
-            if (instantiate.IsEmpty)
+            if (services.IsEmpty)
             {
                 diagnostics.Add(
                     Diagnostic.Create(
-                        DiagnosticDescriptors.ScopeModulesInstantiateEmpty,
+                        DiagnosticDescriptors.ScopeModulesServicesEmpty,
                         scope.Location,
                         scope.Symbol.Name
                     )
@@ -437,11 +437,11 @@ internal static class DiGraphBuilder
             }
 
             // 检查 Expect 是否为空 (Info 诊断)
-            if (expect.IsEmpty)
+            if (hosts.IsEmpty)
             {
                 diagnostics.Add(
                     Diagnostic.Create(
-                        DiagnosticDescriptors.ScopeModulesExpectEmpty,
+                        DiagnosticDescriptors.ScopeModulesHostsEmpty,
                         scope.Location,
                         scope.Symbol.Name
                     )
@@ -451,8 +451,8 @@ internal static class DiGraphBuilder
             nodes.Add(
                 new ScopeNode(
                     TypeInfo: scope,
-                    InstantiateServices: instantiate,
-                    ExpectHosts: expect,
+                    InstantiateServices: services,
+                    ExpectHosts: hosts,
                     AllProvidedServices: ImmutableArray<ITypeSymbol>.Empty
                 )
             );

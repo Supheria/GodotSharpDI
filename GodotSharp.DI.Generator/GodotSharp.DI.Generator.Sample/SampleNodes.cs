@@ -62,7 +62,7 @@ public interface IFinder;
 
 public interface ISearcher;
 
-[Singleton(typeof(IFinder), typeof(ISearcher))]
+[Transient(typeof(IFinder), typeof(ISearcher))]
 public partial class PathFinder : IFinder, ISearcher
 {
     [InjectConstructor]
@@ -72,8 +72,8 @@ public partial class PathFinder : IFinder, ISearcher
 }
 
 [Modules(
-    Instantiate = [typeof(DataBase), typeof(PathFinder)],
-    Expect = [typeof(ChunkManager), typeof(CellManager)]
+    Services = [typeof(DataBase), typeof(PathFinder)],
+    Hosts = [typeof(ChunkManager), typeof(CellManager)]
 )]
 public partial class Scope : Node, IScope
 {

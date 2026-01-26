@@ -273,25 +273,25 @@ internal static class DiagnosticDescriptors
     // D — Dependency Graph
     // ============================================================
 
-    public static readonly DiagnosticDescriptor ScopeModulesInstantiateEmpty = DependencyGraph(
+    public static readonly DiagnosticDescriptor ScopeModulesServicesEmpty = DependencyGraph(
         "001",
-        Resources.ScopeModulesInstantiateEmpty
+        Resources.ScopeModulesServicesEmpty
     );
 
-    public static readonly DiagnosticDescriptor ScopeModulesExpectEmpty = DependencyGraph(
+    public static readonly DiagnosticDescriptor ScopeModulesHostsEmpty = DependencyGraph(
         "002",
-        Resources.ScopeModulesExpectEmpty,
+        Resources.ScopeModulesHostsEmpty,
         DiagnosticSeverity.Info
     );
 
-    public static readonly DiagnosticDescriptor ScopeInstantiateMustBeService = DependencyGraph(
+    public static readonly DiagnosticDescriptor ScopeModulesServiceMustBeService = DependencyGraph(
         "003",
-        Resources.ScopeInstantiateMustBeService
+        Resources.ScopeModulesServiceMustBeService
     );
 
-    public static readonly DiagnosticDescriptor ScopeExpectMustBeHost = DependencyGraph(
+    public static readonly DiagnosticDescriptor ScopeModulesHostMustBeHost = DependencyGraph(
         "004",
-        Resources.ScopeExpectMustBeHost
+        Resources.ScopeModulesHostMustBeHost
     );
 
     public static readonly DiagnosticDescriptor CircularDependencyDetected = DependencyGraph(
