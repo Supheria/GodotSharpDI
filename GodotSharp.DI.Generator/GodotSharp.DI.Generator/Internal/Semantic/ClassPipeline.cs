@@ -261,7 +261,17 @@ internal static class ClassPipeline
             var hasInject = HasAttribute(member, symbols.InjectAttribute);
             var hasSingleton = HasAttribute(member, symbols.SingletonAttribute);
 
-            if (!hasInject && !hasSingleton)
+            // 检查是否是 User 类型成员（自动识别）
+            ITypeSymbol? memberType = null;
+            if (member is IFieldSymbol field)
+                memberType = field.Type;
+            else if (member is IPropertySymbol property)
+                memberType = property.Type;
+
+            var isUserMember = memberType != null && symbols.IsUserType(memberType);
+
+            // 跳过既没有特性也不是 User 类型的成员
+            if (!hasInject && !hasSingleton && !isUserMember)
                 continue;
 
             if (hasInject && hasSingleton)
@@ -297,6 +307,22 @@ internal static class ClassPipeline
                         member.Name
                     )
                 );
+                continue;
+            }
+
+            // 处理 User 成员
+            if (isUserMember)
+            {
+                var (userMemberInfo, userMemberDiags) = ProcessUserMember(
+                    member,
+                    memberType!,
+                    raw,
+                    role,
+                    symbols
+                );
+                if (userMemberInfo != null)
+                    members.Add(userMemberInfo);
+                diagnostics.AddRange(userMemberDiags);
                 continue;
             }
 
@@ -499,6 +525,115 @@ internal static class ClassPipeline
             Kind: kind,
             MemberType: memberType,
             ExposedTypes: exposedTypes
+        );
+
+        return (info, diagnostics.ToImmutable());
+    }
+
+    private static (MemberInfo?, ImmutableArray<Diagnostic>) ProcessUserMember(
+        ISymbol member,
+        ITypeSymbol memberType,
+        RawClassSemanticInfo raw,
+        TypeRole role,
+        CachedSymbols symbols
+    )
+    {
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+        var location = member.Locations.FirstOrDefault() ?? Location.None;
+
+        // 规则1: User 成员不能是 Node
+        if (symbols.IsNode(memberType))
+        {
+            diagnostics.Add(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.UserMemberCannotBeNode,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return (null, diagnostics.ToImmutable());
+        }
+
+        // 规则2: 只有 Node User 可以包含非 Node User
+        if (!raw.IsNode)
+        {
+            diagnostics.Add(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.NonNodeUserCannotContainUserMember,
+                    location,
+                    raw.Symbol.Name,
+                    member.Name
+                )
+            );
+            return (null, diagnostics.ToImmutable());
+        }
+
+        // 规则3: 检查是否是 static
+        if (member.IsStatic)
+        {
+            diagnostics.Add(
+                Diagnostic.Create(DiagnosticDescriptors.InjectMemberIsStatic, location, member.Name)
+            );
+            return (null, diagnostics.ToImmutable());
+        }
+
+        MemberKind kind = MemberKind.None;
+        bool hasInitializer = false;
+
+        if (member is IFieldSymbol field)
+        {
+            kind = MemberKind.UserMemberField;
+            // 检查字段是否有初始化器（通过语法检查）
+            var syntax = field.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax();
+            if (syntax is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax varDecl)
+            {
+                hasInitializer = varDecl.Initializer != null;
+            }
+        }
+        else if (member is IPropertySymbol property)
+        {
+            kind = MemberKind.UserMemberProperty;
+            // 属性必须有 getter 和初始化器
+            if (property.GetMethod == null)
+            {
+                diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.SingletonPropertyNotAccessible,
+                        location,
+                        member.Name
+                    )
+                );
+                return (null, diagnostics.ToImmutable());
+            }
+
+            // 检查属性是否有初始化器
+            var syntax = property.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax();
+            if (syntax is Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax propDecl)
+            {
+                hasInitializer = propDecl.Initializer != null;
+            }
+        }
+
+        // 规则4: User 成员必须初始化
+        if (!hasInitializer)
+        {
+            diagnostics.Add(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.UserMemberMustBeInitialized,
+                    location,
+                    member.Name
+                )
+            );
+            return (null, diagnostics.ToImmutable());
+        }
+
+        var info = new MemberInfo(
+            Symbol: member,
+            Location: location,
+            Kind: kind,
+            MemberType: memberType,
+            ExposedTypes: ImmutableArray<ITypeSymbol>.Empty
         );
 
         return (info, diagnostics.ToImmutable());

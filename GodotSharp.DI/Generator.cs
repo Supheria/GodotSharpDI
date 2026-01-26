@@ -223,8 +223,6 @@ partial class CellManager // CellManager.DI.g.cs
         AttachHostServices(scope);
         // 标记为 User 才生成
         ResolveUserDependencies(scope);
-        // 处理任何标记为 [User] 的类型成员
-        _movementManager.ResolveDependencies(scope);
     }
 
     // 节点类型的 Host 或 User 才生成
@@ -325,6 +323,11 @@ partial class CellManager // CellManager.DI.User.g.cs
             // 实现了 IServicesReady 才生成
             OnDependencyResolved<IDataWriter>();
         });
+        // 处理任何标记为 [User] 的类型成员
+        if (_movementManager is not null)
+        {
+            _movementManager.ResolveDependencies(scope);
+        }
     }
 }
 

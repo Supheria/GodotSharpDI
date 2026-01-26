@@ -285,6 +285,24 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Node User &apos;{0}&apos; cannot contain Node User member &apos;{1}&apos;. User members must be non-Node types.
+        /// </summary>
+        internal static string NodeUserCannotContainNodeUser {
+            get {
+                return ResourceManager.GetString("NodeUserCannotContainNodeUser", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Non-Node User &apos;{0}&apos; cannot contain User member &apos;{1}&apos;. Only Node User can contain non-Node User members. Consider making &apos;{0}&apos; a Service instead.
+        /// </summary>
+        internal static string NonNodeUserCannotContainUserMember {
+            get {
+                return ResourceManager.GetString("NonNodeUserCannotContainUserMember", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Service &apos;{0}&apos; must define at least one constructor.
         /// </summary>
         internal static string NoPublicConstructor {
@@ -479,6 +497,24 @@ namespace GodotSharp.DI.Generator {
         internal static string UserInvalidAttribute {
             get {
                 return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User member &apos;{0}&apos; has type &apos;{1}&apos; which is a Node. Node types cannot be User members.
+        /// </summary>
+        internal static string UserMemberCannotBeNode {
+            get {
+                return ResourceManager.GetString("UserMemberCannotBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User member &apos;{0}&apos; must be initialized with a field initializer (e.g., &apos;private MyUser _user = new();&apos;).
+        /// </summary>
+        internal static string UserMemberMustBeInitialized {
+            get {
+                return ResourceManager.GetString("UserMemberMustBeInitialized", resourceCulture);
             }
         }
         

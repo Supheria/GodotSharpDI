@@ -176,6 +176,18 @@
     <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
     <value>暴露类型 "{0}" 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
   </data>
+    <data name="UserMemberCannotBeNode" xml:space="preserve">
+    <value>User 成员 "{0}" 的类型 "{1}" 是 Node。Node 类型不能作为 User 成员</value>
+  </data>
+    <data name="NonNodeUserCannotContainUserMember" xml:space="preserve">
+    <value>非 Node User "{0}" 不能包含 User 成员 "{1}"。只有 Node User 可以包含非 Node User 成员。建议将 "{0}" 改为 Service</value>
+  </data>
+    <data name="NodeUserCannotContainNodeUser" xml:space="preserve">
+    <value>Node User "{0}" 不能包含 Node User 成员 "{1}"。User 成员必须是非 Node 类型</value>
+  </data>
+    <data name="UserMemberMustBeInitialized" xml:space="preserve">
+    <value>User 成员 "{0}" 必须使用字段初始化器初始化（例如：'private MyUser _user = new();'）</value>
+  </data>
     <data name="ServiceTypeConflict" xml:space="preserve">
     <value>服务类型 "{0}" 被多个提供者注册：{1}。每个服务类型在一个 Scope 内只能有一个提供者</value>
   </data>

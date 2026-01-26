@@ -11,6 +11,13 @@ public interface IChunkGenerator;
 
 public interface ICellGenerator;
 
+[User]
+public partial class PureUser
+{
+    [Inject]
+    private ICellGenerator _cellManager;
+}
+
 [Host]
 [User]
 public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
@@ -33,6 +40,8 @@ public partial class CellManager : Node, ICellGenerator, IServicesReady
 
     [Inject]
     private IChunkGetter _chunkGetter;
+
+    private readonly PureUser _pureUser = new();
 
     public void OnServicesReady()
     {

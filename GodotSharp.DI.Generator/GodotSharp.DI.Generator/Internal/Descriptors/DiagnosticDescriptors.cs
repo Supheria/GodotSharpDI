@@ -250,6 +250,26 @@ internal static class DiagnosticDescriptors
         DiagnosticSeverity.Warning
     );
 
+    public static readonly DiagnosticDescriptor UserMemberCannotBeNode = Member(
+        "080",
+        Resources.UserMemberCannotBeNode
+    );
+
+    public static readonly DiagnosticDescriptor NonNodeUserCannotContainUserMember = Member(
+        "081",
+        Resources.NonNodeUserCannotContainUserMember
+    );
+
+    public static readonly DiagnosticDescriptor NodeUserCannotContainNodeUser = Member(
+        "082",
+        Resources.NodeUserCannotContainNodeUser
+    );
+
+    public static readonly DiagnosticDescriptor UserMemberMustBeInitialized = Member(
+        "083",
+        Resources.UserMemberMustBeInitialized
+    );
+
     // ============================================================
     // S — Constructor-level
     // ============================================================

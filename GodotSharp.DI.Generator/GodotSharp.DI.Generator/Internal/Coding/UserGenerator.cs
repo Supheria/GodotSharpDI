@@ -75,6 +75,7 @@ internal static class UserGenerator
     )
     {
         var injectMembersList = new System.Collections.Generic.List<MemberInfo>();
+        var userMembersList = new System.Collections.Generic.List<MemberInfo>();
 
         foreach (var member in type.Members)
         {
@@ -82,9 +83,17 @@ internal static class UserGenerator
             {
                 injectMembersList.Add(member);
             }
+            else if (
+                member.Kind == MemberKind.UserMemberField
+                || member.Kind == MemberKind.UserMemberProperty
+            )
+            {
+                userMembersList.Add(member);
+            }
         }
 
-        if (injectMembersList.Count == 0)
+        // 如果既没有 Inject 成员也没有 UserMember，则不生成代码
+        if (injectMembersList.Count == 0 && userMembersList.Count == 0)
             return;
 
         var f = new CodeFormatter();
@@ -100,7 +109,7 @@ internal static class UserGenerator
             GenerateDependencyTracking(f, injectMembersList);
         }
 
-        GenerateResolveUserDependencies(f, type, injectMembersList);
+        GenerateResolveUserDependencies(f, type, injectMembersList, userMembersList);
 
         f.EndBlock();
 
@@ -143,12 +152,14 @@ internal static class UserGenerator
     private static void GenerateResolveUserDependencies(
         CodeFormatter f,
         TypeInfo type,
-        System.Collections.Generic.List<MemberInfo> injectMembersList
+        System.Collections.Generic.List<MemberInfo> injectMembersList,
+        System.Collections.Generic.List<MemberInfo> userMembersList
     )
     {
         f.AppendLine($"private void ResolveUserDependencies({GlobalNames.IScope} scope)");
         f.BeginBlock();
         {
+            // 先注入 [Inject] 成员
             foreach (var member in injectMembersList)
             {
                 f.AppendLine(
@@ -166,6 +177,18 @@ internal static class UserGenerator
                     }
                 }
                 f.EndBlock(");");
+            }
+
+            // 递归注入 UserMember
+            foreach (var member in userMembersList)
+            {
+                f.AppendLine($"// 注入 User 成员: {member.Symbol.Name}");
+                f.AppendLine($"if ({member.Symbol.Name} != null)");
+                f.BeginBlock();
+                {
+                    f.AppendLine($"{member.Symbol.Name}.ResolveDependencies(scope);");
+                }
+                f.EndBlock();
             }
         }
         f.EndBlock();
