@@ -39,6 +39,8 @@ public partial class ChunkManager : Node, IChunkGenerator, IChunkGetter
     private ICellGenerator _cellManager;
 }
 
+public class CellService : ICellGenerator, IChunkGenerator;
+
 [Host, User]
 public partial class CellManager : Node, ICellGenerator, IServicesReady
 {

@@ -59,7 +59,7 @@ internal sealed class ClassValidator
         if (!_raw.IsPartial)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.DiClassMustBePartial,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -79,7 +79,7 @@ internal sealed class ClassValidator
         if (_raw.HasSingletonAttribute && _raw.HasTransientAttribute)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ServiceLifetimeConflict,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -101,7 +101,7 @@ internal sealed class ClassValidator
             )
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.ScopeInvalidAttribute,
                         _raw.Location,
                         _raw.Symbol.Name
@@ -123,7 +123,7 @@ internal sealed class ClassValidator
             if (_raw.HasHostAttribute || _raw.HasUserAttribute)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.HostInvalidAttribute,
                         _raw.Location,
                         _raw.Symbol.Name
@@ -180,7 +180,7 @@ internal sealed class ClassValidator
         if (_raw.ImplementsIServicesReady && role != TypeRole.User && role != TypeRole.HostAndUser)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ServiceReadyNeedUser,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -194,7 +194,7 @@ internal sealed class ClassValidator
         if (_raw.IsNode)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ServiceCannotBeNode,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -204,7 +204,7 @@ internal sealed class ClassValidator
         if (!_raw.Symbol.IsValidServiceType(_symbols))
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ServiceTypeIsInvalid,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -218,7 +218,7 @@ internal sealed class ClassValidator
         if (!_raw.IsNode)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.HostMustBeNode,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -232,7 +232,7 @@ internal sealed class ClassValidator
         if (!_raw.IsNode)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ScopeMustBeNode,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -242,7 +242,7 @@ internal sealed class ClassValidator
         if (!_raw.HasModulesAttribute)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ScopeMissingModules,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -341,8 +341,8 @@ internal sealed class MemberProcessor
 
         foreach (var member in _raw.Members)
         {
-            var hasInject = HasAttribute(member, _symbols.InjectAttribute);
-            var hasSingleton = HasAttribute(member, _symbols.SingletonAttribute);
+            var hasInject = member.HasAttribute(_symbols.InjectAttribute);
+            var hasSingleton = member.HasAttribute(_symbols.SingletonAttribute);
 
             // 检查是否是 User 类型成员（自动识别）
             ITypeSymbol? memberType = null;
@@ -360,7 +360,7 @@ internal sealed class MemberProcessor
             if (hasInject && hasSingleton)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.MemberConflictWithSingletonAndInject,
                         member.Locations.FirstOrDefault() ?? _raw.Location,
                         member.Name
@@ -372,7 +372,7 @@ internal sealed class MemberProcessor
             if (hasInject && _role != TypeRole.User && _role != TypeRole.HostAndUser)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.MemberHasInjectButNotInUser,
                         member.Locations.FirstOrDefault() ?? _raw.Location,
                         member.Name
@@ -384,7 +384,7 @@ internal sealed class MemberProcessor
             if (hasSingleton && _role != TypeRole.Host && _role != TypeRole.HostAndUser)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.MemberHasSingletonButNotInHost,
                         member.Locations.FirstOrDefault() ?? _raw.Location,
                         member.Name
@@ -400,7 +400,7 @@ internal sealed class MemberProcessor
                 if (hasInject)
                 {
                     _diagnostics.Add(
-                        Diagnostic.Create(
+                        DiagnosticBuilder.Create(
                             DiagnosticDescriptors.InjectMemberIsUserType,
                             member.Locations.FirstOrDefault() ?? _raw.Location,
                             member.Name,
@@ -434,7 +434,7 @@ internal sealed class MemberProcessor
             if (hasInject)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.InjectMemberIsStatic,
                         location,
                         member.Name
@@ -445,7 +445,7 @@ internal sealed class MemberProcessor
             if (hasSingleton)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.SingletonMemberIsStatic,
                         location,
                         member.Name
@@ -472,7 +472,7 @@ internal sealed class MemberProcessor
                 if (property.SetMethod == null)
                 {
                     _diagnostics.Add(
-                        Diagnostic.Create(
+                        DiagnosticBuilder.Create(
                             DiagnosticDescriptors.InjectMemberNotAssignable,
                             location,
                             member.Name
@@ -487,7 +487,7 @@ internal sealed class MemberProcessor
                 if (property.GetMethod == null)
                 {
                     _diagnostics.Add(
-                        Diagnostic.Create(
+                        DiagnosticBuilder.Create(
                             DiagnosticDescriptors.SingletonPropertyNotAccessible,
                             location,
                             member.Name
@@ -517,7 +517,7 @@ internal sealed class MemberProcessor
             if (_symbols.IsServiceType(memberType))
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.HostSingletonMemberIsServiceType,
                         location,
                         member.Name,
@@ -535,7 +535,7 @@ internal sealed class MemberProcessor
                 if (exposedType.TypeKind != TypeKind.Interface)
                 {
                     _diagnostics.Add(
-                        Diagnostic.Create(
+                        DiagnosticBuilder.Create(
                             DiagnosticDescriptors.ExposedTypeShouldBeInterface,
                             location,
                             exposedType.ToDisplayString()
@@ -560,7 +560,7 @@ internal sealed class MemberProcessor
         if (_symbols.IsHostType(memberType))
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.InjectMemberIsHostType,
                     location,
                     member.Name,
@@ -574,7 +574,7 @@ internal sealed class MemberProcessor
         if (_symbols.IsUserType(memberType))
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.InjectMemberIsUserType,
                     location,
                     member.Name,
@@ -588,7 +588,7 @@ internal sealed class MemberProcessor
         if (_symbols.ImplementsIScope(memberType))
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.InjectMemberIsScopeType,
                     location,
                     member.Name,
@@ -601,7 +601,7 @@ internal sealed class MemberProcessor
         if (!memberType.IsValidInjectType(_symbols))
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.InjectMemberInvalidType,
                     location,
                     member.Name,
@@ -622,7 +622,7 @@ internal sealed class MemberProcessor
         if (_symbols.IsNode(memberType))
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.UserMemberCannotBeNode,
                     location,
                     member.Name,
@@ -636,7 +636,7 @@ internal sealed class MemberProcessor
         if (!_raw.IsNode)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.NonNodeUserCannotContainUserMember,
                     location,
                     _raw.Symbol.Name,
@@ -650,7 +650,11 @@ internal sealed class MemberProcessor
         if (member.IsStatic)
         {
             _diagnostics.Add(
-                Diagnostic.Create(DiagnosticDescriptors.InjectMemberIsStatic, location, member.Name)
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectMemberIsStatic,
+                    location,
+                    member.Name
+                )
             );
             return null;
         }
@@ -669,7 +673,7 @@ internal sealed class MemberProcessor
             if (property.GetMethod == null)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.SingletonPropertyNotAccessible,
                         location,
                         member.Name
@@ -685,7 +689,7 @@ internal sealed class MemberProcessor
         if (!hasInitializer)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.UserMemberMustBeInitialized,
                     location,
                     member.Name
@@ -701,17 +705,6 @@ internal sealed class MemberProcessor
             MemberType: memberType,
             ExposedTypes: ImmutableArray<ITypeSymbol>.Empty
         );
-    }
-
-    private bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol)
-    {
-        if (attributeSymbol is null)
-            return false;
-        return symbol
-            .GetAttributes()
-            .Any(attr =>
-                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, attributeSymbol)
-            );
     }
 }
 
@@ -744,7 +737,7 @@ internal sealed class ConstructorProcessor
     public ConstructorInfo? Process()
     {
         var injectCtors = _raw
-            .Constructors.Where(c => HasAttribute(c, _symbols.InjectConstructorAttribute))
+            .Constructors.Where(c => c.HasAttribute(_symbols.InjectConstructorAttribute))
             .ToImmutableArray();
 
         if (_role != TypeRole.Service)
@@ -752,7 +745,7 @@ internal sealed class ConstructorProcessor
             if (injectCtors.Length > 0)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.InjectConstructorAttributeIsInvalid,
                         _raw.Location,
                         _raw.Symbol.Name
@@ -767,7 +760,7 @@ internal sealed class ConstructorProcessor
         if (injectCtors.Length > 1)
         {
             _diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.Create(
                     DiagnosticDescriptors.AmbiguousConstructor,
                     _raw.Location,
                     _raw.Symbol.Name
@@ -781,14 +774,12 @@ internal sealed class ConstructorProcessor
         }
         else
         {
-            var publicCtors = _raw
-                .Constructors.Where(c => c.DeclaredAccessibility == Accessibility.Public)
-                .ToImmutableArray();
+            var publicCtors = _raw.Constructors.Where(c => c.IsPublic()).ToImmutableArray();
 
             if (publicCtors.Length == 0)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.NoPublicConstructor,
                         _raw.Location,
                         _raw.Symbol.Name
@@ -801,7 +792,7 @@ internal sealed class ConstructorProcessor
             if (publicCtors.Length > 1)
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.AmbiguousConstructor,
                         _raw.Location,
                         _raw.Symbol.Name
@@ -821,7 +812,7 @@ internal sealed class ConstructorProcessor
             if (!param.Type.IsValidInjectType(_symbols))
             {
                 _diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.InjectConstructorParameterTypeInvalid,
                         param.Locations.FirstOrDefault() ?? _raw.Location,
                         param.Name,
@@ -852,17 +843,6 @@ internal sealed class ConstructorProcessor
             Location: selectedCtor.Locations.FirstOrDefault() ?? _raw.Location,
             Parameters: parameters.ToImmutable()
         );
-    }
-
-    private bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol)
-    {
-        if (attributeSymbol is null)
-            return false;
-        return symbol
-            .GetAttributes()
-            .Any(attr =>
-                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, attributeSymbol)
-            );
     }
 }
 

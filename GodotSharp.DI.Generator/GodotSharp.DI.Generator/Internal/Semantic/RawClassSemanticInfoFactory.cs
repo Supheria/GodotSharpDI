@@ -23,11 +23,11 @@ internal static class RawClassSemanticInfoFactory
         var symbols = new CachedSymbols(compilation);
 
         // 检查是否有相关特性
-        var hasSingleton = HasAttribute(symbol, symbols.SingletonAttribute);
-        var hasTransient = HasAttribute(symbol, symbols.TransientAttribute);
-        var hasHost = HasAttribute(symbol, symbols.HostAttribute);
-        var hasUser = HasAttribute(symbol, symbols.UserAttribute);
-        var hasModules = HasAttribute(symbol, symbols.ModulesAttribute);
+        var hasSingleton = symbol.HasAttribute(symbols.SingletonAttribute);
+        var hasTransient = symbol.HasAttribute(symbols.TransientAttribute);
+        var hasHost = symbol.HasAttribute(symbols.HostAttribute);
+        var hasUser = symbol.HasAttribute(symbols.UserAttribute);
+        var hasModules = symbol.HasAttribute(symbols.ModulesAttribute);
 
         var implementsIScope = symbols.ImplementsIScope(symbol);
         var implementsIServicesReady = symbols.ImplementsIServicesReady(symbol);
@@ -71,17 +71,5 @@ internal static class RawClassSemanticInfoFactory
         );
 
         return (info, ImmutableArray<Diagnostic>.Empty);
-    }
-
-    private static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? attributeSymbol)
-    {
-        if (attributeSymbol is null)
-            return false;
-
-        return symbol
-            .GetAttributes()
-            .Any(attr =>
-                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, attributeSymbol)
-            );
     }
 }

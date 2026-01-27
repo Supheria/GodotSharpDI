@@ -30,9 +30,7 @@ internal static class DiGraphBuilder
         var services = validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray();
         var hosts = validTypes.Where(t => t.Role == TypeRole.Host).ToImmutableArray();
         var users = validTypes.Where(t => t.Role == TypeRole.User).ToImmutableArray();
-        var hostAndUsers = validTypes
-            .Where(t => t.Role == TypeRole.HostAndUser)
-            .ToImmutableArray();
+        var hostAndUsers = validTypes.Where(t => t.Role == TypeRole.HostAndUser).ToImmutableArray();
         var scopes = validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray();
 
         // 构建服务提供映射（带冲突检测）
@@ -178,9 +176,8 @@ internal static class DiGraphBuilder
         {
             var providers = string.Join(", ", conflict.Value);
             diagnostics.Add(
-                Diagnostic.Create(
+                DiagnosticBuilder.CreateAtNone(
                     DiagnosticDescriptors.ServiceTypeConflict,
-                    Location.None,
                     conflict.Key.ToDisplayString(),
                     providers
                 )
@@ -327,9 +324,7 @@ internal static class DiGraphBuilder
 
         foreach (var member in user.Members)
         {
-            if (
-                member.Kind == MemberKind.InjectField || member.Kind == MemberKind.InjectProperty
-            )
+            if (member.Kind == MemberKind.InjectField || member.Kind == MemberKind.InjectProperty)
             {
                 dependencies.Add(
                     new DependencyEdge(
@@ -418,27 +413,14 @@ internal static class DiGraphBuilder
             // 验证 Services
             foreach (var type in services)
             {
-                var hasLifetime = type.GetAttributes()
-                    .Any(attr =>
-                    {
-                        var attrClass = attr.AttributeClass;
-                        if (attrClass == null)
-                            return false;
-
-                        return SymbolEqualityComparer.Default.Equals(
-                                attrClass,
-                                symbols.SingletonAttribute
-                            )
-                            || SymbolEqualityComparer.Default.Equals(
-                                attrClass,
-                                symbols.TransientAttribute
-                            );
-                    });
+                var hasLifetime =
+                    type.HasAttribute(symbols.SingletonAttribute)
+                    || type.HasAttribute(symbols.TransientAttribute);
 
                 if (!hasLifetime)
                 {
                     diagnostics.Add(
-                        Diagnostic.Create(
+                        DiagnosticBuilder.Create(
                             DiagnosticDescriptors.ScopeModulesServiceMustBeService,
                             scope.Location,
                             scope.Symbol.Name,
@@ -467,7 +449,7 @@ internal static class DiGraphBuilder
                 if (!isHost)
                 {
                     diagnostics.Add(
-                        Diagnostic.Create(
+                        DiagnosticBuilder.Create(
                             DiagnosticDescriptors.ScopeModulesHostMustBeHost,
                             scope.Location,
                             scope.Symbol.Name,
@@ -480,7 +462,7 @@ internal static class DiGraphBuilder
             if (services.IsEmpty)
             {
                 diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.ScopeModulesServicesEmpty,
                         scope.Location,
                         scope.Symbol.Name
@@ -491,7 +473,7 @@ internal static class DiGraphBuilder
             if (hosts.IsEmpty)
             {
                 diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.ScopeModulesHostsEmpty,
                         scope.Location,
                         scope.Symbol.Name
@@ -558,7 +540,7 @@ internal static class DiGraphBuilder
             )
             {
                 diagnostics.Add(
-                    Diagnostic.Create(
+                    DiagnosticBuilder.Create(
                         DiagnosticDescriptors.CircularDependencyDetected,
                         node.TypeInfo.Location,
                         string.Join(" -> ", pathStack.Reverse().Select(t => t.ToDisplayString()))
@@ -579,7 +561,7 @@ internal static class DiGraphBuilder
                         if (provider.Lifetime == ServiceLifetime.Transient)
                         {
                             diagnostics.Add(
-                                Diagnostic.Create(
+                                DiagnosticBuilder.Create(
                                     DiagnosticDescriptors.SingletonCannotDependOnTransient,
                                     dep.Location,
                                     node.TypeInfo.Symbol.ToDisplayString(),
@@ -602,7 +584,7 @@ internal static class DiGraphBuilder
                     if (!serviceProviders.ContainsKey(param.Type))
                     {
                         diagnostics.Add(
-                            Diagnostic.Create(
+                            DiagnosticBuilder.Create(
                                 DiagnosticDescriptors.ServiceConstructorParameterInvalid,
                                 param.Location,
                                 node.TypeInfo.Symbol.Name,
@@ -624,7 +606,7 @@ internal static class DiGraphBuilder
                     if (!serviceProviders.ContainsKey(dep.TargetType))
                     {
                         diagnostics.Add(
-                            Diagnostic.Create(
+                            DiagnosticBuilder.Create(
                                 DiagnosticDescriptors.InjectMemberInvalidType,
                                 dep.Location,
                                 node.TypeInfo.Symbol.Name,

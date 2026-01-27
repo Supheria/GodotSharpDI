@@ -42,7 +42,7 @@ internal sealed class CachedSymbols
     {
         if (GodotNode is null)
             return false;
-        // 检查类型本身是否是 Node，或者是否继承自 Node
+        // 使用 SymbolExtensions 的 InheritsFrom 方法
         return SymbolEqualityComparer.Default.Equals(type, GodotNode)
             || type.InheritsFrom(GodotNode);
     }
@@ -51,107 +51,35 @@ internal sealed class CachedSymbols
     {
         if (IScope is null)
             return false;
-        return type.AllInterfaces.Contains(IScope, SymbolEqualityComparer.Default);
+        // 使用 SymbolExtensions 的 ImplementsInterface 方法
+        return type.ImplementsInterface(IScope);
     }
 
     public bool ImplementsIServicesReady(ITypeSymbol type)
     {
         if (IServicesReady is null)
             return false;
-        return type.AllInterfaces.Contains(IServicesReady, SymbolEqualityComparer.Default);
+        // 使用 SymbolExtensions 的 ImplementsInterface 方法
+        return type.ImplementsInterface(IServicesReady);
     }
 
     public bool IsHostType(ITypeSymbol type)
     {
-        if (HostAttribute is null)
-            return false;
-        return type.GetAttributes()
-            .Any(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, HostAttribute));
+        // 使用 SymbolExtensions 的 HasAttribute 方法
+        return type.HasAttribute(HostAttribute);
     }
 
     public bool IsUserType(ITypeSymbol type)
     {
-        if (UserAttribute is null)
-            return false;
-        return type.GetAttributes()
-            .Any(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, UserAttribute));
+        // 使用 SymbolExtensions 的 HasAttribute 方法
+        return type.HasAttribute(UserAttribute);
     }
 
     public bool IsServiceType(ITypeSymbol type)
     {
         if (SingletonAttribute is null && TransientAttribute is null)
             return false;
-        return type.GetAttributes()
-            .Any(attr =>
-                SymbolEqualityComparer.Default.Equals(attr.AttributeClass, SingletonAttribute)
-                || SymbolEqualityComparer.Default.Equals(attr.AttributeClass, TransientAttribute)
-            );
-    }
-}
-
-internal static class TypeSymbolExtensions
-{
-    public static bool InheritsFrom(this ITypeSymbol type, INamedTypeSymbol baseType)
-    {
-        var current = type.BaseType;
-        while (current is not null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                return true;
-            current = current.BaseType;
-        }
-        return false;
-    }
-
-    public static bool IsValidInjectType(this ITypeSymbol type, CachedSymbols symbols)
-    {
-        // 不能是 Node、Host、User、Scope
-        if (symbols.IsNode(type))
-            return false;
-
-        // 不能是抽象类、静态类
-        if (type is INamedTypeSymbol named)
-        {
-            if (named.IsAbstract && named.TypeKind == TypeKind.Class)
-                return false;
-            if (named.IsStatic)
-                return false;
-        }
-
-        // 不能是开放泛型
-        if (type is INamedTypeSymbol generic && generic.IsUnboundGenericType)
-            return false;
-
-        // 必须是 interface 或 class
-        return type.TypeKind == TypeKind.Interface || type.TypeKind == TypeKind.Class;
-    }
-
-    public static bool IsValidServiceType(this ITypeSymbol type, CachedSymbols symbols)
-    {
-        // 必须是 class
-        if (type.TypeKind != TypeKind.Class)
-            return false;
-
-        var named = (INamedTypeSymbol)type;
-
-        // 不能是 Node
-        if (symbols.IsNode(type))
-            return false;
-
-        // 不能是抽象类、静态类
-        if (named.IsAbstract || named.IsStatic)
-            return false;
-
-        // 不能是开放泛型
-        if (named.IsUnboundGenericType)
-            return false;
-
-        return true;
-    }
-
-    public static bool IsValidExposedType(this ITypeSymbol type)
-    {
-        // 必须是 interface
-        return type.TypeKind == TypeKind.Interface;
+        // 使用 SymbolExtensions 的 HasAttribute 方法
+        return type.HasAttribute(SingletonAttribute) || type.HasAttribute(TransientAttribute);
     }
 }
