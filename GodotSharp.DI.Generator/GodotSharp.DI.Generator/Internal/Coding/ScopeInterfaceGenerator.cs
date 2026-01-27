@@ -71,6 +71,22 @@ internal static class ScopeInterfaceGenerator
                     singletonServiceTypes.Add(exposedType);
                 }
             }
+            else
+            {
+                // 同时在 HostAndUserNodes 中查找
+                var hostAndUserNode = graph.HostAndUserNodes.FirstOrDefault(n =>
+                    SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, hostType)
+                );
+
+                if (hostAndUserNode != null)
+                {
+                    // 添加 HostAndUser 提供的所有服务类型
+                    foreach (var exposedType in hostAndUserNode.ProvidedServices)
+                    {
+                        singletonServiceTypes.Add(exposedType);
+                    }
+                }
+            }
         }
 
         var transientFactories = new System.Collections.Generic.Dictionary<ITypeSymbol, string>(
