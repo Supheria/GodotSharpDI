@@ -31,6 +31,12 @@ internal static class SourceEmitter
             UserGenerator.Generate(context, node);
         }
 
+        // 生成 HostAndUser 代码
+        foreach (var node in graph.HostAndUserNodes)
+        {
+            HostAndUserGenerator.Generate(context, node);
+        }
+
         // 生成 Scope 代码
         foreach (var node in graph.ScopeNodes)
         {

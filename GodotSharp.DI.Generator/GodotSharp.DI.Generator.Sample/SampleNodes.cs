@@ -90,12 +90,12 @@ public partial class Scope : Node, IScope
     public Scope() { }
 }
 
-[User]
-public partial class OtherUser { }
-
-[User]
-public partial class MyUser : Node
-{
-    [Inject]
-    private OtherUser _other = new();
-}
+// [User]
+// public partial class OtherUser { }
+//
+// [User]
+// public partial class MyUser : Node
+// {
+//     [Inject]
+//     private OtherUser _other = new();
+// }

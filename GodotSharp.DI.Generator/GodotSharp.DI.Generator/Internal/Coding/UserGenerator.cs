@@ -18,10 +18,7 @@ internal static class UserGenerator
         var className = type.Symbol.Name;
 
         // 生成基础 DI 文件
-        if (type.Role == TypeRole.User)
-        {
-            GenerateBaseDI(context, type, namespaceName, className);
-        }
+        GenerateBaseDI(context, type, namespaceName, className);
 
         // 生成 User 特定代码
         GenerateUserSpecific(context, type, namespaceName, className);
@@ -126,6 +123,8 @@ internal static class UserGenerator
         f.EndBlock(";");
         f.AppendLine();
 
+        // OnDependencyResolved
+        f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void OnDependencyResolved<T>()");
         f.BeginBlock();
         {

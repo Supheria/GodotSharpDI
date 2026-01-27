@@ -28,16 +28,20 @@ internal static class DiGraphBuilder
 
         // 按角色分类
         var services = validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray();
-        var hosts = validTypes
-            .Where(t => t.Role == TypeRole.Host || t.Role == TypeRole.HostAndUser)
-            .ToImmutableArray();
-        var users = validTypes
-            .Where(t => t.Role == TypeRole.User || t.Role == TypeRole.HostAndUser)
+        var hosts = validTypes.Where(t => t.Role == TypeRole.Host).ToImmutableArray();
+        var users = validTypes.Where(t => t.Role == TypeRole.User).ToImmutableArray();
+        var hostAndUsers = validTypes
+            .Where(t => t.Role == TypeRole.HostAndUser)
             .ToImmutableArray();
         var scopes = validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray();
 
         // 构建服务提供映射（带冲突检测）
-        var (serviceProviders, providerDiags) = BuildServiceProviderMap(services, hosts, symbols);
+        var (serviceProviders, providerDiags) = BuildServiceProviderMap(
+            services,
+            hosts,
+            hostAndUsers,
+            symbols
+        );
         diagnostics.AddRange(providerDiags);
 
         // 构建节点
@@ -50,23 +54,27 @@ internal static class DiGraphBuilder
         var (userNodes, userDiags) = BuildUserNodes(users);
         diagnostics.AddRange(userDiags);
 
+        var (hostAndUserNodes, hostAndUserDiags) = BuildHostAndUserNodes(hostAndUsers);
+        diagnostics.AddRange(hostAndUserDiags);
+
         var (scopeNodes, scopeDiags) = BuildScopeNodes(scopes, serviceProviders, symbols);
         diagnostics.AddRange(scopeDiags);
 
         // 验证 Host 服务引用
-        var hostServiceDiags = ValidateHostServices(hosts, serviceProviders);
+        var hostServiceDiags = ValidateHostServices(hosts, hostAndUsers, serviceProviders);
         diagnostics.AddRange(hostServiceDiags);
 
-        // 依赖图验证（修正：传入 userNodes）
+        // 依赖图验证（包含所有 User 类型）
+        var allUserNodes = userNodes.Concat(hostAndUserNodes).ToImmutableArray();
         var graphDiags = ValidateDependencyGraph(
             serviceNodes,
-            userNodes,
+            allUserNodes,
             serviceProviders,
             symbols
         );
         diagnostics.AddRange(graphDiags);
 
-        // 构建类型映射 - 使用 TypeNode 而不是 TypeInfo
+        // 构建类型映射
         var typeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
             SymbolEqualityComparer.Default
         );
@@ -77,11 +85,14 @@ internal static class DiGraphBuilder
             typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
         foreach (var node in userNodes)
             typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+        foreach (var node in hostAndUserNodes)
+            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
 
         var graph = new DiGraph(
             ServiceNodes: serviceNodes,
             HostNodes: hostNodes,
             UserNodes: userNodes,
+            HostAndUserNodes: hostAndUserNodes,
             ScopeNodes: scopeNodes,
             TypeMap: typeMapBuilder.ToImmutable()
         );
@@ -95,6 +106,7 @@ internal static class DiGraphBuilder
     ) BuildServiceProviderMap(
         ImmutableArray<TypeInfo> services,
         ImmutableArray<TypeInfo> hosts,
+        ImmutableArray<TypeInfo> hostAndUsers,
         CachedSymbols symbols
     )
     {
@@ -102,12 +114,10 @@ internal static class DiGraphBuilder
         var map = new Dictionary<ITypeSymbol, (TypeInfo, ServiceLifetime)>(
             SymbolEqualityComparer.Default
         );
-        // 用于跟踪冲突的提供者
         var conflictTracker = new Dictionary<ITypeSymbol, List<string>>(
             SymbolEqualityComparer.Default
         );
 
-        // 优化后的 AddProvider 方法 - 使用 TryGetValue 避免重复查找
         void AddProvider(
             ITypeSymbol exposedType,
             TypeInfo provider,
@@ -121,7 +131,6 @@ internal static class DiGraphBuilder
                 return;
             }
 
-            // 存在冲突
             if (!conflictTracker.TryGetValue(exposedType, out var conflicts))
             {
                 conflicts = new List<string> { existing.Item1.Symbol.ToDisplayString() };
@@ -146,7 +155,7 @@ internal static class DiGraphBuilder
         }
 
         // Host 提供的服务
-        foreach (var host in hosts)
+        foreach (var host in hosts.Concat(hostAndUsers))
         {
             foreach (var member in host.Members)
             {
@@ -216,7 +225,6 @@ internal static class DiGraphBuilder
             }
         }
 
-        // 如果没有指定,使用类型本身
         if (builder.Count == 0)
         {
             builder.Add(service.Symbol);
@@ -266,6 +274,27 @@ internal static class DiGraphBuilder
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
     }
 
+    /// <summary>
+    /// 提取公共方法：收集 Host 提供的服务
+    /// </summary>
+    private static ImmutableArray<ITypeSymbol> CollectHostProvidedServices(TypeInfo host)
+    {
+        var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
+
+        foreach (var member in host.Members)
+        {
+            if (
+                member.Kind == MemberKind.SingletonField
+                || member.Kind == MemberKind.SingletonProperty
+            )
+            {
+                providedServices.AddRange(member.ExposedTypes);
+            }
+        }
+
+        return providedServices.ToImmutable();
+    }
+
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostNodes(
         ImmutableArray<TypeInfo> hosts
     )
@@ -275,31 +304,44 @@ internal static class DiGraphBuilder
 
         foreach (var host in hosts)
         {
-            var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
-
-            // 收集 Host 成员上标记的 [Singleton] 暴露的服务类型
-            foreach (var member in host.Members)
-            {
-                if (
-                    member.Kind == MemberKind.SingletonField
-                    || member.Kind == MemberKind.SingletonProperty
-                )
-                {
-                    // ExposedTypes 包含了 [Singleton(typeof(IXxx))] 中指定的接口类型
-                    providedServices.AddRange(member.ExposedTypes);
-                }
-            }
+            var providedServices = CollectHostProvidedServices(host);
 
             nodes.Add(
                 new TypeNode(
                     TypeInfo: host,
                     Dependencies: ImmutableArray<DependencyEdge>.Empty,
-                    ProvidedServices: providedServices.ToImmutable()
+                    ProvidedServices: providedServices
                 )
             );
         }
 
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
+    }
+
+    /// <summary>
+    /// 提取公共方法：收集 User 的依赖
+    /// </summary>
+    private static ImmutableArray<DependencyEdge> CollectUserDependencies(TypeInfo user)
+    {
+        var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
+
+        foreach (var member in user.Members)
+        {
+            if (
+                member.Kind == MemberKind.InjectField || member.Kind == MemberKind.InjectProperty
+            )
+            {
+                dependencies.Add(
+                    new DependencyEdge(
+                        TargetType: member.MemberType,
+                        Location: member.Location,
+                        Source: DependencySource.InjectMember
+                    )
+                );
+            }
+        }
+
+        return dependencies.ToImmutable();
     }
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildUserNodes(
@@ -311,30 +353,44 @@ internal static class DiGraphBuilder
 
         foreach (var user in users)
         {
-            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-            foreach (var member in user.Members)
-            {
-                if (
-                    member.Kind == MemberKind.InjectField
-                    || member.Kind == MemberKind.InjectProperty
-                )
-                {
-                    dependencies.Add(
-                        new DependencyEdge(
-                            TargetType: member.MemberType,
-                            Location: member.Location,
-                            Source: DependencySource.InjectMember
-                        )
-                    );
-                }
-            }
+            var dependencies = CollectUserDependencies(user);
 
             nodes.Add(
                 new TypeNode(
                     TypeInfo: user,
-                    Dependencies: dependencies.ToImmutable(),
+                    Dependencies: dependencies,
                     ProvidedServices: ImmutableArray<ITypeSymbol>.Empty
+                )
+            );
+        }
+
+        return (nodes.ToImmutable(), diagnostics.ToImmutable());
+    }
+
+    /// <summary>
+    /// 构建 HostAndUser 节点
+    /// 同时具有 Host 和 User 的特性：提供服务 + 依赖注入
+    /// </summary>
+    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostAndUserNodes(
+        ImmutableArray<TypeInfo> hostAndUsers
+    )
+    {
+        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
+        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+        foreach (var hostAndUser in hostAndUsers)
+        {
+            // 收集 Host 提供的服务
+            var providedServices = CollectHostProvidedServices(hostAndUser);
+
+            // 收集 User 的依赖
+            var dependencies = CollectUserDependencies(hostAndUser);
+
+            nodes.Add(
+                new TypeNode(
+                    TypeInfo: hostAndUser,
+                    Dependencies: dependencies,
+                    ProvidedServices: providedServices
                 )
             );
         }
@@ -359,7 +415,7 @@ internal static class DiGraphBuilder
             var services = scope.ModulesInfo.Services;
             var hosts = scope.ModulesInfo.Hosts;
 
-            // 验证 Services - 检查类型是否有 Singleton 或 Transient 特性
+            // 验证 Services
             foreach (var type in services)
             {
                 var hasLifetime = type.GetAttributes()
@@ -392,7 +448,7 @@ internal static class DiGraphBuilder
                 }
             }
 
-            // 验证 Hosts - 检查类型是否有 Host 特性
+            // 验证 Hosts
             foreach (var type in hosts)
             {
                 var isHost = type.GetAttributes()
@@ -421,7 +477,6 @@ internal static class DiGraphBuilder
                 }
             }
 
-            // 检查 Instantiate 是否为空 (Info 诊断)
             if (services.IsEmpty)
             {
                 diagnostics.Add(
@@ -433,7 +488,6 @@ internal static class DiGraphBuilder
                 );
             }
 
-            // 检查 Expect 是否为空 (Info 诊断)
             if (hosts.IsEmpty)
             {
                 diagnostics.Add(
@@ -458,38 +512,34 @@ internal static class DiGraphBuilder
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
     }
 
-    /// <summary>
-    /// 验证 Host 暴露的服务类型
-    /// </summary>
     private static ImmutableArray<Diagnostic> ValidateHostServices(
         ImmutableArray<TypeInfo> hosts,
+        ImmutableArray<TypeInfo> hostAndUsers,
         Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders
     )
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        // 注意：Host暴露的服务不需要在serviceProviders中预先注册
-        // Host自身就是服务的提供者，它通过成员上的[Singleton]特性暴露服务
-        // 这里的验证主要是确保Host暴露的类型是合理的（但这已经在ClassPipeline中完成）
-
-        // 由于当前设计中，Host可以暴露任意类型（只要不是已标记为Service的类型）
-        // 并且这个检查已经在ClassPipeline.ProcessSingleMember中通过
-        // DiagnosticDescriptors.HostSingletonMemberIsServiceType 完成
-        // 因此这里不需要额外的验证逻辑
-
         return diagnostics.ToImmutable();
     }
 
     private static ImmutableArray<Diagnostic> ValidateDependencyGraph(
         ImmutableArray<TypeNode> serviceNodes,
-        ImmutableArray<TypeNode> userNodes,
+        ImmutableArray<TypeNode> allUserNodes,
         Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
         CachedSymbols symbols
     )
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
-        // 检查循环依赖 - 使用优化后的算法
+        var serviceImplToNode = new Dictionary<ITypeSymbol, TypeNode>(
+            SymbolEqualityComparer.Default
+        );
+        foreach (var node in serviceNodes)
+        {
+            serviceImplToNode[node.TypeInfo.Symbol] = node;
+        }
+
+        // 检查循环依赖
         foreach (var node in serviceNodes)
         {
             var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
@@ -499,6 +549,7 @@ internal static class DiGraphBuilder
             if (
                 HasCircularDependency(
                     node.TypeInfo.Symbol,
+                    serviceImplToNode,
                     serviceProviders,
                     visited,
                     pathSet,
@@ -541,15 +592,13 @@ internal static class DiGraphBuilder
             }
         }
 
-        // 修正：检查 Service 构造函数参数是否是已暴露的服务类型
+        // 检查 Service 构造函数参数
         foreach (var node in serviceNodes)
         {
             if (node.TypeInfo.Constructor != null)
             {
                 foreach (var param in node.TypeInfo.Constructor.Parameters)
                 {
-                    // 检查参数类型（通常是接口）是否在 serviceProviders 的键中
-                    // serviceProviders 的键是暴露的服务类型（接口），值是提供者
                     if (!serviceProviders.ContainsKey(param.Type))
                     {
                         diagnostics.Add(
@@ -565,15 +614,13 @@ internal static class DiGraphBuilder
             }
         }
 
-        // 新增：检查 User 的 Inject 成员是否是已暴露的服务类型
-        foreach (var node in userNodes)
+        // 检查所有 User（包括 HostAndUser）的 Inject 成员
+        foreach (var node in allUserNodes)
         {
             foreach (var dep in node.Dependencies)
             {
-                // 只检查来自 InjectMember 的依赖
                 if (dep.Source == DependencySource.InjectMember)
                 {
-                    // 检查依赖的类型是否在 serviceProviders 中
                     if (!serviceProviders.ContainsKey(dep.TargetType))
                     {
                         diagnostics.Add(
@@ -592,49 +639,50 @@ internal static class DiGraphBuilder
         return diagnostics.ToImmutable();
     }
 
-    /// <summary>
-    /// 优化后的循环依赖检测 - 使用 HashSet 进行 O(1) 路径查找
-    /// </summary>
     private static bool HasCircularDependency(
-        ITypeSymbol current,
+        ITypeSymbol currentImpl,
+        Dictionary<ITypeSymbol, TypeNode> serviceImplToNode,
         Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
         HashSet<ITypeSymbol> visited,
         HashSet<ITypeSymbol> pathSet,
         Stack<ITypeSymbol> pathStack
     )
     {
-        // O(1) 查找而非 O(n)
-        if (pathSet.Contains(current))
+        if (pathSet.Contains(currentImpl))
             return true;
 
-        if (visited.Contains(current))
+        if (visited.Contains(currentImpl))
             return false;
 
-        visited.Add(current);
-        pathSet.Add(current);
-        pathStack.Push(current);
+        visited.Add(currentImpl);
+        pathSet.Add(currentImpl);
+        pathStack.Push(currentImpl);
 
-        if (serviceProviders.TryGetValue(current, out var provider))
+        if (serviceImplToNode.TryGetValue(currentImpl, out var node))
         {
-            if (provider.Provider.Constructor != null)
+            if (node.TypeInfo.Constructor != null)
             {
-                foreach (var param in provider.Provider.Constructor.Parameters)
+                foreach (var param in node.TypeInfo.Constructor.Parameters)
                 {
-                    if (
-                        HasCircularDependency(
-                            param.Type,
-                            serviceProviders,
-                            visited,
-                            pathSet,
-                            pathStack
+                    if (serviceProviders.TryGetValue(param.Type, out var provider))
+                    {
+                        if (
+                            HasCircularDependency(
+                                provider.Provider.Symbol,
+                                serviceImplToNode,
+                                serviceProviders,
+                                visited,
+                                pathSet,
+                                pathStack
+                            )
                         )
-                    )
-                        return true;
+                            return true;
+                    }
                 }
             }
         }
 
-        pathSet.Remove(current);
+        pathSet.Remove(currentImpl);
         pathStack.Pop();
         return false;
     }
