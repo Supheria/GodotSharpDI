@@ -29,16 +29,23 @@ internal static class RawClassSemanticInfoFactory
         var hasUser = HasAttribute(symbol, symbols.UserAttribute);
         var hasModules = HasAttribute(symbol, symbols.ModulesAttribute);
 
-        // 如果没有任何 DI 相关特性，跳过
-        if (!hasSingleton && !hasTransient && !hasHost && !hasUser && !hasModules)
-            return (null, ImmutableArray<Diagnostic>.Empty);
-
         var implementsIScope = symbols.ImplementsIScope(symbol);
         var implementsIServicesReady = symbols.ImplementsIServicesReady(symbol);
         var isNode = symbols.IsNode(symbol);
         var isPartial = syntax.Modifiers.Any(m =>
             m.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.PartialKeyword)
         );
+
+        // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
+        if (
+            !hasSingleton
+            && !hasTransient
+            && !hasHost
+            && !hasUser
+            && !hasModules
+            && !implementsIScope
+        )
+            return (null, ImmutableArray<Diagnostic>.Empty);
 
         var members = symbol
             .GetMembers()
