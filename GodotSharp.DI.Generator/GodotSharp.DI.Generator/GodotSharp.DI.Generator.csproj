@@ -37,4 +37,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GodotSharp.DI.Generator.Tests" />
+  </ItemGroup>
 </Project>

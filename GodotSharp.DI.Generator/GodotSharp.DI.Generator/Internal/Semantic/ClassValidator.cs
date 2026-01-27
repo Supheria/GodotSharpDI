@@ -396,9 +396,21 @@ internal sealed class MemberProcessor
             // 处理 User 成员
             if (isUserMember)
             {
-                var userMemberInfo = ProcessUserMember(member, memberType!);
-                if (userMemberInfo != null)
-                    members.Add(userMemberInfo);
+                // User 类型不能使用 [Inject]
+                if (hasInject)
+                {
+                    _diagnostics.Add(
+                        Diagnostic.Create(
+                            DiagnosticDescriptors.InjectMemberIsUserType,
+                            member.Locations.FirstOrDefault() ?? _raw.Location,
+                            member.Name,
+                            memberType.ToDisplayString()
+                        )
+                    );
+                    continue;
+                }
+
+                ProcessUserMember(member, memberType!);
                 continue;
             }
 

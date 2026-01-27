@@ -89,3 +89,13 @@ public partial class Scope : Node, IScope
     // private IChunkGetter _chunkGetter;
     public Scope() { }
 }
+
+[User]
+public partial class OtherUser { }
+
+[User]
+public partial class MyUser : Node
+{
+    [Inject]
+    private OtherUser _other = new();
+}
