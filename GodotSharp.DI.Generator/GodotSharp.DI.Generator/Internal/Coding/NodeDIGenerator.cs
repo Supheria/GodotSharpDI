@@ -33,8 +33,8 @@ internal static class NodeDIGenerator
 
     private static void GenerateGetServiceScope(CodeFormatter f, TypeInfo type)
     {
-        // 添加 IDE 隐藏特性
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // GetServiceScope
+        f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.IScope}? GetServiceScope()");
         f.BeginBlock();
         {
@@ -71,12 +71,11 @@ internal static class NodeDIGenerator
 
     private static void GenerateAttachToScope(CodeFormatter f, TypeInfo type)
     {
-        // 添加 IDE 隐藏特性
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // AttachToScope
+        f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void AttachToScope()");
         f.BeginBlock();
         {
-            f.AppendLine("#pragma warning disable CS0618 // Type or member is obsolete");
             f.AppendLine("var scope = GetServiceScope();");
             f.AppendLine("if (scope is null) return;");
 
@@ -95,8 +94,8 @@ internal static class NodeDIGenerator
 
     private static void GenerateUnattachToScope(CodeFormatter f, TypeInfo type)
     {
-        // 添加 IDE 隐藏特性
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // UnattachToScope
+        f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void UnattachToScope()");
         f.BeginBlock();
         {
@@ -113,6 +112,7 @@ internal static class NodeDIGenerator
 
     private static void GenerateNotification(CodeFormatter f, TypeInfo type)
     {
+        // _Notification
         f.AppendLine("public override void _Notification(int what)");
         f.BeginBlock();
         {

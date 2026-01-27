@@ -20,6 +20,8 @@ public sealed class MethodCallAnalyzer : DiagnosticAnalyzer
     /// 禁止手动调用的方法名称列表
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenMethodNames = ImmutableHashSet.Create(
+        // Service 工厂方法
+        "CreateService",
         // Node DI 生成的私有方法
         "GetServiceScope",
         "AttachToScope",

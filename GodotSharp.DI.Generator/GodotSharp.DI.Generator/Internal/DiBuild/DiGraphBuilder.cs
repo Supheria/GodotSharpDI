@@ -107,6 +107,7 @@ internal static class DiGraphBuilder
             SymbolEqualityComparer.Default
         );
 
+        // 优化后的 AddProvider 方法 - 使用 TryGetValue 避免重复查找
         void AddProvider(
             ITypeSymbol exposedType,
             TypeInfo provider,
@@ -114,24 +115,19 @@ internal static class DiGraphBuilder
             string providerDescription
         )
         {
-            if (map.ContainsKey(exposedType))
-            {
-                // 存在冲突
-                if (!conflictTracker.ContainsKey(exposedType))
-                {
-                    // 添加第一个提供者到冲突列表
-                    var existingProvider = map[exposedType].Item1;
-                    conflictTracker[exposedType] = new List<string>
-                    {
-                        existingProvider.Symbol.ToDisplayString(),
-                    };
-                }
-                conflictTracker[exposedType].Add(providerDescription);
-            }
-            else
+            if (!map.TryGetValue(exposedType, out var existing))
             {
                 map[exposedType] = (provider, lifetime);
+                return;
             }
+
+            // 存在冲突
+            if (!conflictTracker.TryGetValue(exposedType, out var conflicts))
+            {
+                conflicts = new List<string> { existing.Item1.Symbol.ToDisplayString() };
+                conflictTracker[exposedType] = conflicts;
+            }
+            conflicts.Add(providerDescription);
         }
 
         // Service 提供的服务
@@ -492,19 +488,28 @@ internal static class DiGraphBuilder
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
-        // 检查循环依赖
+        // 检查循环依赖 - 使用优化后的算法
         foreach (var node in serviceNodes)
         {
             var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-            var path = new Stack<ITypeSymbol>();
+            var pathSet = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+            var pathStack = new Stack<ITypeSymbol>();
 
-            if (HasCircularDependency(node.TypeInfo.Symbol, serviceProviders, visited, path))
+            if (
+                HasCircularDependency(
+                    node.TypeInfo.Symbol,
+                    serviceProviders,
+                    visited,
+                    pathSet,
+                    pathStack
+                )
+            )
             {
                 diagnostics.Add(
                     Diagnostic.Create(
                         DiagnosticDescriptors.CircularDependencyDetected,
                         node.TypeInfo.Location,
-                        string.Join(" -> ", path.Reverse().Select(t => t.ToDisplayString()))
+                        string.Join(" -> ", pathStack.Reverse().Select(t => t.ToDisplayString()))
                     )
                 );
             }
@@ -586,21 +591,27 @@ internal static class DiGraphBuilder
         return diagnostics.ToImmutable();
     }
 
+    /// <summary>
+    /// 优化后的循环依赖检测 - 使用 HashSet 进行 O(1) 路径查找
+    /// </summary>
     private static bool HasCircularDependency(
         ITypeSymbol current,
         Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
         HashSet<ITypeSymbol> visited,
-        Stack<ITypeSymbol> path
+        HashSet<ITypeSymbol> pathSet,
+        Stack<ITypeSymbol> pathStack
     )
     {
-        if (path.Contains(current, SymbolEqualityComparer.Default))
+        // O(1) 查找而非 O(n)
+        if (pathSet.Contains(current))
             return true;
 
         if (visited.Contains(current))
             return false;
 
         visited.Add(current);
-        path.Push(current);
+        pathSet.Add(current);
+        pathStack.Push(current);
 
         if (serviceProviders.TryGetValue(current, out var provider))
         {
@@ -608,13 +619,22 @@ internal static class DiGraphBuilder
             {
                 foreach (var param in provider.Provider.Constructor.Parameters)
                 {
-                    if (HasCircularDependency(param.Type, serviceProviders, visited, path))
+                    if (
+                        HasCircularDependency(
+                            param.Type,
+                            serviceProviders,
+                            visited,
+                            pathSet,
+                            pathStack
+                        )
+                    )
                         return true;
                 }
             }
         }
 
-        path.Pop();
+        pathSet.Remove(current);
+        pathStack.Pop();
         return false;
     }
 }

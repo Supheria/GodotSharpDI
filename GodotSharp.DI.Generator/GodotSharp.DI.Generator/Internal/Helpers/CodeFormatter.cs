@@ -79,13 +79,6 @@ internal sealed class CodeFormatter
         AppendLine("/// " + text);
     }
 
-    public void AppendXmlSummary(string text)
-    {
-        AppendXmlComment("<summary>");
-        AppendXmlComment(text);
-        AppendXmlComment("</summary>");
-    }
-
     public void AppendXmlCodeBlock(IEnumerable<RemarkItem> items)
     {
         AppendXmlComment("<code>");
@@ -94,27 +87,6 @@ internal sealed class CodeFormatter
             AppendXmlComment($"<b>{type}</b> {name}<br/>");
         }
         AppendXmlComment("</code>");
-    }
-
-    public void AppendXmlRemarks(string title, IEnumerable<RemarkItem> items)
-    {
-        AppendXmlComment("<remarks>");
-        AppendXmlComment(title);
-        AppendXmlCodeBlock(items);
-        AppendXmlComment("</remarks>");
-    }
-
-    public void AppendAttribute(string attribute)
-    {
-        AppendLine(attribute);
-    }
-
-    public void AppendAttributes(params string[] attributes)
-    {
-        foreach (var attr in attributes)
-        {
-            AppendLine(attr);
-        }
     }
 
     public override string ToString() => _sb.ToString();

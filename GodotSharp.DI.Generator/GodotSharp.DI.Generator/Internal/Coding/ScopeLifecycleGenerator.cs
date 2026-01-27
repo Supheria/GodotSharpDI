@@ -38,8 +38,8 @@ internal static class ScopeLifecycleGenerator
 
     private static void GenerateGetParentScope(CodeFormatter f)
     {
-        // GetParentScope - 添加 IDE 隐藏特性
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // GetParentScope
+        f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.IScope}? GetParentScope()");
         f.BeginBlock();
         {
@@ -77,9 +77,8 @@ internal static class ScopeLifecycleGenerator
         DiGraph graph
     )
     {
-        // InstantiateScopeSingletons - 添加 IDE 隐藏特性
-        f.AppendXmlSummary("实例化所有 Scope 约束的单例服务");
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // InstantiateScopeSingletons
+        f.AppendHiddenMethodCommentAndAttribute("实例化所有 Scope 约束的单例服务");
         f.AppendLine("private void InstantiateScopeSingletons()");
         f.BeginBlock();
         {
@@ -124,9 +123,8 @@ internal static class ScopeLifecycleGenerator
 
     private static void GenerateDisposeScopeSingletons(CodeFormatter f)
     {
-        // DisposeScopeSingletons - 添加 IDE 隐藏特性
-        f.AppendXmlSummary("释放所有 Scope 约束的单例服务实例");
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // DisposeScopeSingletons
+        f.AppendHiddenMethodCommentAndAttribute("释放所有 Scope 约束的单例服务实例");
         f.AppendLine("private void DisposeScopeSingletons()");
         f.BeginBlock();
         {
@@ -161,8 +159,8 @@ internal static class ScopeLifecycleGenerator
 
     private static void GenerateCheckWaitList(CodeFormatter f)
     {
-        // CheckWaitList - 添加 IDE 隐藏特性
-        f.AppendAttribute(IdeAttributes.EditorBrowsableNever);
+        // CheckWaitList
+        f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void CheckWaitList()");
         f.BeginBlock();
         {
