@@ -410,7 +410,9 @@ internal sealed class MemberProcessor
                     continue;
                 }
 
-                ProcessUserMember(member, memberType!);
+                var userMemberInfo = ProcessUserMember(member, memberType!);
+                if (userMemberInfo != null)
+                    members.Add(userMemberInfo);
                 continue;
             }
 

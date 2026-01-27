@@ -487,7 +487,6 @@ namespace Test
     [User]
     public partial class ChildUser
     {
-        public void ResolveDependencies(IScope scope) { }
     }
 
     [User]
@@ -499,7 +498,12 @@ namespace Test
 ";
         var (result, symbols) = GetValidationResult(source, "ParentUser");
 
-        // Assert
+        // Assert - first check if there are any errors
+        var errors = result
+            .Diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToList();
+        Assert.Empty(errors); // Should have no errors
+
         Assert.NotNull(result.TypeInfo);
         Assert.Single(result.TypeInfo.Members);
         Assert.Equal(MemberKind.UserMemberField, result.TypeInfo.Members[0].Kind);

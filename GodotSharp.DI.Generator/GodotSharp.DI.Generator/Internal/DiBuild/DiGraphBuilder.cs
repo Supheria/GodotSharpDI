@@ -385,6 +385,7 @@ internal static class DiGraphBuilder
                         Diagnostic.Create(
                             DiagnosticDescriptors.ScopeModulesServiceMustBeService,
                             scope.Location,
+                            scope.Symbol.Name,
                             type.ToDisplayString()
                         )
                     );
