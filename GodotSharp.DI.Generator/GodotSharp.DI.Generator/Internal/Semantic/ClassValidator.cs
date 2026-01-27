@@ -797,10 +797,25 @@ internal sealed class ConstructorProcessor
                 return null;
             }
 
-            selectedCtor = publicCtors.OrderBy(c => c.Parameters.Length).First();
+            // 如果有多个公共构造函数且没有 [InjectConstructor] 标记，必须报告歧义错误
+            if (publicCtors.Length > 1)
+            {
+                _diagnostics.Add(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.AmbiguousConstructor,
+                        _raw.Location,
+                        _raw.Symbol.Name
+                    )
+                );
+                return null;
+            }
+
+            selectedCtor = publicCtors[0];
         }
 
         var parameters = ImmutableArray.CreateBuilder<ParameterInfo>();
+        var hasInvalidParameter = false;
+
         foreach (var param in selectedCtor.Parameters)
         {
             if (!param.Type.IsValidInjectType(_symbols))
@@ -813,6 +828,7 @@ internal sealed class ConstructorProcessor
                         param.Type.ToDisplayString()
                     )
                 );
+                hasInvalidParameter = true;
                 continue;
             }
 
@@ -823,6 +839,12 @@ internal sealed class ConstructorProcessor
                     Type: param.Type
                 )
             );
+        }
+
+        // 如果存在无效参数，返回 null
+        if (hasInvalidParameter)
+        {
+            return null;
         }
 
         return new ConstructorInfo(

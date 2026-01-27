@@ -42,7 +42,9 @@ internal sealed class CachedSymbols
     {
         if (GodotNode is null)
             return false;
-        return type.InheritsFrom(GodotNode);
+        // 检查类型本身是否是 Node，或者是否继承自 Node
+        return SymbolEqualityComparer.Default.Equals(type, GodotNode)
+            || type.InheritsFrom(GodotNode);
     }
 
     public bool ImplementsIScope(ITypeSymbol type)

@@ -205,39 +205,6 @@ namespace Test
     }
 
     [Fact]
-    public void Process_ServiceConstructorSelectsShortestWhenMultiple_SelectsCorrect()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharp.DI.Abstractions;
-
-namespace Test
-{
-    public interface IDepA { }
-    public interface IDepB { }
-    public interface IDepC { }
-
-    [Singleton]
-    public partial class MyService
-    {
-        public MyService() { }
-        public MyService(IDepA a) { }
-        public MyService(IDepA a, IDepB b) { }
-        public MyService(IDepA a, IDepB b, IDepC c) { }
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "MyService");
-
-        // Assert
-        Assert.NotNull(result.TypeInfo);
-        Assert.NotNull(result.TypeInfo.Constructor);
-        // Should select the parameterless constructor
-        Assert.Empty(result.TypeInfo.Constructor.Parameters);
-    }
-
-    [Fact]
     public void Process_ServiceWithMultipleInjectConstructors_ReportsDiagnostic()
     {
         // Arrange
