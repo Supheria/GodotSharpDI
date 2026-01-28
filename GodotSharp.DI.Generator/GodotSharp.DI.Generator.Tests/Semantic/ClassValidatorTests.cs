@@ -206,6 +206,44 @@ namespace Test
     }
 
     [Fact]
+    public void Validate_UserNotInheritingFromNode_ReportsDiagnostic()
+    {
+        // Arrange
+        var source =
+            @"
+using GodotSharp.DI.Abstractions;
+
+namespace Test
+{
+    [User]
+    public partial class MyUser
+    {
+    }
+}
+";
+        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var tree = compilation.SyntaxTrees.First();
+        var root = tree.GetRoot();
+        var classDecl = root.DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .First(c => c.Identifier.Text == "MyUser");
+
+        var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
+        Assert.NotNull(raw.Info);
+
+        var symbols = new CachedSymbols(compilation);
+
+        // Act
+        var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
+
+        // Assert
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_C021" // UserMustBeNode
+        );
+    }
+
+    [Fact]
     public void Validate_ScopeNotInheritingFromNode_ReportsDiagnostic()
     {
         // Arrange
@@ -245,7 +283,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C021" // ScopeMustBeNode
+            d => d.Id == "GDI_C022" // ScopeMustBeNode
         );
     }
 

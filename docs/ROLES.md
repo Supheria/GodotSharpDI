@@ -187,13 +187,13 @@ User 是依赖消费者，通过字段或属性注入接收服务依赖。
 
 ### 约束
 
-| 约束项 | 要求                   | 原因               |
-| ------ | ---------------------- | ------------------ |
-| 类型   | 必须是 class           | 需要实例化         |
-| 继承   | Node 或普通 class 均可 | 灵活支持两种场景   |
-| 声明   | 必须是 partial         | 源生成器需要扩展类 |
+| 约束项 | 要求           | 原因                   |
+| ------ | -------------- | ---------------------- |
+| 类型   | 必须是 class   | 需要实例化             |
+| 继承   | 必须是 Node    | 需要接入场景树生命周期 |
+| 声明   | 必须是 partial | 源生成器需要扩展类     |
 
-### Node User（自动注入）
+### User 自动注入依赖
 
 ```csharp
 [User]
@@ -211,80 +211,6 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 ```
 
 Node 类型的 User 会在进入场景树时自动触发注入，无需手动操作。
-
-### 非 Node User（作为 Node User 的成员）
-
-非 Node User 主要用于将复杂逻辑模块化，作为 Node User 的成员使用，通过递归注入自动解析依赖。
-
-```csharp
-// 定义非 Node User
-[User]
-public partial class GameLogic  // 非 Node
-{
-    [Inject] private IPlayerStats _stats;
-    [Inject] private ICombatSystem _combat;
-    
-    public void ProcessTurn()
-    {
-        // 使用注入的服务
-        _stats.UpdateStats();
-        _combat.ResolveCombat();
-    }
-}
-
-// 在 Node User 中使用非 Node User
-[User]
-public partial class GameManager : Node
-{
-    [Inject] private IConfig _config;
-    
-    // 自动识别为 UserMember，框架会递归注入其依赖
-    private GameLogic _logic = new();
-    
-    public override void _Ready()
-    {
-        // 此时 _logic 的依赖已经自动注入完成
-        _logic.ProcessTurn();
-    }
-}
-```
-
-**生成的代码**：
-
-非 Node User 会生成 `public void ResolveDependencies(IScope scope)` 方法，但通常不需要手动调用。框架会在 Node User 的依赖解析过程中自动调用此方法。
-
-**重要约束**：
-
-1. **必须初始化**：非 Node User 成员必须有字段初始化器（如 `private GameLogic _logic = new();`）
-2. **只能作为 Node User 的成员**：非 Node User 不能包含其他非 Node User 成员（防止嵌套层级过深）
-3. **不能是 Node 类型**：非 Node User 成员的类型不能是 Node
-
-**手动使用场景**：
-
-如果确实需要在非 Node User 之外手动创建和注入，可以这样做：
-
-```csharp
-[User]
-public partial class SomeNode : Node
-{
-    private void CreateLogicManually()
-    {
-        var scope = GetServiceScope();
-        if (scope != null)
-        {
-            var logic = new GameLogic();
-            logic.ResolveDependencies(scope);  // 手动触发依赖注入
-            // 使用 logic...
-        }
-    }
-}
-```
-
-> ⚠️ **设计建议**：
->
-> - 如果逻辑类需要独立实例化和使用，考虑改为 Service（通过构造函数注入）
-> - 如果需要与场景树生命周期绑定，考虑改为 Node User
-> - 非 Node User 主要用于将 Node User 的逻辑拆分为多个模块，保持代码清晰
 
 ### Inject 成员约束
 

@@ -163,4 +163,7 @@
     <data name="ServiceTypeConflict" xml:space="preserve">
     <value>Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope</value>
   </data>
+  <data name="UserMustBeNode" xml:space="preserve">
+    <value>User '{0}' must inherit from Godot.Node</value>
+  </data>
 </root>

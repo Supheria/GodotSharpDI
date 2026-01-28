@@ -327,18 +327,6 @@ public override void _Notification(int what);
 private void ResolveUserDependencies(IScope scope);
 ```
 
-### 非 Node User 生成的方法
-
-对于标记为 `[User]` 的非 Node 类型，框架生成：
-
-```csharp
-// 手动触发依赖解析
-public void ResolveDependencies(IScope scope);
-
-// 内部解析方法
-private void ResolveUserDependencies(IScope scope);
-```
-
 ### Host 生成的方法
 
 对于标记为 `[Host]` 的类型，框架生成：

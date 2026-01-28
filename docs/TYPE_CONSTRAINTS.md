@@ -8,7 +8,7 @@
 |------|-------------|-----------|--------------|----------------|----------|------------|
 | **Service** | ✅ | ❌ 禁止 | ✅ 必须 | ✅ 是 | ✅ 是 | ✅ 必须 |
 | **Host** | ✅ | ✅ 必须 | ❌ 禁止 | ❌ 否 | ❌ 否 | ✅ 通过成员 |
-| **User** | ✅ | 可选 | ❌ 禁止 | ❌ 否 | ❌ 否 | ❌ 否 |
+| **User** | ✅ | ✅ 必须    | ❌ 禁止 | ❌ 否 | ❌ 否 | ❌ 否 |
 | **Scope** | ✅ | ✅ 必须 | ❌ 禁止 | ❌ 否 | ❌ 否 | ❌ 否 |
 
 ### Service 约束详情
@@ -35,7 +35,7 @@
 | 约束 | 要求 | 原因 |
 |------|------|------|
 | 类型 | class | 需要实例化 |
-| 继承 | Node 或普通 class | 灵活支持两种场景 |
+| 继承 | 必须是 Node    | 需要场景树生命周期 |
 | 声明 | 必须是 partial | 源生成器需要扩展 |
 
 ### Scope 约束详情
@@ -358,7 +358,7 @@ public partial class ServiceD : IService
 |------|------|
 | **Service** | 非 Node 的 class，标记 [Singleton] 或 [Transient]，暴露接口（推荐）或 class |
 | **Host** | Node，通过成员上的 [Singleton] 暴露服务，成员值可以是 Host 自身或持有的对象 |
-| **User** | Node 或非 Node，通过 [Inject] 成员接收注入，不提供服务 |
+| **User** | Node，通过 [Inject] 成员接收注入，不提供服务 |
 | **Scope** | Node，实现 IScope，管理服务生命周期，不可被注入 |
 | **Inject Type** | interface 或 class（非 Node/Host/User/Scope/abstract/static） |
 | **Exposed Type** | 推荐 interface，允许 concrete class（会产生 Warning） |

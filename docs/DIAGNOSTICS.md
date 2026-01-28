@@ -91,7 +91,15 @@ public partial class MyHost : Node { }
 
 ------
 
-### GDI_C021: ScopeMustBeNode
+### GDI_C021: UserMustBeNode
+
+**消息**: `User '{0}' must inherit from Godot.Node`
+
+**原因**: 标记为 `[User]` 的类不是 Node 子类。
+
+------
+
+### GDI_C022: ScopeMustBeNode
 
 **消息**: `Scope '{0}' must inherit from Godot.Node`
 
@@ -351,30 +359,6 @@ public partial class ConfigService { }
 [Singleton(typeof(IConfig))]  // 接口
 public partial class ConfigService : IConfig { }
 ```
-
-------
-
-### GDI_M070: UserMemberCannotBeNode
-
-**消息**: `User member '{0}' has type '{1}' which is a Node. Node types cannot be User members`
-
-**原因**: User 成员的类型是 Node，Node 类型不能作为 User 成员。
-
-------
-
-### GDI_M071: NonNodeUserCannotContainUserMember
-
-**消息**: `Non-Node User '{0}' cannot contain User member '{1}'. Only Node User can contain non-Node User members. Consider making '{0}' a Service instead`
-
-**原因**: 非 Node User 包含了 User 成员。只有 Node User 可以包含非 Node User 成员。
-
-------
-
-### GDI_M072: UserMemberMustBeInitialized
-
-**消息**: `User member '{0}' must be initialized with a field initializer (e.g., 'private MyUser _user = new();')`
-
-**原因**: User 成员必须使用字段初始化器初始化。
 
 ------
 

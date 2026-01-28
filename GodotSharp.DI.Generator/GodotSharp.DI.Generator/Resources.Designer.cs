@@ -445,5 +445,14 @@ namespace GodotSharp.DI.Generator {
                 return ResourceManager.GetString("UserMemberMustBeInitialized", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User &apos;{0}&apos; must inherit from Godot.Node.
+        /// </summary>
+        internal static string UserMustBeNode {
+            get {
+                return ResourceManager.GetString("UserMustBeNode", resourceCulture);
+            }
+        }
     }
 }

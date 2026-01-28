@@ -130,8 +130,13 @@ internal static class DiagnosticDescriptors
         Resources.HostMustBeNode
     );
 
-    public static readonly DiagnosticDescriptor ScopeMustBeNode = Class(
+    public static readonly DiagnosticDescriptor UserMustBeNode = Class(
         "021",
+        Resources.UserMustBeNode
+    );
+
+    public static readonly DiagnosticDescriptor ScopeMustBeNode = Class(
+        "022",
         Resources.ScopeMustBeNode
     );
 
@@ -223,21 +228,6 @@ internal static class DiagnosticDescriptors
         "060",
         Resources.ExposedTypeShouldBeInterface,
         DiagnosticSeverity.Warning
-    );
-
-    public static readonly DiagnosticDescriptor UserMemberCannotBeNode = Member(
-        "070",
-        Resources.UserMemberCannotBeNode
-    );
-
-    public static readonly DiagnosticDescriptor NonNodeUserCannotContainUserMember = Member(
-        "071",
-        Resources.NonNodeUserCannotContainUserMember
-    );
-
-    public static readonly DiagnosticDescriptor UserMemberMustBeInitialized = Member(
-        "072",
-        Resources.UserMemberMustBeInitialized
     );
 
     // ============================================================

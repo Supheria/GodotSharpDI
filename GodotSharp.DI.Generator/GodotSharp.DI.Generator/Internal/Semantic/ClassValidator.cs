@@ -171,6 +171,10 @@ internal sealed class ClassValidator
                 ValidateHostConstraints();
                 break;
 
+            case TypeRole.User:
+                ValidateUserConstraints();
+                break;
+
             case TypeRole.Scope:
                 ValidateScopeConstraints();
                 break;
@@ -220,6 +224,20 @@ internal sealed class ClassValidator
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.HostMustBeNode,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+    }
+
+    private void ValidateUserConstraints()
+    {
+        if (!_raw.IsNode)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.UserMustBeNode,
                     _raw.Location,
                     _raw.Symbol.Name
                 )
@@ -344,17 +362,7 @@ internal sealed class MemberProcessor
             var hasInject = member.HasAttribute(_symbols.InjectAttribute);
             var hasSingleton = member.HasAttribute(_symbols.SingletonAttribute);
 
-            // 检查是否是 User 类型成员（自动识别）
-            ITypeSymbol? memberType = null;
-            if (member is IFieldSymbol field)
-                memberType = field.Type;
-            else if (member is IPropertySymbol property)
-                memberType = property.Type;
-
-            var isUserMember = memberType != null && _symbols.IsUserType(memberType);
-
-            // 跳过既没有特性也不是 User 类型的成员
-            if (!hasInject && !hasSingleton && !isUserMember)
+            if (!hasInject && !hasSingleton)
                 continue;
 
             if (hasInject && hasSingleton)
@@ -390,29 +398,6 @@ internal sealed class MemberProcessor
                         member.Name
                     )
                 );
-                continue;
-            }
-
-            // 处理 User 成员
-            if (isUserMember)
-            {
-                // User 类型不能使用 [Inject]
-                if (hasInject)
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.InjectMemberIsUserType,
-                            member.Locations.FirstOrDefault() ?? _raw.Location,
-                            member.Name,
-                            memberType.ToDisplayString()
-                        )
-                    );
-                    continue;
-                }
-
-                var userMemberInfo = ProcessUserMember(member, memberType!);
-                if (userMemberInfo != null)
-                    members.Add(userMemberInfo);
                 continue;
             }
 
@@ -613,99 +598,6 @@ internal sealed class MemberProcessor
 
         return true;
     }
-
-    private MemberInfo? ProcessUserMember(ISymbol member, ITypeSymbol memberType)
-    {
-        var location = member.Locations.FirstOrDefault() ?? Location.None;
-
-        // 规则1: User 成员不能是 Node
-        if (_symbols.IsNode(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.UserMemberCannotBeNode,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return null;
-        }
-
-        // 规则2: 只有 Node User 可以包含非 Node User
-        if (!_raw.IsNode)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.NonNodeUserCannotContainUserMember,
-                    location,
-                    _raw.Symbol.Name,
-                    member.Name
-                )
-            );
-            return null;
-        }
-
-        // 规则3: 检查是否是 static
-        if (member.IsStatic)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.InjectMemberIsStatic,
-                    location,
-                    member.Name
-                )
-            );
-            return null;
-        }
-
-        MemberKind kind = MemberKind.None;
-        bool hasInitializer = false;
-
-        if (member is IFieldSymbol field)
-        {
-            kind = MemberKind.UserMemberField;
-            hasInitializer = MemberInitializationChecker.HasInitializer(field);
-        }
-        else if (member is IPropertySymbol property)
-        {
-            kind = MemberKind.UserMemberProperty;
-            if (property.GetMethod == null)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonPropertyNotAccessible,
-                        location,
-                        member.Name
-                    )
-                );
-                return null;
-            }
-
-            hasInitializer = MemberInitializationChecker.HasInitializer(property);
-        }
-
-        // 规则4: User 成员必须初始化
-        if (!hasInitializer)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.UserMemberMustBeInitialized,
-                    location,
-                    member.Name
-                )
-            );
-            return null;
-        }
-
-        return new MemberInfo(
-            Symbol: member,
-            Location: location,
-            Kind: kind,
-            MemberType: memberType,
-            ExposedTypes: ImmutableArray<ITypeSymbol>.Empty
-        );
-    }
 }
 
 /// <summary>
@@ -843,34 +735,6 @@ internal sealed class ConstructorProcessor
             Location: selectedCtor.Locations.FirstOrDefault() ?? _raw.Location,
             Parameters: parameters.ToImmutable()
         );
-    }
-}
-
-/// <summary>
-/// 成员初始化检查器 - 改进的初始化检测
-/// </summary>
-internal static class MemberInitializationChecker
-{
-    public static bool HasInitializer(IFieldSymbol field)
-    {
-        // 检查字段是否有初始化器（通过语法检查）
-        var syntax = field.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax();
-        if (syntax is Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax varDecl)
-        {
-            return varDecl.Initializer != null;
-        }
-        return false;
-    }
-
-    public static bool HasInitializer(IPropertySymbol property)
-    {
-        // 检查属性是否有初始化器
-        var syntax = property.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax();
-        if (syntax is Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax propDecl)
-        {
-            return propDecl.Initializer != null;
-        }
-        return false;
     }
 }
 

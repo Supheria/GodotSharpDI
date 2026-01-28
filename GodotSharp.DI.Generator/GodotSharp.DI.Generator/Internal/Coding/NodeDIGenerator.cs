@@ -1,6 +1,8 @@
 ﻿using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
+using Microsoft.CodeAnalysis;
+using TypeInfo = GodotSharp.DI.Generator.Internal.Data.TypeInfo;
 
 namespace GodotSharp.DI.Generator.Internal.Coding;
 
@@ -9,7 +11,33 @@ namespace GodotSharp.DI.Generator.Internal.Coding;
 /// </summary>
 internal static class NodeDIGenerator
 {
-    public static void GenerateNodeDICode(CodeFormatter f, TypeInfo type)
+    /// <summary>
+    /// 生成基础 DI 文件（Node 生命周期管理）
+    /// </summary>
+    public static void GenerateBaseDI(
+        SourceProductionContext context,
+        TypeInfo type,
+        string namespaceName,
+        string className
+    )
+    {
+        var f = new CodeFormatter();
+        var isNode = type.IsNode;
+
+        f.BeginClassDeclaration(namespaceName, className);
+        {
+            if (isNode)
+            {
+                // HostAndUser 类型必须是 Node，生成 Node DI 代码
+                GenerateNodeDICode(f, type);
+            }
+        }
+        f.EndClassDeclaration();
+
+        context.AddSource($"{className}.DI.g.cs", f.ToString());
+    }
+
+    private static void GenerateNodeDICode(CodeFormatter f, TypeInfo type)
     {
         GenerateServiceScopeField(f);
         f.AppendLine();

@@ -156,4 +156,7 @@
     <data name="ServiceTypeConflict" xml:space="preserve">
     <value>服务类型 "{0}" 被多个提供者注册：{1}。每个服务类型在一个 Scope 内只能有一个提供者</value>
   </data>
+  <data name="UserMustBeNode" xml:space="preserve">
+    <value>User “{0}” 必须继承自 Godot.Node</value>
+  </data>
 </root>

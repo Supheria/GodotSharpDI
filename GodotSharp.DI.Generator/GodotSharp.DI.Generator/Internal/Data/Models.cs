@@ -87,8 +87,6 @@ internal enum MemberKind
     InjectProperty,
     SingletonField,
     SingletonProperty,
-    UserMemberField, // User 类型字段，需要递归注入
-    UserMemberProperty, // User 类型属性，需要递归注入
 }
 
 /// <summary>
@@ -165,5 +163,4 @@ internal enum DependencySource
 {
     Constructor,
     InjectMember,
-    UserMember,
 }

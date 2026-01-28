@@ -11,29 +11,12 @@ public interface IChunkGenerator;
 
 public interface ICellGenerator;
 
-[User]
-public partial class PureUser : IServicesReady
-{
-    [Inject]
-    private ICellGenerator _cellManager;
-
-    public void Test() { }
-
-    public void OnServicesReady()
-    {
-        throw new NotImplementedException();
-    }
-}
-
 [Host]
 [User]
 public partial class ChunkManager : Node, IChunkGenerator, IChunkGetter
 {
-    [Singleton]
-    private IChunkGetter Self => this;
-
-    [Singleton]
-    private IChunkGenerator Self2 => this;
+    [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
+    private ChunkManager Self => this;
 
     [Inject]
     private ICellGenerator _cellManager;
@@ -44,16 +27,14 @@ public class CellService : ICellGenerator, IChunkGenerator;
 [Host, User]
 public partial class CellManager : Node, ICellGenerator, IServicesReady
 {
-    [Singleton]
-    private ICellGenerator Self => this;
+    [Singleton(typeof(ICellGenerator))]
+    private CellManager Self => this;
 
     [Inject]
     private IChunkGenerator _chunkGenerator;
 
     [Inject]
     private IChunkGetter _chunkGetter;
-
-    private readonly PureUser _pureUser = new();
 
     public void OnServicesReady() { }
 }

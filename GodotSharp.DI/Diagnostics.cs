@@ -229,7 +229,7 @@ public sealed partial class NodeHost15
     private Host15 _tools = new();
 }
 
-[Modules(Expect = [typeof(NodeHost15)])] // GDI015：Problem15A 约束了 Host 类型 NodeHost15 ，但未约束其内部 Host 类型 Host15
+[Modules(Hosts = [typeof(NodeHost15)])] // GDI015：Problem15A 约束了 Host 类型 NodeHost15 ，但未约束其内部 Host 类型 Host15
 public sealed partial class Problem15A { }
 
 //

@@ -1,4 +1,5 @@
-﻿using GodotSharp.DI.Generator.Internal.Data;
+﻿using System.Linq;
+using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
@@ -18,94 +19,88 @@ internal static class HostGenerator
         var className = type.Symbol.Name;
 
         // 生成基础 DI 文件
-        GenerateBaseDI(context, type, namespaceName, className);
+        NodeDIGenerator.GenerateBaseDI(context, type, namespaceName, className);
 
         // 生成 Host 特定代码
         GenerateHostSpecific(context, type, namespaceName, className);
     }
 
-    private static void GenerateBaseDI(
+    /// <summary>
+    /// 生成 Host 特定代码（AttachHostServices/UnattachHostServices）
+    /// </summary>
+    public static void GenerateHostSpecific(
         SourceProductionContext context,
         TypeInfo type,
         string namespaceName,
         string className
     )
     {
-        var f = new CodeFormatter();
-        var isNode = type.Symbol.BaseType?.ToDisplayString().Contains("Godot.Node") ?? false;
+        // 收集 Singleton 成员
+        var singletonMembers = type
+            .Members.Where(m =>
+                m.Kind == MemberKind.SingletonField || m.Kind == MemberKind.SingletonProperty
+            )
+            .ToArray();
 
-        f.BeginClassDeclaration(namespaceName, className);
-        {
-            if (isNode)
-            {
-                NodeDIGenerator.GenerateNodeDICode(f, type);
-            }
-        }
-        f.EndClassDeclaration();
+        // 如果没有 Singleton 成员，不生成 Host 代码
+        if (singletonMembers.Length == 0)
+            return;
 
-        context.AddSource($"{className}.DI.g.cs", f.ToString());
-    }
-
-    private static void GenerateHostSpecific(
-        SourceProductionContext context,
-        TypeInfo type,
-        string namespaceName,
-        string className
-    )
-    {
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(namespaceName, className);
         {
             // AttachHostServices
-            f.AppendHiddenMethodCommentAndAttribute();
-            f.AppendLine($"private void AttachHostServices({GlobalNames.IScope} scope)");
-            f.BeginBlock();
-            {
-                foreach (var member in type.Members)
-                {
-                    if (
-                        member.Kind == MemberKind.SingletonField
-                        || member.Kind == MemberKind.SingletonProperty
-                    )
-                    {
-                        foreach (var exposedType in member.ExposedTypes)
-                        {
-                            f.AppendLine(
-                                $"scope.RegisterService<{exposedType.ToDisplayString()}>({member.Symbol.Name});"
-                            );
-                        }
-                    }
-                }
-            }
-            f.EndBlock();
+            GenerateAttachHostServices(f, singletonMembers);
             f.AppendLine();
 
             // UnattachHostServices
-            f.AppendHiddenMethodCommentAndAttribute();
-            f.AppendLine($"private void UnattachHostServices({GlobalNames.IScope} scope)");
-            f.BeginBlock();
-            {
-                foreach (var member in type.Members)
-                {
-                    if (
-                        member.Kind == MemberKind.SingletonField
-                        || member.Kind == MemberKind.SingletonProperty
-                    )
-                    {
-                        foreach (var exposedType in member.ExposedTypes)
-                        {
-                            f.AppendLine(
-                                $"scope.UnregisterService<{exposedType.ToDisplayString()}>();"
-                            );
-                        }
-                    }
-                }
-            }
-            f.EndBlock();
+            GenerateUnattachHostServices(f, singletonMembers);
         }
         f.EndClassDeclaration();
 
         context.AddSource($"{className}.DI.Host.g.cs", f.ToString());
+    }
+
+    /// <summary>
+    /// 生成 AttachHostServices 方法
+    /// </summary>
+    private static void GenerateAttachHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
+    {
+        f.AppendHiddenMethodCommentAndAttribute();
+        f.AppendLine($"private void AttachHostServices({GlobalNames.IScope} scope)");
+        f.BeginBlock();
+        {
+            foreach (var member in singletonMembers)
+            {
+                foreach (var exposedType in member.ExposedTypes)
+                {
+                    f.AppendLine(
+                        $"scope.RegisterService<{exposedType.ToDisplayString()}>({member.Symbol.Name});"
+                    );
+                }
+            }
+        }
+        f.EndBlock();
+    }
+
+    /// <summary>
+    /// 生成 UnattachHostServices 方法
+    /// </summary>
+    private static void GenerateUnattachHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
+    {
+        f.AppendHiddenMethodCommentAndAttribute();
+        f.AppendLine($"private void UnattachHostServices({GlobalNames.IScope} scope)");
+        f.BeginBlock();
+        {
+            foreach (var member in singletonMembers)
+            {
+                foreach (var exposedType in member.ExposedTypes)
+                {
+                    f.AppendLine($"scope.UnregisterService<{exposedType.ToDisplayString()}>();");
+                }
+            }
+        }
+        f.EndBlock();
     }
 }

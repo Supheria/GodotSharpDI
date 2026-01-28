@@ -1,4 +1,5 @@
-﻿using GodotSharp.DI.Generator.Internal.Data;
+﻿using System.Linq;
+using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
@@ -18,97 +19,53 @@ internal static class UserGenerator
         var className = type.Symbol.Name;
 
         // 生成基础 DI 文件
-        GenerateBaseDI(context, type, namespaceName, className);
+        NodeDIGenerator.GenerateBaseDI(context, type, namespaceName, className);
 
         // 生成 User 特定代码
         GenerateUserSpecific(context, type, namespaceName, className);
     }
 
-    private static void GenerateBaseDI(
+    /// <summary>
+    /// 生成 User 特定代码（ResolveUserDependencies）
+    /// </summary>
+    public static void GenerateUserSpecific(
         SourceProductionContext context,
         TypeInfo type,
         string namespaceName,
         string className
     )
     {
-        var f = new CodeFormatter();
-        var isNode = type.Symbol.BaseType?.ToDisplayString().Contains("Godot.Node") ?? false;
-
-        f.BeginClassDeclaration(namespaceName, className);
-        {
-            if (isNode)
-            {
-                NodeDIGenerator.GenerateNodeDICode(f, type);
-            }
-            else
-            {
-                GenerateNonNodeDICode(f, type);
-            }
-        }
-        f.EndClassDeclaration();
-
-        context.AddSource($"{className}.DI.g.cs", f.ToString());
-    }
-
-    private static void GenerateNonNodeDICode(CodeFormatter f, TypeInfo type)
-    {
-        f.AppendLine($"public void ResolveDependencies({GlobalNames.IScope} scope)");
-        f.BeginBlock();
-        {
-            f.AppendLine("ResolveUserDependencies(scope);");
-        }
-        f.EndBlock();
-    }
-
-    private static void GenerateUserSpecific(
-        SourceProductionContext context,
-        TypeInfo type,
-        string namespaceName,
-        string className
-    )
-    {
-        var injectMembersList = new System.Collections.Generic.List<MemberInfo>();
-        var userMembersList = new System.Collections.Generic.List<MemberInfo>();
-
-        foreach (var member in type.Members)
-        {
-            if (member.Kind == MemberKind.InjectField || member.Kind == MemberKind.InjectProperty)
-            {
-                injectMembersList.Add(member);
-            }
-            else if (
-                member.Kind == MemberKind.UserMemberField
-                || member.Kind == MemberKind.UserMemberProperty
+        // 收集 Inject 成员
+        var injectMembers = type
+            .Members.Where(m =>
+                m.Kind == MemberKind.InjectField || m.Kind == MemberKind.InjectProperty
             )
-            {
-                userMembersList.Add(member);
-            }
-        }
+            .ToArray();
 
-        // 如果既没有 Inject 成员也没有 UserMember，则不生成代码
-        if (injectMembersList.Count == 0 && userMembersList.Count == 0)
+        // 如果既没有 Inject 成员，不生成 User 代码
+        if (injectMembers.Length == 0)
             return;
 
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(namespaceName, className);
         {
-            if (type.ImplementsIServicesReady)
+            // 如果实现了 IServicesReady，生成依赖跟踪代码
+            if (type.ImplementsIServicesReady && injectMembers.Length > 0)
             {
-                GenerateDependencyTracking(f, injectMembersList);
+                GenerateDependencyTracking(f, injectMembers);
+                f.AppendLine();
             }
 
-            GenerateResolveUserDependencies(f, type, injectMembersList, userMembersList);
+            // 生成 ResolveUserDependencies
+            GenerateResolveUserDependencies(f, type, injectMembers);
         }
         f.EndClassDeclaration();
 
         context.AddSource($"{className}.DI.User.g.cs", f.ToString());
     }
 
-    private static void GenerateDependencyTracking(
-        CodeFormatter f,
-        System.Collections.Generic.List<MemberInfo> injectMembersList
-    )
+    private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembersList)
     {
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
@@ -143,8 +100,7 @@ internal static class UserGenerator
     private static void GenerateResolveUserDependencies(
         CodeFormatter f,
         TypeInfo type,
-        System.Collections.Generic.List<MemberInfo> injectMembersList,
-        System.Collections.Generic.List<MemberInfo> userMembersList
+        MemberInfo[] injectMembersList
     )
     {
         // ResolveUserDependencies
@@ -170,18 +126,6 @@ internal static class UserGenerator
                     }
                 }
                 f.EndBlock(");");
-            }
-
-            // 递归注入 UserMember
-            foreach (var member in userMembersList)
-            {
-                f.AppendLine($"// 注入 User 成员: {member.Symbol.Name}");
-                f.AppendLine($"if ({member.Symbol.Name} != null)");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"{member.Symbol.Name}.ResolveDependencies(scope);");
-                }
-                f.EndBlock();
             }
         }
         f.EndBlock();

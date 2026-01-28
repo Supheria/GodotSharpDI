@@ -89,78 +89,6 @@ partial class PathFinder // MovementManager.DI.Factory.g.cs
 // - generated code end -
 
 //
-// --- 非节点类型 host 和 user ---
-//
-
-[User]
-public partial class MovementManager : IPathProvider, IPathGenerator, IServicesReady
-{
-    [Inject]
-    private IPathFinder _pathFinder;
-
-    [Inject]
-    private IAStartPathFinder _aStartPathFinder;
-
-    void IServicesReady.OnServicesReady() { }
-}
-
-// - generated code begin -
-
-// 标记为 Host 或 User 才生成
-partial class MovementManager // MovementManager.DI.g.cs
-{
-    // 非节点类型 User 才生成
-    public void ResolveDependencies(IScope scope)
-    {
-        ResolveUserDependencies(scope);
-    }
-}
-
-// 标记为 User 才生成
-partial class MovementManager // MovementManager.DI.User.g.cs
-{
-    // 实现了 IServicesReady 才生成
-    private readonly HashSet<Type> _unresolvedDependencies = new()
-    {
-        // 列举字段或属性中所有标记为 [Inject] 的类型
-        typeof(IPathFinder),
-        typeof(IAStartPathFinder),
-    };
-
-    // 实现了 IServicesReady 才生成
-    private void OnDependencyResolved<T>()
-    {
-        _unresolvedDependencies.Remove(typeof(T));
-        if (_unresolvedDependencies.Count == 0)
-        {
-            ((IServicesReady)this).OnServicesReady();
-        }
-    }
-
-    /// <summary>
-    /// 解析所有标记为 [Inject] 的字段或属性
-    /// </summary>
-    /// <param name="scope"></param>
-    private void ResolveUserDependencies(IScope scope)
-    {
-        scope.ResolveDependency<IPathFinder>(dependency =>
-        {
-            _pathFinder = dependency;
-            // 实现了 IServicesReady 才生成
-            OnDependencyResolved<IPathFinder>();
-        });
-        scope.ResolveDependency<IAStartPathFinder>(dependency =>
-        {
-            _aStartPathFinder = dependency;
-            // 实现了 IServicesReady 才生成
-            OnDependencyResolved<IAStartPathFinder>();
-        });
-    }
-}
-
-// - generated code end -
-
-//
 // --- 节点类型 host 和 user ---
 //
 
@@ -176,8 +104,6 @@ public partial class CellManager : Godot.Node, ICellGetter, ICellEditor, IServic
 
     [Inject]
     private IDataWriter _dataWriter;
-
-    private readonly MovementManager _movementManager = new();
 
     public void OnServicesReady() { }
 }
@@ -323,19 +249,14 @@ partial class CellManager // CellManager.DI.User.g.cs
             // 实现了 IServicesReady 才生成
             OnDependencyResolved<IDataWriter>();
         });
-        // 处理任何标记为 [User] 的类型成员
-        if (_movementManager is not null)
-        {
-            _movementManager.ResolveDependencies(scope);
-        }
     }
 }
 
 // - generated code end -
 
 [Modules(
-    Instantiate = [typeof(DatabaseWriter), typeof(PathFinder)],
-    Expect = [typeof(CellManager), typeof(MovementManager)]
+    Services = [typeof(DatabaseWriter), typeof(PathFinder)],
+    Hosts = [typeof(CellManager)]
 )]
 public partial class MyScope : Godot.Node, IScope { }
 
