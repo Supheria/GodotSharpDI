@@ -117,7 +117,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S021" // AmbiguousConstructor
+            d => d.Id == "GDI_S011" // AmbiguousConstructor
         );
     }
 
@@ -143,7 +143,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S020" // NoPublicConstructor
+            d => d.Id == "GDI_S010" // NoPublicConstructor
         );
     }
 
@@ -173,7 +173,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S022" // InjectConstructorAttributeIsInvalid
+            d => d.Id == "GDI_S012" // InjectConstructorAttributeIsInvalid
         );
     }
 
@@ -200,7 +200,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S030" // InjectConstructorParameterTypeInvalid
+            d => d.Id == "GDI_S020" // InjectConstructorParameterTypeInvalid
         );
     }
 
@@ -233,7 +233,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S021" // AmbiguousConstructor
+            d => d.Id == "GDI_S011" // AmbiguousConstructor
         );
     }
 

@@ -10,10 +10,4 @@ internal static class IdeAttributes
     /// </summary>
     public const string EditorBrowsableNever =
         "[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]";
-
-    /// <summary>
-    /// CompilerGenerated - 标记为编译器生成
-    /// </summary>#pragma error disable CS0619
-    public const string CompilerGenerated =
-        "[global::System.Runtime.CompilerServices.CompilerGenerated]";
 }

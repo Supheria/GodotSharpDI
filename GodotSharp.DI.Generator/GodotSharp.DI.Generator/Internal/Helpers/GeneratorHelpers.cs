@@ -41,23 +41,15 @@ internal static class GeneratorHelpers
         string? summary = null
     )
     {
-        AppendComment(
+        f.AppendXmlComment("<summary>");
+        if (summary is not null)
+        {
+            f.AppendXmlComment(summary);
+        }
+        f.AppendXmlComment(
             "This method is managed by the DI framework and should not be called manually."
         );
+        f.AppendXmlComment("</summary>");
         f.AppendLine(IdeAttributes.EditorBrowsableNever);
-        f.AppendLine(IdeAttributes.CompilerGenerated);
-
-        return;
-
-        void AppendComment(string tip)
-        {
-            f.AppendXmlComment("<summary>");
-            if (summary is not null)
-            {
-                f.AppendXmlComment(summary);
-            }
-            f.AppendXmlComment(tip);
-            f.AppendXmlComment("</summary>");
-        }
     }
 }
