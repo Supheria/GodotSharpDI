@@ -240,15 +240,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Non-Node User &apos;{0}&apos; cannot contain User member &apos;{1}&apos;. Only Node User can contain non-Node User members. Consider making &apos;{0}&apos; a Service instead.
-        /// </summary>
-        internal static string NonNodeUserCannotContainUserMember {
-            get {
-                return ResourceManager.GetString("NonNodeUserCannotContainUserMember", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Service &apos;{0}&apos; must define at least one constructor.
         /// </summary>
         internal static string NoPublicConstructor {
@@ -339,15 +330,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node.
-        /// </summary>
-        internal static string ServiceCannotBeNode {
-            get {
-                return ResourceManager.GetString("ServiceCannotBeNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Service &apos;{0}&apos; has constructor parameter of type &apos;{1}&apos;, which is not a Service.
         /// </summary>
         internal static string ServiceConstructorParameterInvalid {
@@ -384,7 +366,7 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; must be non-abstract, non-static class type.
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node, and must be non-abstract, non-static class type.
         /// </summary>
         internal static string ServiceTypeIsInvalid {
             get {
@@ -425,24 +407,6 @@ namespace GodotSharp.DI.Generator {
         internal static string UnknownTypeRole {
             get {
                 return ResourceManager.GetString("UnknownTypeRole", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to User member &apos;{0}&apos; has type &apos;{1}&apos; which is a Node. Node types cannot be User members.
-        /// </summary>
-        internal static string UserMemberCannotBeNode {
-            get {
-                return ResourceManager.GetString("UserMemberCannotBeNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to User member &apos;{0}&apos; must be initialized with a field initializer (e.g., &apos;private MyUser _user = new();&apos;).
-        /// </summary>
-        internal static string UserMemberMustBeInitialized {
-            get {
-                return ResourceManager.GetString("UserMemberMustBeInitialized", resourceCulture);
             }
         }
         

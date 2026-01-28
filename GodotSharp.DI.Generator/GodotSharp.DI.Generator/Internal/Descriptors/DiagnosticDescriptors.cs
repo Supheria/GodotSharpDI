@@ -234,28 +234,23 @@ internal static class DiagnosticDescriptors
     // S — Constructor-level
     // ============================================================
 
-    public static readonly DiagnosticDescriptor ServiceCannotBeNode = Constructor(
-        "010",
-        Resources.ServiceCannotBeNode
-    );
-
     public static readonly DiagnosticDescriptor NoPublicConstructor = Constructor(
-        "020",
+        "010",
         Resources.NoPublicConstructor
     );
 
     public static readonly DiagnosticDescriptor AmbiguousConstructor = Constructor(
-        "021",
+        "011",
         Resources.AmbiguousConstructor
     );
 
     public static readonly DiagnosticDescriptor InjectConstructorAttributeIsInvalid = Constructor(
-        "022",
+        "012",
         Resources.InjectConstructorAttributeIsInvalid
     );
 
     public static readonly DiagnosticDescriptor InjectConstructorParameterTypeInvalid = Constructor(
-        "030",
+        "020",
         Resources.InjectConstructorParameterTypeInvalid
     );
 

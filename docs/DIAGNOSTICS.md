@@ -162,9 +162,9 @@ public partial class MyService : IService { }
 
 ### GDI_C060: ServiceTypeIsInvalid
 
-**消息**: `Service '{0}' must be non-abstract, non-static class type`
+**消息**: `Service '{0}' cannot inherit from Godot.Node, and must be non-abstract, non-static class type`
 
-**原因**: Service 类型不符合要求（抽象类、静态类等）。
+**原因**: Service 继承了 Node，或者类型不符合要求（抽象类、静态类等）。
 
 ------
 
@@ -364,25 +364,7 @@ public partial class ConfigService : IConfig { }
 
 ## Constructor 级别错误 (GDI_S)
 
-### GDI_S010: ServiceCannotBeNode
-
-**消息**: `Service '{0}' cannot inherit from Godot.Node`
-
-**原因**: Service 继承自 Node。
-
-```csharp
-// ❌ 错误
-[Singleton(typeof(IService))]
-public partial class MyService : Node, IService { }  // 继承 Node
-
-// ✅ 正确：使用 Host
-[Host]
-public partial class MyService : Node, IService { }
-```
-
-------
-
-### GDI_S020: NoPublicConstructor
+### GDI_S010: NoPublicConstructor
 
 **消息**: `Service '{0}' must define at least one constructor`
 
@@ -390,7 +372,7 @@ public partial class MyService : Node, IService { }
 
 ------
 
-### GDI_S021: AmbiguousConstructor
+### GDI_S011: AmbiguousConstructor
 
 **消息**: `Service '{0}' has multiple constructors but no [InjectConstructor] is specified`
 
@@ -418,7 +400,7 @@ public partial class MyService : IService
 
 ------
 
-### GDI_S022: InjectConstructorAttributeIsInvalid
+### GDI_S012: InjectConstructorAttributeIsInvalid
 
 **消息**: `Type '{0}' is not a Service but uses [InjectConstructor]`
 
@@ -426,7 +408,7 @@ public partial class MyService : IService
 
 ------
 
-### GDI_S030: InjectConstructorParameterTypeInvalid
+### GDI_S020: InjectConstructorParameterTypeInvalid
 
 **消息**: `Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type`
 

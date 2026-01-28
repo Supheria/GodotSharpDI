@@ -195,16 +195,6 @@ internal sealed class ClassValidator
 
     private void ValidateServiceConstraints()
     {
-        if (_raw.IsNode)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceCannotBeNode,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
         if (!_raw.Symbol.IsValidServiceType(_symbols))
         {
             _diagnostics.Add(

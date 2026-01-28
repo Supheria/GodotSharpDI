@@ -25,12 +25,7 @@
     <data name="ServiceReadyNeedUser" xml:space="preserve">
     <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
   </data>
-
-    <data name="ServiceCannotBeNode" xml:space="preserve">
-    <value>Service '{0}' cannot inherit from Godot.Node</value>
-  </data>
-
-    <data name="NoPublicConstructor" xml:space="preserve">
+  <data name="NoPublicConstructor" xml:space="preserve">
     <value>Service '{0}' must define at least one constructor</value>
   </data>
 
@@ -124,8 +119,8 @@
     <data name="InjectConstructorParameterTypeInvalid" xml:space="preserve">
     <value>Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type</value>
   </data>
-    <data name="ServiceTypeIsInvalid" xml:space="preserve">
-    <value>Service '{0}' must be non-abstract, non-static class type</value>
+  <data name="ServiceTypeIsInvalid" xml:space="preserve">
+    <value>Service '{0}' cannot inherit from Godot.Node, and must be non-abstract, non-static class type</value>
   </data>
     <data name="DiClassMustBePartial" xml:space="preserve">
     <value>DI-relative class '{0}' must be declared as partial to enable code generation</value>
@@ -151,16 +146,7 @@
     <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
     <value>Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
   </data>
-    <data name="UserMemberCannotBeNode" xml:space="preserve">
-    <value>User member '{0}' has type '{1}' which is a Node. Node types cannot be User members</value>
-  </data>
-    <data name="NonNodeUserCannotContainUserMember" xml:space="preserve">
-    <value>Non-Node User '{0}' cannot contain User member '{1}'. Only Node User can contain non-Node User members. Consider making '{0}' a Service instead</value>
-  </data>
-  <data name="UserMemberMustBeInitialized" xml:space="preserve">
-    <value>User member '{0}' must be initialized with a field initializer (e.g., 'private MyUser _user = new();')</value>
-  </data>
-    <data name="ServiceTypeConflict" xml:space="preserve">
+  <data name="ServiceTypeConflict" xml:space="preserve">
     <value>Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope</value>
   </data>
   <data name="UserMustBeNode" xml:space="preserve">
