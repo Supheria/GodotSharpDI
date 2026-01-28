@@ -38,6 +38,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Internal\Extensions\" />
+    <InternalsVisibleTo Include="GodotSharp.DI.Generator.Tests" />
   </ItemGroup>
 </Project>

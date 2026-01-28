@@ -16,25 +16,4 @@ internal static class TypeFormatter
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
     );
-
-    public static bool GetNamespace(INamedTypeSymbol type, out string ns)
-    {
-        if (type.ContainingNamespace.IsGlobalNamespace)
-        {
-            ns = string.Empty;
-            return false;
-        }
-        ns = type.ContainingNamespace.ToDisplayString();
-        return true;
-    }
-
-    public static string GetClassName(INamedTypeSymbol type)
-    {
-        return type.ToDisplayString(ClassNameFormat);
-    }
-
-    public static string GetFullQualifiedName(ITypeSymbol type)
-    {
-        return type.ToDisplayString(FullyQualifiedNoAliasFormat);
-    }
 }

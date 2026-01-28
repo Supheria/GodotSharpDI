@@ -78,20 +78,29 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DI-relative class &apos;{0}&apos; must be declared as partial to enable code generation.
+        /// </summary>
+        internal static string DiClassMustBePartial {
+            get {
+                return ResourceManager.GetString("DiClassMustBePartial", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Exposed type &apos;{0}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string ExposedTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("ExposedTypeShouldBeInterface", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Internal error in source generator: {0}.
         /// </summary>
         internal static string GeneratorInternalError {
             get {
                 return ResourceManager.GetString("GeneratorInternalError", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Member cannot have Type marked as [Host].
-        /// </summary>
-        internal static string HostCannotBeMember {
-            get {
-                return ResourceManager.GetString("HostCannotBeMember", resourceCulture);
             }
         }
         
@@ -114,20 +123,29 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; registers &apos;{1}&apos;, which is not a Service.
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is already marked as a Service ([Singleton] or [Transient]). Host should not hold Service instances directly.
         /// </summary>
-        internal static string HostServiceMustBeService {
+        internal static string HostSingletonMemberIsServiceType {
             get {
-                return ResourceManager.GetString("HostServiceMustBeService", resourceCulture);
+                return ResourceManager.GetString("HostSingletonMemberIsServiceType", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; registers service &apos;{1}&apos; which does not exist.
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Service but uses [InjectConstructor].
         /// </summary>
-        internal static string HostServiceNotFound {
+        internal static string InjectConstructorAttributeIsInvalid {
             get {
-                return ResourceManager.GetString("HostServiceNotFound", resourceCulture);
+                return ResourceManager.GetString("InjectConstructorAttributeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type.
+        /// </summary>
+        internal static string InjectConstructorParameterTypeInvalid {
+            get {
+                return ResourceManager.GetString("InjectConstructorParameterTypeInvalid", resourceCulture);
             }
         }
         
@@ -141,6 +159,42 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type and cannot be injected.
+        /// </summary>
+        internal static string InjectMemberIsHostType {
+            get {
+                return ResourceManager.GetString("InjectMemberIsHostType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be injected.
+        /// </summary>
+        internal static string InjectMemberIsScopeType {
+            get {
+                return ResourceManager.GetString("InjectMemberIsScopeType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be static.
+        /// </summary>
+        internal static string InjectMemberIsStatic {
+            get {
+                return ResourceManager.GetString("InjectMemberIsStatic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be injected.
+        /// </summary>
+        internal static string InjectMemberIsUserType {
+            get {
+                return ResourceManager.GetString("InjectMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to [Inject] member must be writable (field must not be readonly, property must have setter).
         /// </summary>
         internal static string InjectMemberNotAssignable {
@@ -150,38 +204,11 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Service but uses [InjectConstructor].
+        ///   Looks up a localized string similar to Do not manually call generated method &apos;{0}&apos; on &apos;{1}&apos;. This method is managed by the DI framework and will be called automatically at the appropriate time.
         /// </summary>
-        internal static string InvalidInjectConstructorAttribute {
+        internal static string ManualCallGeneratedMethod {
             get {
-                return ResourceManager.GetString("InvalidInjectConstructorAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Scope but uses [Modules] or [AutoModules].
-        /// </summary>
-        internal static string InvalidModuleAttribute {
-            get {
-                return ResourceManager.GetString("InvalidModuleAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Do not call AttachToScope manually; injection is handled automatically by the framework.
-        /// </summary>
-        internal static string ManualAttachToScope {
-            get {
-                return ResourceManager.GetString("ManualAttachToScope", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Do not call ResolveUserDependencies manually; injection is handled automatically by the framework.
-        /// </summary>
-        internal static string ManualResolveUserDependencies {
-            get {
-                return ResourceManager.GetString("ManualResolveUserDependencies", resourceCulture);
+                return ResourceManager.GetString("ManualCallGeneratedMethod", resourceCulture);
             }
         }
         
@@ -231,24 +258,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Expect type &apos;{1}&apos; must be a Host.
-        /// </summary>
-        internal static string ScopeExpectMustBeHost {
-            get {
-                return ResourceManager.GetString("ScopeExpectMustBeHost", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Instantiate type &apos;{1}&apos; must be a Service.
-        /// </summary>
-        internal static string ScopeInstantiateMustBeService {
-            get {
-                return ResourceManager.GetString("ScopeInstantiateMustBeService", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string ScopeInvalidAttribute {
@@ -276,29 +285,38 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use both [Modules] and [AutoModules].
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Host type &apos;{1}&apos; must be a Host.
         /// </summary>
-        internal static string ScopeModulesConflict {
+        internal static string ScopeModulesHostMustBeHost {
             get {
-                return ResourceManager.GetString("ScopeModulesConflict", resourceCulture);
+                return ResourceManager.GetString("ScopeModulesHostMustBeHost", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Host type in [Modules] Expect.
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Host type in [Modules] Hosts.
         /// </summary>
-        internal static string ScopeModulesExpectEmpty {
+        internal static string ScopeModulesHostsEmpty {
             get {
-                return ResourceManager.GetString("ScopeModulesExpectEmpty", resourceCulture);
+                return ResourceManager.GetString("ScopeModulesHostsEmpty", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify at least one type in [Modules] Instantiate.
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Service type &apos;{1}&apos; must be a Service.
         /// </summary>
-        internal static string ScopeModulesInstantiateEmpty {
+        internal static string ScopeModulesServiceMustBeService {
             get {
-                return ResourceManager.GetString("ScopeModulesInstantiateEmpty", resourceCulture);
+                return ResourceManager.GetString("ScopeModulesServiceMustBeService", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify at least one type in [Modules] Services.
+        /// </summary>
+        internal static string ScopeModulesServicesEmpty {
+            get {
+                return ResourceManager.GetString("ScopeModulesServicesEmpty", resourceCulture);
             }
         }
         
@@ -308,15 +326,6 @@ namespace GodotSharp.DI.Generator {
         internal static string ScopeMustBeNode {
             get {
                 return ResourceManager.GetString("ScopeMustBeNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to {0} service &apos;{1}&apos; cannot inherit from Godot.Node.
-        /// </summary>
-        internal static string ServiceCannotBeNode {
-            get {
-                return ResourceManager.GetString("ServiceCannotBeNode", resourceCulture);
             }
         }
         
@@ -348,11 +357,38 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Service type &apos;{0}&apos; is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope.
+        /// </summary>
+        internal static string ServiceTypeConflict {
+            get {
+                return ResourceManager.GetString("ServiceTypeConflict", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node, and must be non-abstract, non-static class type.
+        /// </summary>
+        internal static string ServiceTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("ServiceTypeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Singleton service &apos;{0}&apos; cannot depend on transient service &apos;{1}&apos;.
         /// </summary>
         internal static string SingletonCannotDependOnTransient {
             get {
                 return ResourceManager.GetString("SingletonCannotDependOnTransient", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be static.
+        /// </summary>
+        internal static string SingletonMemberIsStatic {
+            get {
+                return ResourceManager.GetString("SingletonMemberIsStatic", resourceCulture);
             }
         }
         
@@ -375,11 +411,11 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to User &apos;{0}&apos; cannot use [{1}].
+        ///   Looks up a localized string similar to User &apos;{0}&apos; must inherit from Godot.Node.
         /// </summary>
-        internal static string UserInvalidAttribute {
+        internal static string UserMustBeNode {
             get {
-                return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
+                return ResourceManager.GetString("UserMustBeNode", resourceCulture);
             }
         }
     }

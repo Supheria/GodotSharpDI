@@ -13,20 +13,22 @@ public interface ICellGenerator;
 
 [Host]
 [User]
-public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
+public partial class ChunkManager : Node, IChunkGenerator, IChunkGetter
 {
-    [Singleton]
-    private IChunkGetter Self => this;
+    [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
+    private ChunkManager Self => this;
 
     [Inject]
     private ICellGenerator _cellManager;
 }
 
+public class CellService : ICellGenerator, IChunkGenerator;
+
 [Host, User]
 public partial class CellManager : Node, ICellGenerator, IServicesReady
 {
-    [Singleton]
-    private ICellGenerator Self => this;
+    [Singleton(typeof(ICellGenerator))]
+    private CellManager Self => this;
 
     [Inject]
     private IChunkGenerator _chunkGenerator;
@@ -34,10 +36,7 @@ public partial class CellManager : Node, ICellGenerator, IServicesReady
     [Inject]
     private IChunkGetter _chunkGetter;
 
-    public void OnServicesReady()
-    {
-        throw new System.NotImplementedException();
-    }
+    public void OnServicesReady() { }
 }
 
 public interface IDataWriter;
@@ -51,18 +50,18 @@ public interface IFinder;
 
 public interface ISearcher;
 
-[Singleton(typeof(IFinder), typeof(ISearcher))]
+[Transient(typeof(IFinder), typeof(ISearcher))]
 public partial class PathFinder : IFinder, ISearcher
 {
-    // [InjectConstructor]
+    [InjectConstructor]
     private PathFinder(IDataWriter writer, IDataReader reader) { }
 
-    // private PathFinder(IDataWriter writer) { }
+    private PathFinder(IDataWriter writer) { }
 }
 
 [Modules(
-    Instantiate = [typeof(DataBase), typeof(PathFinder)],
-    Expect = [typeof(ChunkManager), typeof(CellManager)]
+    Services = [typeof(DataBase), typeof(PathFinder)],
+    Hosts = [typeof(ChunkManager), typeof(CellManager)]
 )]
 public partial class Scope : Node, IScope
 {
@@ -71,4 +70,15 @@ public partial class Scope : Node, IScope
     //
     // [Inject]
     // private IChunkGetter _chunkGetter;
+    public Scope() { }
 }
+
+// [User]
+// public partial class OtherUser { }
+//
+// [User]
+// public partial class MyUser : Node
+// {
+//     [Inject]
+//     private OtherUser _other = new();
+// }

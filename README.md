@@ -1,282 +1,148 @@
-- # 📘 GodotSharp.DI
+# GodotSharp.DI
+
+一个专为 Godot 引擎设计的编译时依赖注入框架，通过 C# Source Generator 实现零反射、高性能的 DI 支持。
+
+## 🎯 设计理念
+
+GodotSharp.DI 的核心设计理念是**将 Godot 的场景树生命周期与传统 DI 容器模式融合**：
+
+- **场景树即容器层级**：利用 Godot 的场景树结构实现作用域（Scope）层级
+- **Node 生命周期集成**：服务的创建和销毁与 Node 的进入/退出场景树事件绑定
+- **编译时安全**：通过 Source Generator 在编译期完成依赖分析和代码生成，提供完整的编译时错误检查
+
+## 📦 安装
+
+```xml
+<PackageReference Include="GodotSharp.DI" Version="x.x.x" />
+<PackageReference Include="GodotSharp.DI.Generator" Version="x.x.x" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+```
+
+## 🚀 快速开始
+
+### 1. 定义服务
+
+```csharp
+// 定义服务接口
+public interface IPlayerStats
+{
+    int Health { get; set; }
+    int Mana { get; set; }
+}
+
+// 实现服务（Singleton 生命周期）
+[Singleton(typeof(IPlayerStats))]
+public partial class PlayerStatsService : IPlayerStats
+{
+    public int Health { get; set; } = 100;
+    public int Mana { get; set; } = 50;
+}
+```
+
+### 2. 定义 Scope（DI 容器）
+
+```csharp
+[Modules(
+    Services = [typeof(PlayerStatsService)],
+    Hosts = [typeof(GameManager)]
+)]
+public partial class GameScope : Node, IScope
+{
+    // 框架自动生成 IScope 实现
+}
+```
+
+### 3. 定义 Host（服务提供者）
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState
+{
+    // 将自己暴露为 IGameState 服务
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+    
+    public GameState CurrentState { get; set; }
+}
+```
+
+### 4. 定义 User（服务消费者）
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IServicesReady
+{
+    [Inject] private IPlayerStats _stats;
+    [Inject] private IGameState _gameState;
+    
+    // 所有依赖注入完成后调用
+    public void OnServicesReady()
+    {
+        UpdateUI();
+    }
+}
+```
+
+### 5. 场景树结构
+
+```
+GameScope (IScope)
+├── GameManager (Host)
+├── Player
+│   └── PlayerUI (User) ← 自动接收注入
+└── Enemies
+```
+
+## 📚 核心概念
+
+### 四种角色类型
+
+| 角色        | 说明                                         | 约束                     |
+| ----------- | -------------------------------------------- | ------------------------ |
+| **Service** | 纯逻辑服务，由 Scope 创建和管理              | 必须是非 Node 的 class   |
+| **Host**    | 场景级资源提供者，将 Node 资源桥接到 DI 世界 | 必须是 Node              |
+| **User**    | 依赖消费者，接收注入                         | 必须是 Node              |
+| **Scope**   | DI 容器，管理服务生命周期                    | 必须是 Node，实现 IScope |
 
-  **A developer‑friendly dependency injection framework for Godot C#**
+### 服务生命周期
 
-  GodotSharp.DI 让 Godot C# 拥有真正的依赖注入体验： 无需反射、无需运行时扫描、无需手写容器，所有内容都由 **Source Generator** 自动生成。
+| 生命周期      | 说明                              | 使用场景             |
+| ------------- | --------------------------------- | -------------------- |
+| **Singleton** | 在 Scope 内唯一，Scope 销毁时释放 | 状态管理、配置、缓存 |
+| **Transient** | 每次请求创建新实例                | 无状态服务、工厂产品 |
 
-  它的目标是：
+## 📖 详细文档
 
-  - **简单易用**
-  - **高性能（零反射）**
-  - **强静态分析（编译期错误）**
-  - **与 Godot 生命周期完美融合**
-  - **适合游戏开发者**
+- [角色详解](./docs/ROLES.md) - 四种角色的详细说明和使用指南
+- [生命周期管理](./docs/LIFECYCLE.md) - 服务生命周期和 Scope 层级
+- [最佳实践](./docs/BEST_PRACTICES.md) - 推荐的使用模式和常见陷阱
+- [API 参考](./docs/API.md) - 完整的 API 文档
+- [诊断代码](./docs/DIAGNOSTICS.md) - 编译时错误和警告说明
+- [类型约束总表](./docs/TYPE_CONSTRAINTS.md) - 完整的类型约束规则
 
-  # 📑 目录
+## ⚠️ 重要注意事项
 
-  1. Why GodotSharp.DI?
-  2. QuickStart
-  3. How it works
-  4. Roles: Host / User / Service / Scope
-  5. Lifecycle Model
-  6. Thread Safety
-  7. Code Generation
-  8. Diagnostics
-  9. Examples
-  10. Roadmap / TODO
+### Transient 服务的生命周期
 
-  # 1. **Why GodotSharp.DI?**
+Transient 服务的实例不由 Scope 跟踪，**调用者负责释放**：
 
-  Godot C# 缺少一个真正适合游戏开发的 DI 框架。 常见问题包括：
+```csharp
+// 如果 Transient 服务实现了 IDisposable
+// 调用者需要自行管理释放
+```
 
-  - 反射太慢
-  - 生命周期难以管理
-  - Node 之间依赖混乱
-  - 服务初始化顺序不可控
-  - 多 Scope 难以实现
-  - 线程安全问题难以排查
+## 🔧 编译时诊断
 
-  GodotSharp.DI 解决了这些问题：
+框架提供完整的编译时错误检查：
 
-  - **零反射**（全部编译期生成）
-  - **强语义角色系统**（Host / User / Service / Scope）
-  - **自动注入**（绑定 Godot 生命周期）
-  - **自动服务注册**
-  - **自动依赖图验证**
-  - **自动生成代码**
-  - **自动线程安全检查（Debug 模式）**
+```
+GDI_C001: 类型不能同时标记为 [Singleton] 和 [Transient]
+GDI_M050: [Inject] 成员类型无效
+GDI_D020: 检测到循环依赖
+...
+```
 
-  # 2. **QuickStart**
+完整诊断代码列表请参阅 [诊断文档](./docs/DIAGNOSTICS.md)。
 
-  ### 1. 定义 Service
+## 📄 许可证
 
-  csharp
-
-  ```
-  [Singleton(typeof(IConfig))]
-  public partial class ConfigService : IConfig { }
-  ```
-
-  ### 2. 定义 Host（必须是 Node）
-
-  csharp
-
-  ```
-  [Host]
-  public partial class GameHost : Node
-  {
-      [Singleton(typeof(IConfig))]
-      private ConfigService Config { get; } = new();
-  }
-  ```
-
-  ### 3. 定义 Scope（必须是 Node）
-
-  csharp
-
-  ```
-  [Modules(Instantiate = [typeof(ConfigService)], Expect = [typeof(GameHost)])]
-  public partial class GameScope : Node, IScope { }
-  ```
-
-  ### 4. 定义 User
-
-  csharp
-
-  ```
-  [User]
-  public partial class PlayerUI : Control, IServicesReady
-  {
-      [Inject] private IConfig _config;
-  
-      public void OnServicesReady()
-      {
-          GD.Print(_config.SomeValue);
-      }
-  }
-  ```
-
-  # 3. **How it works**
-
-  GodotSharp.DI 使用 Source Generator 自动生成：
-
-  - Service 构造函数工厂
-  - Host Attach/Unattach
-  - User 注入逻辑
-  - Scope 生命周期
-  - 成员级递归注入
-  - 依赖图验证
-  - 线程安全断言（Debug）
-
-  你写的只是标记（Attributes）， 框架会自动生成所有 DI 代码。
-
-  # 4. **Roles: Host / User / Service / Scope**
-
-  ## 🟥 Service
-
-  - 由 Host 注册
-  - 构造函数注入
-  - 必须是非 Node
-  - 生命周期由 Scope 管理
-
-  ## 🟦 User
-
-  - 消费服务
-  - 字段/属性注入
-  - 可以是 Node 或非 Node
-  - 注入由宿主 Node 自动触发
-  - 不影响 Scope
-
-  ### 非 Node User 注入机制
-
-  ```mermaid
-  flowchart TD
-      A[Node.EnterTree] --> B[AttachToScope]
-      B --> C[ResolveUserDependencies]
-      C --> D[Attach Member Users]
-  ```
-
-  ## 🟥 Host
-
-  - **必须是 Node**
-  - 注册服务
-  - 生命周期绑定 EnterTree / ExitTree
-  - 不允许作为成员嵌套
-  - 不允许构造函数注入
-
-  ## 🟩 Host + User
-
-  - 必须是 Node
-  - 先注册服务，再注入依赖
-  - OnServicesReady 在依赖全部就绪后触发
-
-  ## 🟧 Scope
-
-  - 必须是 Node
-  - 管理服务生命周期
-  - 构造 Service
-  - 注入 User
-  - 注册 Host
-
-  # 5. **Lifecycle Model**
-
-  mermaid
-
-  ```
-  flowchart TD
-      A[Node.EnterTree] --> B[AttachHostServices]
-      B --> C[ResolveUserDependencies]
-      C --> D[OnServicesReady]
-      D --> E[Node.Ready]
-      E --> F[Node.ExitTree]
-      F --> G[UnattachHostServices]
-  ```
-
-  # 6. **Thread Safety**
-
-  GodotSharp.DI 是 **主线程 DI 框架**。
-
-  ### ❌ 以下方法绝不能在后台线程调用：
-
-  - ResolveDependency
-  - RegisterService / UnregisterService
-  - GetService
-  - InstantiateScopeSingletons
-  - DisposeScopeSingletons
-  - ResolveUserDependencies
-  - CreateService
-  - OnDependencyResolved
-  - OnServicesReady
-
-  ### ✔ 正确模式
-
-  csharp
-
-  ```
-  Task.Run(() =>
-  {
-      var data = ProcessData();
-      CallDeferred(nameof(RegisterServiceOnMainThread), data);
-  });
-  ```
-
-  # 7. **Code Generation**
-
-  生成器自动生成：
-
-  - Service 构造函数工厂
-  - Host Attach/Unattach
-  - User 注入逻辑
-  - Scope 生命周期
-  - 成员级递归 Attach/Unattach
-  - Debug 信息（可选）
-
-  生成器流程：
-
-  代码
-
-  ```
-  ClassTypeValidator → TypeInfo → DiGraph → Generators
-  ```
-
-  # 8. **Diagnostics**
-
-  ## ❌ 禁止手动注入
-
-  ### **GDI-U-004：禁止手动调用 AttachToScope()**
-
-  代码
-
-  ```
-  禁止手动调用 AttachToScope。注入应由宿主 Node 的生命周期自动触发。
-  ```
-
-  ### **GDI-U-005：禁止手动调用 ResolveUserDependencies()**
-
-  代码
-
-  ```
-  禁止手动调用 ResolveUserDependencies。依赖注入必须由框架自动执行。
-  ```
-
-  # 9. **Examples**
-
-  ## Host + User
-
-  csharp
-
-  ```
-  [Host, User]
-  public partial class GameManager : Node
-  {
-      [Inject] private IConfig _config;
-  
-      public IGameState CreateGameState() => new GameState();
-  
-      public void OnServicesReady()
-      {
-          GD.Print("GameManager ready");
-      }
-  }
-  ```
-
-  # 10.**Rules Table**
-
-  | 角色      | Inject | InjectConstructor | Singleton | Transient | Host | User | Modules | 非 Node | Node |
-  | --------- | ------ | ----------------- | --------- | --------- | ---- | ---- | ------- | ------- | ---- |
-  | Service   | ❌      | ✔                 | ✔         | ✔         | ❌    | ❌    | ❌       | ✔       | ❌    |
-  | User      | ✔      | ❌                 | ❌         | ❌         | ❌    | ✔    | ❌       | ✔       | ✔    |
-  | Host      | ❌      | ❌                 | ✔(成员)   | ❌         | ✔    | ❌    | ❌       | ❌       | ✔    |
-  | Host+User | ✔      | ❌                 | ✔(成员)   | ❌         | ✔    | ✔    | ❌       | ❌       | ✔    |
-  | Scope     | ❌      | ❌                 | ❌         | ❌         | ❌    | ❌    | ✔       | ❌       | ✔    |
-
-  # 11. **Roadmap / TODO**
-
-  - 文档完善
-  - 多语言支持（.resx）
-  - 完整 Diagnostics.md
-  - 性能优化
-  - Scope 继承
-  - Debug 调试工具
-  - 示例项目
-  - ECS 集成示例
+MIT License

@@ -202,14 +202,14 @@ public sealed partial class Problem1B
 // GDI012 (错误）
 //
 
-[AutoModules]
+[Modules]
 public sealed class Problem12A : Godot.Node, IScope { } // GDI012：Problem12A 必须是 partial 才能实现接口 IScope。
 
 //
 // GDI013 (错误）
 //
 
-[AutoModules]
+[Modules]
 public sealed partial class Problem13A : IScope { } // GDI013：Problem13A 必须是 Node 类型或任何 Node 派生类型才能实现 IScope
 
 //
@@ -229,7 +229,7 @@ public sealed partial class NodeHost15
     private Host15 _tools = new();
 }
 
-[Modules(Expect = [typeof(NodeHost15)])] // GDI015：Problem15A 约束了 Host 类型 NodeHost15 ，但未约束其内部 Host 类型 Host15
+[Modules(Hosts = [typeof(NodeHost15)])] // GDI015：Problem15A 约束了 Host 类型 NodeHost15 ，但未约束其内部 Host 类型 Host15
 public sealed partial class Problem15A { }
 
 //
@@ -240,7 +240,7 @@ public sealed partial class Problem15A { }
 [Transient] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [Transient]
 [Host] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [Host]
 [User] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [User]
-[AutoModules]
+[Modules]
 public sealed partial class Problem16A : IScope { }
 
 //
@@ -283,7 +283,7 @@ public sealed partial class Host17C : IDataWriter
     private Host17C Self => this;
 }
 
-[AutoModules] // GDI017：同一命名空间中存在多个服务声明为 IDataWriter 类型
+[Modules] // GDI017：同一命名空间中存在多个服务声明为 IDataWriter 类型
 public sealed partial class Scope17 : IScope { }
 
 //

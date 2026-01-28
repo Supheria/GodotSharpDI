@@ -24,4 +24,25 @@ public static class DisplayFormats
             | SymbolDisplayGenericsOptions.IncludeVariance,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
     );
+
+    public static bool GetNamespace(INamedTypeSymbol type, out string ns)
+    {
+        if (type.ContainingNamespace.IsGlobalNamespace)
+        {
+            ns = string.Empty;
+            return false;
+        }
+        ns = type.ContainingNamespace.ToDisplayString();
+        return true;
+    }
+
+    public static string GetClassName(INamedTypeSymbol type)
+    {
+        return type.ToDisplayString(ClassName);
+    }
+
+    public static string GetFullQualifiedName(ITypeSymbol type)
+    {
+        return type.ToDisplayString(TypeFullQualified);
+    }
 }

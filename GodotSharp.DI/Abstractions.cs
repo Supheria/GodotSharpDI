@@ -41,12 +41,9 @@ public sealed class UserAttribute : Attribute { }
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class ModulesAttribute : Attribute
 {
-    public Type[] Instantiate { get; set; } = [];
-    public Type[] Expect { get; set; } = [];
+    public Type[] Services { get; set; } = [];
+    public Type[] Hosts { get; set; } = [];
 }
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class AutoModulesAttribute : Attribute { }
 
 public interface IScope
 {
