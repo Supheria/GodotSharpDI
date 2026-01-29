@@ -1,4 +1,6 @@
-﻿namespace GodotSharp.DI.Generator.Internal.Helpers;
+﻿using GodotSharp.DI.Shared;
+
+namespace GodotSharp.DI.Generator.Internal.Helpers;
 
 /// <summary>
 /// 代码生成辅助方法 - 减少生成器之间的代码重复
@@ -51,5 +53,22 @@ internal static class GeneratorHelpers
         );
         f.AppendXmlComment("</summary>");
         f.AppendLine(IdeAttributes.EditorBrowsableNever);
+    }
+
+    public static void BeginTryCatch(this CodeFormatter f)
+    {
+        f.AppendLine("try");
+        f.BeginBlock();
+    }
+
+    public static void EndTryCatch(this CodeFormatter f)
+    {
+        f.EndBlock();
+        f.AppendLine($"catch ({GlobalNames.Exception} ex)");
+        f.BeginBlock();
+        {
+            f.AppendLine($"{GlobalNames.GodotGD}.PushError(ex);");
+        }
+        f.EndBlock();
     }
 }

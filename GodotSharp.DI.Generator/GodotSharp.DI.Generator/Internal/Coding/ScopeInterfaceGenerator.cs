@@ -151,7 +151,10 @@ internal static class ScopeInterfaceGenerator
             $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Object}> _singletonServices = new();"
         );
         f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.Object}> _scopeSingletonInstances = new();"
+            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
+        );
+        f.AppendLine(
+            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableTransients = new();"
         );
         f.AppendLine(
             $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Object}>>> _waiters = new();"
@@ -176,7 +179,24 @@ internal static class ScopeInterfaceGenerator
             );
             f.BeginBlock();
             {
-                f.AppendLine("factory.Invoke(this, instance => onResolved.Invoke((T)instance));");
+                f.AppendLine("factory.Invoke(this, instance =>");
+                f.BeginBlock();
+                {
+                    f.AppendLine($"if (instance is {GlobalNames.IDisposable} disposable)");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("_disposableTransients.Add(disposable);", "跟踪实例");
+                    }
+                    f.EndBlock();
+                    f.AppendLine();
+
+                    f.BeginTryCatch();
+                    {
+                        f.AppendLine("onResolved.Invoke((T)instance);");
+                    }
+                    f.EndTryCatch();
+                }
+                f.EndBlock(");");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -209,7 +229,11 @@ internal static class ScopeInterfaceGenerator
             );
             f.BeginBlock();
             {
-                f.AppendLine("onResolved.Invoke((T)singleton);");
+                f.BeginTryCatch();
+                {
+                    f.AppendLine("onResolved.Invoke((T)singleton);");
+                }
+                f.EndTryCatch();
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -277,7 +301,11 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("foreach (var callback in waiterList)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("callback.Invoke(instance);");
+                    f.BeginTryCatch();
+                    {
+                        f.AppendLine("callback.Invoke(instance);");
+                    }
+                    f.EndTryCatch();
                 }
                 f.EndBlock();
             }

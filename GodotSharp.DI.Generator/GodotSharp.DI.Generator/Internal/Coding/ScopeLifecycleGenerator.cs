@@ -25,6 +25,9 @@ internal static class ScopeLifecycleGenerator
         GenerateDisposeScopeSingletons(f);
         f.AppendLine();
 
+        GenerateDisposeTransients(f);
+        f.AppendLine();
+
         GenerateCheckWaitList(f);
         f.AppendLine();
 
@@ -102,7 +105,12 @@ internal static class ScopeLifecycleGenerator
                         f.AppendLine("(instance, scope) =>");
                         f.BeginBlock();
                         {
-                            f.AppendLine("_scopeSingletonInstances.Add(instance);");
+                            f.AppendLine($"if (instance is {GlobalNames.IDisposable} disposable)");
+                            f.BeginBlock();
+                            {
+                                f.AppendLine("_disposableSingletons.Add(disposable);");
+                            }
+                            f.EndBlock();
 
                             foreach (var exposedType in serviceNode.ProvidedServices)
                             {
@@ -128,31 +136,42 @@ internal static class ScopeLifecycleGenerator
         f.AppendLine("private void DisposeScopeSingletons()");
         f.BeginBlock();
         {
-            f.AppendLine("foreach (var instance in _scopeSingletonInstances)");
+            f.AppendLine("foreach (var disposable in _disposableSingletons)");
             f.BeginBlock();
             {
-                f.AppendLine($"if (instance is {GlobalNames.IDisposable} disposable)");
-                f.BeginBlock();
+                f.BeginTryCatch();
                 {
-                    f.AppendLine("try");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine("disposable.Dispose();");
-                    }
-                    f.EndBlock();
-                    f.AppendLine($"catch ({GlobalNames.Exception} ex)");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine($"{GlobalNames.GodotGD}.PushError(ex);");
-                    }
-                    f.EndBlock();
+                    f.AppendLine("disposable.Dispose();");
                 }
-                f.EndBlock();
+                f.EndTryCatch();
             }
             f.EndBlock();
 
-            f.AppendLine("_scopeSingletonInstances.Clear();");
+            f.AppendLine("_disposableSingletons.Clear();");
             f.AppendLine("_singletonServices.Clear();");
+        }
+        f.EndBlock();
+    }
+
+    private static void GenerateDisposeTransients(CodeFormatter f)
+    {
+        // DisposeTransients
+        f.AppendHiddenMethodCommentAndAttribute("释放所有被跟踪的 Transient 实例");
+        f.AppendLine("private void DisposeTransients()");
+        f.BeginBlock();
+        {
+            f.AppendLine("foreach (var disposable in _disposableTransients)");
+            f.BeginBlock();
+            {
+                f.BeginTryCatch();
+                {
+                    f.AppendLine("disposable.Dispose();");
+                }
+                f.EndTryCatch();
+            }
+            f.EndBlock();
+
+            f.AppendLine("_disposableTransients.Clear();");
         }
         f.EndBlock();
     }
@@ -230,6 +249,7 @@ internal static class ScopeLifecycleGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine("DisposeScopeSingletons();");
+                    f.AppendLine("DisposeTransients();");
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
