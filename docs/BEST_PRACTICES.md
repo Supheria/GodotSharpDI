@@ -218,6 +218,44 @@ public partial class A : Node
 }
 ```
 
+### ✅ 以下情形不会形成循环依赖
+
+```csharp
+// 情形 1：
+public interface IMyService { }
+
+[Host, User]
+public partial class MyService : IMyService
+{
+    [Singleton(typeof(IMyService))]
+    private MyService Self => this; // Host 在注册字段时，不会考虑 User 需要注入的字段
+
+    [Inject] 
+    private IMyService _self; // IMyService 注册后会触发 User 的回调方法注入字段
+}
+
+// 情形 2：
+public interface IServiceA { }
+public interface IServiceB { }
+
+[Singleton(typeof(IServiceA))]
+public partial class ServiceA : IServiceA
+{
+    public ServiceA(IServiceB b) { } // IServiceB 注册后会触发 ServiceA 的回调方法注入构造函数，
+                                     // 随后触发 User 的回调方法注入字段
+}
+
+[Host, User]
+public partial class HostUser : Node, IServiceB
+{
+    [Singleton(typeof(IServiceB))]
+    private HostUser Self => this; // Host 在注册字段时，不会考虑 User 需要注入的字段
+
+    [Inject] 
+    private IServiceA _serviceA;
+}
+```
+
 ------
 
 ## Host 设计
