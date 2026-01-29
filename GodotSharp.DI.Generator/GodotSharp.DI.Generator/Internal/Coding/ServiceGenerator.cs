@@ -17,17 +17,16 @@ internal static class ServiceGenerator
 
         var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
         var className = type.Symbol.Name;
-        var isTransient = type.Lifetime == ServiceLifetime.Transient;
 
         f.BeginClassDeclaration(namespaceName, className);
         {
             if (type.Constructor == null || type.Constructor.Parameters.IsEmpty)
             {
-                GenerateParameterlessFactory(f, className, isTransient);
+                GenerateParameterlessFactory(f, className);
             }
             else
             {
-                GenerateParameterizedFactory(f, className, type.Constructor, isTransient);
+                GenerateParameterizedFactory(f, className, type.Constructor);
             }
         }
         f.EndClassDeclaration();
@@ -35,31 +34,17 @@ internal static class ServiceGenerator
         context.AddSource($"{className}.DI.Factory.g.cs", f.ToString());
     }
 
-    private static void GenerateParameterlessFactory(
-        CodeFormatter f,
-        string className,
-        bool isTransient
-    )
+    private static void GenerateParameterlessFactory(CodeFormatter f, string className)
     {
-        var parameters = isTransient
-            ? $"{GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}> onCreated"
-            : $"{GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated";
-
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"public static void CreateService({parameters})");
+        f.AppendLine(
+            $"public static void CreateService({GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated)"
+        );
         f.BeginBlock();
         {
             f.AppendLine($"var instance = new {className}();");
-
-            if (isTransient)
-            {
-                f.AppendLine("onCreated.Invoke(instance);");
-            }
-            else
-            {
-                f.AppendLine("onCreated.Invoke(instance, scope);");
-            }
+            f.AppendLine("onCreated.Invoke(instance, scope);");
         }
         f.EndBlock();
     }
@@ -67,17 +52,14 @@ internal static class ServiceGenerator
     private static void GenerateParameterizedFactory(
         CodeFormatter f,
         string className,
-        ConstructorInfo ctor,
-        bool isTransient
+        ConstructorInfo ctor
     )
     {
-        var parameters = isTransient
-            ? $"{GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}> onCreated"
-            : $"{GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated";
-
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"public static void CreateService({parameters})");
+        f.AppendLine(
+            $"public static void CreateService({GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated)"
+        );
         f.BeginBlock();
         {
             f.AppendLine($"var remaining = {ctor.Parameters.Length};");
@@ -124,15 +106,7 @@ internal static class ServiceGenerator
                     }
                     var paramList = string.Join(", ", paramNames);
                     f.AppendLine($"var instance = new {className}({paramList});");
-
-                    if (isTransient)
-                    {
-                        f.AppendLine("onCreated.Invoke(instance);");
-                    }
-                    else
-                    {
-                        f.AppendLine("onCreated.Invoke(instance, scope);");
-                    }
+                    f.AppendLine("onCreated.Invoke(instance, scope);");
                 }
                 f.EndBlock();
             }

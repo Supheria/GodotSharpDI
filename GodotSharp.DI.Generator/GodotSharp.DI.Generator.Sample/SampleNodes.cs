@@ -50,17 +50,17 @@ public interface IFinder;
 
 public interface ISearcher;
 
-[Transient(typeof(IFinder), typeof(ISearcher))]
-public partial class PathFinder : IFinder, ISearcher
+[Singleton(typeof(IFinder), typeof(ISearcher))]
+public partial class PathFinderFactory : IFinder, ISearcher
 {
     [InjectConstructor]
-    private PathFinder(IDataWriter writer, IDataReader reader) { }
+    private PathFinderFactory(IDataWriter writer, IDataReader reader) { }
 
-    private PathFinder(IDataWriter writer) { }
+    private PathFinderFactory(IDataWriter writer) { }
 }
 
 [Modules(
-    Services = [typeof(DataBase), typeof(PathFinder)],
+    Services = [typeof(DataBase), typeof(PathFinderFactory)],
     Hosts = [typeof(ChunkManager), typeof(CellManager)]
 )]
 public partial class Scope : Node, IScope

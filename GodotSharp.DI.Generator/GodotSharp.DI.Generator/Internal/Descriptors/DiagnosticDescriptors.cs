@@ -110,11 +110,6 @@ internal static class DiagnosticDescriptors
     // C — Class-level
     // ============================================================
 
-    public static readonly DiagnosticDescriptor ServiceLifetimeConflict = Class(
-        "001",
-        Resources.ServiceLifetimeConflict
-    );
-
     public static readonly DiagnosticDescriptor HostInvalidAttribute = Class(
         "010",
         Resources.HostInvalidAttribute
@@ -286,11 +281,6 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor ServiceConstructorParameterInvalid =
         DependencyGraph("020", Resources.ServiceConstructorParameterInvalid);
-
-    public static readonly DiagnosticDescriptor SingletonCannotDependOnTransient = DependencyGraph(
-        "030",
-        Resources.SingletonCannotDependOnTransient
-    );
 
     public static readonly DiagnosticDescriptor ServiceTypeConflict = DependencyGraph(
         "040",

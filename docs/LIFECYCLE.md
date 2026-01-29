@@ -71,64 +71,6 @@ private void DisposeScopeSingletons()
 }
 ```
 
-### Transient（瞬态）
-
-Transient 服务每次请求都创建新实例。
-
-```csharp
-[Transient(typeof(IBullet))]
-public partial class Bullet : IBullet
-{
-    public Vector3 Position { get; set; }
-    public Vector3 Velocity { get; set; }
-}
-```
-
-#### ⚠️ 重要：Transient 实例的生命周期
-
-**Transient 实例不由 Scope 跟踪，调用者负责管理其生命周期。**
-
-```csharp
-[User]
-public partial class WeaponSystem : Node
-{
-    [Inject] private IBulletFactory _factory;
-    
-    private List<IBullet> _activeBullets = new();
-    
-    public void Fire()
-    {
-        // 请求 Transient 服务
-        scope.ResolveDependency<IBullet>(bullet =>
-        {
-            _activeBullets.Add(bullet);
-            // 调用者负责跟踪和释放
-        });
-    }
-    
-    public override void _ExitTree()
-    {
-        // 调用者负责释放
-        foreach (var bullet in _activeBullets)
-        {
-            if (bullet is IDisposable d) d.Dispose();
-        }
-        _activeBullets.Clear();
-    }
-}
-```
-
-#### Transient vs Singleton 选择指南
-
-| 场景 | 推荐生命周期 | 原因 |
-|------|--------------|------|
-| 状态管理服务 | Singleton | 需要共享状态 |
-| 配置/设置 | Singleton | 全局唯一 |
-| 缓存服务 | Singleton | 需要持久化 |
-| 无状态计算 | Transient | 无共享需求 |
-| 工厂产品 | Transient | 每次需要新实例 |
-| 一次性操作 | Transient | 用完即弃 |
-
 ---
 
 ## Scope 层级
@@ -469,23 +411,3 @@ public partial class B : IB
     }
 }
 ```
-
-### 4. Singleton 不依赖 Transient
-
-```csharp
-// ❌ 编译错误 GDI_D040
-[Singleton(typeof(IManager))]
-public partial class Manager : IManager
-{
-    public Manager(ITransientService service) { }  // 错误！
-}
-
-[Transient(typeof(ITransientService))]
-public partial class TransientService : ITransientService { }
-
-// ✅ 正确：Singleton 依赖 Singleton
-// ✅ 正确：Transient 依赖 Singleton
-// ✅ 正确：Transient 依赖 Transient
-```
-
-原因：Singleton 在 Scope 生命周期内唯一，如果依赖 Transient，每次应该获取新实例还是缓存实例？语义不清。

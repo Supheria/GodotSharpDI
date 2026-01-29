@@ -108,7 +108,6 @@ GameScope (IScope)
 | 生命周期      | 说明                              | 使用场景             |
 | ------------- | --------------------------------- | -------------------- |
 | **Singleton** | 在 Scope 内唯一，Scope 销毁时释放 | 状态管理、配置、缓存 |
-| **Transient** | 每次请求创建新实例                | 无状态服务、工厂产品 |
 
 ## 📖 详细文档
 
@@ -118,17 +117,6 @@ GameScope (IScope)
 - [API 参考](./docs/API.md) - 完整的 API 文档
 - [诊断代码](./docs/DIAGNOSTICS.md) - 编译时错误和警告说明
 - [类型约束总表](./docs/TYPE_CONSTRAINTS.md) - 完整的类型约束规则
-
-## ⚠️ 重要注意事项
-
-### Transient 服务的生命周期
-
-Transient 服务的实例不由 Scope 跟踪，**调用者负责释放**：
-
-```csharp
-// 如果 Transient 服务实现了 IDisposable
-// 调用者需要自行管理释放
-```
 
 ## 🔧 编译时诊断
 
@@ -146,3 +134,4 @@ GDI_D020: 检测到循环依赖
 ## 📄 许可证
 
 MIT License
+

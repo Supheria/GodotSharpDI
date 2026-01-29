@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
@@ -13,9 +14,9 @@ internal static class ScopeInterfaceGenerator
 {
     public static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
-        var (singletonServiceTypes, transientFactories) = CollectServiceTypes(node, graph);
+        var serviceTypes = CollectServiceTypes(node, graph);
 
-        GenerateStaticCollections(f, singletonServiceTypes, transientFactories);
+        GenerateStaticCollections(f, serviceTypes);
         f.AppendLine();
 
         GenerateInstanceFields(f);
@@ -30,14 +31,9 @@ internal static class ScopeInterfaceGenerator
         GenerateUnregisterService(f);
     }
 
-    private static (
-        System.Collections.Generic.HashSet<ITypeSymbol>,
-        System.Collections.Generic.Dictionary<ITypeSymbol, string>
-    ) CollectServiceTypes(ScopeNode node, DiGraph graph)
+    private static HashSet<ITypeSymbol> CollectServiceTypes(ScopeNode node, DiGraph graph)
     {
-        var singletonServiceTypes = new System.Collections.Generic.HashSet<ITypeSymbol>(
-            SymbolEqualityComparer.Default
-        );
+        var singletonServiceTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
 
         // 从 Instantiate 的服务中收集
         foreach (var serviceType in node.InstantiateServices)
@@ -46,7 +42,7 @@ internal static class ScopeInterfaceGenerator
                 SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, serviceType)
             );
 
-            if (serviceNode != null && serviceNode.TypeInfo.Lifetime == ServiceLifetime.Singleton)
+            if (serviceNode != null)
             {
                 foreach (var exposedType in serviceNode.ProvidedServices)
                 {
@@ -89,37 +85,17 @@ internal static class ScopeInterfaceGenerator
             }
         }
 
-        var transientFactories = new System.Collections.Generic.Dictionary<ITypeSymbol, string>(
-            SymbolEqualityComparer.Default
-        );
-
-        foreach (var serviceType in node.InstantiateServices)
-        {
-            var serviceNode = graph.ServiceNodes.FirstOrDefault(n =>
-                SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, serviceType)
-            );
-
-            if (serviceNode != null && serviceNode.TypeInfo.Lifetime == ServiceLifetime.Transient)
-            {
-                foreach (var exposedType in serviceNode.ProvidedServices)
-                {
-                    transientFactories[exposedType] = serviceType.Name;
-                }
-            }
-        }
-
-        return (singletonServiceTypes, transientFactories);
+        return singletonServiceTypes;
     }
 
     private static void GenerateStaticCollections(
         CodeFormatter f,
-        System.Collections.Generic.HashSet<ITypeSymbol> singletonServiceTypes,
-        System.Collections.Generic.Dictionary<ITypeSymbol, string> transientFactories
+        HashSet<ITypeSymbol> singletonServiceTypes
     )
     {
-        // SingletonServiceTypes
+        // ServiceTypes
         f.AppendLine(
-            $"private static readonly {GlobalNames.HashSet}<{GlobalNames.Type}> SingletonServiceTypes = new()"
+            $"private static readonly {GlobalNames.HashSet}<{GlobalNames.Type}> ServiceTypes = new()"
         );
         f.BeginBlock();
         {
@@ -130,34 +106,18 @@ internal static class ScopeInterfaceGenerator
         }
         f.EndBlock(";");
         f.AppendLine();
-
-        // TransientFactories
-        f.AppendLine(
-            $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Action}<{GlobalNames.IScope}, {GlobalNames.Action}<{GlobalNames.Object}>>> TransientFactories = new()"
-        );
-        f.BeginBlock();
-        {
-            foreach (var kvp in transientFactories)
-            {
-                f.AppendLine($"[typeof({kvp.Key.ToDisplayString()})] = {kvp.Value}.CreateService,");
-            }
-        }
-        f.EndBlock(";");
     }
 
     private static void GenerateInstanceFields(CodeFormatter f)
     {
         f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Object}> _singletonServices = new();"
-        );
-        f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
-        );
-        f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableTransients = new();"
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Object}> _services = new();"
         );
         f.AppendLine(
             $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Object}>>> _waiters = new();"
+        );
+        f.AppendLine(
+            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
         );
     }
 
@@ -173,36 +133,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var type = typeof(T);");
             f.AppendLine();
 
-            f.AppendLine(
-                "if (TransientFactories.TryGetValue(type, out var factory))",
-                "尝试从瞬态工厂创建"
-            );
-            f.BeginBlock();
-            {
-                f.AppendLine("factory.Invoke(this, instance =>");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"if (instance is {GlobalNames.IDisposable} disposable)");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine("_disposableTransients.Add(disposable);", "跟踪实例");
-                    }
-                    f.EndBlock();
-                    f.AppendLine();
-
-                    f.BeginTryCatch();
-                    {
-                        f.AppendLine("onResolved.Invoke((T)instance);");
-                    }
-                    f.EndTryCatch();
-                }
-                f.EndBlock(");");
-                f.AppendLine("return;");
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            f.AppendLine("if (!SingletonServiceTypes.Contains(type))", "检查是否是单例服务类型");
+            f.AppendLine("if (!ServiceTypes.Contains(type))", "检查是否是单例服务类型");
             f.BeginBlock();
             {
                 f.AppendLine("var parent = GetParentScope();", "尝试从父 Scope 解析");
@@ -224,7 +155,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine();
 
             f.AppendLine(
-                "if (_singletonServices.TryGetValue(type, out var singleton))",
+                "if (_services.TryGetValue(type, out var singleton))",
                 "尝试从已注册的单例获取"
             );
             f.BeginBlock();
@@ -263,7 +194,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var type = typeof(T);");
             f.AppendLine();
 
-            f.AppendLine("if (!SingletonServiceTypes.Contains(type))", "检查是否是单例服务类型");
+            f.AppendLine("if (!ServiceTypes.Contains(type))", "检查是否是单例服务类型");
             f.BeginBlock();
             {
                 f.AppendLine("var parent = GetParentScope();", "尝试向父 Scope 注册");
@@ -284,7 +215,7 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine("if (!_singletonServices.TryAdd(type, instance))", "注册服务");
+            f.AppendLine("if (!_services.TryAdd(type, instance))", "注册服务");
             f.BeginBlock();
             {
                 f.AppendLine(
@@ -324,7 +255,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var type = typeof(T);");
             f.AppendLine();
 
-            f.AppendLine("if (!SingletonServiceTypes.Contains(type))", "检查是否是单例服务类型");
+            f.AppendLine("if (!ServiceTypes.Contains(type))", "检查是否是单例服务类型");
             f.BeginBlock();
             {
                 f.AppendLine("var parent = GetParentScope();", "尝试从父 Scope 注销");
@@ -345,7 +276,7 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine("_singletonServices.Remove(type);");
+            f.AppendLine("_services.Remove(type);");
         }
         f.EndBlock();
     }

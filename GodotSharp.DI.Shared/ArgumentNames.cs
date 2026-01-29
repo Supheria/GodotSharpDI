@@ -9,7 +9,7 @@ public static class ArgumentNames
     public const string Hosts = "Hosts";
 
     //
-    // SingletonAttribute / TransientAttribute
+    // SingletonAttribute
     //
     public const string ServiceTypes = "ServiceTypes";
 }

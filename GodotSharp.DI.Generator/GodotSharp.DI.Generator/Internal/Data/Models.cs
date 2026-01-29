@@ -18,23 +18,12 @@ internal enum TypeRole
 }
 
 /// <summary>
-/// 服务生命周期
-/// </summary>
-internal enum ServiceLifetime
-{
-    None,
-    Singleton,
-    Transient,
-}
-
-/// <summary>
 /// 原始类语义信息（Raw）
 /// </summary>
 internal sealed record RawClassSemanticInfo(
     INamedTypeSymbol Symbol,
     Location Location,
     bool HasSingletonAttribute,
-    bool HasTransientAttribute,
     bool HasHostAttribute,
     bool HasUserAttribute,
     bool HasModulesAttribute,
@@ -61,7 +50,6 @@ internal sealed record TypeInfo(
     INamedTypeSymbol Symbol,
     Location Location,
     TypeRole Role,
-    ServiceLifetime Lifetime,
     bool ImplementsIServicesReady,
     bool IsNode,
     ImmutableArray<MemberInfo> Members,

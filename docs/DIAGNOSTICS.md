@@ -17,27 +17,6 @@ GodotSharp.DI 在编译时提供完整的错误检查。本文档列出所有诊
 
 ## Class 级别错误 (GDI_C)
 
-### GDI_C001: ServiceLifetimeConflict
-
-**消息**: `Type '{0}' cannot be both [Singleton] and [Transient]`
-
-**原因**: 同一个类同时标记了 `[Singleton]` 和 `[Transient]`。
-
-**解决方案**: 只使用其中一个生命周期标记。
-
-```csharp
-// ❌ 错误
-[Singleton(typeof(IService))]
-[Transient(typeof(IService))]
-public partial class MyService : IService { }
-
-// ✅ 正确
-[Singleton(typeof(IService))]
-public partial class MyService : IService { }
-```
-
-------
-
 ### GDI_C010: HostInvalidAttribute
 
 **消息**: `Host '{0}' cannot use [{1}]`
@@ -473,26 +452,6 @@ public partial class B : IB { public B(IA a) { } }
 **消息**: `Service '{0}' has constructor parameter of type '{1}', which is not a Service`
 
 **原因**: Service 构造函数参数的类型不是有效的服务类型。
-
-------
-
-### GDI_D030: SingletonCannotDependOnTransient
-
-**消息**: `Singleton service '{0}' cannot depend on transient service '{1}'`
-
-**原因**: Singleton 服务依赖 Transient 服务。
-
-```csharp
-// ❌ 错误
-[Transient(typeof(ITransient))]
-public partial class TransientService : ITransient { }
-
-[Singleton(typeof(ISingleton))]
-public partial class SingletonService : ISingleton
-{
-    public SingletonService(ITransient t) { }  // 错误
-}
-```
 
 ------
 

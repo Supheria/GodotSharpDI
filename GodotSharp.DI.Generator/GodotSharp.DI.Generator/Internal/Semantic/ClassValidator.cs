@@ -35,7 +35,7 @@ internal sealed class ClassValidator
             return CreateFailureResult();
 
         // 2. 确定角色和生命周期
-        var (role, lifetime) = DetermineRoleAndLifetime();
+        var role = DetermineRole();
         if (role == TypeRole.None)
             return CreateFailureResult();
 
@@ -46,12 +46,12 @@ internal sealed class ClassValidator
         var members = ProcessMembers(role);
 
         // 5. 处理构造函数
-        var constructor = ProcessConstructor(role, lifetime);
+        var constructor = ProcessConstructor(role);
 
         // 6. 处理 Modules
         var modulesInfo = ProcessModules();
 
-        return CreateSuccessResult(role, lifetime, members, constructor, modulesInfo);
+        return CreateSuccessResult(role, members, constructor, modulesInfo);
     }
 
     private bool ValidatePartial()
@@ -70,35 +70,12 @@ internal sealed class ClassValidator
         return true;
     }
 
-    private (TypeRole Role, ServiceLifetime Lifetime) DetermineRoleAndLifetime()
+    private TypeRole DetermineRole()
     {
-        var role = TypeRole.None;
-        var lifetime = ServiceLifetime.None;
-
-        // 检查生命周期冲突
-        if (_raw.HasSingletonAttribute && _raw.HasTransientAttribute)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceLifetimeConflict,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-            return (TypeRole.None, ServiceLifetime.None);
-        }
-
         // Scope
         if (_raw.ImplementsIScope)
         {
-            role = TypeRole.Scope;
-
-            if (
-                _raw.HasSingletonAttribute
-                || _raw.HasTransientAttribute
-                || _raw.HasHostAttribute
-                || _raw.HasUserAttribute
-            )
+            if (_raw.HasSingletonAttribute || _raw.HasHostAttribute || _raw.HasUserAttribute)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
@@ -109,53 +86,45 @@ internal sealed class ClassValidator
                 );
             }
 
-            return (role, lifetime);
+            return TypeRole.Scope;
         }
 
         // Service
-        if (_raw.HasSingletonAttribute || _raw.HasTransientAttribute)
+        if (_raw.HasSingletonAttribute)
         {
-            role = TypeRole.Service;
-            lifetime = _raw.HasSingletonAttribute
-                ? ServiceLifetime.Singleton
-                : ServiceLifetime.Transient;
-
             if (_raw.HasHostAttribute || _raw.HasUserAttribute)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostInvalidAttribute,
+                        DiagnosticDescriptors.HostInvalidAttribute, // TODO: 分离 Host 和 User 在此处的诊断描述
                         _raw.Location,
                         _raw.Symbol.Name
                     )
                 );
             }
 
-            return (role, lifetime);
+            return TypeRole.Service;
         }
 
         // Host + User
         if (_raw.HasHostAttribute && _raw.HasUserAttribute)
         {
-            role = TypeRole.HostAndUser;
-            return (role, lifetime);
+            return TypeRole.HostAndUser;
         }
 
         // Host only
         if (_raw.HasHostAttribute)
         {
-            role = TypeRole.Host;
-            return (role, lifetime);
+            return TypeRole.Host;
         }
 
         // User only
         if (_raw.HasUserAttribute)
         {
-            role = TypeRole.User;
-            return (role, lifetime);
+            return TypeRole.User;
         }
 
-        return (TypeRole.None, ServiceLifetime.None);
+        return TypeRole.None;
     }
 
     private void ValidateRoleConstraints(TypeRole role)
@@ -265,9 +234,9 @@ internal sealed class ClassValidator
         return processor.Process();
     }
 
-    private ConstructorInfo? ProcessConstructor(TypeRole role, ServiceLifetime lifetime)
+    private ConstructorInfo? ProcessConstructor(TypeRole role)
     {
-        var processor = new ConstructorProcessor(_raw, role, lifetime, _symbols, _diagnostics);
+        var processor = new ConstructorProcessor(_raw, role, _symbols, _diagnostics);
         return processor.Process();
     }
 
@@ -298,7 +267,6 @@ internal sealed class ClassValidator
 
     private ClassValidationResult CreateSuccessResult(
         TypeRole role,
-        ServiceLifetime lifetime,
         ImmutableArray<MemberInfo> members,
         ConstructorInfo? constructor,
         ModulesInfo? modulesInfo
@@ -308,7 +276,6 @@ internal sealed class ClassValidator
             Symbol: _raw.Symbol,
             Location: _raw.Location,
             Role: role,
-            Lifetime: lifetime,
             ImplementsIServicesReady: _raw.ImplementsIServicesReady,
             IsNode: _raw.IsNode,
             Members: members,
@@ -597,21 +564,18 @@ internal sealed class ConstructorProcessor
 {
     private readonly RawClassSemanticInfo _raw;
     private readonly TypeRole _role;
-    private readonly ServiceLifetime _lifetime;
     private readonly CachedSymbols _symbols;
     private readonly ImmutableArray<Diagnostic>.Builder _diagnostics;
 
     public ConstructorProcessor(
         RawClassSemanticInfo raw,
         TypeRole role,
-        ServiceLifetime lifetime,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
         _raw = raw;
         _role = role;
-        _lifetime = lifetime;
         _symbols = symbols;
         _diagnostics = diagnostics;
     }

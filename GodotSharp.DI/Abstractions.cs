@@ -22,17 +22,6 @@ public sealed class SingletonAttribute : Attribute
 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class TransientAttribute : Attribute
-{
-    public Type[] ServiceTypes { get; }
-
-    public TransientAttribute(params Type[] serviceTypes)
-    {
-        ServiceTypes = serviceTypes;
-    }
-}
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class HostAttribute : Attribute { }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]

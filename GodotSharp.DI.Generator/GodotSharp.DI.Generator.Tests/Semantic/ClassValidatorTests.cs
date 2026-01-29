@@ -85,47 +85,6 @@ namespace Test
         // Assert
         Assert.NotNull(result.TypeInfo);
         Assert.Equal(TypeRole.Service, result.TypeInfo.Role);
-        Assert.Equal(ServiceLifetime.Singleton, result.TypeInfo.Lifetime);
-    }
-
-    [Fact]
-    public void Validate_BothSingletonAndTransient_ReportsDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharp.DI.Abstractions;
-
-namespace Test
-{
-    [Singleton]
-    [Transient]
-    public partial class MyService
-    {
-    }
-}
-";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var tree = compilation.SyntaxTrees.First();
-        var root = tree.GetRoot();
-        var classDecl = root.DescendantNodes()
-            .OfType<ClassDeclarationSyntax>()
-            .First(c => c.Identifier.Text == "MyService");
-
-        var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-        Assert.NotNull(raw.Info);
-
-        var symbols = new CachedSymbols(compilation);
-
-        // Act
-        var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
-
-        // Assert
-        Assert.Null(result.TypeInfo);
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_C001" // ServiceLifetimeConflict
-        );
     }
 
     [Fact]

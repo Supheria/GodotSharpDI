@@ -99,7 +99,7 @@ internal static class DiGraphBuilder
     }
 
     private static (
-        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)>,
+        Dictionary<ITypeSymbol, TypeInfo>,
         ImmutableArray<Diagnostic>
     ) BuildServiceProviderMap(
         ImmutableArray<TypeInfo> services,
@@ -109,29 +109,22 @@ internal static class DiGraphBuilder
     )
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-        var map = new Dictionary<ITypeSymbol, (TypeInfo, ServiceLifetime)>(
-            SymbolEqualityComparer.Default
-        );
+        var map = new Dictionary<ITypeSymbol, TypeInfo>(SymbolEqualityComparer.Default);
         var conflictTracker = new Dictionary<ITypeSymbol, List<string>>(
             SymbolEqualityComparer.Default
         );
 
-        void AddProvider(
-            ITypeSymbol exposedType,
-            TypeInfo provider,
-            ServiceLifetime lifetime,
-            string providerDescription
-        )
+        void AddProvider(ITypeSymbol exposedType, TypeInfo provider, string providerDescription)
         {
             if (!map.TryGetValue(exposedType, out var existing))
             {
-                map[exposedType] = (provider, lifetime);
+                map[exposedType] = provider;
                 return;
             }
 
             if (!conflictTracker.TryGetValue(exposedType, out var conflicts))
             {
-                conflicts = new List<string> { existing.Item1.Symbol.ToDisplayString() };
+                conflicts = new List<string> { existing.Symbol.ToDisplayString() };
                 conflictTracker[exposedType] = conflicts;
             }
             conflicts.Add(providerDescription);
@@ -143,12 +136,7 @@ internal static class DiGraphBuilder
             var exposedTypes = GetServiceExposedTypes(service, symbols);
             foreach (var exposedType in exposedTypes)
             {
-                AddProvider(
-                    exposedType,
-                    service,
-                    service.Lifetime,
-                    service.Symbol.ToDisplayString()
-                );
+                AddProvider(exposedType, service, service.Symbol.ToDisplayString());
             }
         }
 
@@ -165,7 +153,7 @@ internal static class DiGraphBuilder
                     foreach (var exposedType in member.ExposedTypes)
                     {
                         var providerDesc = $"{host.Symbol.ToDisplayString()}.{member.Symbol.Name}";
-                        AddProvider(exposedType, host, ServiceLifetime.Singleton, providerDesc);
+                        AddProvider(exposedType, host, providerDesc);
                     }
                 }
             }
@@ -194,19 +182,8 @@ internal static class DiGraphBuilder
     {
         var builder = ImmutableArray.CreateBuilder<ITypeSymbol>();
 
-        var singletonAttr = service
-            .Symbol.GetAttributes()
-            .FirstOrDefault(a =>
-                SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.SingletonAttribute)
-            );
+        var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
 
-        var transientAttr = service
-            .Symbol.GetAttributes()
-            .FirstOrDefault(a =>
-                SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.TransientAttribute)
-            );
-
-        var attr = singletonAttr ?? transientAttr;
         if (attr != null)
         {
             foreach (var arg in attr.ConstructorArguments)
@@ -232,7 +209,7 @@ internal static class DiGraphBuilder
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildServiceNodes(
         ImmutableArray<TypeInfo> services,
-        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        Dictionary<ITypeSymbol, TypeInfo> serviceProviders,
         CachedSymbols symbols
     )
     {
@@ -395,7 +372,7 @@ internal static class DiGraphBuilder
 
     private static (ImmutableArray<ScopeNode>, ImmutableArray<Diagnostic>) BuildScopeNodes(
         ImmutableArray<TypeInfo> scopes,
-        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        Dictionary<ITypeSymbol, TypeInfo> serviceProviders,
         CachedSymbols symbols
     )
     {
@@ -413,9 +390,7 @@ internal static class DiGraphBuilder
             // 验证 Services
             foreach (var type in services)
             {
-                var hasLifetime =
-                    type.HasAttribute(symbols.SingletonAttribute)
-                    || type.HasAttribute(symbols.TransientAttribute);
+                var hasLifetime = type.HasAttribute(symbols.SingletonAttribute);
 
                 if (!hasLifetime)
                 {
@@ -433,18 +408,7 @@ internal static class DiGraphBuilder
             // 验证 Hosts
             foreach (var type in hosts)
             {
-                var isHost = type.GetAttributes()
-                    .Any(attr =>
-                    {
-                        var attrClass = attr.AttributeClass;
-                        if (attrClass == null)
-                            return false;
-
-                        return SymbolEqualityComparer.Default.Equals(
-                            attrClass,
-                            symbols.HostAttribute
-                        );
-                    });
+                var isHost = type.HasAttribute(symbols.HostAttribute);
 
                 if (!isHost)
                 {
@@ -497,7 +461,7 @@ internal static class DiGraphBuilder
     private static ImmutableArray<Diagnostic> ValidateHostServices(
         ImmutableArray<TypeInfo> hosts,
         ImmutableArray<TypeInfo> hostAndUsers,
-        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders
+        Dictionary<ITypeSymbol, TypeInfo> serviceProviders
     )
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
@@ -507,7 +471,7 @@ internal static class DiGraphBuilder
     private static ImmutableArray<Diagnostic> ValidateDependencyGraph(
         ImmutableArray<TypeNode> serviceNodes,
         ImmutableArray<TypeNode> allUserNodes,
-        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        Dictionary<ITypeSymbol, TypeInfo> serviceProviders,
         CachedSymbols symbols
     )
     {
@@ -546,31 +510,6 @@ internal static class DiGraphBuilder
                         string.Join(" -> ", pathStack.Reverse().Select(t => t.ToDisplayString()))
                     )
                 );
-            }
-        }
-
-        // 检查 Singleton 依赖 Transient
-        foreach (var node in serviceNodes)
-        {
-            if (node.TypeInfo.Lifetime == ServiceLifetime.Singleton)
-            {
-                foreach (var dep in node.Dependencies)
-                {
-                    if (serviceProviders.TryGetValue(dep.TargetType, out var provider))
-                    {
-                        if (provider.Lifetime == ServiceLifetime.Transient)
-                        {
-                            diagnostics.Add(
-                                DiagnosticBuilder.Create(
-                                    DiagnosticDescriptors.SingletonCannotDependOnTransient,
-                                    dep.Location,
-                                    node.TypeInfo.Symbol.ToDisplayString(),
-                                    dep.TargetType.ToDisplayString()
-                                )
-                            );
-                        }
-                    }
-                }
             }
         }
 
@@ -624,7 +563,7 @@ internal static class DiGraphBuilder
     private static bool HasCircularDependency(
         ITypeSymbol currentImpl,
         Dictionary<ITypeSymbol, TypeNode> serviceImplToNode,
-        Dictionary<ITypeSymbol, (TypeInfo Provider, ServiceLifetime Lifetime)> serviceProviders,
+        Dictionary<ITypeSymbol, TypeInfo> serviceProviders,
         HashSet<ITypeSymbol> visited,
         HashSet<ITypeSymbol> pathSet,
         Stack<ITypeSymbol> pathStack
@@ -650,7 +589,7 @@ internal static class DiGraphBuilder
                     {
                         if (
                             HasCircularDependency(
-                                provider.Provider.Symbol,
+                                provider.Symbol,
                                 serviceImplToNode,
                                 serviceProviders,
                                 visited,

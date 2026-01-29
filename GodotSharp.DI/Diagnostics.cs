@@ -7,9 +7,6 @@
 [Singleton(typeof(IDataWriter))] // GDI001：Problem01A 没有继承或实现 [Singleton] 所指定的 IDataWriter。
 public sealed partial class Problem01A { }
 
-[Transient(typeof(IDataReader))] // GDI001：Problem01B 没有继承或实现 [Transient] 所指定的 IDataReader。
-public sealed partial class Problem01B { }
-
 [Host]
 public sealed partial class Problem01C
 {
@@ -30,41 +27,20 @@ public sealed partial class Problem02A // GDI002：Problem02A 标记为 [Singlet
     public Problem02A() { }
 }
 
-[Transient]
-public sealed partial class Problem02B // GDI002：Problem02B 标记为 [Singleton] 且定义了构造函数，但没有将任何构造函数标记为 [InjectConstructor]。
-{
-    public Problem02B() { }
-}
-
 [Singleton]
 public sealed partial class Problem02C { } // 不会触发 GDI002
-
-[Transient]
-public sealed partial class Problem02D { } // 不会触发 GDI002
 
 //
 // GDI003（错误）
 //
 
-[Singleton]
-[Transient]
-public sealed partial class Problem03A { } // GDI003：Problem03A 不能同时标记为 [Singleton] 和 [Transient]。
-
 [Host]
 [Singleton]
 public sealed partial class Problem03B { } // GDI003：Problem03B 不能同时标记为 [Host] 和 [Singleton]。
 
-[Host]
-[Transient]
-public sealed partial class Problem03C { } // GDI003：Problem03C 不能同时标记为 [Host] 和 [Transient]。
-
 [User]
 [Singleton]
 public sealed partial class Problem03D { } // GDI003：Problem03D 不能同时标记为 [User] 和 [Singleton]。
-
-[User]
-[Transient]
-public sealed partial class Problem03E { } // GDI003：Problem03E 不能同时标记为 [User] 和 [Transient]。
 
 //
 // GDI004（错误）
@@ -72,9 +48,6 @@ public sealed partial class Problem03E { } // GDI003：Problem03E 不能同时�
 
 [Singleton]
 public sealed class Problem04A { } // GDI004：Problem04A 必须是 partial 才能标记为 [Singleton]。
-
-[Transient]
-public sealed class Problem04B { } // GDI004：Problem04B 必须是 partial 才能标记为 [Transient]。
 
 [Host]
 public sealed class Problem04C { } // GDI004：Problem04C 必须是 partial 才能标记为 [Host]。
@@ -237,7 +210,6 @@ public sealed partial class Problem15A { }
 //
 
 [Singleton] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [Singleton]
-[Transient] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [Transient]
 [Host] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [Host]
 [User] // GDI016：Problem16A 实现接口 IScope, 不能标记为 [User]
 [Modules]

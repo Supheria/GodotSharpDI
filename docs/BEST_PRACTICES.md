@@ -374,39 +374,168 @@ public partial class ResourceLoader : IResourceLoader, IDisposable
 }
 ```
 
-### ✅ Transient 服务的调用者负责释放
+------
+
+## 使用 Singleton 工厂
+
+**工厂是 Service：**
+```csharp
+[Singleton(typeof(IFactory))]
+public partial class MyFactory : IFactory
+{
+    private readonly IDep _dep;
+    
+    public MyFactory(IDep dep)
+    {
+        _dep = dep;
+    }
+    
+    public Product Create(params...)
+    {
+        return new Product(_dep, params...);
+    }
+}
+```
+
+**产品是普通类：**
+```csharp
+public class Product : IDisposable
+{
+    private readonly IDep _dep;
+    
+    public Product(IDep dep, ...)
+    {
+        _dep = dep;
+    }
+    
+    public void Dispose() { }
+}
+```
+
+**使用：**
+```csharp
+[User]
+public partial class MyUser : Node
+{
+    [Inject] private IFactory _factory;
+    
+    public void DoWork()
+    {
+        using var product = _factory.Create(...);
+        product.Execute();
+    }  // using 确保释放
+}
+```
+
+### ✅ 常见模式
+
+#### 1. 简单工厂
+```csharp
+[Singleton(typeof(IBulletFactory))]
+public partial class BulletFactory : IBulletFactory
+{
+    public Bullet Create() => new Bullet();
+}
+```
+
+#### 2. 对象池
+```csharp
+[Singleton(typeof(IPooledFactory))]
+public partial class PooledFactory : IPooledFactory
+{
+    private ObjectPool _pool = new();
+    
+    public Item Get() => _pool.Get();
+    public void Return(Item item) => _pool.Return(item);
+}
+```
+
+#### 3. 依赖传递
+```csharp
+[Singleton(typeof(IComplexFactory))]
+public partial class ComplexFactory : IComplexFactory
+{
+    private readonly IPhysics _physics;
+    private readonly IAudio _audio;
+    
+    public ComplexFactory(IPhysics physics, IAudio audio)
+    {
+        _physics = physics;
+        _audio = audio;
+    }
+    
+    public ComplexObject Create(params...)
+    {
+        return new ComplexObject(_physics, _audio, params...);
+    }
+}
+```
+
+#### 4. 拓展：ECS 集成示例
 
 ```csharp
-[Transient(typeof(INetworkRequest))]
-public partial class NetworkRequest : INetworkRequest, IDisposable
+// System 是 Singleton Service
+
+[Singleton(typeof(IMovementSystem))]
+public partial class MovementSystem : IMovementSystem { ... }
+
+[Singleton(typeof(IWorld))]
+public partial class GameWorld : IWorld
 {
-    private HttpClient _client = new();
-    
-    public void Dispose() => _client.Dispose();
+    public GameWorld(IMovementSystem movement) { ... }
+    public void Update(double delta) { ... }
 }
 
-// 调用者负责管理
-[User]
-public partial class NetworkManager : Node
+[Singleton(typeof(IProjectileSystem))]
+public partial class ProjectileSystem : IProjectileSystem
 {
-    private List<INetworkRequest> _pendingRequests = new();
+    private readonly IPhysics _physics;
+    private readonly IWorld _world;
     
-    public void MakeRequest()
+    public ProjectileSystem(IPhysics physics, IWorld world)
     {
-        scope.ResolveDependency<INetworkRequest>(request =>
-        {
-            _pendingRequests.Add(request);
-        });
+        _physics = physics;
+        _world = world;
     }
     
-    public override void _ExitTree()
+    // 创建 Entity（ECS 方式）
+    public void SpawnProjectile(Vector3 pos, Vector3 vel)
     {
-        // 调用者负责释放
-        foreach (var req in _pendingRequests)
-        {
-            (req as IDisposable)?.Dispose();
-        }
+        var entity = _world.CreateEntity();
+        entity.Set(new Position { Value = pos });
+        entity.Set(new Velocity { Value = vel });
     }
+    
+    // 或者使用工厂创建普通对象
+    public Projectile CreateProjectile(Vector3 pos, Vector3 vel)
+    {
+        return new Projectile(_physics, pos, vel);
+    }
+}
+
+// Entity 是纯数据（ECS 推荐）
+public struct ProjectileEntity
+{
+    public Vector3 Position;
+    public Vector3 Velocity;
+}
+
+// 或者普通类对象（传统方式）
+public class Projectile : IDisposable
+{
+    private readonly IPhysics _physics;
+    public Vector3 Position { get; set; }
+    public Vector3 Velocity { get; set; }
+    
+    public Projectile(IPhysics physics, Vector3 pos, Vector3 vel)
+    {
+        _physics = physics;
+        Position = pos;
+        Velocity = vel;
+    }
+    
+    public void Update(double delta) { }
+    public void Dispose() { }
 }
 ```
 

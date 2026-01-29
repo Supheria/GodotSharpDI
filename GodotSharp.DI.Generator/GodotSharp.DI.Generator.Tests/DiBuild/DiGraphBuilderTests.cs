@@ -318,32 +318,6 @@ namespace Test
     }
 
     [Fact]
-    public void Build_TransientService_IsCorrectlyIdentified()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharp.DI.Abstractions;
-
-namespace Test
-{
-    [Transient]
-    public partial class MyTransientService
-    {
-        public MyTransientService() { }
-    }
-}
-";
-        var result = BuildGraph(source);
-
-        // Assert
-        Assert.NotNull(result.Graph);
-        var serviceNode = result.Graph.ServiceNodes.FirstOrDefault();
-        Assert.NotNull(serviceNode);
-        Assert.Equal(ServiceLifetime.Transient, serviceNode.TypeInfo.Lifetime);
-    }
-
-    [Fact]
     public void Build_HostProvidedServices_AreTracked()
     {
         // Arrange

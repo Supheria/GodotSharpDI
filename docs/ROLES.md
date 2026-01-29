@@ -24,10 +24,6 @@ Service 是纯逻辑服务，封装业务逻辑和数据处理，不依赖 Godot
 // Singleton：Scope 内唯一实例
 [Singleton(typeof(IPlayerStats))]
 public partial class PlayerStatsService : IPlayerStats { }
-
-// Transient：每次请求创建新实例
-[Transient(typeof(IWeaponFactory))]
-public partial class WeaponFactory : IWeaponFactory { }
 ```
 
 ### 构造函数注入

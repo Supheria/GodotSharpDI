@@ -24,7 +24,6 @@ internal static class RawClassSemanticInfoFactory
 
         // 检查是否有相关特性
         var hasSingleton = symbol.HasAttribute(symbols.SingletonAttribute);
-        var hasTransient = symbol.HasAttribute(symbols.TransientAttribute);
         var hasHost = symbol.HasAttribute(symbols.HostAttribute);
         var hasUser = symbol.HasAttribute(symbols.UserAttribute);
         var hasModules = symbol.HasAttribute(symbols.ModulesAttribute);
@@ -37,14 +36,7 @@ internal static class RawClassSemanticInfoFactory
         );
 
         // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
-        if (
-            !hasSingleton
-            && !hasTransient
-            && !hasHost
-            && !hasUser
-            && !hasModules
-            && !implementsIScope
-        )
+        if (!hasSingleton && !hasHost && !hasUser && !hasModules && !implementsIScope)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
         var members = symbol
@@ -58,7 +50,6 @@ internal static class RawClassSemanticInfoFactory
             Symbol: symbol,
             Location: syntax.GetLocation(),
             HasSingletonAttribute: hasSingleton,
-            HasTransientAttribute: hasTransient,
             HasHostAttribute: hasHost,
             HasUserAttribute: hasUser,
             HasModulesAttribute: hasModules,

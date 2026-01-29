@@ -16,9 +16,9 @@ public partial class DatabaseWriter : IDataWriter, IDataReader, IDisposable
 
 // - generated code begin -
 
-partial class DatabaseWriter // DatabaseWriter.DI.Factory.g.cs
+// 标记为 Singleton 才生成
+partial class DatabaseWriter // DatabaseWriter.DI.Singleton.g.cs
 {
-    // 仅 Singleton 生成此函数名
     public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {
         // 仅当注入构造函数参数等于0时按照如下模板生成
@@ -28,29 +28,45 @@ partial class DatabaseWriter // DatabaseWriter.DI.Factory.g.cs
     }
 }
 
-// - generated code end -
-
-[Transient(typeof(IPathFinder), typeof(IAStartPathFinder))]
-public partial class PathFinder : IPathFinder, IAStartPathFinder
+public sealed class PathFinder
 {
     private readonly IDataWriter _dataWriter;
     private readonly IDataReader _dataReader;
 
-    [InjectConstructor]
-    private PathFinder(IDataWriter dataWriter, IDataReader dataReader)
+    public PathFinder(IDataWriter dataWriter, IDataReader dataReader)
     {
         _dataWriter = dataWriter;
         _dataReader = dataReader;
     }
 }
 
+// - generated code end -
+
+[Singleton]
+public partial class PathFinderFactory : IPathFinder, IAStartPathFinder
+{
+    private readonly IDataWriter _dataWriter;
+    private readonly IDataReader _dataReader;
+
+    [InjectConstructor]
+    private PathFinderFactory(IDataWriter dataWriter, IDataReader dataReader)
+    {
+        _dataWriter = dataWriter;
+        _dataReader = dataReader;
+    }
+
+    public PathFinder GetPathFinder()
+    {
+        return new PathFinder(_dataWriter, _dataReader);
+    }
+}
+
 // - generated code begin -
 
-// 标记为 Singleton 或 Transient 才生成
-partial class PathFinder // MovementManager.DI.Factory.g.cs
+// 标记为 Singleton 才生成
+partial class PathFinderFactory // MovementManager.DI.Singleton.g.cs
 {
-    // 仅 Transient 生成此函数名
-    public static void CreateService(IScope scope, Action<object> onCreated)
+    public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {
         // 仅当注入构造函数参数大于0时按照如下模板生成
 
@@ -79,8 +95,8 @@ partial class PathFinder // MovementManager.DI.Factory.g.cs
         {
             if (--remaining == 0)
             {
-                var instance = new PathFinder(p0!, p1!);
-                onCreated.Invoke(instance);
+                var instance = new PathFinderFactory(p0!, p1!);
+                onCreated.Invoke(instance, scope);
             }
         }
     }
@@ -255,7 +271,7 @@ partial class CellManager // CellManager.DI.User.g.cs
 // - generated code end -
 
 [Modules(
-    Services = [typeof(DatabaseWriter), typeof(PathFinder)],
+    Services = [typeof(DatabaseWriter), typeof(PathFinderFactory)],
     Hosts = [typeof(CellManager)]
 )]
 public partial class MyScope : Godot.Node, IScope { }
@@ -295,12 +311,26 @@ partial class MyScope // MyScope.DI.g.cs
             this,
             (instance, scope) =>
             {
-                _scopeSingletonInstances.Add(instance);
+                if (instance is IDisposable disposable)
+                {
+                    _disposableSingletons.Add(disposable);
+                }
                 // 在此注册 Singleton 单例服务
                 // 注册为 Singleton 特性指定的类型
                 // 如果没有指定服务类型则注册为原类型
                 scope.RegisterService((IDataWriter)instance);
                 scope.RegisterService((IDataReader)instance);
+            }
+        );
+        PathFinderFactory.CreateService(
+            this,
+            (instance, scope) =>
+            {
+                if (instance is IDisposable disposable)
+                {
+                    _disposableSingletons.Add(disposable);
+                }
+                scope.RegisterService((PathFinderFactory)instance);
             }
         );
     }
@@ -310,22 +340,19 @@ partial class MyScope // MyScope.DI.g.cs
     /// </summary>
     private void DisposeScopeSingletons()
     {
-        foreach (var instance in _scopeSingletonInstances)
+        foreach (var disposable in _disposableSingletons)
         {
-            if (instance is IDisposable disposable)
+            try
             {
-                try
-                {
-                    disposable.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Godot.GD.PushError(ex);
-                }
+                disposable.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Godot.GD.PushError(ex);
             }
         }
-        _scopeSingletonInstances.Clear();
-        _singletonServices.Clear();
+        _disposableSingletons.Clear();
+        _services.Clear();
     }
 
     private void CheckWaitList()
@@ -379,7 +406,7 @@ partial class MyScope // MyScope.DI.g.cs
 // 实现了IServiceScope才生成
 partial class MyScope // MyContext.DI.Scope.g.cs
 {
-    private static readonly HashSet<Type> SingletonServiceTypes = new()
+    private static readonly HashSet<Type> ServiceTypes = new()
     {
         // 注册为 Singleton 特性指定的类型
         // 如果没有指定服务类型则注册为原类型
@@ -395,28 +422,14 @@ partial class MyScope // MyContext.DI.Scope.g.cs
         typeof(IPathGenerator),
     };
 
-    private static readonly Dictionary<Type, Action<IScope, Action<object>>> TransientFactories =
-        new()
-        {
-            // 在此创建 Transient 瞬态服务
-            // 创建为 Singleton 特性指定的类型
-            // 如果没有指定服务类型则注册为原类型
-            [typeof(PathFinder)] = PathFinder.CreateService,
-        };
-
-    private readonly Dictionary<Type, object> _singletonServices = new();
-    private readonly HashSet<object> _scopeSingletonInstances = new();
+    private readonly Dictionary<Type, object> _services = new();
     private readonly Dictionary<Type, List<Action<object>>> _waiters = new();
+    private readonly HashSet<IDisposable> _disposableSingletons = new();
 
     void IScope.ResolveDependency<T>(Action<T> onResolved)
     {
         var type = typeof(T);
-        if (TransientFactories.TryGetValue(type, out var factory))
-        {
-            factory.Invoke(this, instance => onResolved.Invoke((T)instance));
-            return;
-        }
-        if (!SingletonServiceTypes.Contains(type))
+        if (!ServiceTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -427,7 +440,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法找到服务类型：{type.Name}");
             return;
         }
-        if (_singletonServices.TryGetValue(type, out var singleton))
+        if (_services.TryGetValue(type, out var singleton))
         {
             onResolved.Invoke((T)singleton);
             return;
@@ -443,7 +456,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
     void IScope.RegisterService<T>(T instance)
     {
         var type = typeof(T);
-        if (!SingletonServiceTypes.Contains(type))
+        if (!ServiceTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -454,7 +467,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
             return;
         }
-        if (!_singletonServices.TryAdd(type, instance))
+        if (!_services.TryAdd(type, instance))
         {
             Godot.GD.PushError($"重复注册类型: {type.Name}。");
         }
@@ -470,7 +483,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
     void IScope.UnregisterService<T>()
     {
         var type = typeof(T);
-        if (!SingletonServiceTypes.Contains(type))
+        if (!ServiceTypes.Contains(type))
         {
             var parent = GetParentScope();
             if (parent is not null)
@@ -481,7 +494,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
             return;
         }
-        _singletonServices.Remove(type);
+        _services.Remove(type);
     }
 }
 

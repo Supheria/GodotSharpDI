@@ -90,7 +90,7 @@ public partial class MyComponent : Node
 
 ## 3. 服务实现类型（Service Type）约束
 
-可以标记为 `[Singleton]` 或 `[Transient]` 的类型。
+标记为 `[Singleton]` 的类型。
 
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
@@ -110,7 +110,7 @@ public partial class MyComponent : Node
 
 ## 4. 暴露类型（Exposed Service Type）约束
 
-可以在 `[Singleton(typeof(...))]` 或 `[Transient(typeof(...))]` 中指定的类型。
+可以在 `[Singleton(typeof(...))]` 中指定的类型。
 
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
@@ -254,57 +254,7 @@ public partial class MyScope : Node, IScope { }
 
 ---
 
-## 8. 生命周期依赖规则
-
-| 依赖方 | 被依赖方 | 是否允许 | 诊断代码 |
-|--------|----------|----------|----------|
-| Singleton | Singleton | ✅ | - |
-| Singleton | Transient | ❌ | GDI_D040 |
-| Transient | Singleton | ✅ | - |
-| Transient | Transient | ✅ | - |
-
-**原因**：Singleton 在 Scope 生命周期内唯一，如果依赖 Transient，语义不清（应该缓存还是每次获取新实例？）。
-
-### 代码示例
-
-```csharp
-// ❌ 错误
-[Transient(typeof(ITransient))]
-public partial class TransientService : ITransient { }
-
-[Singleton(typeof(ISingleton))]
-public partial class SingletonService : ISingleton
-{
-    public SingletonService(ITransient t) { }  // Singleton 依赖 Transient
-}
-
-// ✅ 正确：使用工厂模式
-[Singleton(typeof(ITransientFactory))]
-public partial class TransientFactory : ITransientFactory
-{
-    public ITransient Create() => new TransientService();
-}
-
-[Singleton(typeof(ISingleton))]
-public partial class SingletonService : ISingleton
-{
-    private readonly ITransientFactory _factory;
-    
-    public SingletonService(ITransientFactory factory)
-    {
-        _factory = factory;
-    }
-    
-    public void DoWork()
-    {
-        var transient = _factory.Create();  // 需要时创建
-    }
-}
-```
-
----
-
-## 9. 构造函数约束
+## 8. 构造函数约束
 
 Service 构造函数的约束。
 
@@ -352,15 +302,14 @@ public partial class ServiceD : IService
 
 ---
 
-## 10. 语义总结
+## 9. 语义总结
 
 | 概念 | 定义 |
 |------|------|
-| **Service** | 非 Node 的 class，标记 [Singleton] 或 [Transient]，暴露接口（推荐）或 class |
+| **Service** | 非 Node 的 class，标记 [Singleton]，暴露接口（推荐）或 class |
 | **Host** | Node，通过成员上的 [Singleton] 暴露服务，成员值可以是 Host 自身或持有的对象 |
 | **User** | Node，通过 [Inject] 成员接收注入，不提供服务 |
 | **Scope** | Node，实现 IScope，管理服务生命周期，不可被注入 |
 | **Inject Type** | interface 或 class（非 Node/Host/User/Scope/abstract/static） |
 | **Exposed Type** | 推荐 interface，允许 concrete class（会产生 Warning） |
 | **Singleton** | Scope 内唯一，随 Scope 销毁而释放 |
-| **Transient** | 每次请求创建新实例，调用者负责释放 |

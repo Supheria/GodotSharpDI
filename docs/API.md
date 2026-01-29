@@ -53,31 +53,6 @@ public partial class GameManager : Node, IGameState
 
 ------
 
-### TransientAttribute
-
-标记一个类为 Transient 生命周期的服务。
-
-```csharp
-namespace GodotSharp.DI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class TransientAttribute : Attribute
-{
-    public Type[] ServiceTypes { get; }
-    
-    public TransientAttribute(params Type[] serviceTypes);
-}
-```
-
-#### 用法
-
-```csharp
-[Transient(typeof(IBullet))]
-public partial class Bullet : IBullet { }
-```
-
-------
-
 ### HostAttribute
 
 标记一个类为 Host（服务提供者）。
@@ -347,9 +322,7 @@ private void UnattachHostServices(IScope scope);
 // 创建服务实例
 public static void CreateService(
     IScope scope,
-    Action<object, IScope> onCreated  // Singleton
-    // 或
-    Action<object> onCreated          // Transient
+    Action<object, IScope> onCreated
 );
 ```
 
@@ -359,13 +332,12 @@ public static void CreateService(
 
 ```csharp
 // 静态集合
-private static readonly HashSet<Type> SingletonServiceTypes;
-private static readonly Dictionary<Type, Action<IScope, Action<object>>> TransientFactories;
+private static readonly HashSet<Type> ServiceTypes;
 
 // 实例字段
-private readonly Dictionary<Type, object> _singletonServices;
-private readonly HashSet<object> _scopeSingletonInstances;
+private readonly Dictionary<Type, object> _services;
 private readonly Dictionary<Type, List<Action<object>>> _waiters;
+private readonly HashSet<IDisposable> _disposableSingletons;
 private IScope? _parentScope;
 
 // 生命周期方法

@@ -4,7 +4,6 @@
 
 | Rule ID  | Category            | Severity | Notes                                                                              |
 |----------|---------------------|----------|------------------------------------------------------------------------------------|
-| GDI_C001 | GDI.Class           | Error    | Service cannot be both Singleton and Transient                                     |
 | GDI_C010 | GDI.Class           | Error    | Host cannot use incompatible attributes                                            |
 | GDI_C011 | GDI.Class           | Error    | Scope cannot use incompatible attributes                                           |
 | GDI_C020 | GDI.Class           | Error    | Host must inherit from Godot.Node                                                  |
@@ -37,7 +36,6 @@
 | GDI_D004 | GDI.DependencyGraph | Error    | Modules Hosts must be Host types                                                   |
 | GDI_D010 | GDI.DependencyGraph | Error    | Circular dependency detected                                                       |
 | GDI_D020 | GDI.DependencyGraph | Error    | Service constructor parameter invalid                                              |
-| GDI_D030 | GDI.DependencyGraph | Error    | Singleton cannot depend on Transient                                               |
 | GDI_D040 | GDI.DependencyGraph | Error    | Service type conflict - multiple providers                                         |
 | GDI_E900 | GDI.Generator       | Error    | Generator cancellation requested                                                   |
 | GDI_E910 | GDI.Generator       | Error    | Internal generator error                                                           |

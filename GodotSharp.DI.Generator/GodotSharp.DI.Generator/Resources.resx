@@ -18,11 +18,7 @@
     <resheader name="writer">
         <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
     </resheader>
-
-    <data name="ServiceLifetimeConflict" xml:space="preserve">
-    <value>Type '{0}' cannot be both [Singleton] and [Transient]</value>
-  </data>
-    <data name="ServiceReadyNeedUser" xml:space="preserve">
+  <data name="ServiceReadyNeedUser" xml:space="preserve">
     <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
   </data>
   <data name="NoPublicConstructor" xml:space="preserve">
@@ -40,12 +36,7 @@
     <data name="ServiceConstructorParameterInvalid" xml:space="preserve">
     <value>Service '{0}' has constructor parameter of type '{1}', which is not a Service</value>
   </data>
-
-    <data name="SingletonCannotDependOnTransient" xml:space="preserve">
-    <value>Singleton service '{0}' cannot depend on transient service '{1}'</value>
-  </data>
-
-    <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
+  <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
     <value>Type '{0}' must be marked as [Host] to use [Singleton] on members</value>
   </data>
 

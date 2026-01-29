@@ -339,15 +339,6 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; cannot be both [Singleton] and [Transient].
-        /// </summary>
-        internal static string ServiceLifetimeConflict {
-            get {
-                return ResourceManager.GetString("ServiceLifetimeConflict", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IServicesReady but is not marked with [User].
         /// </summary>
         internal static string ServiceReadyNeedUser {
@@ -371,15 +362,6 @@ namespace GodotSharp.DI.Generator {
         internal static string ServiceTypeIsInvalid {
             get {
                 return ResourceManager.GetString("ServiceTypeIsInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Singleton service &apos;{0}&apos; cannot depend on transient service &apos;{1}&apos;.
-        /// </summary>
-        internal static string SingletonCannotDependOnTransient {
-            get {
-                return ResourceManager.GetString("SingletonCannotDependOnTransient", resourceCulture);
             }
         }
         
