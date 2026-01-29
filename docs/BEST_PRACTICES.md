@@ -218,35 +218,6 @@ public partial class A : Node
 }
 ```
 
-### ❌ Singleton 不依赖 Transient
-
-```csharp
-// ❌ 错误（编译时检测 GDI_D040）
-[Singleton(typeof(IManager))]
-public partial class Manager : IManager
-{
-    public Manager(ITransientDep dep) { }  // 错误！
-}
-
-// ✅ 正确：注入工厂
-[Singleton(typeof(IManager))]
-public partial class Manager : IManager
-{
-    private readonly Func<ITransientDep> _factory;
-    
-    public Manager(ITransientDepFactory factory)
-    {
-        _factory = factory.Create;
-    }
-    
-    public void DoWork()
-    {
-        var dep = _factory();  // 需要时创建
-        // 使用 dep...
-    }
-}
-```
-
 ------
 
 ## Host 设计
