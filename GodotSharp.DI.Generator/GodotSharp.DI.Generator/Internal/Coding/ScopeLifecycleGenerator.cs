@@ -84,12 +84,10 @@ internal static class ScopeLifecycleGenerator
         {
             foreach (var serviceType in node.InstantiateServices)
             {
-                var serviceNode = graph.ServiceNodes.FirstOrDefault(n =>
-                    SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, serviceType)
-                );
-
-                if (serviceNode == null)
+                if (!graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
+                {
                     continue;
+                }
 
                 var simpleServiceName = serviceType.Name;
 

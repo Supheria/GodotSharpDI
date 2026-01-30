@@ -72,19 +72,32 @@ internal static class DiGraphBuilder
         );
         diagnostics.AddRange(graphDiags);
 
-        // 构建类型映射
-        var typeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
+        // 构建Service节点映射
+        var serviceNodeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
             SymbolEqualityComparer.Default
         );
-
         foreach (var node in serviceNodes)
-            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+        {
+            serviceNodeMapBuilder[node.TypeInfo.Symbol] = node;
+        }
+
+        // 构建Host节点映射
+        var hostNodeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
+            SymbolEqualityComparer.Default
+        );
         foreach (var node in hostNodes)
-            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
-        foreach (var node in userNodes)
-            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+        {
+            hostNodeMapBuilder[node.TypeInfo.Symbol] = node;
+        }
+
+        // 构建HostAndUser节点映射
+        var hostAndUserNodeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
+            SymbolEqualityComparer.Default
+        );
         foreach (var node in hostAndUserNodes)
-            typeMapBuilder[(ITypeSymbol)node.TypeInfo.Symbol] = node;
+        {
+            hostAndUserNodeMapBuilder[node.TypeInfo.Symbol] = node;
+        }
 
         var graph = new DiGraph(
             ServiceNodes: serviceNodes,
@@ -92,7 +105,9 @@ internal static class DiGraphBuilder
             UserNodes: userNodes,
             HostAndUserNodes: hostAndUserNodes,
             ScopeNodes: scopeNodes,
-            TypeMap: typeMapBuilder.ToImmutable()
+            ServiceNodeMap: serviceNodeMapBuilder.ToImmutable(),
+            HostNodeMap: hostNodeMapBuilder.ToImmutable(),
+            HostAndUserNodeMap: hostAndUserNodeMapBuilder.ToImmutable()
         );
 
         return new DiGraphBuildResult(graph, diagnostics.ToImmutable());

@@ -38,11 +38,7 @@ internal static class ScopeInterfaceGenerator
         // 从 Instantiate 的服务中收集
         foreach (var serviceType in node.InstantiateServices)
         {
-            var serviceNode = graph.ServiceNodes.FirstOrDefault(n =>
-                SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, serviceType)
-            );
-
-            if (serviceNode != null)
+            if (graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
             {
                 foreach (var exposedType in serviceNode.ProvidedServices)
                 {
@@ -54,12 +50,7 @@ internal static class ScopeInterfaceGenerator
         // 从 Expect 的 Host 中收集
         foreach (var hostType in node.ExpectHosts)
         {
-            // 在 HostNodes 中查找匹配的 Host
-            var hostNode = graph.HostNodes.FirstOrDefault(n =>
-                SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, hostType)
-            );
-
-            if (hostNode != null)
+            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
             {
                 // 添加 Host 提供的所有服务类型
                 foreach (var exposedType in hostNode.ProvidedServices)
@@ -67,20 +58,12 @@ internal static class ScopeInterfaceGenerator
                     singletonServiceTypes.Add(exposedType);
                 }
             }
-            else
+            else if (graph.HostAndUserNodeMap.TryGetValue(hostType, out var hostAndUserNode))
             {
-                // 同时在 HostAndUserNodes 中查找
-                var hostAndUserNode = graph.HostAndUserNodes.FirstOrDefault(n =>
-                    SymbolEqualityComparer.Default.Equals(n.TypeInfo.Symbol, hostType)
-                );
-
-                if (hostAndUserNode != null)
+                // 添加 HostAndUser 提供的所有服务类型
+                foreach (var exposedType in hostAndUserNode.ProvidedServices)
                 {
-                    // 添加 HostAndUser 提供的所有服务类型
-                    foreach (var exposedType in hostAndUserNode.ProvidedServices)
-                    {
-                        singletonServiceTypes.Add(exposedType);
-                    }
+                    singletonServiceTypes.Add(exposedType);
                 }
             }
         }
