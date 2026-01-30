@@ -5,15 +5,19 @@ using GodotSharp.DI.Generator.Internal.DiBuild;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Generator.Internal.Semantic;
 using GodotSharp.DI.Generator.Tests.Helpers;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace GodotSharp.DI.Generator.Tests.DiBuild;
 
-public class CircularDependencyTests
+/// <summary>
+/// 循环依赖检测器的全面测试
+/// </summary>
+public class CircularDependencyDetectorTests
 {
     [Fact]
-    public void Build_DirectCircularDependency_ReportsDiagnostic()
+    public void Detect_SimpleCircle_AB_ReportsCorrectCycle()
     {
         // Arrange
         var source =
@@ -22,33 +26,37 @@ using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    public interface IServiceA { }
-    public interface IServiceB { }
+    public interface IA { }
+    public interface IB { }
 
-    [Singleton(typeof(IServiceA))]
-    public partial class ServiceA : IServiceA
+    [Singleton(typeof(IA))]
+    public partial class A : IA
     {
-        public ServiceA(IServiceB b) { }
+        public A(IB b) { }
     }
 
-    [Singleton(typeof(IServiceB))]
-    public partial class ServiceB : IServiceB
+    [Singleton(typeof(IB))]
+    public partial class B : IB
     {
-        public ServiceB(IServiceA a) { }
+        public B(IA a) { }
     }
 }
 ";
         var result = BuildGraph(source);
 
         // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        Assert.Single(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
+        var diagnostic = result.Diagnostics.First(d => d.Id == "GDI_D010");
+        var message = diagnostic.GetMessage();
+
+        // 应包含完整循环路径
+        Assert.Contains("A", message);
+        Assert.Contains("B", message);
+        Assert.Contains("->", message);
     }
 
     [Fact]
-    public void Build_IndirectCircularDependency_ReportsDiagnostic()
+    public void Detect_ThreeNodeCircle_ABC_ReportsCorrectCycle()
     {
         // Arrange
         var source =
@@ -57,40 +65,43 @@ using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    public interface IServiceA { }
-    public interface IServiceB { }
-    public interface IServiceC { }
+    public interface IA { }
+    public interface IB { }
+    public interface IC { }
 
-    [Singleton(typeof(IServiceA))]
-    public partial class ServiceA : IServiceA
+    [Singleton(typeof(IA))]
+    public partial class A : IA
     {
-        public ServiceA(IServiceB b) { }
+        public A(IB b) { }
     }
 
-    [Singleton(typeof(IServiceB))]
-    public partial class ServiceB : IServiceB
+    [Singleton(typeof(IB))]
+    public partial class B : IB
     {
-        public ServiceB(IServiceC c) { }
+        public B(IC c) { }
     }
 
-    [Singleton(typeof(IServiceC))]
-    public partial class ServiceC : IServiceC
+    [Singleton(typeof(IC))]
+    public partial class C : IC
     {
-        public ServiceC(IServiceA a) { }
+        public C(IA a) { }
     }
 }
 ";
         var result = BuildGraph(source);
 
         // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        Assert.Single(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
+        var diagnostic = result.Diagnostics.First(d => d.Id == "GDI_D010");
+        var message = diagnostic.GetMessage();
+
+        Assert.Contains("A", message);
+        Assert.Contains("B", message);
+        Assert.Contains("C", message);
     }
 
     [Fact]
-    public void Build_SelfCircularDependency_ReportsDiagnostic()
+    public void Detect_SelfCircle_ReportsCorrectly()
     {
         // Arrange
         var source =
@@ -99,26 +110,29 @@ using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    public interface IMyService { }
+    public interface IA { }
 
-    [Singleton(typeof(IMyService))]
-    public partial class MyService : IMyService
+    [Singleton(typeof(IA))]
+    public partial class A : IA
     {
-        public MyService(IMyService self) { }
+        public A(IA a) { }
     }
 }
 ";
         var result = BuildGraph(source);
 
         // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        Assert.Single(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
+        var diagnostic = result.Diagnostics.First(d => d.Id == "GDI_D010");
+        var message = diagnostic.GetMessage();
+
+        // 自环应该显示为 A -> A
+        Assert.Contains("A", message);
+        Assert.Contains("->", message);
     }
 
     [Fact]
-    public void Build_NoDependencies_NoCircularDependency()
+    public void Detect_MultipleSeparateCircles_ReportsAllCircles()
     {
         // Arrange
         var source =
@@ -127,24 +141,48 @@ using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    [Singleton]
-    public partial class ServiceA { }
+    // Circle 1: A <-> B
+    public interface IA { }
+    public interface IB { }
 
-    [Singleton]
-    public partial class ServiceB { }
+    [Singleton(typeof(IA))]
+    public partial class A : IA
+    {
+        public A(IB b) { }
+    }
+
+    [Singleton(typeof(IB))]
+    public partial class B : IB
+    {
+        public B(IA a) { }
+    }
+
+    // Circle 2: C <-> D
+    public interface IC { }
+    public interface ID { }
+
+    [Singleton(typeof(IC))]
+    public partial class C : IC
+    {
+        public C(ID d) { }
+    }
+
+    [Singleton(typeof(ID))]
+    public partial class D : ID
+    {
+        public D(IC c) { }
+    }
 }
 ";
         var result = BuildGraph(source);
 
-        // Assert
-        Assert.DoesNotContain(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        // Assert - 应该检测到两个独立的循环
+        var circularDiagnostics = result.Diagnostics.Where(d => d.Id == "GDI_D010").ToList();
+        Assert.Equal(2, circularDiagnostics.Count);
     }
 
     [Fact]
-    public void Build_LinearDependencyChain_NoCircularDependency()
+    public void Detect_ComplexGraphWithOneCircle_OnlyReportsCircle()
     {
         // Arrange
         var source =
@@ -153,40 +191,53 @@ using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    public interface IServiceA { }
-    public interface IServiceB { }
-    public interface IServiceC { }
+    public interface IA { }
+    public interface IB { }
+    public interface IC { }
+    public interface ID { }
 
-    [Singleton(typeof(IServiceA))]
-    public partial class ServiceA : IServiceA
+    // 无循环部分
+    [Singleton(typeof(ID))]
+    public partial class D : ID
     {
-        public ServiceA(IServiceB b) { }
+        public D() { }
     }
 
-    [Singleton(typeof(IServiceB))]
-    public partial class ServiceB : IServiceB
+    [Singleton(typeof(IC))]
+    public partial class C : IC
     {
-        public ServiceB(IServiceC c) { }
+        public C(ID d) { }
     }
 
-    [Singleton(typeof(IServiceC))]
-    public partial class ServiceC : IServiceC
+    // 有循环部分: A <-> B
+    [Singleton(typeof(IA))]
+    public partial class A : IA
     {
-        public ServiceC() { }
+        public A(IB b, IC c) { }
+    }
+
+    [Singleton(typeof(IB))]
+    public partial class B : IB
+    {
+        public B(IA a) { }
     }
 }
 ";
         var result = BuildGraph(source);
 
-        // Assert
-        Assert.DoesNotContain(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        // Assert - 只有 A 和 B 形成循环
+        var circularDiagnostics = result.Diagnostics.Where(d => d.Id == "GDI_D010").ToList();
+        Assert.Single(circularDiagnostics);
+
+        var message = circularDiagnostics[0].GetMessage();
+        Assert.Contains("A", message);
+        Assert.Contains("B", message);
+        Assert.DoesNotContain("C", message);
+        Assert.DoesNotContain("D", message);
     }
 
     [Fact]
-    public void Build_DiamondDependency_NoCircularDependency()
+    public void Detect_DiamondDependency_NoCircle_NoError()
     {
         // Arrange
         var source =
@@ -195,47 +246,45 @@ using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    public interface IServiceA { }
-    public interface IServiceB { }
-    public interface IServiceC { }
-    public interface IServiceD { }
+    public interface IA { }
+    public interface IB { }
+    public interface IC { }
+    public interface ID { }
 
-    [Singleton(typeof(IServiceA))]
-    public partial class ServiceA : IServiceA
+    // Diamond: A depends on B and C, both depend on D
+    [Singleton(typeof(IA))]
+    public partial class A : IA
     {
-        public ServiceA(IServiceB b, IServiceC c) { }
+        public A(IB b, IC c) { }
     }
 
-    [Singleton(typeof(IServiceB))]
-    public partial class ServiceB : IServiceB
+    [Singleton(typeof(IB))]
+    public partial class B : IB
     {
-        public ServiceB(IServiceD d) { }
+        public B(ID d) { }
     }
 
-    [Singleton(typeof(IServiceC))]
-    public partial class ServiceC : IServiceC
+    [Singleton(typeof(IC))]
+    public partial class C : IC
     {
-        public ServiceC(IServiceD d) { }
+        public C(ID d) { }
     }
 
-    [Singleton(typeof(IServiceD))]
-    public partial class ServiceD : IServiceD
+    [Singleton(typeof(ID))]
+    public partial class D : ID
     {
-        public ServiceD() { }
+        public D() { }
     }
 }
 ";
         var result = BuildGraph(source);
 
-        // Assert
-        Assert.DoesNotContain(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        // Assert - 钻石依赖不是循环
+        Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
     }
 
     [Fact]
-    public void Build_ComplexCircularDependency_ReportsDiagnostic()
+    public void Detect_LongChain_NoCircle_NoError()
     {
         // Arrange
         var source =
@@ -253,19 +302,19 @@ namespace Test
     [Singleton(typeof(IA))]
     public partial class A : IA
     {
-        public A(IB b, IC c) { }
+        public A(IB b) { }
     }
 
     [Singleton(typeof(IB))]
     public partial class B : IB
     {
-        public B(ID d) { }
+        public B(IC c) { }
     }
 
     [Singleton(typeof(IC))]
     public partial class C : IC
     {
-        public C(IE e) { }
+        public C(ID d) { }
     }
 
     [Singleton(typeof(ID))]
@@ -277,88 +326,115 @@ namespace Test
     [Singleton(typeof(IE))]
     public partial class E : IE
     {
-        public E(IA a) { }
+        public E() { }
     }
 }
 ";
         var result = BuildGraph(source);
 
         // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
-        );
+        Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
     }
 
     [Fact]
-    public void Build_ServiceConstructorParameterNotService_ReportsDiagnostic()
+    public void Detect_CircleInLargeGraph_DetectsCorrectly()
     {
-        // Arrange
+        // Arrange - 大型依赖图中嵌入循环
         var source =
             @"
 using GodotSharp.DI.Abstractions;
 
 namespace Test
 {
-    public interface IServiceA { }
-    public interface IServiceB { }
+    public interface I1 { }
+    public interface I2 { }
+    public interface I3 { }
+    public interface I4 { }
+    public interface I5 { }
+    public interface I6 { }
+    public interface I7 { }
 
-    [Singleton(typeof(IServiceA))]
-    public partial class ServiceA : IServiceA
-    {
-        public ServiceA(IServiceB b) { }
-    }
+    [Singleton(typeof(I1))]
+    public partial class S1 : I1 { public S1() { } }
+
+    [Singleton(typeof(I2))]
+    public partial class S2 : I2 { public S2(I1 s1) { } }
+
+    [Singleton(typeof(I3))]
+    public partial class S3 : I3 { public S3(I2 s2) { } }
+
+    // Circle starts: S4 -> S5 -> S6 -> S4
+    [Singleton(typeof(I4))]
+    public partial class S4 : I4 { public S4(I5 s5) { } }
+
+    [Singleton(typeof(I5))]
+    public partial class S5 : I5 { public S5(I6 s6) { } }
+
+    [Singleton(typeof(I6))]
+    public partial class S6 : I6 { public S6(I4 s4) { } }
+
+    [Singleton(typeof(I7))]
+    public partial class S7 : I7 { public S7(I3 s3) { } }
 }
 ";
         var result = BuildGraph(source);
 
         // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_D020" // ServiceConstructorParameterInvalid
-        );
+        var circularDiagnostics = result.Diagnostics.Where(d => d.Id == "GDI_D010").ToList();
+        Assert.Single(circularDiagnostics);
+
+        var message = circularDiagnostics[0].GetMessage();
+        Assert.Contains("S4", message);
+        Assert.Contains("S5", message);
+        Assert.Contains("S6", message);
     }
 
     [Fact]
-    public void Build_MultipleServicesShareDependency_IsValid()
+    public void Detect_PerformanceTest_LargeGraphWithoutCircles()
     {
-        // Arrange
-        var source =
-            @"
-using GodotSharp.DI.Abstractions;
+        // Arrange - 生成大型依赖图（100个节点的链）
+        var sourceBuilder = new System.Text.StringBuilder();
+        sourceBuilder.AppendLine("using GodotSharp.DI.Abstractions;");
+        sourceBuilder.AppendLine("namespace Test {");
 
-namespace Test
-{
-    public interface IShared { }
-    public interface IServiceA { }
-    public interface IServiceB { }
+        const int nodeCount = 100;
 
-    [Singleton(typeof(IShared))]
-    public partial class Shared : IShared
-    {
-        public Shared() { }
-    }
+        // 生成接口
+        for (int i = 0; i < nodeCount; i++)
+        {
+            sourceBuilder.AppendLine($"public interface I{i} {{ }}");
+        }
 
-    [Singleton(typeof(IServiceA))]
-    public partial class ServiceA : IServiceA
-    {
-        public ServiceA(IShared shared) { }
-    }
+        // 生成服务（形成链式依赖）
+        for (int i = 0; i < nodeCount; i++)
+        {
+            sourceBuilder.AppendLine($"[Singleton(typeof(I{i}))]");
+            sourceBuilder.AppendLine($"public partial class S{i} : I{i} {{");
 
-    [Singleton(typeof(IServiceB))]
-    public partial class ServiceB : IServiceB
-    {
-        public ServiceB(IShared shared) { }
-    }
-}
-";
-        var result = BuildGraph(source);
+            if (i < nodeCount - 1)
+            {
+                sourceBuilder.AppendLine($"public S{i}(I{i + 1} next) {{ }}");
+            }
+            else
+            {
+                sourceBuilder.AppendLine($"public S{i}() {{ }}");
+            }
 
-        // Assert
-        Assert.DoesNotContain(
-            result.Diagnostics,
-            d => d.Id == "GDI_D010" // CircularDependencyDetected
+            sourceBuilder.AppendLine("}");
+        }
+
+        sourceBuilder.AppendLine("}");
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = BuildGraph(sourceBuilder.ToString());
+        stopwatch.Stop();
+
+        // Assert - 应该在合理时间内完成（< 1秒）
+        Assert.True(
+            stopwatch.ElapsedMilliseconds < 1000,
+            $"Detection took too long: {stopwatch.ElapsedMilliseconds}ms"
         );
+        Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
     }
 
     private static DiGraphBuildResult BuildGraph(string source)

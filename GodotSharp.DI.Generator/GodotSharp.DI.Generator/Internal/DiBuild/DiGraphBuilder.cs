@@ -259,24 +259,6 @@ internal static class DiGraphBuilder
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
     }
 
-    /// <summary>
-    /// 提取公共方法：收集 Host 提供的服务
-    /// </summary>
-    private static ImmutableArray<ITypeSymbol> CollectHostProvidedServices(TypeInfo host)
-    {
-        var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
-
-        foreach (var member in host.Members)
-        {
-            if (member.IsSingletonMember)
-            {
-                providedServices.AddRange(member.ExposedTypes);
-            }
-        }
-
-        return providedServices.ToImmutable();
-    }
-
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostNodes(
         ImmutableArray<TypeInfo> hosts
     )
@@ -306,30 +288,6 @@ internal static class DiGraphBuilder
         }
 
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
-    }
-
-    /// <summary>
-    /// 提取公共方法：收集 User 的依赖
-    /// </summary>
-    private static ImmutableArray<DependencyEdge> CollectUserDependencies(TypeInfo user)
-    {
-        var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-        foreach (var member in user.Members)
-        {
-            if (member.IsInjectMember)
-            {
-                dependencies.Add(
-                    new DependencyEdge(
-                        TargetType: member.MemberType,
-                        Location: member.Location,
-                        Source: DependencySource.InjectMember
-                    )
-                );
-            }
-        }
-
-        return dependencies.ToImmutable();
     }
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildUserNodes(
@@ -369,10 +327,6 @@ internal static class DiGraphBuilder
         return (nodes.ToImmutable(), diagnostics.ToImmutable());
     }
 
-    /// <summary>
-    /// 构建 HostAndUser 节点
-    /// 同时具有 Host 和 User 的特性：提供服务 + 依赖注入
-    /// </summary>
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostAndUserNodes(
         ImmutableArray<TypeInfo> hostAndUsers
     )
@@ -525,33 +479,13 @@ internal static class DiGraphBuilder
             serviceImplToNode[node.TypeInfo.Symbol] = node;
         }
 
-        // 检查循环依赖
-        foreach (var node in serviceNodes)
-        {
-            var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-            var pathSet = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-            var pathStack = new Stack<ITypeSymbol>();
-
-            if (
-                HasCircularDependency(
-                    node.TypeInfo.Symbol,
-                    serviceImplToNode,
-                    serviceProviders,
-                    visited,
-                    pathSet,
-                    pathStack
-                )
-            )
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.CircularDependencyDetected,
-                        node.TypeInfo.Location,
-                        string.Join(" -> ", pathStack.Reverse().Select(t => t.ToDisplayString()))
-                    )
-                );
-            }
-        }
+        // 检查循环依赖（使用优化的 Tarjan 算法）
+        var circularDependencyDetector = new CircularDependencyDetector(
+            serviceImplToNode,
+            serviceProviders
+        );
+        var circularDiagnostics = circularDependencyDetector.DetectCircularDependencies();
+        diagnostics.AddRange(circularDiagnostics);
 
         // 检查 Service 构造函数参数
         foreach (var node in serviceNodes)
@@ -598,53 +532,5 @@ internal static class DiGraphBuilder
         }
 
         return diagnostics.ToImmutable();
-    }
-
-    private static bool HasCircularDependency(
-        ITypeSymbol currentImpl,
-        Dictionary<ITypeSymbol, TypeNode> serviceImplToNode,
-        Dictionary<ITypeSymbol, TypeInfo> serviceProviders,
-        HashSet<ITypeSymbol> visited,
-        HashSet<ITypeSymbol> pathSet,
-        Stack<ITypeSymbol> pathStack
-    )
-    {
-        if (pathSet.Contains(currentImpl))
-            return true;
-
-        if (visited.Contains(currentImpl))
-            return false;
-
-        visited.Add(currentImpl);
-        pathSet.Add(currentImpl);
-        pathStack.Push(currentImpl);
-
-        if (serviceImplToNode.TryGetValue(currentImpl, out var node))
-        {
-            if (node.TypeInfo.Constructor != null)
-            {
-                foreach (var param in node.TypeInfo.Constructor.Parameters)
-                {
-                    if (serviceProviders.TryGetValue(param.Type, out var provider))
-                    {
-                        if (
-                            HasCircularDependency(
-                                provider.Symbol,
-                                serviceImplToNode,
-                                serviceProviders,
-                                visited,
-                                pathSet,
-                                pathStack
-                            )
-                        )
-                            return true;
-                    }
-                }
-            }
-        }
-
-        pathSet.Remove(currentImpl);
-        pathStack.Pop();
-        return false;
     }
 }

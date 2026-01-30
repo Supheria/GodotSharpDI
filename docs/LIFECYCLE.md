@@ -199,7 +199,7 @@ case NotificationPredelete:
 
 ## 依赖注入时序
 
-### Node User 的注入时序
+### User 的注入时序
 
 ```
 User Node 进入场景树 (NotificationEnterTree)
@@ -338,6 +338,155 @@ private void CheckWaitList()
 这有助于在开发阶段发现配置错误。
 
 ---
+
+## Host + User 与循环依赖
+
+在 GodotSharp.DI 中，一个类型可以同时标记为 `[Host, User]`，即既提供服务又消费服务。 为了避免误判循环依赖，需要明确 Host 与 User 在生命周期和注入时序上的区别。
+
+### Host 与 User 的注入时序差异
+
+**Host（服务提供者）**
+
+- 在 **EnterTree** 阶段注册其 `[Singleton]` 成员提供的服务
+- 注册服务时 **不会触发任何依赖注入**
+- 不会触发自身的 User 注入
+- 不会触发其他 User 的注入
+
+**User（服务消费者）**
+
+- 在 **EnterTree** 阶段附着到最近的 Scope
+- 立即对所有 `[Inject]` 成员发起依赖解析
+- 如果服务尚未注册，则加入等待队列
+- 在服务注册或 Scope Ready 时被回调注入
+- 所有依赖注入完成后触发 `OnServicesReady()`
+
+**结论**
+
+> **Host 的服务注册阶段不参与依赖注入链。** **User 的依赖注入只在 Node 进入场景树后、或服务注册完成后触发。**
+
+这条规则保证了 Host+User 不会因为“自提供、自消费”而形成循环依赖。
+
+### 示例 1：Host+User 自注入不是循环依赖
+
+```csharp
+public interface IMyService { }
+
+[Host, User]
+public partial class MyService : Node, IMyService
+{
+    [Singleton(typeof(IMyService))]
+    private MyService Self => this;
+
+    [Inject]
+    private IMyService _self;
+}
+```
+
+**依赖关系**
+
+- Host 部分提供 `IMyService`
+- User 部分消费 `IMyService`
+
+**为什么不是循环依赖？**
+
+1. Host 注册 `Self` 时 **不会触发** `_self` **的注入**
+2. `_self` 的注入发生在 User 注入阶段（EnterTree → AttachToScope）
+3. 此时 `IMyService` 已经注册，因此注入成功
+4. 整个过程没有构造函数链路，也没有形成依赖闭环
+
+**结论**
+
+> **Host+User 自注入是合法的，不属于循环依赖。**
+
+### 示例 2：Host 提供服务 + 自身消费另一个 Service 也不是循环依赖
+
+```csharp
+public interface IServiceA { }
+public interface IServiceB { }
+
+[Singleton(typeof(IServiceA))]
+public partial class ServiceA : IServiceA
+{
+    public ServiceA(IServiceB b) { }
+}
+
+[Host, User]
+public partial class HostUser : Node, IServiceB
+{
+    [Singleton(typeof(IServiceB))]
+    private HostUser Self => this;
+
+    [Inject]
+    private IServiceA _serviceA;
+}
+```
+
+**依赖关系**
+
+- `HostUser`（Host）提供 `IServiceB`
+- `ServiceA` 构造函数依赖 `IServiceB` → 注入 `HostUser`
+- `HostUser`（User）依赖 `IServiceA`
+
+**为什么不是循环依赖？**
+
+1. HostUser 注册 `IServiceB` 时 **不会触发** `_serviceA` **的注入**
+2. ServiceA 构造函数解析 `IServiceB` → 得到 HostUser
+3. ServiceA 构造完成后，HostUser 的 `_serviceA` 在 User 注入阶段被赋值
+4. 整个链路中没有构造函数环路
+
+**依赖图如下：**
+
+```
+ServiceA → IServiceB (HostUser)
+HostUser(User) → IServiceA
+```
+
+这是一个“菱形依赖”，不是循环。
+
+#### 结论
+
+> **Host 提供服务 + 自身作为 User 消费其他服务是合法的，不属于循环依赖。**
+
+### 循环依赖检测的适用范围
+
+GodotSharp.DI 的循环依赖检测仅针对：
+
+- **Service → Service 的构造函数依赖链**
+
+不包括：
+
+- User 的 `[Inject]` 成员
+- Host 的 `[Singleton]` 成员
+- Host+User 的自注入
+- Host 与 User 之间的交叉依赖
+
+原因：
+
+> **User 注入发生在所有 Service 构造完成之后，不参与构造时的依赖闭环。**
+
+因此，只有以下情况会被判定为循环依赖：
+
+```csharp
+[Singleton(typeof(IA))]
+class A : IA { public A(IB b) {} }
+
+[Singleton(typeof(IB))]
+class B : IB { public B(IA a) {} }
+```
+
+### 5. 总结
+
+| 情况                               | 是否循环依赖 | 原因                                 |
+| ---------------------------------- | ------------ | ------------------------------------ |
+| Host+User 自注入                   | ❌            | Host 注册不触发注入，User 注入在之后 |
+| Host 提供服务 + 自身作为 User 注入 | ❌            | 注入时序分离，不形成构造函数环       |
+| Service ↔ Service 构造函数互相依赖 | ✔️            | 构造函数闭环                         |
+
+最终规则：
+
+> **只要依赖链不在 Service 构造函数之间形成闭环，就不是循环依赖。Host+User 的注入时序天然避免构造函数循环。**
+
+------
 
 ## 最佳实践
 
