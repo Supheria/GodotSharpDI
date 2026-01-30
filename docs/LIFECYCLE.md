@@ -40,33 +40,29 @@ Scope 即将删除 (NotificationPredelete)
 Scope 删除完成
 ```
 
-#### 释放顺序
+#### 释放单例
 
-Singleton 服务的释放顺序与创建顺序相反（LIFO）。框架会：
-1. 遍历所有 Scope 管理的实例
-2. 检查是否实现 `IDisposable`
-3. 调用 `Dispose()` 方法
-4. 捕获并记录任何异常，继续释放其他服务
+1. 遍历 _disposableSingletons 中管理的 IDisposable 单例
+2. 调用 `Dispose()` 方法
+3. 捕获并记录任何异常，继续释放其他服务
+4. 清空存储列表
 
 ```csharp
 // 生成的代码
 private void DisposeScopeSingletons()
 {
-    foreach (var instance in _scopeSingletonInstances)
+    foreach (var disposable in _disposableSingletons)
     {
-        if (instance is IDisposable disposable)
+        try
         {
-            try
-            {
-                disposable.Dispose();
-            }
-            catch (Exception ex)
-            {
-                GD.PushError(ex);
-            }
+            disposable.Dispose();
+        }
+        catch (Exception ex)
+        {
+            GD.PushError(ex);
         }
     }
-    _scopeSingletonInstances.Clear();
+    _disposableSingletons.Clear();
     _singletonServices.Clear();
 }
 ```

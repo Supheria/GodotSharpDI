@@ -123,7 +123,7 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is already marked as a Service ([Singleton] or [Transient]). Host should not hold Service instances directly.
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is already marked as a Service ([Singleton]). Host should not hold Service instances directly.
         /// </summary>
         internal static string HostSingletonMemberIsServiceType {
             get {

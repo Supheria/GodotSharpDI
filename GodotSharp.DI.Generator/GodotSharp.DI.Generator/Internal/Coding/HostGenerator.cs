@@ -75,9 +75,13 @@ internal static class HostGenerator
             {
                 foreach (var exposedType in member.ExposedTypes)
                 {
-                    f.AppendLine(
-                        $"scope.RegisterService<{exposedType.ToDisplayString()}>({member.Symbol.Name});"
-                    );
+                    f.BeginTryCatch();
+                    {
+                        f.AppendLine(
+                            $"scope.RegisterService<{exposedType.ToDisplayString()}>({member.Symbol.Name});"
+                        );
+                    }
+                    f.EndTryCatch();
                 }
             }
         }

@@ -42,7 +42,7 @@ internal static class UserGenerator
             )
             .ToArray();
 
-        // 如果既没有 Inject 成员，不生成 User 代码
+        // 如果没有 Inject 成员，不生成 User 代码
         if (injectMembers.Length == 0)
             return;
 
@@ -116,14 +116,17 @@ internal static class UserGenerator
                 );
                 f.BeginBlock();
                 {
-                    f.AppendLine($"{member.Symbol.Name} = dependency;");
-
-                    if (type.ImplementsIServicesReady)
+                    f.BeginTryCatch();
                     {
-                        f.AppendLine(
-                            $"OnDependencyResolved<{member.MemberType.ToDisplayString()}>();"
-                        );
+                        f.AppendLine($"{member.Symbol.Name} = dependency;");
+                        if (type.ImplementsIServicesReady)
+                        {
+                            f.AppendLine(
+                                $"OnDependencyResolved<{member.MemberType.ToDisplayString()}>();"
+                            );
+                        }
                     }
+                    f.EndTryCatch();
                 }
                 f.EndBlock(");");
             }

@@ -22,15 +22,10 @@ internal static class NodeDIGenerator
     )
     {
         var f = new CodeFormatter();
-        var isNode = type.IsNode;
 
         f.BeginClassDeclaration(namespaceName, className);
         {
-            if (isNode)
-            {
-                // HostAndUser 类型必须是 Node，生成 Node DI 代码
-                GenerateNodeDICode(f, type);
-            }
+            GenerateNodeDICode(f, type);
         }
         f.EndClassDeclaration();
 

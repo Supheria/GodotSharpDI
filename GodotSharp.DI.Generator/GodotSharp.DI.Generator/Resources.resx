@@ -131,8 +131,8 @@
     <data name="SingletonMemberIsStatic" xml:space="preserve">
     <value>[Singleton] member '{0}' cannot be static</value>
   </data>
-    <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
-    <value>[Singleton] member '{0}' has type '{1}', which is already marked as a Service ([Singleton] or [Transient]). Host should not hold Service instances directly</value>
+  <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
+    <value>[Singleton] member '{0}' has type '{1}', which is already marked as a Service ([Singleton]). Host should not hold Service instances directly</value>
   </data>
     <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
     <value>Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>

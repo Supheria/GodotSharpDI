@@ -297,7 +297,7 @@ public partial class MyUser : Node
 
 **消息**: `[Singleton] member '{0}' has type '{1}', which is already marked as a Service. Host should not hold Service instances directly`
 
-**原因**: Host 成员的类型是 Service（标记了 `[Singleton]` 或 `[Transient]`）。
+**原因**: Host 成员的类型是 Service（标记了 `[Singleton]` ）。
 
 ```csharp
 // ❌ 错误

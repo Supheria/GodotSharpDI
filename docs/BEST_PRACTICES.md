@@ -385,9 +385,10 @@ public partial class ResourceLoader : IResourceLoader, IDisposable
 
 ------
 
-## 使用 Singleton 工厂
+## 使用 Service 工厂
 
-**工厂是 Service：**
+**工厂是 Singleton：**
+
 ```csharp
 [Singleton(typeof(IFactory))]
 public partial class MyFactory : IFactory
@@ -407,6 +408,7 @@ public partial class MyFactory : IFactory
 ```
 
 **产品是普通类：**
+
 ```csharp
 public class Product : IDisposable
 {

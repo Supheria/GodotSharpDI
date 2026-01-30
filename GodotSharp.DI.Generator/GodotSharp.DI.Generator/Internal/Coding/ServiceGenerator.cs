@@ -83,7 +83,11 @@ internal static class ServiceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine($"p{i} = dependency;");
-                    f.AppendLine("TryCreate();");
+                    f.BeginTryCatch();
+                    {
+                        f.AppendLine("TryCreate();");
+                    }
+                    f.EndTryCatch();
                 }
                 f.EndBlock(");");
             }
