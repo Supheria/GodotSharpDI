@@ -143,4 +143,10 @@
   <data name="UserMustBeNode" xml:space="preserve">
     <value>User '{0}' must inherit from Godot.Node</value>
   </data>
+  <data name="ServiceExposedTypeNotImplemented" xml:space="preserve">
+    <value>Service '{0}' has exposed type '{1}', but which is not implemented</value>
+  </data>
+  <data name="HostMemberExposedTypeNotImplemented" xml:space="preserve">
+    <value>Host member '{0}' has exposed type '{1}', but which is not implemented</value>
+  </data>
 </root>

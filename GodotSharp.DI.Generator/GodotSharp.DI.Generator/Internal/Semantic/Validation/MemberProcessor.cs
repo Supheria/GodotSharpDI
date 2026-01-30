@@ -1,7 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
-using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
 
@@ -117,17 +116,17 @@ internal sealed class MemberProcessor
             }
         }
 
-        ITypeSymbol? memberType = null;
+        INamedTypeSymbol? memberType = null;
         MemberKind kind = MemberKind.None;
 
-        if (member is IFieldSymbol field)
+        if (member is IFieldSymbol field && field.Type is INamedTypeSymbol)
         {
-            memberType = field.Type;
+            memberType = (INamedTypeSymbol)field.Type;
             kind = hasInject ? MemberKind.InjectField : MemberKind.SingletonField;
         }
-        else if (member is IPropertySymbol property)
+        else if (member is IPropertySymbol property && property.Type is INamedTypeSymbol)
         {
-            memberType = property.Type;
+            memberType = (INamedTypeSymbol)property.Type;
 
             if (hasInject)
             {
@@ -172,7 +171,7 @@ internal sealed class MemberProcessor
         }
 
         // 获取暴露类型
-        var exposedTypes = ImmutableArray<ITypeSymbol>.Empty;
+        var exposedTypes = ImmutableArray<INamedTypeSymbol>.Empty;
         if (hasSingleton)
         {
             // 检查成员类型是否是 Service 类型（Host 不应直接持有 Service 实例）
@@ -203,6 +202,42 @@ internal sealed class MemberProcessor
                             exposedType.ToDisplayString()
                         )
                     );
+                }
+
+                // 检查是否实现了暴露的接口
+                if (exposedType.TypeKind == TypeKind.Interface)
+                {
+                    if (!memberType.ImplementsInterface(exposedType))
+                    {
+                        _diagnostics.Add(
+                            DiagnosticBuilder.Create(
+                                DiagnosticDescriptors.HostMemberExposedTypeNotImplemented,
+                                location,
+                                member.Name,
+                                exposedType.ToDisplayString(),
+                                memberType.ToDisplayString()
+                            )
+                        );
+                    }
+                }
+                // 检查是否是继承关系
+                else if (exposedType.TypeKind == TypeKind.Class)
+                {
+                    if (
+                        !SymbolEqualityComparer.Default.Equals(memberType, exposedType)
+                        && !memberType.InheritsFrom(exposedType)
+                    )
+                    {
+                        _diagnostics.Add(
+                            DiagnosticBuilder.Create(
+                                DiagnosticDescriptors.HostMemberExposedTypeNotImplemented,
+                                location,
+                                member.Name,
+                                exposedType.ToDisplayString(),
+                                memberType.ToDisplayString()
+                            )
+                        );
+                    }
                 }
             }
         }

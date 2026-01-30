@@ -12,14 +12,10 @@ public interface IChunkGenerator;
 public interface ICellGenerator;
 
 [Host]
-[User]
 public partial class ChunkManager : Node, IChunkGenerator, IChunkGetter
 {
     [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
-    private ChunkManager Self => this;
-
-    [Inject]
-    private ICellGenerator _cellManager;
+    private ChunkManager Self => this; // ChunkManager 没有实现 IChunkGetter、IChunkGenerator
 }
 
 public class CellService : ICellGenerator, IChunkGenerator;
@@ -43,7 +39,7 @@ public interface IDataWriter;
 
 public interface IDataReader;
 
-[Singleton(typeof(IDataWriter), typeof(IDataReader))]
+[Singleton(typeof(IDataWriter), typeof(IDataReader))] // DataBase 没有实现 IDataWriter、IDataReader
 public partial class DataBase : IDataWriter, IDataReader { }
 
 public interface IFinder;

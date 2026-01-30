@@ -136,4 +136,10 @@
   <data name="UserMustBeNode" xml:space="preserve">
     <value>User “{0}” 必须继承自 Godot.Node</value>
   </data>
+  <data name="ServiceExposedTypeNotImplemented" xml:space="preserve">
+    <value>服务 "{0}" 暴露了类型 "{1}"，但未实现该类型</value>
+  </data>
+  <data name="HostMemberExposedTypeNotImplemented" xml:space="preserve">
+    <value>Host 成员 "{0}" 暴露了类型 "{1}"，但成员类型 "{2}" 未实现该类型</value>
+  </data>
 </root>

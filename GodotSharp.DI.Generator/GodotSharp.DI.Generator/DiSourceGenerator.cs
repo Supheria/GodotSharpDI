@@ -8,7 +8,6 @@ using System.Threading;
 using GodotSharp.DI.Generator.Internal;
 using GodotSharp.DI.Generator.Internal.Coding;
 using GodotSharp.DI.Generator.Internal.Data;
-using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.DiBuild;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Generator.Internal.Semantic;

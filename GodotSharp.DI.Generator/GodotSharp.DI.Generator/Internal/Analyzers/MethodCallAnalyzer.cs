@@ -2,7 +2,7 @@
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using GodotSharp.DI.Generator.Internal.Descriptors;
+using GodotSharp.DI.Generator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;

@@ -1,7 +1,8 @@
 ﻿using System.Collections.Immutable;
+using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
-using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.Helpers;
+using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharp.DI.Generator.Internal.Semantic.Validation;
@@ -76,6 +77,60 @@ internal sealed class RoleConstraintsProcessor
                     _raw.Symbol.Name
                 )
             );
+        }
+
+        var singletonAttr = _raw.Symbol.GetAttribute(_symbols.SingletonAttribute);
+        var exposedTypes = AttributeHelper.GetTypesFromAttribute(
+            singletonAttr,
+            ArgumentNames.ServiceTypes
+        );
+
+        foreach (var exposedType in exposedTypes)
+        {
+            if (exposedType.TypeKind != TypeKind.Interface)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.ExposedTypeShouldBeInterface,
+                        _raw.Location,
+                        exposedType.ToDisplayString()
+                    )
+                );
+            }
+
+            // 检查是否实现了暴露的接口
+            if (exposedType.TypeKind == TypeKind.Interface)
+            {
+                if (!_raw.Symbol.ImplementsInterface(exposedType))
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.ServiceExposedTypeNotImplemented,
+                            _raw.Location,
+                            _raw.Symbol.Name,
+                            exposedType.ToDisplayString()
+                        )
+                    );
+                }
+            }
+            // 检查是否是继承关系
+            else if (exposedType.TypeKind == TypeKind.Class)
+            {
+                if (
+                    !SymbolEqualityComparer.Default.Equals(_raw.Symbol, exposedType)
+                    && !_raw.Symbol.InheritsFrom(exposedType)
+                )
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.ServiceExposedTypeNotImplemented,
+                            _raw.Location,
+                            _raw.Symbol.Name,
+                            exposedType.ToDisplayString()
+                        )
+                    );
+                }
+            }
         }
     }
 

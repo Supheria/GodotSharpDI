@@ -10,8 +10,8 @@ internal sealed record MemberInfo(
     ISymbol Symbol,
     Location Location,
     MemberKind Kind,
-    ITypeSymbol MemberType,
-    ImmutableArray<ITypeSymbol> ExposedTypes
+    INamedTypeSymbol MemberType,
+    ImmutableArray<INamedTypeSymbol> ExposedTypes
 )
 {
     public bool IsInjectMember { get; } =

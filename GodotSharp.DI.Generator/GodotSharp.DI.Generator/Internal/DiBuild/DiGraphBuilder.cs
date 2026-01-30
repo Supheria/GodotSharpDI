@@ -2,7 +2,6 @@
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
-using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
 using TypeInfo = GodotSharp.DI.Generator.Internal.Data.TypeInfo;
@@ -492,12 +491,7 @@ internal static class DiGraphBuilder
             }
 
             nodes.Add(
-                new ScopeNode(
-                    TypeInfo: scope,
-                    InstantiateServices: services,
-                    ExpectHosts: hosts,
-                    AllProvidedServices: ImmutableArray<ITypeSymbol>.Empty
-                )
+                new ScopeNode(TypeInfo: scope, InstantiateServices: services, ExpectHosts: hosts)
             );
         }
 

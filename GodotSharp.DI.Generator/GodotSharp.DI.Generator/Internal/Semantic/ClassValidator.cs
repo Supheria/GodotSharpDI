@@ -1,7 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Linq;
 using GodotSharp.DI.Generator.Internal.Data;
-using GodotSharp.DI.Generator.Internal.Descriptors;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Generator.Internal.Semantic.Validation;
 using GodotSharp.DI.Shared;
@@ -156,10 +155,6 @@ internal sealed class ClassValidator
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, _symbols.ModulesAttribute)
             );
-
-        if (modulesAttr == null)
-            return null;
-
         var services = AttributeHelper.GetTypesFromAttribute(modulesAttr, ArgumentNames.Services);
         var hosts = AttributeHelper.GetTypesFromAttribute(modulesAttr, ArgumentNames.Hosts);
 

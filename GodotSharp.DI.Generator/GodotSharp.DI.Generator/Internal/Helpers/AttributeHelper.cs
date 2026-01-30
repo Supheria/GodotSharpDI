@@ -11,17 +11,16 @@ namespace GodotSharp.DI.Generator.Internal.Helpers;
 /// </summary>
 internal static class AttributeHelper
 {
-    public static ImmutableArray<ITypeSymbol> GetExposedTypes(ISymbol member, CachedSymbols symbols)
+    public static ImmutableArray<INamedTypeSymbol> GetExposedTypes(
+        ISymbol member,
+        CachedSymbols symbols
+    )
     {
         var singletonAttr = member
             .GetAttributes()
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.SingletonAttribute)
             );
-
-        if (singletonAttr == null)
-            return ImmutableArray<ITypeSymbol>.Empty;
-
         var exposedTypes = GetTypesFromAttribute(singletonAttr, ArgumentNames.ServiceTypes);
 
         // 如果没有指定服务类型，使用成员的类型
@@ -37,21 +36,26 @@ internal static class AttributeHelper
                 memberType = property.Type;
             }
 
-            if (memberType != null)
+            if (memberType is INamedTypeSymbol namedType)
             {
-                return ImmutableArray.Create(memberType);
+                return ImmutableArray.Create(namedType);
             }
         }
 
         return exposedTypes;
     }
 
-    public static ImmutableArray<ITypeSymbol> GetTypesFromAttribute(
-        AttributeData attr,
+    public static ImmutableArray<INamedTypeSymbol> GetTypesFromAttribute(
+        AttributeData? attr,
         string propertyName
     )
     {
-        var builder = ImmutableArray.CreateBuilder<ITypeSymbol>();
+        if (attr == null)
+        {
+            return ImmutableArray<INamedTypeSymbol>.Empty;
+        }
+
+        var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
 
         // 构造函数参数
         if (attr.ConstructorArguments.Length > 0)
@@ -62,7 +66,7 @@ internal static class AttributeHelper
                 {
                     foreach (var item in arg.Values)
                     {
-                        if (item.Value is ITypeSymbol type)
+                        if (item.Value is INamedTypeSymbol type)
                             builder.Add(type);
                     }
                 }
@@ -76,7 +80,7 @@ internal static class AttributeHelper
             {
                 foreach (var item in namedArg.Value.Values)
                 {
-                    if (item.Value is ITypeSymbol type)
+                    if (item.Value is INamedTypeSymbol type)
                         builder.Add(type);
                 }
             }

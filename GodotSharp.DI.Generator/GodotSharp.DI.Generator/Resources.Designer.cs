@@ -114,6 +114,15 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Host member &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
+        /// </summary>
+        internal static string HostMemberExposedTypeNotImplemented {
+            get {
+                return ResourceManager.GetString("HostMemberExposedTypeNotImplemented", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Host &apos;{0}&apos; must inherit from Godot.Node.
         /// </summary>
         internal static string HostMustBeNode {
@@ -335,6 +344,15 @@ namespace GodotSharp.DI.Generator {
         internal static string ServiceConstructorParameterInvalid {
             get {
                 return ResourceManager.GetString("ServiceConstructorParameterInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
+        /// </summary>
+        internal static string ServiceExposedTypeNotImplemented {
+            get {
+                return ResourceManager.GetString("ServiceExposedTypeNotImplemented", resourceCulture);
             }
         }
         

@@ -8,7 +8,6 @@ namespace GodotSharp.DI.Generator.Internal.Data;
 /// </summary>
 internal sealed record ScopeNode(
     TypeInfo TypeInfo,
-    ImmutableArray<ITypeSymbol> InstantiateServices,
-    ImmutableArray<ITypeSymbol> ExpectHosts,
-    ImmutableArray<ITypeSymbol> AllProvidedServices
+    ImmutableArray<INamedTypeSymbol> InstantiateServices,
+    ImmutableArray<INamedTypeSymbol> ExpectHosts
 );

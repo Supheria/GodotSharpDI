@@ -147,6 +147,24 @@ public partial class MyService : IService { }
 
 ------
 
+### GDI_C070: ServiceExposedTypeNotImplemented
+
+**消息**: `Service '{0}' has exposed type '{1}', but which is not implemented`
+
+**原因**: Service 暴露了自身类型未实现的接口或未继承的类型。
+
+```csharp
+// ❌ 错误
+[Singleton(typeof(IService))]
+public partial class MyService { }
+
+// ✅ 正确
+[Singleton(typeof(IService))]
+public partial class MyService : IService { }
+```
+
+------
+
 ## Member 级别错误 (GDI_M)
 
 ### GDI_M010: MemberHasSingletonButNotInHost
@@ -337,6 +355,31 @@ public partial class ConfigService { }
 // ✅ 推荐
 [Singleton(typeof(IConfig))]  // 接口
 public partial class ConfigService : IConfig { }
+```
+------
+
+### GDI_M070: HostMemberExposedTypeNotImplemented
+
+**消息**: `Host member '{0}' has exposed type '{1}', but which is not implemented`
+
+**原因**: Host 成员暴露了该成员类型未实现的接口或未继承的类型。
+
+```csharp
+// ❌ 错误
+[Singleton(typeof(IService))]
+public partial class MyHost
+{
+    [Singleton(typeof(IService))]
+    private MyHost Self => this;
+}
+
+// ✅ 正确
+[Singleton(typeof(IService))]
+public partial class MyHost : IService
+{
+    [Singleton(typeof(IService))]
+    private MyHost Self => this;
+}
 ```
 
 ------

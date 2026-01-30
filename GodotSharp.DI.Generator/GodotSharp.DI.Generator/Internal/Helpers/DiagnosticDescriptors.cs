@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 
-namespace GodotSharp.DI.Generator.Internal.Descriptors;
+namespace GodotSharp.DI.Generator.Internal.Helpers;
 
 internal static class DiagnosticDescriptors
 {
@@ -155,6 +155,11 @@ internal static class DiagnosticDescriptors
         Resources.ServiceTypeIsInvalid
     );
 
+    public static readonly DiagnosticDescriptor ServiceExposedTypeNotImplemented = Class(
+        "070",
+        Resources.ServiceExposedTypeNotImplemented
+    );
+
     // ============================================================
     // M — Member-level
     // ============================================================
@@ -223,6 +228,11 @@ internal static class DiagnosticDescriptors
         "060",
         Resources.ExposedTypeShouldBeInterface,
         DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor HostMemberExposedTypeNotImplemented = Member(
+        "070",
+        Resources.HostMemberExposedTypeNotImplemented
     );
 
     // ============================================================
