@@ -31,7 +31,7 @@ internal sealed class ConstructorProcessor
 
     public ConstructorInfo? Process()
     {
-        var injectCtors = _raw
+        var injectConstructors = _raw
             .Constructors.Where(c =>
                 SymbolExtensions.HasAttribute(c, _symbols.InjectConstructorAttribute)
             )
@@ -39,7 +39,7 @@ internal sealed class ConstructorProcessor
 
         if (_role != TypeRole.Service)
         {
-            if (injectCtors.Length > 0)
+            if (injectConstructors.Length > 0)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
@@ -54,7 +54,7 @@ internal sealed class ConstructorProcessor
 
         IMethodSymbol? selectedCtor = null;
 
-        if (injectCtors.Length > 1)
+        if (injectConstructors.Length > 1)
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
@@ -65,19 +65,19 @@ internal sealed class ConstructorProcessor
             );
             return null;
         }
-        else if (injectCtors.Length == 1)
+        else if (injectConstructors.Length == 1)
         {
-            selectedCtor = injectCtors[0];
+            selectedCtor = injectConstructors[0];
         }
         else
         {
-            var publicCtors = _raw.Constructors.Where(c => c.IsPublic()).ToImmutableArray();
+            var constructors = _raw.Constructors.Where(c => !c.IsStatic).ToImmutableArray();
 
-            if (publicCtors.Length == 0)
+            if (constructors.Length == 0)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.NoPublicConstructor,
+                        DiagnosticDescriptors.NoNonStaticConstructor,
                         _raw.Location,
                         _raw.Symbol.Name
                     )
@@ -86,7 +86,7 @@ internal sealed class ConstructorProcessor
             }
 
             // 如果有多个公共构造函数且没有 [InjectConstructor] 标记，必须报告歧义错误
-            if (publicCtors.Length > 1)
+            if (constructors.Length > 1)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
@@ -98,7 +98,7 @@ internal sealed class ConstructorProcessor
                 return null;
             }
 
-            selectedCtor = publicCtors[0];
+            selectedCtor = constructors[0];
         }
 
         var parameters = ImmutableArray.CreateBuilder<ParameterInfo>();

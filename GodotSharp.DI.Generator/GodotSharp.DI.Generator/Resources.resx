@@ -21,12 +21,12 @@
   <data name="ServiceReadyNeedUser" xml:space="preserve">
     <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
   </data>
-  <data name="NoPublicConstructor" xml:space="preserve">
-    <value>Service '{0}' must define at least one constructor</value>
+  <data name="NoNonStaticConstructor" xml:space="preserve">
+    <value>Service '{0}' must define at least one non-static constructor</value>
   </data>
 
-    <data name="AmbiguousConstructor" xml:space="preserve">
-    <value>Service '{0}' has multiple constructors but no [InjectConstructor] is specified</value>
+  <data name="AmbiguousConstructor" xml:space="preserve">
+    <value>Service '{0}' has multiple constructors, should specify unique [InjectConstructor]</value>
   </data>
 
     <data name="InjectConstructorAttributeIsInvalid" xml:space="preserve">

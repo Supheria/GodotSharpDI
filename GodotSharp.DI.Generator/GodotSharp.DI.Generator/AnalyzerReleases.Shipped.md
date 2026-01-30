@@ -28,7 +28,7 @@
 | GDI_M050 | GDI.Member          | Error    | Host member cannot be Service type                             |
 | GDI_M060 | GDI.Member          | Warning  | Exposed type should be interface                               |
 | GDI_M070 | GDI.Member          | Error    | Host member exposes type but member type does not implement it |
-| GDI_S010 | GDI.Constructor     | Error    | Service must define at least one constructor                   |
+| GDI_S010 | GDI.Constructor     | Error    | Service must define at least one non-static constructor        |
 | GDI_S011 | GDI.Constructor     | Error    | Multiple constructors require [InjectConstructor]              |
 | GDI_S012 | GDI.Constructor     | Error    | [InjectConstructor] is invalid on non-Service                  |
 | GDI_S020 | GDI.Constructor     | Error    | Inject constructor parameter type invalid                      |

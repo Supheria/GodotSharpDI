@@ -14,12 +14,12 @@
   <data name="ServiceReadyNeedUser" xml:space="preserve">
     <value>类型 “{0}” 实现了 IServicesReady，但未标记为 [User]</value>
   </data>
-  <data name="NoPublicConstructor" xml:space="preserve">
-    <value>服务 “{0}” 必须至少定义一个构造函数</value>
+  <data name="NoNonStaticConstructor" xml:space="preserve">
+    <value>服务 “{0}” 必须至少定义一个非静态构造函数</value>
   </data>
 
-    <data name="AmbiguousConstructor" xml:space="preserve">
-    <value>服务 “{0}” 有多个构造函数，但未指定 [InjectConstructor]</value>
+  <data name="AmbiguousConstructor" xml:space="preserve">
+    <value>服务 “{0}” 有多个构造函数，需要指定唯一的 [InjectConstructor]</value>
   </data>
 
     <data name="InjectConstructorAttributeIsInvalid" xml:space="preserve">

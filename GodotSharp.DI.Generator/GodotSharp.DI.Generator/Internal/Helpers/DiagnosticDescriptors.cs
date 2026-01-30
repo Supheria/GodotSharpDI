@@ -239,9 +239,9 @@ internal static class DiagnosticDescriptors
     // S — Constructor-level
     // ============================================================
 
-    public static readonly DiagnosticDescriptor NoPublicConstructor = Constructor(
+    public static readonly DiagnosticDescriptor NoNonStaticConstructor = Constructor(
         "010",
-        Resources.NoPublicConstructor
+        Resources.NoNonStaticConstructor
     );
 
     public static readonly DiagnosticDescriptor AmbiguousConstructor = Constructor(

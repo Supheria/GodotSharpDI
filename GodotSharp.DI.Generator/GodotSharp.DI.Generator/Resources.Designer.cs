@@ -60,7 +60,7 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; has multiple constructors but no [InjectConstructor] is specified.
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; has multiple constructors, should specify unique [InjectConstructor].
         /// </summary>
         internal static string AmbiguousConstructor {
             get {
@@ -249,11 +249,11 @@ namespace GodotSharp.DI.Generator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; must define at least one constructor.
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; must define at least one non-static constructor.
         /// </summary>
-        internal static string NoPublicConstructor {
+        internal static string NoNonStaticConstructor {
             get {
-                return ResourceManager.GetString("NoPublicConstructor", resourceCulture);
+                return ResourceManager.GetString("NoNonStaticConstructor", resourceCulture);
             }
         }
         
