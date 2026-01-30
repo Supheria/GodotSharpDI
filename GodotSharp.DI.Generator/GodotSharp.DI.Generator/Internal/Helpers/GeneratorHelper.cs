@@ -5,7 +5,7 @@ namespace GodotSharp.DI.Generator.Internal.Helpers;
 /// <summary>
 /// 代码生成辅助方法 - 减少生成器之间的代码重复
 /// </summary>
-internal static class GeneratorHelpers
+internal static class GeneratorHelper
 {
     /// <summary>
     /// 开始类声明（包含 auto-generated 注释、命名空间和 partial class 声明）
