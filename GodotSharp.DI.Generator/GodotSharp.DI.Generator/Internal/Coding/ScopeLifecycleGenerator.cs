@@ -11,7 +11,26 @@ namespace GodotSharp.DI.Generator.Internal.Coding;
 /// </summary>
 internal static class ScopeLifecycleGenerator
 {
-    public static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
+    public static void GenerateLifecycle(
+        SourceProductionContext context,
+        ScopeNode node,
+        DiGraph graph,
+        string namespaceName,
+        string className
+    )
+    {
+        var f = new CodeFormatter();
+
+        f.BeginClassDeclaration(namespaceName, className);
+        {
+            Generate(f, node, graph);
+        }
+        f.EndClassDeclaration();
+
+        context.AddSource($"{className}.DI.g.cs", f.ToString());
+    }
+
+    private static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
         GenerateParentScopeField(f);
         f.AppendLine();

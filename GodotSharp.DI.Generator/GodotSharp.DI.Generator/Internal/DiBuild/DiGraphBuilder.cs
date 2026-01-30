@@ -160,10 +160,7 @@ internal static class DiGraphBuilder
         {
             foreach (var member in host.Members)
             {
-                if (
-                    member.Kind == MemberKind.SingletonField
-                    || member.Kind == MemberKind.SingletonProperty
-                )
+                if (member.IsSingletonMember)
                 {
                     foreach (var exposedType in member.ExposedTypes)
                     {
@@ -272,10 +269,7 @@ internal static class DiGraphBuilder
 
         foreach (var member in host.Members)
         {
-            if (
-                member.Kind == MemberKind.SingletonField
-                || member.Kind == MemberKind.SingletonProperty
-            )
+            if (member.IsSingletonMember)
             {
                 providedServices.AddRange(member.ExposedTypes);
             }
@@ -293,13 +287,21 @@ internal static class DiGraphBuilder
 
         foreach (var host in hosts)
         {
-            var providedServices = CollectHostProvidedServices(host);
+            var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
+
+            foreach (var member in host.Members)
+            {
+                if (member.IsSingletonMember)
+                {
+                    providedServices.AddRange(member.ExposedTypes);
+                }
+            }
 
             nodes.Add(
                 new TypeNode(
                     TypeInfo: host,
                     Dependencies: ImmutableArray<DependencyEdge>.Empty,
-                    ProvidedServices: providedServices
+                    ProvidedServices: providedServices.ToImmutable()
                 )
             );
         }
@@ -316,7 +318,7 @@ internal static class DiGraphBuilder
 
         foreach (var member in user.Members)
         {
-            if (member.Kind == MemberKind.InjectField || member.Kind == MemberKind.InjectProperty)
+            if (member.IsInjectMember)
             {
                 dependencies.Add(
                     new DependencyEdge(
@@ -340,12 +342,26 @@ internal static class DiGraphBuilder
 
         foreach (var user in users)
         {
-            var dependencies = CollectUserDependencies(user);
+            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
+
+            foreach (var member in user.Members)
+            {
+                if (member.IsInjectMember)
+                {
+                    dependencies.Add(
+                        new DependencyEdge(
+                            TargetType: member.MemberType,
+                            Location: member.Location,
+                            Source: DependencySource.InjectMember
+                        )
+                    );
+                }
+            }
 
             nodes.Add(
                 new TypeNode(
                     TypeInfo: user,
-                    Dependencies: dependencies,
+                    Dependencies: dependencies.ToImmutable(),
                     ProvidedServices: ImmutableArray<ITypeSymbol>.Empty
                 )
             );
@@ -367,17 +383,32 @@ internal static class DiGraphBuilder
 
         foreach (var hostAndUser in hostAndUsers)
         {
-            // 收集 Host 提供的服务
-            var providedServices = CollectHostProvidedServices(hostAndUser);
+            var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
+            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
 
-            // 收集 User 的依赖
-            var dependencies = CollectUserDependencies(hostAndUser);
+            foreach (var member in hostAndUser.Members)
+            {
+                if (member.IsSingletonMember)
+                {
+                    providedServices.AddRange(member.ExposedTypes);
+                }
+                if (member.IsInjectMember)
+                {
+                    dependencies.Add(
+                        new DependencyEdge(
+                            TargetType: member.MemberType,
+                            Location: member.Location,
+                            Source: DependencySource.InjectMember
+                        )
+                    );
+                }
+            }
 
             nodes.Add(
                 new TypeNode(
                     TypeInfo: hostAndUser,
-                    Dependencies: dependencies,
-                    ProvidedServices: providedServices
+                    Dependencies: dependencies.ToImmutable(),
+                    ProvidedServices: providedServices.ToImmutable()
                 )
             );
         }

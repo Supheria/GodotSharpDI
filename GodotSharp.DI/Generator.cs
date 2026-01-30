@@ -17,7 +17,7 @@ public partial class DatabaseWriter : IDataWriter, IDataReader, IDisposable
 // - generated code begin -
 
 // 标记为 Singleton 才生成
-partial class DatabaseWriter // DatabaseWriter.DI.Singleton.g.cs
+partial class DatabaseWriter // DatabaseWriter.DI.g.cs
 {
     public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {
@@ -64,7 +64,7 @@ public partial class PathFinderFactory : IPathFinder, IAStartPathFinder
 // - generated code begin -
 
 // 标记为 Singleton 才生成
-partial class PathFinderFactory // MovementManager.DI.Singleton.g.cs
+partial class PathFinderFactory // MovementManager.DI.g.cs
 {
     public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {

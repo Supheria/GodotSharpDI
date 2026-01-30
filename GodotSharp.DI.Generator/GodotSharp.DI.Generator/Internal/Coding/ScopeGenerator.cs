@@ -17,16 +17,8 @@ internal static class ScopeGenerator
         var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
         var className = type.Symbol.Name;
 
-        var f = new CodeFormatter();
+        ScopeLifecycleGenerator.GenerateLifecycle(context, node, graph, namespaceName, className);
 
-        f.BeginClassDeclaration(namespaceName, className);
-        {
-            ScopeLifecycleGenerator.Generate(f, node, graph);
-            f.AppendLine();
-            ScopeInterfaceGenerator.Generate(f, node, graph);
-        }
-        f.EndClassDeclaration();
-
-        context.AddSource($"{className}.DI.Scope.g.cs", f.ToString());
+        ScopeInterfaceGenerator.GenerateInterface(context, node, graph, namespaceName, className);
     }
 }

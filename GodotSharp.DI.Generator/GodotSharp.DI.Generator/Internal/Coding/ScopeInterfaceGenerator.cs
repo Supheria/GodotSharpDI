@@ -4,6 +4,7 @@ using GodotSharp.DI.Generator.Internal.Data;
 using GodotSharp.DI.Generator.Internal.Helpers;
 using GodotSharp.DI.Shared;
 using Microsoft.CodeAnalysis;
+using TypeInfo = GodotSharp.DI.Generator.Internal.Data.TypeInfo;
 
 namespace GodotSharp.DI.Generator.Internal.Coding;
 
@@ -12,7 +13,26 @@ namespace GodotSharp.DI.Generator.Internal.Coding;
 /// </summary>
 internal static class ScopeInterfaceGenerator
 {
-    public static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
+    public static void GenerateInterface(
+        SourceProductionContext context,
+        ScopeNode node,
+        DiGraph graph,
+        string namespaceName,
+        string className
+    )
+    {
+        var f = new CodeFormatter();
+
+        f.BeginClassDeclaration(namespaceName, className);
+        {
+            Generate(f, node, graph);
+        }
+        f.EndClassDeclaration();
+
+        context.AddSource($"{className}.DI.Scope.g.cs", f.ToString());
+    }
+
+    private static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
         var serviceTypes = CollectServiceTypes(node, graph);
 

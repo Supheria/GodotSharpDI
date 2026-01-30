@@ -36,11 +36,7 @@ internal static class UserGenerator
     )
     {
         // 收集 Inject 成员
-        var injectMembers = type
-            .Members.Where(m =>
-                m.Kind == MemberKind.InjectField || m.Kind == MemberKind.InjectProperty
-            )
-            .ToArray();
+        var injectMembers = type.Members.Where(m => m.IsInjectMember).ToArray();
 
         // 如果没有 Inject 成员，不生成 User 代码
         if (injectMembers.Length == 0)

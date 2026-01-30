@@ -66,7 +66,13 @@ internal sealed record MemberInfo(
     MemberKind Kind,
     ITypeSymbol MemberType,
     ImmutableArray<ITypeSymbol> ExposedTypes
-);
+)
+{
+    public bool IsInjectMember { get; } =
+        Kind == MemberKind.InjectField || Kind == MemberKind.InjectProperty;
+    public bool IsSingletonMember { get; } =
+        Kind == MemberKind.SingletonField || Kind == MemberKind.SingletonProperty;
+}
 
 internal enum MemberKind
 {
