@@ -14,14 +14,12 @@ internal static class ScopeLifecycleGenerator
     public static void GenerateLifecycle(
         SourceProductionContext context,
         ScopeNode node,
-        DiGraph graph,
-        string namespaceName,
-        string className
+        DiGraph graph
     )
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(namespaceName, className);
+        f.BeginClassDeclaration(node.TypeInfo, out var className);
         {
             Generate(f, node, graph);
         }
@@ -127,7 +125,7 @@ internal static class ScopeLifecycleGenerator
                         foreach (var exposedType in serviceNode.ProvidedServices)
                         {
                             f.AppendLine(
-                                $"scope.RegisterService(({exposedType.ToDisplayString()})instance);"
+                                $"scope.RegisterService(({exposedType.ToFullyQualifiedName()})instance);"
                             );
                         }
                     }

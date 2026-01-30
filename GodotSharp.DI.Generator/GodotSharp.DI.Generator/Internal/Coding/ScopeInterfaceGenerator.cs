@@ -16,14 +16,12 @@ internal static class ScopeInterfaceGenerator
     public static void GenerateInterface(
         SourceProductionContext context,
         ScopeNode node,
-        DiGraph graph,
-        string namespaceName,
-        string className
+        DiGraph graph
     )
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(namespaceName, className);
+        f.BeginClassDeclaration(node.TypeInfo, out var className);
         {
             Generate(f, node, graph);
         }
@@ -104,7 +102,7 @@ internal static class ScopeInterfaceGenerator
         {
             foreach (var serviceType in singletonServiceTypes)
             {
-                f.AppendLine($"typeof({serviceType.ToDisplayString()}),");
+                f.AppendLine($"typeof({serviceType.ToFullyQualifiedName()}),");
             }
         }
         f.EndBlock(";");

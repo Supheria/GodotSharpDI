@@ -15,17 +15,13 @@ internal static class HostAndUserGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        var type = node.TypeInfo;
-        var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
-        var className = type.Symbol.Name;
-
         // 生成基础 DI 文件（包含 Node DI 代码）
-        NodeDIGenerator.GenerateBaseDI(context, type, namespaceName, className);
+        NodeDIGenerator.GenerateBaseDI(context, node);
 
         // 生成 Host 特定代码
-        HostGenerator.GenerateHostSpecific(context, type, namespaceName, className);
+        HostGenerator.GenerateHostSpecific(context, node);
 
         // 生成 User 特定代码
-        UserGenerator.GenerateUserSpecific(context, type, namespaceName, className);
+        UserGenerator.GenerateUserSpecific(context, node);
     }
 }

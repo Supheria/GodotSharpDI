@@ -1,10 +1,10 @@
 ﻿using Microsoft.CodeAnalysis;
 
-namespace GodotSharp.DI.Generator.Internal;
+namespace GodotSharp.DI.Generator.Internal.Helpers;
 
-public static class DisplayFormats
+internal static class DisplayFormats
 {
-    public static readonly SymbolDisplayFormat TypeFullQualified = new(
+    private static readonly SymbolDisplayFormat TypeFullQualified = new(
         // 启用 global::
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
         // 完全限定名（包含命名空间 + 外部类型 + 当前类型）
@@ -17,7 +17,7 @@ public static class DisplayFormats
             | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
     );
 
-    public static readonly SymbolDisplayFormat ClassName = new(
+    private static readonly SymbolDisplayFormat ClassName = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters
@@ -25,14 +25,14 @@ public static class DisplayFormats
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
     );
 
-    public static bool GetNamespace(INamedTypeSymbol type, out string ns)
+    public static bool GetNamespace(INamedTypeSymbol type, out string namespaceName)
     {
         if (type.ContainingNamespace.IsGlobalNamespace)
         {
-            ns = string.Empty;
+            namespaceName = string.Empty;
             return false;
         }
-        ns = type.ContainingNamespace.ToDisplayString();
+        namespaceName = type.ContainingNamespace.ToDisplayString();
         return true;
     }
 

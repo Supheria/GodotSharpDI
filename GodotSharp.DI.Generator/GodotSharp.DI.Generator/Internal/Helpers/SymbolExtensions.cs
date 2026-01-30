@@ -10,19 +10,11 @@ namespace GodotSharp.DI.Generator.Internal.Helpers;
 internal static class SymbolExtensions
 {
     /// <summary>
-    /// 获取类型的完全限定名称（带命名空间）
+    /// 获取类型的完全限定名称（带 global:: 和命名空间）
     /// </summary>
-    public static string GetFullyQualifiedName(this ITypeSymbol type)
+    public static string ToFullyQualifiedName(this ITypeSymbol type)
     {
-        return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-    }
-
-    /// <summary>
-    /// 获取类型的简单名称（不带命名空间）
-    /// </summary>
-    public static string GetSimpleName(this ITypeSymbol type)
-    {
-        return type.Name;
+        return DisplayFormats.GetFullQualifiedName(type);
     }
 
     /// <summary>
@@ -170,14 +162,6 @@ internal static class SymbolExtensions
     public static IEnumerable<IMethodSymbol> GetInstanceConstructors(this INamedTypeSymbol type)
     {
         return type.Constructors.Where(c => !c.IsStatic);
-    }
-
-    /// <summary>
-    /// 获取类型的命名空间
-    /// </summary>
-    public static string GetNamespace(this ITypeSymbol type)
-    {
-        return type.ContainingNamespace?.ToDisplayString() ?? string.Empty;
     }
 
     /// <summary>

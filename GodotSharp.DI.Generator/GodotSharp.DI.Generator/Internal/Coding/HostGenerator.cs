@@ -14,29 +14,20 @@ internal static class HostGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        var type = node.TypeInfo;
-        var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
-        var className = type.Symbol.Name;
-
         // 生成基础 DI 文件
-        NodeDIGenerator.GenerateBaseDI(context, type, namespaceName, className);
+        NodeDIGenerator.GenerateBaseDI(context, node);
 
         // 生成 Host 特定代码
-        GenerateHostSpecific(context, type, namespaceName, className);
+        GenerateHostSpecific(context, node);
     }
 
     /// <summary>
     /// 生成 Host 特定代码（AttachHostServices/UnattachHostServices）
     /// </summary>
-    public static void GenerateHostSpecific(
-        SourceProductionContext context,
-        TypeInfo type,
-        string namespaceName,
-        string className
-    )
+    public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Singleton 成员
-        var singletonMembers = type.Members.Where(m => m.IsSingletonMember).ToArray();
+        var singletonMembers = node.TypeInfo.Members.Where(m => m.IsSingletonMember).ToArray();
 
         // 如果没有 Singleton 成员，不生成 Host 代码
         if (singletonMembers.Length == 0)
@@ -44,7 +35,7 @@ internal static class HostGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(namespaceName, className);
+        f.BeginClassDeclaration(node.TypeInfo, out var className);
         {
             // AttachHostServices
             GenerateAttachHostServices(f, singletonMembers);
@@ -74,7 +65,7 @@ internal static class HostGenerator
                     f.BeginTryCatch();
                     {
                         f.AppendLine(
-                            $"scope.RegisterService<{exposedType.ToDisplayString()}>({member.Symbol.Name});"
+                            $"scope.RegisterService<{exposedType.ToFullyQualifiedName()}>({member.Symbol.Name});"
                         );
                     }
                     f.EndTryCatch();
@@ -97,7 +88,9 @@ internal static class HostGenerator
             {
                 foreach (var exposedType in member.ExposedTypes)
                 {
-                    f.AppendLine($"scope.UnregisterService<{exposedType.ToDisplayString()}>();");
+                    f.AppendLine(
+                        $"scope.UnregisterService<{exposedType.ToFullyQualifiedName()}>();"
+                    );
                 }
             }
         }

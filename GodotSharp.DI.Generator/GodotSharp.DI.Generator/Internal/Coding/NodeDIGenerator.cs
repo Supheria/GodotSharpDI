@@ -14,18 +14,13 @@ internal static class NodeDIGenerator
     /// <summary>
     /// 生成基础 DI 文件（Node 生命周期管理）
     /// </summary>
-    public static void GenerateBaseDI(
-        SourceProductionContext context,
-        TypeInfo type,
-        string namespaceName,
-        string className
-    )
+    public static void GenerateBaseDI(SourceProductionContext context, TypeNode node)
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(namespaceName, className);
+        f.BeginClassDeclaration(node.TypeInfo, out var className);
         {
-            GenerateNodeDICode(f, type);
+            GenerateNodeDICode(f, node.TypeInfo);
         }
         f.EndClassDeclaration();
 

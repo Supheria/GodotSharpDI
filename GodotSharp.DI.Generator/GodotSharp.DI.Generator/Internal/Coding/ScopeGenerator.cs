@@ -13,12 +13,8 @@ internal static class ScopeGenerator
 {
     public static void Generate(SourceProductionContext context, ScopeNode node, DiGraph graph)
     {
-        var type = node.TypeInfo;
-        var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
-        var className = type.Symbol.Name;
+        ScopeLifecycleGenerator.GenerateLifecycle(context, node, graph);
 
-        ScopeLifecycleGenerator.GenerateLifecycle(context, node, graph, namespaceName, className);
-
-        ScopeInterfaceGenerator.GenerateInterface(context, node, graph, namespaceName, className);
+        ScopeInterfaceGenerator.GenerateInterface(context, node, graph);
     }
 }

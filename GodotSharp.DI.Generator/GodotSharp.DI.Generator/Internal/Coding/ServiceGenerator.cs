@@ -13,12 +13,10 @@ internal static class ServiceGenerator
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
         var type = node.TypeInfo;
+
         var f = new CodeFormatter();
 
-        var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
-        var className = type.Symbol.Name;
-
-        f.BeginClassDeclaration(namespaceName, className);
+        f.BeginClassDeclaration(type, out var className);
         {
             if (type.Constructor == null || type.Constructor.Parameters.IsEmpty)
             {
@@ -69,7 +67,7 @@ internal static class ServiceGenerator
             for (int i = 0; i < ctor.Parameters.Length; i++)
             {
                 var param = ctor.Parameters[i];
-                f.AppendLine($"{param.Type.ToDisplayString()}? p{i} = null;");
+                f.AppendLine($"{param.Type.ToFullyQualifiedName()}? p{i} = null;");
             }
             f.AppendLine();
 
@@ -78,7 +76,7 @@ internal static class ServiceGenerator
             {
                 var param = ctor.Parameters[i];
                 f.AppendLine(
-                    $"scope.ResolveDependency<{param.Type.ToDisplayString()}>(dependency =>"
+                    $"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(dependency =>"
                 );
                 f.BeginBlock();
                 {

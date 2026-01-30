@@ -14,29 +14,20 @@ internal static class UserGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        var type = node.TypeInfo;
-        var namespaceName = type.Symbol.ContainingNamespace.ToDisplayString();
-        var className = type.Symbol.Name;
-
         // 生成基础 DI 文件
-        NodeDIGenerator.GenerateBaseDI(context, type, namespaceName, className);
+        NodeDIGenerator.GenerateBaseDI(context, node);
 
         // 生成 User 特定代码
-        GenerateUserSpecific(context, type, namespaceName, className);
+        GenerateUserSpecific(context, node);
     }
 
     /// <summary>
     /// 生成 User 特定代码（ResolveUserDependencies）
     /// </summary>
-    public static void GenerateUserSpecific(
-        SourceProductionContext context,
-        TypeInfo type,
-        string namespaceName,
-        string className
-    )
+    public static void GenerateUserSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Inject 成员
-        var injectMembers = type.Members.Where(m => m.IsInjectMember).ToArray();
+        var injectMembers = node.TypeInfo.Members.Where(m => m.IsInjectMember).ToArray();
 
         // 如果没有 Inject 成员，不生成 User 代码
         if (injectMembers.Length == 0)
@@ -44,17 +35,19 @@ internal static class UserGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(namespaceName, className);
+        f.BeginClassDeclaration(node.TypeInfo, out var className);
         {
+            var implementsIServicesReady = node.TypeInfo.ImplementsIServicesReady;
+
             // 如果实现了 IServicesReady，生成依赖跟踪代码
-            if (type.ImplementsIServicesReady && injectMembers.Length > 0)
+            if (implementsIServicesReady && injectMembers.Length > 0)
             {
                 GenerateDependencyTracking(f, injectMembers);
                 f.AppendLine();
             }
 
             // 生成 ResolveUserDependencies
-            GenerateResolveUserDependencies(f, type, injectMembers);
+            GenerateResolveUserDependencies(f, injectMembers, implementsIServicesReady);
         }
         f.EndClassDeclaration();
 
@@ -70,7 +63,7 @@ internal static class UserGenerator
         {
             foreach (var member in injectMembersList)
             {
-                f.AppendLine($"typeof({member.MemberType.ToDisplayString()}),");
+                f.AppendLine($"typeof({member.MemberType.ToFullyQualifiedName()}),");
             }
         }
         f.EndBlock(";");
@@ -95,8 +88,8 @@ internal static class UserGenerator
 
     private static void GenerateResolveUserDependencies(
         CodeFormatter f,
-        TypeInfo type,
-        MemberInfo[] injectMembersList
+        MemberInfo[] injectMembersList,
+        bool implementsIServicesReady
     )
     {
         // ResolveUserDependencies
@@ -108,17 +101,17 @@ internal static class UserGenerator
             foreach (var member in injectMembersList)
             {
                 f.AppendLine(
-                    $"scope.ResolveDependency<{member.MemberType.ToDisplayString()}>(dependency =>"
+                    $"scope.ResolveDependency<{member.MemberType.ToFullyQualifiedName()}>(dependency =>"
                 );
                 f.BeginBlock();
                 {
                     f.BeginTryCatch();
                     {
                         f.AppendLine($"{member.Symbol.Name} = dependency;");
-                        if (type.ImplementsIServicesReady)
+                        if (implementsIServicesReady)
                         {
                             f.AppendLine(
-                                $"OnDependencyResolved<{member.MemberType.ToDisplayString()}>();"
+                                $"OnDependencyResolved<{member.MemberType.ToFullyQualifiedName()}>();"
                             );
                         }
                     }
