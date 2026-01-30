@@ -386,11 +386,11 @@ public partial class MyHost : IService
 
 ## Constructor 级别错误 (GDI_S)
 
-### GDI_S010: NoPublicConstructor
+### GDI_S010: NoNonStaticConstructor
 
-**消息**: `Service '{0}' must define at least one constructor`
+**消息**: `Service '{0}' must define at least one none-static constructor`
 
-**原因**: Service 没有公共构造函数。
+**原因**: Service 没有非静态构造函数。
 
 ------
 

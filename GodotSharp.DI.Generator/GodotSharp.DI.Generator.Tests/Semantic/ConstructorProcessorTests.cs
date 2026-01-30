@@ -132,9 +132,9 @@ using GodotSharp.DI.Abstractions;
 namespace Test
 {
     [Singleton]
-    public partial class MyService
+    public static partial class MyService
     {
-        private MyService() { }
+        private static MyService() { }
     }
 }
 ";
@@ -143,7 +143,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S010" // NoPublicConstructor
+            d => d.Id == "GDI_S010" // NoNonStaticConstructor
         );
     }
 

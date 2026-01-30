@@ -225,7 +225,7 @@ public partial class A : Node
 public interface IMyService { }
 
 [Host, User]
-public partial class MyService : IMyService
+public partial class MyService : Node, IMyService
 {
     [Singleton(typeof(IMyService))]
     private MyService Self => this; // Host 在注册字段时，不会考虑 User 需要注入的字段
