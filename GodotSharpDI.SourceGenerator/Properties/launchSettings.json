@@ -3,7 +3,7 @@
   "profiles": {
     "DebugRoslynSourceGenerator": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../GodotSharp.DI.Generator.Sample/GodotSharp.DI.Generator.Sample.csproj"
+      "targetProject": "../GodotSharpDI.Sample/GodotSharpDI.Sample.csproj"
     }
   }
 }
