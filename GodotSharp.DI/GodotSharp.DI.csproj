@@ -1,13 +1,45 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-    </PropertyGroup>
-
-    <ItemGroup>
-      <PackageReference Include="GodotSharp" Version="4.5.1" />
-    </ItemGroup>
-
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!-- Package Metadata -->
+    <PackageId>GodotSharp.DI</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Supheria</Authors>
+    <Description>A source generator based dependency injection framework for Godot C# projects. Provides compile-time DI with support for singleton services, constructor and member injection.</Description>
+    <PackageTags>godot;dependency-injection;di;source-generator;csharp;dotnet</PackageTags>
+    <PackageProjectUrl>https://github.com/Supheria/GodotSharp.DI</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Supheria/GodotSharp.DI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageLicenseUrl>https://licenses.nuget.org/MIT</PackageLicenseUrl>
+  </PropertyGroup>
+  <!-- Include Generator DLL in analyzers folder -->
+  <ItemGroup>
+    <None
+      Include="$(OutputPath)/../GodotSharp.DI.Generator/netstandard2.0/GodotSharp.DI.Generator.dll"
+      Pack="true"
+      PackagePath="analyzers/dotnet/cs"
+      Visible="false"
+    />
+  </ItemGroup>
+  <!-- Include README and Icon -->
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+    <None Include="../icon.png" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <!-- Project References for Build -->
+  <ItemGroup>
+    <ProjectReference
+      Include="..\GodotSharp.DI.Generator\GodotSharp.DI.Generator.csproj"
+      PrivateAssets="all"
+    />
+  </ItemGroup>
 </Project>

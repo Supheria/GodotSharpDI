@@ -1,0 +1,13 @@
+﻿using System;
+
+namespace GodotSharp.DI.Abstractions;
+
+public interface IScope
+{
+    void RegisterService<T>(T instance)
+        where T : notnull;
+    void UnregisterService<T>()
+        where T : notnull;
+    void ResolveDependency<T>(Action<T> onResolved)
+        where T : notnull;
+}
