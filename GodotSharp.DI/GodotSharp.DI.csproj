@@ -8,7 +8,7 @@
     <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!-- Package Metadata -->
-    <PackageId>GodotSharp.DI</PackageId>
+    <PackageId>GodotSharpDI</PackageId>
     <Version>1.0.0</Version>
     <Authors>Supheria</Authors>
     <Description>A source generator based dependency injection framework for Godot C# projects. Provides compile-time DI with support for singleton services, constructor and member injection.</Description>
@@ -19,14 +19,27 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseUrl>https://licenses.nuget.org/MIT</PackageLicenseUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) Godot Engine contributors</Copyright>
   </PropertyGroup>
   <!-- Include Generator DLL in analyzers folder -->
   <ItemGroup>
     <None
-      Include="$(OutputPath)/../GodotSharp.DI.Generator/netstandard2.0/GodotSharp.DI.Generator.dll"
+      Include="$(OutputPath)/../netstandard2.0/GodotSharp.DI.Generator.dll"
       Pack="true"
       PackagePath="analyzers/dotnet/cs"
+      Visible="false"
+    />
+    <None
+      Include="$(OutputPath)/../netstandard2.0/GodotSharp.DI.Abstractions.dll"
+      Pack="true"
+      PackagePath="lib/netstandard2.0"
+      Visible="false"
+    />
+    <None
+      Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharp.DI.Generator.resources.dll"
+      Pack="true"
+      PackagePath="lib/netstandard2.0/zh-hans"
       Visible="false"
     />
   </ItemGroup>
@@ -37,6 +50,10 @@
   </ItemGroup>
   <!-- Project References for Build -->
   <ItemGroup>
+    <ProjectReference
+      Include="..\GodotSharp.DI.Abstractions\GodotSharp.DI.Abstractions.csproj"
+      PrivateAssets="all"
+    />
     <ProjectReference
       Include="..\GodotSharp.DI.Generator\GodotSharp.DI.Generator.csproj"
       PrivateAssets="all"
