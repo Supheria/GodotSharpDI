@@ -25,7 +25,7 @@
   <!-- Include Generator DLL in analyzers folder -->
   <ItemGroup>
     <None
-      Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.Generator.dll"
+      Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.SourceGenerator.dll"
       Pack="true"
       PackagePath="analyzers/dotnet/cs"
       Visible="false"
@@ -37,7 +37,7 @@
       Visible="false"
     />
     <None
-      Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharpDI.Generator.resources.dll"
+      Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharpDI.SourceGenerator.resources.dll"
       Pack="true"
       PackagePath="lib/netstandard2.0/zh-hans"
       Visible="false"
@@ -55,7 +55,7 @@
       PrivateAssets="all"
     />
     <ProjectReference
-      Include="..\GodotSharpDI.Generator\GodotSharpDI.Generator.csproj"
+      Include="..\GodotSharpDI.SourceGenerator\GodotSharpDI.SourceGenerator.csproj"
       PrivateAssets="all"
     />
   </ItemGroup>

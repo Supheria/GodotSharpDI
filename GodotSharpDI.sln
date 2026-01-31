@@ -2,9 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI", "GodotSharpDI\GodotSharpDI.csproj", "{D2BF8F8F-43D3-4B45-B7E7-19C1220605FA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Generator", "GodotSharpDI.Generator\GodotSharpDI.Generator.csproj", "{4F59CA40-6E90-4F76-A3D3-0042F3C5FA16}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.SourceGenerator", "GodotSharpDI.SourceGenerator\GodotSharpDI.SourceGenerator.csproj", "{4F59CA40-6E90-4F76-A3D3-0042F3C5FA16}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Generator.Tests", "GodotSharpDI.Generator.Tests\GodotSharpDI.Generator.Tests.csproj", "{6603205A-6272-4EBF-95C9-6766D8D65D8D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.SourceGenerator.Tests", "GodotSharpDI.SourceGenerator.Tests\GodotSharpDI.SourceGenerator.Tests.csproj", "{6603205A-6272-4EBF-95C9-6766D8D65D8D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Abstractions", "GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj", "{43051CF0-A887-40BA-9A9B-2C2AEF5DD913}"
 EndProject
