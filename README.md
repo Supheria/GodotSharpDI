@@ -1,10 +1,10 @@
-# GodotSharp.DI
+# GodotSharpDI
 
 一个专为 Godot 引擎设计的编译时依赖注入框架，通过 C# Source Generator 实现零反射、高性能的 DI 支持。
 
 ## 🎯 设计理念
 
-GodotSharp.DI 的核心设计理念是**将 Godot 的场景树生命周期与传统 DI 容器模式融合**：
+GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传统 DI 容器模式融合**：
 
 - **场景树即容器层级**：利用 Godot 的场景树结构实现作用域（Scope）层级
 - **Node 生命周期集成**：服务的创建和销毁与 Node 的进入/退出场景树事件绑定
@@ -13,8 +13,8 @@ GodotSharp.DI 的核心设计理念是**将 Godot 的场景树生命周期与传
 ## 📦 安装
 
 ```xml
-<PackageReference Include="GodotSharp.DI" Version="x.x.x" />
-<PackageReference Include="GodotSharp.DI.Generator" Version="x.x.x" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+<PackageReference Include="GodotSharpDI" Version="x.x.x" />
+<PackageReference Include="GodotSharpDI.Generator" Version="x.x.x" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 ```
 
 ## 🚀 快速开始

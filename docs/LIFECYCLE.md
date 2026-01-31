@@ -1,6 +1,6 @@
 # 生命周期管理
 
-GodotSharp.DI 的生命周期管理与 Godot 的场景树紧密集成。
+GodotSharpDI 的生命周期管理与 Godot 的场景树紧密集成。
 
 ## 服务生命周期
 
@@ -275,7 +275,7 @@ GameScope
 
 ### 设计原因
 
-GodotSharp.DI 使用回调模式而非同步返回：
+GodotSharpDI 使用回调模式而非同步返回：
 
 ```csharp
 // 回调模式
@@ -341,7 +341,7 @@ private void CheckWaitList()
 
 ## Host + User 与循环依赖
 
-在 GodotSharp.DI 中，一个类型可以同时标记为 `[Host, User]`，即既提供服务又消费服务。 为了避免误判循环依赖，需要明确 Host 与 User 在生命周期和注入时序上的区别。
+在 GodotSharpDI 中，一个类型可以同时标记为 `[Host, User]`，即既提供服务又消费服务。 为了避免误判循环依赖，需要明确 Host 与 User 在生命周期和注入时序上的区别。
 
 ### Host 与 User 的注入时序差异
 
@@ -449,7 +449,7 @@ HostUser(User) → IServiceA
 
 ### 循环依赖检测的适用范围
 
-GodotSharp.DI 的循环依赖检测仅针对：
+GodotSharpDI 的循环依赖检测仅针对：
 
 - **Service → Service 的构造函数依赖链**
 

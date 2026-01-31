@@ -1,9 +1,9 @@
 @echo off
 echo =========================================
-echo Packing GodotSharp.DI.Generator NuGet Package
+echo Packing GodotSharpDI.Generator NuGet Package
 echo =========================================
 
-set PROJECT=GodotSharp.DI\GodotSharp.DI.csproj
+set PROJECT=GodotSharpDI\GodotSharpDI.csproj
 set OUTPUT=.\nuget_output
 
 

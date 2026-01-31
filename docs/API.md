@@ -7,7 +7,7 @@
 标记一个类为 Singleton 生命周期的服务，或标记 Host 成员为暴露的服务。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
@@ -58,7 +58,7 @@ public partial class GameManager : Node, IGameState
 标记一个类为 Host（服务提供者）。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class HostAttribute : Attribute { }
@@ -82,7 +82,7 @@ public partial class ChunkManager : Node3D, IChunkGetter
 标记一个类为 User（服务消费者）。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class UserAttribute : Attribute { }
@@ -105,7 +105,7 @@ public partial class PlayerUI : Control
 标记一个字段或属性为注入目标。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
 public sealed class InjectAttribute : Attribute { }
@@ -129,7 +129,7 @@ public partial class MyComponent : Node
 指定 Service 使用的构造函数。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Constructor)]
 public sealed class InjectConstructorAttribute : Attribute { }
@@ -155,7 +155,7 @@ public partial class MyService : IService
 声明 Scope 管理的服务和期望的 Host。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class ModulesAttribute : Attribute
@@ -191,7 +191,7 @@ public partial class GameScope : Node, IScope { }
 DI 容器接口。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 public interface IScope
 {
@@ -248,7 +248,7 @@ scope.ResolveDependency<IService>(service =>
 服务就绪通知接口。
 
 ```csharp
-namespace GodotSharp.DI.Abstractions;
+namespace GodotSharpDI.Abstractions;
 
 public interface IServicesReady
 {
