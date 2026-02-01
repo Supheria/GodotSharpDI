@@ -22,7 +22,7 @@
   - [四种角色类型](#四种角色类型)
   - [服务生命周期](#服务生命周期)
 - [角色详解](#角色详解)
-  - [Singleton 服务](#singleton 服务)
+  - [Singleton 服务](#singleton-服务)
   - [Host (宿主)](#host-宿主)
   - [User (消费者)](#user-消费者)
   - [Scope (容器)](#scope-容器)
@@ -50,7 +50,7 @@
   - [Host + User 组合使用](#host--user-组合使用)
 - [诊断代码](#诊断代码)
 - [许可证](#许可证)
-- [Todo List](#todo list)
+- [Todo List](#todo-list)
 
 ---
 
@@ -140,11 +140,13 @@ public partial class PlayerUI : Control, IServicesReady
 
 ### 5. 场景树结构
 
-> GameScope (IScope)
-> ├── GameManager (Host)
-> ├── Player
-> │   └── PlayerUI (User) ← 自动接收注入
-> └── Enemies
+```
+GameScope (IScope)
+├── GameManager (Host)
+├── Player
+│   └── PlayerUI (User) ← 自动接收注入
+└── Enemies
+```
 
 ---
 
@@ -457,16 +459,18 @@ public partial class GameScope : Node, IScope
 
 Scope 通过场景树结构形成层级关系：
 
-> RootScope
-> ├── GameManager (Host)
-> ├── GlobalServices...
-> │
-> └── LevelScope
->     ├── LevelManager (Host)
->     ├── LevelServices...
->     │
->     └── Player
->         └── PlayerUI (User)
+```
+RootScope
+├── GameManager (Host)
+├── GlobalServices...
+│
+└── LevelScope
+ ├── LevelManager (Host)
+ ├── LevelServices...
+ │
+ └── Player
+     └── PlayerUI (User)
+```
 
 **依赖解析规则**:
 
@@ -504,20 +508,22 @@ public partial class PlayerStatsService : IPlayerStats, IDisposable
 
 **生命周期时序**:
 
-> Scope 进入场景树 (NotificationEnterTree)
->     ↓
-> Scope 就绪 (NotificationReady)
->     ↓ 创建 Singleton 实例
->     ↓ 注册到服务容器
->     ↓ 通知等待的消费者
->     ↓
-> ... 服务运行中 ...
->     ↓
-> Scope 即将删除 (NotificationPredelete)
->     ↓ 调用 IDisposable.Dispose() (如果实现)
->     ↓ 从容器移除
->     ↓
-> Scope 删除完成
+```
+Scope 进入场景树 (NotificationEnterTree)
+ ↓
+Scope 就绪 (NotificationReady)
+ ↓ 创建 Singleton 实例
+ ↓ 注册到服务容器
+ ↓ 通知等待的消费者
+ ↓
+... 服务运行中 ...
+ ↓
+Scope 即将删除 (NotificationPredelete)
+ ↓ 调用 IDisposable.Dispose() (如果实现)
+ ↓ 从容器移除
+ ↓
+Scope 删除完成
+```
 
 ---
 
@@ -527,22 +533,24 @@ public partial class PlayerStatsService : IPlayerStats, IDisposable
 
 Scope 通过 Godot 场景树形成自然的层级结构：
 
-> Application
-> └── RootScope                    ← 根 Scope
->     ├── GlobalServices           ← 全局服务
->     │   ├── IConfigService
->     │   └── ISaveService
->     │
->     └── LevelScene
->         └── LevelScope           ← 子 Scope
->             ├── LevelServices    ← 关卡服务
->             │   ├── IEnemySpawner
->             │   └── ILootSystem
->             │
->             └── Player
->                 └── PlayerScope  ← 更深层 Scope
->                     └── PlayerServices
->                         └── IInventory
+```
+Application
+└── RootScope                 ← 根 Scope
+ ├── GlobalServices           ← 全局服务
+ │   ├── IConfigService
+ │   └── ISaveService
+ │
+ └── LevelScene
+     └── LevelScope           ← 子 Scope
+         ├── LevelServices    ← 关卡服务
+         │   ├── IEnemySpawner
+         │   └── ILootSystem
+         │
+         └── Player
+             └── PlayerScope  ← 更深层 Scope
+                 └── PlayerServices
+                     └── IInventory
+```
 
 #### 服务解析规则
 
@@ -594,15 +602,17 @@ void ResolveDependency<T>(Action<T> onResolved)
 | 父 Scope | 所有子孙 Scope |
 | 子 Scope | 仅该 Scope 及其子孙 |
 
-> RootScope
-> ├── IGlobalConfig       ← 对所有 Scope 可见
-> │
-> └── LevelScope
->     ├── ILevelConfig    ← 对 LevelScope 及其子 Scope 可见
->     │                      对 RootScope 不可见
->     │
->     └── PlayerScope
->         └── IInventory  ← 仅对 PlayerScope 可见
+```
+RootScope
+├── IGlobalConfig    ← 对所有 Scope 可见
+│
+└── LevelScope
+ ├── ILevelConfig    ← 对 LevelScope 及其子 Scope 可见，
+ │                     对 RootScope 不可见
+ │
+ └── PlayerScope
+     └── IInventory  ← 仅对 PlayerScope 可见
+```
 
 ---
 
@@ -610,66 +620,74 @@ void ResolveDependency<T>(Action<T> onResolved)
 
 #### User 的注入时序
 
-> User Node 进入场景树 (NotificationEnterTree)
->     ↓
-> AttachToScope()
->     ↓
-> GetServiceScope() ← 向上查找最近的 IScope
->     ↓
-> ResolveUserDependencies(scope)
->     ↓
-> scope.ResolveDependency<T>(callback) ← 每个 [Inject] 成员
->     ↓
-> [等待服务就绪或立即回调]
->     ↓
-> OnServicesReady() ← 所有依赖注入完成（如果实现 IServicesReady）
+```
+User Node 进入场景树 (NotificationEnterTree)
+ ↓
+AttachToScope()
+ ↓
+GetServiceScope() ← 向上查找最近的 IScope
+ ↓
+ResolveUserDependencies(scope)
+ ↓
+scope.ResolveDependency<T>(callback) ← 每个 [Inject] 成员
+ ↓
+[等待服务就绪或立即回调]
+ ↓
+OnServicesReady() ← 所有依赖注入完成（如果实现 IServicesReady）
+```
 
 #### Host 的服务注册时序
 
-> Host Node 进入场景树 (NotificationEnterTree)
->     ↓
-> AttachToScope()
->     ↓
-> GetServiceScope() ← 向上查找最近的 IScope
->     ↓
-> AttachHostServices(scope)
->     ↓
-> scope.RegisterService<T>(this.Member) ← 每个 [Singleton] 成员
->     ↓
-> [通知等待该服务的 User]
+```
+Host Node 进入场景树 (NotificationEnterTree)
+ ↓
+AttachToScope()
+ ↓
+GetServiceScope() ← 向上查找最近的 IScope
+ ↓
+AttachHostServices(scope)
+ ↓
+scope.RegisterService<T>(this.Member) ← 每个 [Singleton] 成员
+ ↓
+[通知等待该服务的 User]
+```
 
 #### 完整时序示例
 
 假设场景结构:
 
-> GameScope
-> ├── GameManager (Host， 提供 IGameState)
-> └── PlayerUI (User， 需要 IGameState)
+```
+GameScope
+├── GameManager (Host， 提供 IGameState)
+└── PlayerUI (User， 需要 IGameState)
+```
 
 执行时序:
 
-> 1. GameScope 进入场景树
-> 2. GameScope._Notification(EnterTree)
->    
-> 3. GameManager 进入场景树
-> 4. GameManager._Notification(EnterTree)
->    → GetServiceScope() 找到 GameScope
->    → AttachHostServices(GameScope)
->    → GameScope.RegisterService<IGameState>(this)
->    → [此时 PlayerUI 可能还未进入，加入等待队列为空]
->
-> 5. PlayerUI 进入场景树
-> 6. PlayerUI._Notification(EnterTree)
->    → GetServiceScope() 找到 GameScope
->    → ResolveUserDependencies(GameScope)
->    → GameScope.ResolveDependency<IGameState>(callback)
->    → [IGameState 已注册，立即回调]
->    → _gameState = injectedValue
->    → OnServicesReady() [如果实现]
->
-> 7. GameScope._Notification(Ready)
->    → InstantiateScopeSingletons() [创建 Service]
->    → CheckWaitList() [检查未完成的依赖]
+```
+1. GameScope 进入场景树
+2. GameScope._Notification(EnterTree)
+
+3. GameManager 进入场景树
+4. GameManager._Notification(EnterTree)
+   → GetServiceScope() 找到 GameScope
+   → AttachHostServices(GameScope)
+   → GameScope.RegisterService<IGameState>(this)
+   → [此时 PlayerUI 可能还未进入，加入等待队列为空]
+
+5. PlayerUI 进入场景树
+6. PlayerUI._Notification(EnterTree)
+   → GetServiceScope() 找到 GameScope
+   → ResolveUserDependencies(GameScope)
+   → GameScope.ResolveDependency<IGameState>(callback)
+   → [IGameState 已注册，立即回调]
+   → _gameState = injectedValue
+   → OnServicesReady() [如果实现]
+
+7. GameScope._Notification(Ready)
+   → InstantiateScopeSingletons() [创建 Service]
+   → CheckWaitList() [检查未完成的依赖]
+```
 
 ---
 
