@@ -432,7 +432,7 @@ Scope is the DI container, responsible for:
 | Type | Must be a class | Needs instantiation |
 | Inheritance | Must be a Node | Utilize scene tree for Scope hierarchy |
 | Interface | Must implement IScope | Framework identification marker |
-| Attribute | Must have [Modules] or [AutoModules] | Declare managed services |
+| Attribute | Must have [Modules] | Declare managed services |
 | Declaration | Must be partial | Source generator needs to extend the class |
 
 #### Defining Scope
