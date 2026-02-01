@@ -45,6 +45,8 @@ internal static class NodeDIGenerator
 
     private static void GenerateServiceScopeField(CodeFormatter f)
     {
+        // _serviceScope
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.IScope}? _serviceScope;");
     }
 

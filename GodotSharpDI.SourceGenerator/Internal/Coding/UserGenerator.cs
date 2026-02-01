@@ -55,6 +55,8 @@ internal static class UserGenerator
 
     private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembersList)
     {
+        // _unresolvedDependencies
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
         );

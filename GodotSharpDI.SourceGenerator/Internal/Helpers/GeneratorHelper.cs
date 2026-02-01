@@ -59,6 +59,26 @@ internal static class GeneratorHelper
         f.AppendLine(IdeAttributes.EditorBrowsableNever);
     }
 
+    /// <summary>
+    /// 添加不可手动调用的生成成员的简介和特性
+    /// </summary>
+    public static void AppendHiddenMemberCommentAndAttribute(
+        this CodeFormatter f,
+        string? summary = null
+    )
+    {
+        f.AppendXmlComment("<summary>");
+        if (summary is not null)
+        {
+            f.AppendXmlComment(summary);
+        }
+        f.AppendXmlComment(
+            "This member is managed by the DI framework and should not be called manually."
+        );
+        f.AppendXmlComment("</summary>");
+        f.AppendLine(IdeAttributes.EditorBrowsableNever);
+    }
+
     public static void BeginTryCatch(this CodeFormatter f)
     {
         f.AppendLine("try");

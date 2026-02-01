@@ -1473,6 +1473,7 @@ MIT License
 
 ## Todo List
 
+- [ ] 完善中英文双语支持
 - [ ] 添加示例项目（从 Godot 实际运行 GodotSharpDI.Sample）
 - [ ] 添加运行时集成测试
 - [ ] 实现依赖回调的等待计时和超时处理

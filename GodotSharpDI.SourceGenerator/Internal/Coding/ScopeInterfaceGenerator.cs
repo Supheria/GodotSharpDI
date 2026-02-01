@@ -94,6 +94,7 @@ internal static class ScopeInterfaceGenerator
     )
     {
         // ServiceTypes
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private static readonly {GlobalNames.HashSet}<{GlobalNames.Type}> ServiceTypes = new()"
         );
@@ -105,17 +106,26 @@ internal static class ScopeInterfaceGenerator
             }
         }
         f.EndBlock(";");
-        f.AppendLine();
     }
 
     private static void GenerateInstanceFields(CodeFormatter f)
     {
+        // _services
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Object}> _services = new();"
         );
+        f.AppendLine();
+
+        // _waiters
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Object}>>> _waiters = new();"
         );
+        f.AppendLine();
+
+        // _disposableSingletons
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
         );

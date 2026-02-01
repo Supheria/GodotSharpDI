@@ -50,6 +50,8 @@ internal static class ScopeLifecycleGenerator
 
     private static void GenerateParentScopeField(CodeFormatter f)
     {
+        // _parentScope
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.IScope}? _parentScope;");
     }
 

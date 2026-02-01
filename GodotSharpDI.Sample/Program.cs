@@ -86,20 +86,20 @@ public partial class Scope : Node, IScope
 //     }
 // }
 
-[Modules(Services = [typeof(DataBase), typeof(PathFinderFactory)])]
-public partial class TestScope : Node, IScope
-{
-    public void BadMethod()
-    {
-        var count = _services.Count; // 不会报告 GDI_U002
-    }
-}
-
-[User]
-public partial class TestUser : Node
-{
-    public void BadMethod()
-    {
-        AttachToScope();
-    }
-}
+// [Modules(Services = [typeof(DataBase), typeof(PathFinderFactory)])]
+// public partial class TestScope : Node, IScope
+// {
+//     public void BadMethod()
+//     {
+//         var count = _services.Count;
+//     }
+// }
+//
+// [User]
+// public partial class TestUser : Node
+// {
+//     public void BadMethod()
+//     {
+//         AttachToScope();
+//     }
+// }
