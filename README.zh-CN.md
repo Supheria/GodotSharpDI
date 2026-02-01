@@ -64,7 +64,6 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 
 ```xml
 <PackageReference Include="GodotSharpDI" Version="x.x.x" />
-<PackageReference Include="GodotSharpDI.Generator" Version="x.x.x" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包** ：生成的代码依赖 Godot.Node 和 Godot.GD 。
 

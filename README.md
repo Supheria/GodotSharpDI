@@ -64,7 +64,6 @@ The core design philosophy of GodotSharpDI is **merging Godot's scene tree lifec
 
 ```xml
 <PackageReference Include="GodotSharpDI" Version="x.x.x" />
-<PackageReference Include="GodotSharpDI.Generator" Version="x.x.x" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 ```
 ⚠️ **Ensure GodotSharp package is also added to your project**: The generated code depends on Godot.Node and Godot.GD.
 
