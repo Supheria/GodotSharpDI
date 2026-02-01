@@ -1,41 +1,43 @@
-# 诊断代码参考
+# Diagnostic Code Reference
 
-GodotSharpDI 在编译时提供完整的错误检查。本文档列出所有诊断代码及其含义。
+<p align="left"> <a href="DIAGNOSTICS.zh-CN.md">中文版</a> </p>
 
-## 诊断代码分类
+GodotSharpDI provides comprehensive error checking at compile time. This document lists all diagnostic codes and their meanings.
 
-| 前缀  | 类别             | 说明             |
-| ----- | ---------------- | ---------------- |
-| GDI_C | Class            | 类级别错误       |
-| GDI_M | Member           | 成员级别错误     |
-| GDI_S | Constructor      | 构造函数级别错误 |
-| GDI_D | Dependency Graph | 依赖图错误       |
-| GDI_E | Internal Error   | 内部错误         |
-| GDI_U | User Behavior    | 用户行为警告     |
+## Diagnostic Code Categories
+
+| Prefix | Category | Description |
+| ------ | ---------------- | ---------------- |
+| GDI_C | Class | Class-level errors |
+| GDI_M | Member | Member-level errors |
+| GDI_S | Constructor | Constructor-level errors |
+| GDI_D | Dependency Graph | Dependency graph errors |
+| GDI_E | Internal Error | Internal errors |
+| GDI_U | User Behavior | User behavior warnings |
 
 ------
 
-## Class 级别错误 (GDI_C)
+## Class-Level Errors (GDI_C)
 
 ### GDI_C010: HostInvalidAttribute
 
-**消息**: `Host '{0}' cannot use [{1}]`
+**Message**: `Host '{0}' cannot use [{1}]`
 
-**原因**: Host 使用了不兼容的特性（`[Singleton]`）。
+**Cause**: Host is using incompatible attributes (`[Singleton]`).
 
-**解决方案**: Host 不是 Service，移除生命周期标记。
+**Solution**: Host is not a Service, remove lifecycle annotation.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Host]
-[Singleton(typeof(IGameState))]  // Host 不能用 Singleton
+[Singleton(typeof(IGameState))]  // Host cannot use Singleton
 public partial class GameManager : Node { }
 
-// ✅ 正确
+// ✅ Correct
 [Host]
 public partial class GameManager : Node, IGameState
 {
-    [Singleton(typeof(IGameState))]  // 在成员上使用
+    [Singleton(typeof(IGameState))]  // Use on members
     private IGameState Self => this;
 }
 ```
@@ -44,42 +46,42 @@ public partial class GameManager : Node, IGameState
 
 ### GDI_C011: UserInvalidAttribute
 
-**消息**: `User '{0}' cannot use [{1}]`
+**Message**: `User '{0}' cannot use [{1}]`
 
-**原因**: User 使用了不兼容的特性（`[Singleton]`）。
+**Cause**: User is using incompatible attributes (`[Singleton]`).
 
 ------
 
 ### GDI_C012: ScopeInvalidAttribute
 
-**消息**: `Scope '{0}' cannot use [{1}]`
+**Message**: `Scope '{0}' cannot use [{1}]`
 
-**原因**: Scope 使用了不兼容的特性（如 `[Singleton]`、`[Host]`、`[User]`）。
+**Cause**: Scope is using incompatible attributes (such as `[Singleton]`, `[Host]`, `[User]`).
 
 ------
 
 ### GDI_C013: OnlyScopeCanUseModules
 
-**消息**: `To use [Modules], Type '{0}' must implement IScope`
+**Message**: `To use [Modules], Type '{0}' must implement IScope`
 
-**原因**: 标记为 [Modules] 的类没有实现 IScope 接口。
+**Cause**: A class marked with [Modules] does not implement the IScope interface.
 
 ------
 
 ### GDI_C020: HostMustBeNode
 
-**消息**: `Host '{0}' must inherit from Godot.Node`
+**Message**: `Host '{0}' must inherit from Godot.Node`
 
-**原因**: 标记为 `[Host]` 的类不是 Node 子类。
+**Cause**: A class marked as `[Host]` is not a Node subclass.
 
-**解决方案**: Host 必须继承自 Node。
+**Solution**: Host must inherit from Node.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Host]
-public partial class MyHost { }  // 不是 Node
+public partial class MyHost { }  // Not a Node
 
-// ✅ 正确
+// ✅ Correct
 [Host]
 public partial class MyHost : Node { }
 ```
@@ -88,36 +90,36 @@ public partial class MyHost : Node { }
 
 ### GDI_C021: UserMustBeNode
 
-**消息**: `User '{0}' must inherit from Godot.Node`
+**Message**: `User '{0}' must inherit from Godot.Node`
 
-**原因**: 标记为 `[User]` 的类不是 Node 子类。
+**Cause**: A class marked as `[User]` is not a Node subclass.
 
 ------
 
 ### GDI_C022: ScopeMustBeNode
 
-**消息**: `Scope '{0}' must inherit from Godot.Node`
+**Message**: `Scope '{0}' must inherit from Godot.Node`
 
-**原因**: 实现 `IScope` 的类不是 Node 子类。
+**Cause**: A class implementing `IScope` is not a Node subclass.
 
 ------
 
 ### GDI_C030: ServiceReadyNeedUser
 
-**消息**: `Type '{0}' implements IServicesReady but is not marked with [User]`
+**Message**: `Type '{0}' implements IServicesReady but is not marked with [User]`
 
-**原因**: 实现了 `IServicesReady` 但未标记 `[User]`。
+**Cause**: Implements `IServicesReady` but is not marked with `[User]`.
 
-**解决方案**: 添加 `[User]` 标记。
+**Solution**: Add `[User]` annotation.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 public partial class MyComponent : Node, IServicesReady
 {
     public void OnServicesReady() { }
 }
 
-// ✅ 正确
+// ✅ Correct
 [User]
 public partial class MyComponent : Node, IServicesReady
 {
@@ -129,28 +131,28 @@ public partial class MyComponent : Node, IServicesReady
 
 ### GDI_C040: ScopeMissingModules
 
-**消息**: `Scope '{0}' must specify [Modules]`
+**Message**: `Scope '{0}' must specify [Modules]`
 
-**原因**: Scope 没有指定 `[Modules]` 标记。
+**Cause**: Scope does not have the `[Modules]` annotation.
 
-**解决方案**: 添加 `[Modules]` 标记。
+**Solution**: Add `[Modules]` annotation.
 
 ------
 
 ### GDI_C050: DiClassMustBePartial
 
-**消息**: `DI-relative class '{0}' must be declared as partial to enable code generation`
+**Message**: `DI-relative class '{0}' must be declared as partial to enable code generation`
 
-**原因**: DI 相关的类未声明为 `partial`。
+**Cause**: DI-related class is not declared as `partial`.
 
-**解决方案**: 添加 `partial` 修饰符。
+**Solution**: Add `partial` modifier.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Singleton(typeof(IService))]
 public class MyService : IService { }
 
-// ✅ 正确
+// ✅ Correct
 [Singleton(typeof(IService))]
 public partial class MyService : IService { }
 ```
@@ -159,44 +161,44 @@ public partial class MyService : IService { }
 
 ### GDI_C060: ServiceTypeIsInvalid
 
-**消息**: `Service '{0}' cannot inherit from Godot.Node, and must be non-abstract, non-static class type`
+**Message**: `Service '{0}' cannot inherit from Godot.Node, and must be non-abstract, non-static class type`
 
-**原因**: Service 继承了 Node，或者类型不符合要求（抽象类、静态类等）。
+**Cause**: Service inherits from Node, or the type does not meet requirements (abstract class, static class, etc.).
 
 ------
 
 ### GDI_C070: ServiceExposedTypeNotImplemented
 
-**消息**: `Service '{0}' has exposed type '{1}', but which is not implemented`
+**Message**: `Service '{0}' has exposed type '{1}', but which is not implemented`
 
-**原因**: Service 暴露了自身类型未实现的接口或未继承的类型。
+**Cause**: Service exposes an interface not implemented by its own type or a class type it doesn't inherit from.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Singleton(typeof(IService))]
 public partial class MyService { }
 
-// ✅ 正确
+// ✅ Correct
 [Singleton(typeof(IService))]
 public partial class MyService : IService { }
 ```
 
 ------
 
-## Member 级别错误 (GDI_M)
+## Member-Level Errors (GDI_M)
 
 ### GDI_M010: MemberHasSingletonButNotInHost
 
-**消息**: `Type '{0}' must be marked as [Host] to use [Singleton] on members`
+**Message**: `Type '{0}' must be marked as [Host] to use [Singleton] on members`
 
-**原因**: 非 Host 类的成员使用了 `[Singleton]`。
+**Cause**: A member of a non-Host class uses `[Singleton]`.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [User]
 public partial class MyUser : Node
 {
-    [Singleton(typeof(IService))]  // User 不能用
+    [Singleton(typeof(IService))]  // User cannot use
     private IService _service;
 }
 ```
@@ -205,36 +207,36 @@ public partial class MyUser : Node
 
 ### GDI_M011: MemberHasInjectButNotInUser
 
-**消息**: `Type '{0}' must be marked as [User] to use [Inject] on members`
+**Message**: `Type '{0}' must be marked as [User] to use [Inject] on members`
 
-**原因**: 非 User 类的成员使用了 `[Inject]`。
+**Cause**: A member of a non-User class uses `[Inject]`.
 
 ------
 
 ### GDI_M012: MemberConflictWithSingletonAndInject
 
-**消息**: `[Singleton] and [Inject] cannot be applied to the same member`
+**Message**: `[Singleton] and [Inject] cannot be applied to the same member`
 
-**原因**: 同一成员同时标记了 `[Singleton]` 和 `[Inject]`。
+**Cause**: The same member is marked with both `[Singleton]` and `[Inject]`.
 
 ------
 
 ### GDI_M020: InjectMemberNotAssignable
 
-**消息**: `[Inject] member must be writable (field must not be readonly, property must have setter)`
+**Message**: `[Inject] member must be writable (field must not be readonly, property must have setter)`
 
-**原因**: 注入目标不可写。
+**Cause**: Injection target is not writable.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [User]
 public partial class MyUser : Node
 {
     [Inject] private readonly IService _service;  // readonly
-    [Inject] public IConfig Config { get; }       // 无 setter
+    [Inject] public IConfig Config { get; }       // no setter
 }
 
-// ✅ 正确
+// ✅ Correct
 [User]
 public partial class MyUser : Node
 {
@@ -247,42 +249,42 @@ public partial class MyUser : Node
 
 ### GDI_M030: SingletonPropertyNotAccessible
 
-**消息**: `[Singleton] property must have a getter`
+**Message**: `[Singleton] property must have a getter`
 
-**原因**: Host 成员属性没有 getter。
+**Cause**: Host member property does not have a getter.
 
 ------
 
 ### GDI_M040: InjectMemberInvalidType
 
-**消息**: `Injected member in '{0}' has type '{1}', which is not a Service`
+**Message**: `Injected member in '{0}' has type '{1}', which is not a Service`
 
-**原因**: 注入目标的类型不是有效的服务类型。
+**Cause**: The type of the injection target is not a valid service type.
 
 ------
 
 ### GDI_M041: InjectMemberIsHostType
 
-**消息**: `[Inject] member '{0}' has type '{1}', which is a [Host] type and cannot be injected`
+**Message**: `[Inject] member '{0}' has type '{1}', which is a [Host] type and cannot be injected`
 
-**原因**: 试图注入 Host 类型。
+**Cause**: Attempting to inject a Host type.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Host]
 public partial class GameManager : Node { }
 
 [User]
 public partial class MyUser : Node
 {
-    [Inject] private GameManager _manager;  // Host 不可注入
+    [Inject] private GameManager _manager;  // Host cannot be injected
 }
 
-// ✅ 正确：注入 Host 暴露的接口
+// ✅ Correct: Inject the interface exposed by Host
 [User]
 public partial class MyUser : Node
 {
-    [Inject] private IGameState _state;  // 注入接口
+    [Inject] private IGameState _state;  // Inject interface
 }
 ```
 
@@ -290,28 +292,28 @@ public partial class MyUser : Node
 
 ### GDI_M042: InjectMemberIsUserType
 
-**消息**: `[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected`
+**Message**: `[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected`
 
-**原因**: 试图注入 User 类型。
+**Cause**: Attempting to inject a User type.
 
 ------
 
 ### GDI_M043: InjectMemberIsScopeType
 
-**消息**: `[Inject] member '{0}' has type '{1}', which is an IScope type and cannot be injected`
+**Message**: `[Inject] member '{0}' has type '{1}', which is an IScope type and cannot be injected`
 
-**原因**: 试图注入 Scope 类型。
+**Cause**: Attempting to inject a Scope type.
 
 ------
 
 ### GDI_M044: InjectMemberIsStatic
 
-**消息**: `[Inject] member '{0}' cannot be static`
+**Message**: `[Inject] member '{0}' cannot be static`
 
-**原因**: 静态成员使用了 `[Inject]`。
+**Cause**: A static member uses `[Inject]`.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [User]
 public partial class MyUser : Node
 {
@@ -323,20 +325,20 @@ public partial class MyUser : Node
 
 ### GDI_M045: SingletonMemberIsStatic
 
-**消息**: `[Singleton] member '{0}' cannot be static`
+**Message**: `[Singleton] member '{0}' cannot be static`
 
-**原因**: 静态成员使用了 `[Singleton]`。
+**Cause**: A static member uses `[Singleton]`.
 
 ------
 
 ### GDI_M050: HostSingletonMemberIsServiceType
 
-**消息**: `[Singleton] member '{0}' has type '{1}', which is already marked as a Service. Host should not hold Service instances directly`
+**Message**: `[Singleton] member '{0}' has type '{1}', which is already marked as a Service. Host should not hold Service instances directly`
 
-**原因**: Host 成员的类型是 Service（标记了 `[Singleton]` ）。
+**Cause**: A Host member's type is a Service (marked with `[Singleton]`).
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Singleton(typeof(IConfig))]
 public partial class ConfigService : IConfig { }
 
@@ -344,14 +346,14 @@ public partial class ConfigService : IConfig { }
 public partial class BadHost : Node
 {
     [Singleton(typeof(IConfig))]
-    private ConfigService _config = new();  // 类型是 Service
+    private ConfigService _config = new();  // Type is a Service
 }
 
-// ✅ 正确：使用 Host+User 组合
+// ✅ Correct: Use Host+User combination
 [Host, User]
 public partial class GoodHost : Node
 {
-    [Inject] private IConfig _config;  // 注入 Service
+    [Inject] private IConfig _config;  // Inject Service
 }
 ```
 
@@ -359,31 +361,32 @@ public partial class GoodHost : Node
 
 ### GDI_M060: ExposedTypeShouldBeInterface (Warning)
 
-**消息**: `Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
+**Message**: `Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
 
-**原因**: 暴露的服务类型是具体类而非接口。
+**Cause**: The exposed service type is a concrete class rather than an interface.
 
-**严重程度**: 警告（不阻止编译）
+**Severity**: Warning (does not block compilation)
 
 ```csharp
-// ⚠️ 警告
-[Singleton(typeof(ConfigService))]  // 具体类
+// ⚠️ Warning
+[Singleton(typeof(ConfigService))]  // Concrete class
 public partial class ConfigService { }
 
-// ✅ 推荐
-[Singleton(typeof(IConfig))]  // 接口
+// ✅ Recommended
+[Singleton(typeof(IConfig))]  // Interface
 public partial class ConfigService : IConfig { }
 ```
+
 ------
 
 ### GDI_M070: HostMemberExposedTypeNotImplemented
 
-**消息**: `Host member '{0}' has exposed type '{1}', but which is not implemented`
+**Message**: `Host member '{0}' has exposed type '{1}', but which is not implemented`
 
-**原因**: Host 成员暴露了该成员类型未实现的接口或未继承的类型。
+**Cause**: A Host member exposes an interface not implemented by that member's type or a class type it doesn't inherit from.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Singleton(typeof(IService))]
 public partial class MyHost
 {
@@ -391,7 +394,7 @@ public partial class MyHost
     private MyHost Self => this;
 }
 
-// ✅ 正确
+// ✅ Correct
 [Singleton(typeof(IService))]
 public partial class MyHost : IService
 {
@@ -402,32 +405,32 @@ public partial class MyHost : IService
 
 ------
 
-## Constructor 级别错误 (GDI_S)
+## Constructor-Level Errors (GDI_S)
 
 ### GDI_S010: NoNonStaticConstructor
 
-**消息**: `Service '{0}' must define at least one none-static constructor`
+**Message**: `Service '{0}' must define at least one non-static constructor`
 
-**原因**: Service 没有非静态构造函数。
+**Cause**: Service does not have a non-static constructor.
 
 ------
 
 ### GDI_S011: AmbiguousConstructor
 
-**消息**: `Service '{0}' has multiple constructors but no [InjectConstructor] is specified`
+**Message**: `Service '{0}' has multiple constructors but no [InjectConstructor] is specified`
 
-**原因**: 多个构造函数但未指定使用哪个。
+**Cause**: Multiple constructors exist but none is specified for use.
 
 ```csharp
-// ❌ 错误
+// ❌ Error
 [Singleton(typeof(IService))]
 public partial class MyService : IService
 {
     public MyService(IDep1 d1) { }
-    public MyService(IDep1 d1, IDep2 d2) { }  // 歧义
+    public MyService(IDep1 d1, IDep2 d2) { }  // Ambiguous
 }
 
-// ✅ 正确
+// ✅ Correct
 [Singleton(typeof(IService))]
 public partial class MyService : IService
 {
@@ -442,88 +445,88 @@ public partial class MyService : IService
 
 ### GDI_S012: InjectConstructorAttributeIsInvalid
 
-**消息**: `Type '{0}' is not a Service but uses [InjectConstructor]`
+**Message**: `Type '{0}' is not a Service but uses [InjectConstructor]`
 
-**原因**: 非 Service 类型使用了 `[InjectConstructor]`。
+**Cause**: A non-Service type uses `[InjectConstructor]`.
 
 ------
 
 ### GDI_S020: InjectConstructorParameterTypeInvalid
 
-**消息**: `Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type`
+**Message**: `Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type`
 
-**原因**: 构造函数参数类型无效。
+**Cause**: Constructor parameter type is invalid.
 
 ------
 
-## Dependency Graph 错误 (GDI_D)
+## Dependency Graph Errors (GDI_D)
 
 ### GDI_D001: ScopeModulesServicesEmpty
 
-**消息**: `Scope '{0}' must specify at least one type in [Modules] Services`
+**Message**: `Scope '{0}' must specify at least one type in [Modules] Services`
 
-**原因**: `[Modules]` 的 `Services` 为空。
+**Cause**: `Services` in `[Modules]` is empty.
 
 ------
 
 ### GDI_D002: ScopeModulesHostsEmpty (Info)
 
-**消息**: `Scope '{0}' specifies no Host type in [Modules] Hosts`
+**Message**: `Scope '{0}' specifies no Host type in [Modules] Hosts`
 
-**严重程度**: 信息（提示）
+**Severity**: Info (suggestion)
 
 ------
 
 ### GDI_D003: ScopeModulesServiceMustBeService
 
-**消息**: `Scope '{0}' Modules Service type '{1}' must be a Service`
+**Message**: `Scope '{0}' Modules Service type '{1}' must be a Service`
 
-**原因**: `Services` 中的类型不是 Service。
+**Cause**: A type in `Services` is not a Service.
 
 ------
 
 ### GDI_D004: ScopeModulesHostMustBeHost
 
-**消息**: `Scope '{0}' Modules Host type '{1}' must be a Host`
+**Message**: `Scope '{0}' Modules Host type '{1}' must be a Host`
 
-**原因**: `Hosts` 中的类型不是 Host。
+**Cause**: A type in `Hosts` is not a Host.
 
 ------
 
 ### GDI_D010: CircularDependencyDetected
 
-**消息**: `Circular dependency detected: {0}`
+**Message**: `Circular dependency detected: {0}`
 
-**原因**: 服务之间存在循环依赖。
+**Cause**: Circular dependencies exist between services.
 
 ```csharp
-// ❌ 循环依赖
+// ❌ Circular dependency
 [Singleton(typeof(IA))]
 public partial class A : IA { public A(IB b) { } }
 
 [Singleton(typeof(IB))]
 public partial class B : IB { public B(IA a) { } }
-// 检测到：A -> B -> A
+// Detected: A -> B -> A
 ```
 
 ------
 
 ### GDI_D020: ServiceConstructorParameterInvalid
 
-**消息**: `Service '{0}' has constructor parameter of type '{1}', which is not a Service`
+**Message**: `Service '{0}' has constructor parameter of type '{1}', which is not a Service`
 
-**原因**: Service 构造函数参数的类型不是有效的服务类型。
+**Cause**: A Service constructor parameter's type is not a valid service type.
 
 ------
 
 ### GDI_D040: ServiceTypeConflict
 
-**消息**: `Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope`
+**Message**: `Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope`
 
-**原因**: 同一服务类型有多个提供者。
+**Cause**: The same service type has multiple providers.
 
 ```csharp
-// ❌ 冲突
+// ❌ Conflict
 [Singleton(typeof(IService))]
 public partial class ServiceA : IService { }
 
@@ -532,65 +535,65 @@ public partial class ServiceB : IService { }
 
 [Modules(Services = [typeof(ServiceA), typeof(ServiceB)])]
 public partial class MyScope : Node, IScope { }
-// 两个都提供 IService，冲突
+// Both provide IService, conflict
 ```
 
 ------
 
-## Internal Error (GDI_E)
+## Internal Errors (GDI_E)
 
 ### GDI_E900: RequestCancellation
 
-**消息**: `Generator receives cancellation request: {0}`
+**Message**: `Generator receives cancellation request: {0}`
 
-**原因**: 源生成器执行被取消。
+**Cause**: Source generator execution was cancelled.
 
 ------
 
 ### GDI_E910: GeneratorInternalError
 
-**消息**: `Internal error in source generator: {0}`
+**Message**: `Internal error in source generator: {0}`
 
-**原因**: 源生成器内部错误。
+**Cause**: Internal error in the source generator.
 
 ------
 
 ### GDI_E920: UnknownTypeRole
 
-**消息**: `Unknown DI Type Role`
+**Message**: `Unknown DI Type Role`
 
-**原因**: 未知的 DI 角色分类。
+**Cause**: Unknown DI role classification.
 
 ------
 
 ### GDI_E930: ScopeLosesAttributeUnexpectedly
 
-**消息**: `Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]`
+**Message**: `Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]`
 
-**原因**: Scope 意外丢失了 `[Modules]` 或 `[AutoModules]`。
+**Cause**: Scope unexpectedly lost `[Modules]` or `[AutoModules]`.
 
 ------
 
-## User Behavior 警告 (GDI_U)
+## User Behavior Warnings (GDI_U)
 
 ### GDI_U001: ManualCallGeneratedMethod
 
-**消息**: `Do not manually call generated method '{0}' on '{1}'. This method is managed by the DI framework and will be called automatically at the appropriate time`
+**Message**: `Do not manually call generated method '{0}' on '{1}'. This method is managed by the DI framework and will be called automatically at the appropriate time`
 
-**原因**: 手动调用了框架生成的方法。
+**Cause**: Manually calling a framework-generated method.
 
 ------
 
 ### GDI_U002: ManualAccessGeneratedField
 
-**消息**: `Do not manually access generated field '{0}' on '{1}'. This field is managed by the DI framework and should not be accessed directly by user code`
+**Message**: `Do not manually access generated field '{0}' on '{1}'. This field is managed by the DI framework and should not be accessed directly by user code`
 
-**原因**: 手动访问了框架生成的私有字段。
+**Cause**: Manually accessing a framework-generated private field.
 
 ------
 
 ### GDI_U003: ManualAccessGeneratedProperty
 
-**消息**: `Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code`
+**Message**: `Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code`
 
-**原因**: 手动访问了框架生成的属性。
+**Cause**: Manually accessing a framework-generated property.
