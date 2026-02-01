@@ -1,0 +1,159 @@
+<root>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <data name="ServiceReadyNeedUser" xml:space="preserve">
+    <value>类型 “{0}” 实现了 IServicesReady，但未标记为 [User]</value>
+  </data>
+    
+    <data name="NoNonStaticConstructor" xml:space="preserve">
+    <value>服务 “{0}” 必须至少定义一个非静态构造函数</value>
+  </data>
+
+    <data name="AmbiguousConstructor" xml:space="preserve">
+    <value>服务 “{0}” 有多个构造函数，需要指定唯一的 [InjectConstructor]</value>
+  </data>
+
+    <data name="InjectConstructorAttributeIsInvalid" xml:space="preserve">
+    <value>类型 “{0}” 不是 Service 却使用了 [InjectConstructor]</value>
+  </data>
+
+    <data name="ServiceConstructorParameterInvalid" xml:space="preserve">
+    <value>服务 “{0}” 的构造函数参数类型 “{1}” 不是 Service</value>
+  </data>
+    <data name="MemberHasSingletonButNotInHost" xml:space="preserve">
+    <value>类型 “{0}” 必须标记为 [Host] 才能在成员上使用 [Singleton]</value>
+  </data>
+
+  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <value>[Singleton] 和 [Inject] 不能同时应用于同一成员 “{0}”</value>
+  </data>
+
+  <data name="InjectMemberNotAssignable" xml:space="preserve">
+    <value>[Inject] 成员 “{0}” 必须可写（字段不能是 readonly，属性必须有 setter）</value>
+  </data>
+
+  <data name="SingletonPropertyNotAccessible" xml:space="preserve">
+    <value>[Singleton] 属性 “{0}” 必须有 getter</value>
+  </data>
+
+    <data name="InjectMemberInvalidType" xml:space="preserve">
+    <value>类型 “{0}” 的 Inject 成员类型 “{1}” 不是 Service</value>
+  </data>
+
+    <data name="ScopeMustBeNode" xml:space="preserve">
+    <value>Scope “{0}” 必须继承自 Godot.Node</value>
+  </data>
+  <data name="ScopeMissingModules" xml:space="preserve">
+    <value>Scope “{0}” 必须指定 [Modules]</value>
+  </data>
+
+    <data name="ScopeModulesServiceMustBeService" xml:space="preserve">
+    <value>Scope “{0}” Modules 的 Service 类型 “{1}” 必须是 Service</value>
+  </data>
+
+    <data name="ScopeModulesHostMustBeHost" xml:space="preserve">
+    <value>Scope “{0}” Modules 的 Host 类型 “{1}” 必须是 Host</value>
+  </data>
+    <data name="CircularDependencyDetected" xml:space="preserve">
+    <value>检测到循环依赖：{0}</value>
+  </data>
+    <data name="ManualCallGeneratedMethod" xml:space="preserve">
+    <value>禁止手动调用生成的方法 '{0}' （位于 '{1}'）。此方法由 DI 框架管理，将在适当时机自动调用</value>
+  </data>
+
+    <data name="GeneratorInternalError" xml:space="preserve">
+    <value>源生成器内部错误：{0}</value>
+  </data>
+    <data name="UnknownTypeRole" xml:space="preserve">
+    <value>未知的 DI 角色分类</value>
+  </data>
+    <data name="ScopeInvalidAttribute" xml:space="preserve">
+    <value>Scope “{0}” 不能使用 [{1}]</value>
+  </data>
+    <data name="HostMustBeNode" xml:space="preserve">
+    <value>Host “{0}” 必须继承自 Godot.Node</value>
+  </data>
+    <data name="HostInvalidAttribute" xml:space="preserve">
+    <value>Host “{0}” 不能使用 [{1}]</value>
+  </data>
+    <data name="MemberHasInjectButNotInUser" xml:space="preserve">
+    <value>类型 “{0}” 必须标记为 [User] 才能在成员上使用 [Inject]</value>
+  </data>
+    <data name="ScopeModulesServicesEmpty" xml:space="preserve">
+    <value>Scope “{0}” 在 [Modules] Services 中必须指定至少一个服务类型</value>
+  </data>
+    <data name="ScopeModulesHostsEmpty" xml:space="preserve">
+    <value>Scope “{0}” 没有在 [Modules] Hosts 中指定任何任 Host 类型</value>
+  </data>
+    <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
+    <value>Scope "{0}" 意外缺失 [Modules] 或 [AutoModules]</value>
+  </data>
+    <data name="RequestCancellation" xml:space="preserve">
+    <value>源生成器在执行过程中收到取消请求：{0}</value>
+  </data>
+    <data name="InjectConstructorParameterTypeInvalid" xml:space="preserve">
+    <value>Inject 构造函数的参数类型必须是接口类型，或是非 Node、非 Host、非 User、非 Scope 的 class 类型</value>
+  </data>
+    <data name="ServiceTypeIsInvalid" xml:space="preserve">
+    <value>服务 “{0}” 不能继承自 Godot.Node，并且必须是非抽象、非静态的 class 类型</value>
+  </data>
+    <data name="DiClassMustBePartial" xml:space="preserve">
+    <value>与 DI 相关的类 “{0}” 必须声明为 partial，以启用代码生成</value>
+  </data>
+    <data name="InjectMemberIsHostType" xml:space="preserve">
+    <value>[Inject] 成员 "{0}" 的类型 "{1}" 是 [Host] 类型，不能被注入</value>
+  </data>
+    <data name="InjectMemberIsUserType" xml:space="preserve">
+    <value>[Inject] 成员 "{0}" 的类型 "{1}" 是 [User] 类型，不能被注入</value>
+  </data>
+    <data name="InjectMemberIsScopeType" xml:space="preserve">
+    <value>[Inject] 成员 "{0}" 的类型 "{1}" 是 IScope 类型，不能被注入</value>
+  </data>
+    <data name="InjectMemberIsStatic" xml:space="preserve">
+    <value>[Inject] 成员 "{0}" 不能是 static</value>
+  </data>
+    <data name="SingletonMemberIsStatic" xml:space="preserve">
+    <value>[Singleton] 成员 "{0}" 不能是 static</value>
+  </data>
+    <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
+    <value>[Singleton] 成员 "{0}" 的类型 "{1}" 已经标记为 Service（[Singleton]）。Host 不应直接持有 Service 实例</value>
+  </data>
+    <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
+    <value>暴露类型 "{0}" 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
+  </data>
+    <data name="ServiceTypeConflict" xml:space="preserve">
+    <value>服务类型 "{0}" 被多个提供者注册：{1}。每个服务类型在一个 Scope 内只能有一个提供者</value>
+  </data>
+    <data name="UserMustBeNode" xml:space="preserve">
+    <value>User “{0}” 必须继承自 Godot.Node</value>
+  </data>
+    <data name="ServiceExposedTypeNotImplemented" xml:space="preserve">
+    <value>服务 "{0}" 暴露了类型 "{1}"，但未实现该类型</value>
+  </data>
+    <data name="HostMemberExposedTypeNotImplemented" xml:space="preserve">
+    <value>Host 成员 "{0}" 暴露了类型 "{1}"，但成员类型 "{2}" 未实现该类型</value>
+  </data>
+  <data name="UserInvalidAttribute" xml:space="preserve">
+    <value>User “{0}” 不能使用 [{1}]</value>
+  </data>
+  <data name="OnlyScopeCanUseModules" xml:space="preserve">
+    <value>类型 “{0}” 必须实现 IScope 才能使用 [Modules]</value>
+  </data>
+    
+    <data name="ManualAccessGeneratedField" xml:space="preserve">
+        <value>禁止手动访问生成的字段 '{0}' （位于 '{1}'）。此字段由 DI 框架管理，不应被用户代码直接访问</value>
+    </data>
+    <data name="ManualAccessGeneratedProperty" xml:space="preserve">
+        <value>禁止手动访问生成的属性 '{0}' （位于 '{1}'）。此属性由 DI 框架管理，不应被用户代码直接访问</value>
+    </data>
+</root>
