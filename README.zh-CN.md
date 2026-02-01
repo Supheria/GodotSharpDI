@@ -1,8 +1,12 @@
 # GodotSharpDI
 
+<img src="icon.png" style="zoom:50%;" />
+
 <p align="left"> <a href="README.md">English</a> </p>
 
-一个专为 Godot 引擎设计的编译时依赖注入框架,通过 C# Source Generator 实现零反射、高性能的 DI 支持。
+一个专为 Godot 引擎设计的编译时依赖注入框架，通过 C# Source Generator 实现零反射、高性能的 DI 支持。
+
+[![NuGet Version](https://img.shields.io/nuget/v/GodotSharpDI.svg?style=flat)](https://www.nuget.org/packages/GodotSharpDI/)
 
 ## 目录
 

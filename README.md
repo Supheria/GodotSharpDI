@@ -1,8 +1,12 @@
 # GodotSharpDI
 
+<img src="icon.png" style="zoom:50%;" />
+
 <p align="left"> <a href="README.zh-CN.md">中文版</a> </p>
 
 A compile-time dependency injection framework designed specifically for Godot Engine, providing zero-reflection, high-performance DI support through C# Source Generator.
+
+[![NuGet Version](https://img.shields.io/nuget/v/GodotSharpDI.svg?style=flat)](https://www.nuget.org/packages/GodotSharpDI/)
 
 ## Table of Contents
 
