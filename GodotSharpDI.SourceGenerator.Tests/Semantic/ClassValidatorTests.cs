@@ -3,7 +3,6 @@ using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 

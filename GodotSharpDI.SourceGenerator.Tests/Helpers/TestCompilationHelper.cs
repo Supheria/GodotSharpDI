@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -20,14 +22,14 @@ internal static class TestCompilationHelper
         var references = new List<MetadataReference>
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
         };
 
         // Add System.Runtime reference
-        var systemRuntime = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+        var systemRuntime = RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(
             MetadataReference.CreateFromFile(
-                System.IO.Path.Combine(systemRuntime, "System.Runtime.dll")
+                Path.Combine(systemRuntime, "System.Runtime.dll")
             )
         );
 
@@ -54,13 +56,13 @@ internal static class TestCompilationHelper
         var references = new List<MetadataReference>
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
         };
 
-        var systemRuntime = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+        var systemRuntime = RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(
             MetadataReference.CreateFromFile(
-                System.IO.Path.Combine(systemRuntime, "System.Runtime.dll")
+                Path.Combine(systemRuntime, "System.Runtime.dll")
             )
         );
 

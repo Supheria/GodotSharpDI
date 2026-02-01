@@ -1,4 +1,5 @@
-﻿using GodotSharpDI.SourceGenerator.Internal.Data;
+﻿using System.Collections.Generic;
+using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
@@ -101,7 +102,7 @@ internal static class ServiceGenerator
                 f.AppendLine("if (--remaining == 0)");
                 f.BeginBlock();
                 {
-                    var paramNames = new System.Collections.Generic.List<string>();
+                    var paramNames = new List<string>();
                     for (int i = 0; i < ctor.Parameters.Length; i++)
                     {
                         paramNames.Add($"p{i}!");

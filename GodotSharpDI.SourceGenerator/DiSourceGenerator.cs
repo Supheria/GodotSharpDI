@@ -1,20 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
-using GodotSharpDI.SourceGenerator.Internal;
 using GodotSharpDI.SourceGenerator.Internal.Coding;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Internal.Semantic;
-using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
 
 namespace GodotSharpDI.SourceGenerator;
 

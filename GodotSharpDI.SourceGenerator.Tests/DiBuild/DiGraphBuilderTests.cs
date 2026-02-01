@@ -5,6 +5,7 @@ using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
@@ -283,7 +284,7 @@ namespace Test
         // Assert
         Assert.NotNull(result.Graph);
         var errors = result
-            .Diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
         Assert.Empty(errors);
     }

@@ -1,11 +1,12 @@
 ﻿using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
@@ -393,7 +394,7 @@ namespace Test
     public void Detect_PerformanceTest_LargeGraphWithoutCircles()
     {
         // Arrange - 生成大型依赖图（100个节点的链）
-        var sourceBuilder = new System.Text.StringBuilder();
+        var sourceBuilder = new StringBuilder();
         sourceBuilder.AppendLine("using GodotSharpDI.Abstractions;");
         sourceBuilder.AppendLine("namespace Test {");
 
@@ -425,7 +426,7 @@ namespace Test
 
         sourceBuilder.AppendLine("}");
 
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         var result = BuildGraph(sourceBuilder.ToString());
         stopwatch.Stop();
 

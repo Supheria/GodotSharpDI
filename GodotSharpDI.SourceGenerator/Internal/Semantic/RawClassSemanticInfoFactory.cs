@@ -3,6 +3,7 @@ using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Semantic;
@@ -15,7 +16,7 @@ internal static class RawClassSemanticInfoFactory
     ) CreateWithDiagnostics(Compilation compilation, ClassDeclarationSyntax syntax)
     {
         var model = compilation.GetSemanticModel(syntax.SyntaxTree);
-        var declaredSymbol = model.GetDeclaredSymbol(syntax);
+        var declaredSymbol = ModelExtensions.GetDeclaredSymbol(model, syntax);
 
         if (declaredSymbol is not INamedTypeSymbol symbol)
             return (null, ImmutableArray<Diagnostic>.Empty);
@@ -31,9 +32,7 @@ internal static class RawClassSemanticInfoFactory
         var implementsIScope = symbols.ImplementsIScope(symbol);
         var implementsIServicesReady = symbols.ImplementsIServicesReady(symbol);
         var isNode = symbols.IsNode(symbol);
-        var isPartial = syntax.Modifiers.Any(m =>
-            m.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.PartialKeyword)
-        );
+        var isPartial = syntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
         // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
         if (!hasSingleton && !hasHost && !hasUser && !hasModules && !implementsIScope)

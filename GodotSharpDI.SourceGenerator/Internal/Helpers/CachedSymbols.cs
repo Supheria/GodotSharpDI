@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using GodotSharpDI.SourceGenerator.Shared;
+﻿using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
