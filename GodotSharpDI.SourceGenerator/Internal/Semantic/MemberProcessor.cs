@@ -188,16 +188,29 @@ internal sealed class MemberProcessor
                 return null;
             }
 
-            exposedTypes = AttributeHelper.GetExposedTypes(member, _symbols);
+            exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
 
-            // 检查暴露类型是否是接口（Warning）
             foreach (var exposedType in exposedTypes)
             {
+                // 检查暴露类型是否是可注入类型
+                if (!exposedType.IsValidInjectType(_symbols))
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.HostMemberExposedTypeNotInjectable,
+                            location,
+                            _raw.Symbol.Name,
+                            exposedType.ToDisplayString()
+                        )
+                    );
+                }
+
+                // 检查暴露类型是否是接口（Warning）
                 if (exposedType.TypeKind != TypeKind.Interface)
                 {
                     _diagnostics.Add(
                         DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ExposedTypeShouldBeInterface,
+                            DiagnosticDescriptors.HostMemberExposedTypeShouldBeInterface,
                             location,
                             exposedType.ToDisplayString()
                         )

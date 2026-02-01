@@ -78,20 +78,18 @@ internal sealed class RoleConstraintsProcessor
             );
         }
 
-        var singletonAttr = _raw.Symbol.GetAttribute(_symbols.SingletonAttribute);
-        var exposedTypes = AttributeHelper.GetTypesFromAttribute(
-            singletonAttr,
-            ShortNames.ServiceTypes
-        );
+        var exposedTypes = AttributeHelper.GetServiceExposedTypes(_raw.Symbol, _symbols);
 
         foreach (var exposedType in exposedTypes)
         {
+            // 检查暴露类型是否是接口（Warning）
             if (exposedType.TypeKind != TypeKind.Interface)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ExposedTypeShouldBeInterface,
+                        DiagnosticDescriptors.ServiceExposedTypeShouldBeInterface,
                         _raw.Location,
+                        _raw.Symbol.Name,
                         exposedType.ToDisplayString()
                     )
                 );

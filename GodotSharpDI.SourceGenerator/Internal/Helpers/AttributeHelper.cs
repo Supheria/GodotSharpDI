@@ -10,16 +10,12 @@ namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 /// </summary>
 internal static class AttributeHelper
 {
-    public static ImmutableArray<INamedTypeSymbol> GetExposedTypes(
+    public static ImmutableArray<INamedTypeSymbol> GetMemberExposedTypes(
         ISymbol member,
         CachedSymbols symbols
     )
     {
-        var singletonAttr = member
-            .GetAttributes()
-            .FirstOrDefault(a =>
-                SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.SingletonAttribute)
-            );
+        var singletonAttr = member.GetAttribute(symbols.SingletonAttribute);
         var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ServiceTypes);
 
         // 如果没有指定服务类型，使用成员的类型
@@ -42,6 +38,18 @@ internal static class AttributeHelper
         }
 
         return exposedTypes;
+    }
+
+    public static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
+        INamedTypeSymbol service,
+        CachedSymbols symbols
+    )
+    {
+        var singletonAttr = service.GetAttribute(symbols.SingletonAttribute);
+        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ServiceTypes);
+
+        // 如果没有指定服务类型，使用自身型
+        return exposedTypes.IsEmpty ? ImmutableArray.Create(service) : exposedTypes;
     }
 
     public static ImmutableArray<INamedTypeSymbol> GetTypesFromAttribute(

@@ -167,11 +167,29 @@ public partial class MyService : IService { }
 
 ------
 
-### GDI_C070: ServiceExposedTypeNotImplemented
+### GDI_M070: ServiceExposedTypeShouldBeInterface (Warning)
+
+**消息**: `Service '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
+
+**原因**: 暴露的服务类型是具体类而非接口。
+
+```csharp
+// ⚠️ 警告
+[Singleton(typeof(ConfigService))]  // 具体类
+public partial class ConfigService { }
+
+// ✅ 推荐
+[Singleton(typeof(IConfig))]  // 接口
+public partial class ConfigService : IConfig { }
+```
+
+------
+
+### GDI_C071: ServiceExposedTypeNotImplemented
 
 **消息**: `Service '{0}' has exposed type '{1}', but which is not implemented`
 
-**原因**: Service 暴露了自身类型未实现的接口或未继承的类型。
+**原因**: 暴露的服务类型是自身类型未实现的接口或未继承的类型。
 
 ```csharp
 // ❌ 错误
@@ -359,26 +377,23 @@ public partial class GoodHost : Node
 
 ------
 
-### GDI_M060: ExposedTypeShouldBeInterface (Warning)
+### GDI_M060: HostMemberExposedTypeShouldBeInterface (Warning)
 
-**消息**: `Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
+**消息**: `Host member '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
 
-**原因**: 暴露的服务类型是具体类而非接口。
+**原因**: 暴露的类型是具体类而非接口。
 
-**严重程度**: 警告（不阻止编译）
-
-```csharp
-// ⚠️ 警告
-[Singleton(typeof(ConfigService))]  // 具体类
-public partial class ConfigService { }
-
-// ✅ 推荐
-[Singleton(typeof(IConfig))]  // 接口
-public partial class ConfigService : IConfig { }
-```
 ------
 
-### GDI_M070: HostMemberExposedTypeNotImplemented
+### GDI_M061: HostMemberExposedTypeNotInjectable (Warning)
+
+**消息**: `Host member '{0}' has exposed type '{1}', which is not injectable. Injectable type must be non-Host, non-User, non-Scope interface or non-static class`
+
+**原因**: 暴露的类型不可注入。
+
+------
+
+### GDI_M062: HostMemberExposedTypeNotImplemented
 
 **消息**: `Host member '{0}' has exposed type '{1}', but which is not implemented`
 

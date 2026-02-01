@@ -87,15 +87,6 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Exposed type &apos;{0}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
-        /// </summary>
-        internal static string ExposedTypeShouldBeInterface {
-            get {
-                return ResourceManager.GetString("ExposedTypeShouldBeInterface", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Internal error in source generator: {0}.
         /// </summary>
         internal static string GeneratorInternalError {
@@ -119,6 +110,24 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string HostMemberExposedTypeNotImplemented {
             get {
                 return ResourceManager.GetString("HostMemberExposedTypeNotImplemented", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Host member &apos;{0}&apos; has exposed type &apos;{1}&apos;, which is not injectable. Injectable type must be non-Host, non-User, non-Scope interface or non-static class.
+        /// </summary>
+        internal static string HostMemberExposedTypeNotInjectable {
+            get {
+                return ResourceManager.GetString("HostMemberExposedTypeNotInjectable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Host member &apos;{0}&apos; exposed type &apos;{1}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string HostMemberExposedTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("HostMemberExposedTypeShouldBeInterface", resourceCulture);
             }
         }
         
@@ -380,6 +389,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string ServiceExposedTypeNotImplemented {
             get {
                 return ResourceManager.GetString("ServiceExposedTypeNotImplemented", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; exposed type &apos;{1}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string ServiceExposedTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("ServiceExposedTypeShouldBeInterface", resourceCulture);
             }
         }
         

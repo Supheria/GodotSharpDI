@@ -15,7 +15,8 @@
 | GDI_C040 | GDI.Class           | Error    | Scope must specify [Modules]                                   |
 | GDI_C050 | GDI.Class           | Error    | DI-relative class must be partial                              |
 | GDI_C060 | GDI.Class           | Error    | Service must be non-Godot.Node, non-abstract, non-static class |
-| GDI_C070 | GDI.Class           | Error    | Service exposes type but does not implement it                 |
+| GDI_M070 | GDI.Class           | Warning  | Serive exposed type should be interface                        |
+| GDI_C071 | GDI.Class           | Error    | Service exposes type but does not implement it                 |
 | GDI_M010 | GDI.Member          | Error    | [Singleton] on member requires [Host] on type                  |
 | GDI_M011 | GDI.Member          | Error    | [Inject] on member requires [User] on type                     |
 | GDI_M012 | GDI.Member          | Error    | [Singleton] and [Inject] cannot be on same member              |
@@ -28,8 +29,9 @@
 | GDI_M044 | GDI.Member          | Error    | [Inject] member cannot be static                               |
 | GDI_M045 | GDI.Member          | Error    | [Singleton] member cannot be static                            |
 | GDI_M050 | GDI.Member          | Error    | Host member cannot be Service type                             |
-| GDI_M060 | GDI.Member          | Warning  | Exposed type should be interface                               |
-| GDI_M070 | GDI.Member          | Error    | Host member exposes type but member type does not implement it |
+| GDI_M060 | GDI.Member          | Warning  | Host member exposed type should be interface                   |
+| GDI_M061 | GDI.Member          | Error    | Host member exposed type is not injectable                     |
+| GDI_M062 | GDI.Member          | Error    | Host member exposes type but member type does not implement it |
 | GDI_S010 | GDI.Constructor     | Error    | Service must define at least one non-static constructor        |
 | GDI_S011 | GDI.Constructor     | Error    | Multiple constructors require [InjectConstructor]              |
 | GDI_S012 | GDI.Constructor     | Error    | [InjectConstructor] is invalid on non-Service                  |

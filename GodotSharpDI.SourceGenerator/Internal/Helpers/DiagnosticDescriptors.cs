@@ -165,8 +165,14 @@ internal static class DiagnosticDescriptors
         Resources.ServiceTypeIsInvalid
     );
 
-    public static readonly DiagnosticDescriptor ServiceExposedTypeNotImplemented = Class(
+    public static readonly DiagnosticDescriptor ServiceExposedTypeShouldBeInterface = Class(
         "070",
+        Resources.ServiceExposedTypeShouldBeInterface,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor ServiceExposedTypeNotImplemented = Class(
+        "071",
         Resources.ServiceExposedTypeNotImplemented
     );
 
@@ -234,14 +240,19 @@ internal static class DiagnosticDescriptors
         Resources.HostSingletonMemberIsServiceType
     );
 
-    public static readonly DiagnosticDescriptor ExposedTypeShouldBeInterface = Member(
+    public static readonly DiagnosticDescriptor HostMemberExposedTypeShouldBeInterface = Member(
         "060",
-        Resources.ExposedTypeShouldBeInterface,
+        Resources.HostMemberExposedTypeShouldBeInterface,
         DiagnosticSeverity.Warning
     );
 
+    public static readonly DiagnosticDescriptor HostMemberExposedTypeNotInjectable = Member(
+        "061",
+        Resources.HostMemberExposedTypeNotInjectable
+    );
+
     public static readonly DiagnosticDescriptor HostMemberExposedTypeNotImplemented = Member(
-        "070",
+        "062",
         Resources.HostMemberExposedTypeNotImplemented
     );
 
@@ -339,12 +350,12 @@ internal static class DiagnosticDescriptors
         "001",
         Resources.ManualCallGeneratedMethod
     );
-    
+
     public static readonly DiagnosticDescriptor ManualAccessGeneratedField = UserBehavior(
         "002",
         Resources.ManualAccessGeneratedField
     );
-    
+
     public static readonly DiagnosticDescriptor ManualAccessGeneratedProperty = UserBehavior(
         "003",
         Resources.ManualAccessGeneratedProperty

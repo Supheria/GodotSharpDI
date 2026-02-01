@@ -128,8 +128,8 @@
     <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
     <value>[Singleton] 成员 "{0}" 的类型 "{1}" 已经标记为 Service（[Singleton]）。Host 不应直接持有 Service 实例</value>
   </data>
-    <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
-    <value>暴露类型 "{0}" 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
+  <data name="ServiceExposedTypeShouldBeInterface" xml:space="preserve">
+    <value>服务 “{0}” 所暴露的类型 "{1}" 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
   </data>
     <data name="ServiceTypeConflict" xml:space="preserve">
     <value>服务类型 "{0}" 被多个提供者注册：{1}。每个服务类型在一个 Scope 内只能有一个提供者</value>
@@ -156,4 +156,10 @@
     <data name="ManualAccessGeneratedProperty" xml:space="preserve">
         <value>禁止手动访问生成的属性 '{0}' （位于 '{1}'）。此属性由 DI 框架管理，不应被用户代码直接访问</value>
     </data>
+  <data name="HostMemberExposedTypeNotInjectable" xml:space="preserve">
+    <value>Host 成员 “{0}” 暴露了不可注入的类型 “{1}”。可注入的类型必须是非Host、非User、非Scope的接口或非静态类</value>
+  </data>
+  <data name="HostMemberExposedTypeShouldBeInterface" xml:space="preserve">
+    <value>Host 成员 “{0}” 所暴露的类型 "{1}" 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
+  </data>
 </root>

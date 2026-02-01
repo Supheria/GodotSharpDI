@@ -167,7 +167,25 @@ public partial class MyService : IService { }
 
 ------
 
-### GDI_C070: ServiceExposedTypeNotImplemented
+### GDI_M070: ServiceExposedTypeShouldBeInterface (Warning)
+
+**Message**: `Service '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
+
+**Cause**: The exposed service type is a concrete class rather than an interface.
+
+```csharp
+// ⚠️ Warning
+[Singleton(typeof(ConfigService))]  // Concrete class
+public partial class ConfigService { }
+
+// ✅ Recommended
+[Singleton(typeof(IConfig))]  // Interface
+public partial class ConfigService : IConfig { }
+```
+
+------
+
+### GDI_C071: ServiceExposedTypeNotImplemented
 
 **Message**: `Service '{0}' has exposed type '{1}', but which is not implemented`
 
@@ -359,27 +377,23 @@ public partial class GoodHost : Node
 
 ------
 
-### GDI_M060: ExposedTypeShouldBeInterface (Warning)
+### GDI_M060: HostMemberExposedTypeShouldBeInterface (Warning)
 
-**Message**: `Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
+**Message**: `Host member '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling`
 
-**Cause**: The exposed service type is a concrete class rather than an interface.
-
-**Severity**: Warning (does not block compilation)
-
-```csharp
-// ⚠️ Warning
-[Singleton(typeof(ConfigService))]  // Concrete class
-public partial class ConfigService { }
-
-// ✅ Recommended
-[Singleton(typeof(IConfig))]  // Interface
-public partial class ConfigService : IConfig { }
-```
+**Cause**: The exposed type is a concrete class rather than an interface.
 
 ------
 
-### GDI_M070: HostMemberExposedTypeNotImplemented
+### GDI_M061: HostMemberExposedTypeNotInjectable
+
+**Message**: `Host member '{0}' has exposed type '{1}', which is not injectable. Injectable type must be non-Host, non-User, non-Scope interface or non-static class`
+
+**Cause**: The exposed type is not inectable.
+
+------
+
+### GDI_M062: HostMemberExposedTypeNotImplemented
 
 **Message**: `Host member '{0}' has exposed type '{1}', but which is not implemented`
 

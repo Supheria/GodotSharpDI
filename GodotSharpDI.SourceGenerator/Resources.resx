@@ -135,8 +135,8 @@
     <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
     <value>[Singleton] member '{0}' has type '{1}', which is already marked as a Service ([Singleton]). Host should not hold Service instances directly</value>
   </data>
-    <data name="ExposedTypeShouldBeInterface" xml:space="preserve">
-    <value>Exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
+  <data name="ServiceExposedTypeShouldBeInterface" xml:space="preserve">
+    <value>Service '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
   </data>
     <data name="ServiceTypeConflict" xml:space="preserve">
     <value>Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope</value>
@@ -163,4 +163,10 @@
     <data name="ManualAccessGeneratedProperty" xml:space="preserve">
         <value>Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code</value>
     </data>
+  <data name="HostMemberExposedTypeNotInjectable" xml:space="preserve">
+    <value>Host member '{0}' has exposed type '{1}', which is not injectable. Injectable type must be non-Host, non-User, non-Scope interface or non-static class</value>
+  </data>
+  <data name="HostMemberExposedTypeShouldBeInterface" xml:space="preserve">
+    <value>Host member '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
+  </data>
 </root>
