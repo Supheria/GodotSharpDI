@@ -1,15 +1,19 @@
 ﻿namespace GodotSharpDI.SourceGenerator.Shared;
 
-public static class ArgumentNames
+public static class ShortNames
 {
+    public const string Singleton = "Singleton";
+    public const string Host = "Host";
+    public const string User = "User";
+
     //
-    // Modules
+    // Modules arguments
     //
     public const string Services = "Services";
     public const string Hosts = "Hosts";
 
     //
-    // SingletonAttribute
+    // SingletonAttribute arguments
     //
     public const string ServiceTypes = "ServiceTypes";
 }

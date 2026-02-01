@@ -41,16 +41,16 @@
     <value>Type '{0}' must be marked as [Host] to use [Singleton] on members</value>
   </data>
 
-    <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
-    <value>[Singleton] and [Inject] cannot be applied to the same member</value>
+  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <value>[Singleton] and [Inject] cannot be applied to the same member '{0}'</value>
   </data>
 
-    <data name="InjectMemberNotAssignable" xml:space="preserve">
-    <value>[Inject] member must be writable (field must not be readonly, property must have setter)</value>
+  <data name="InjectMemberNotAssignable" xml:space="preserve">
+    <value>[Inject] member ‘{0}’ must be writable (field must not be readonly, property must have setter)</value>
   </data>
 
-    <data name="SingletonPropertyNotAccessible" xml:space="preserve">
-    <value>[Singleton] property must have a getter</value>
+  <data name="SingletonPropertyNotAccessible" xml:space="preserve">
+    <value>[Singleton] property '{0}' must have a getter</value>
   </data>
 
     <data name="InjectMemberInvalidType" xml:space="preserve">
@@ -60,8 +60,8 @@
     <data name="ScopeMustBeNode" xml:space="preserve">
     <value>Scope '{0}' must inherit from Godot.Node</value>
   </data>
-    <data name="ScopeMissingModules" xml:space="preserve">
-    <value>Scope '{0}' must specify either [Modules] or [AutoModules]</value>
+  <data name="ScopeMissingModules" xml:space="preserve">
+    <value>Scope '{0}' must specify [Modules]</value>
   </data>
 
     <data name="ScopeModulesServiceMustBeService" xml:space="preserve">
@@ -149,5 +149,11 @@
   </data>
     <data name="HostMemberExposedTypeNotImplemented" xml:space="preserve">
     <value>Host member '{0}' has exposed type '{1}', but which is not implemented</value>
+  </data>
+  <data name="UserInvalidAttribute" xml:space="preserve">
+    <value>User '{0}' cannot use [{1}]</value>
+  </data>
+  <data name="OnlyScopeCanUseModules" xml:space="preserve">
+    <value>To use [Modules], Type '{0}' must implement IScope</value>
   </data>
 </root>

@@ -20,7 +20,7 @@ internal static class ScopeInterfaceGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidateTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
             Generate(f, node, graph);
         }

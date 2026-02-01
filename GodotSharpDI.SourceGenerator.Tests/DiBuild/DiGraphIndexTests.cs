@@ -47,8 +47,8 @@ namespace Test
         foreach (var node in graph.ServiceNodes)
         {
             Assert.True(
-                graph.ServiceNodeMap.TryGetValue(node.ValidateTypeInfo.Symbol, out var mappedNode),
-                $"ServiceNodeMap should contain {node.ValidateTypeInfo.Symbol.Name}"
+                graph.ServiceNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mappedNode),
+                $"ServiceNodeMap should contain {node.ValidatedTypeInfo.Symbol.Name}"
             );
             Assert.Same(node, mappedNode);
         }
@@ -82,8 +82,8 @@ namespace Test
         foreach (var node in graph.HostNodes)
         {
             Assert.True(
-                graph.HostNodeMap.TryGetValue(node.ValidateTypeInfo.Symbol, out var mappedNode),
-                $"HostNodeMap should contain {node.ValidateTypeInfo.Symbol.Name}"
+                graph.HostNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mappedNode),
+                $"HostNodeMap should contain {node.ValidatedTypeInfo.Symbol.Name}"
             );
             Assert.Same(node, mappedNode);
         }
@@ -117,8 +117,8 @@ namespace Test
         foreach (var node in graph.HostAndUserNodes)
         {
             Assert.True(
-                graph.HostAndUserNodeMap.TryGetValue(node.ValidateTypeInfo.Symbol, out var mappedNode),
-                $"HostAndUserNodeMap should contain {node.ValidateTypeInfo.Symbol.Name}"
+                graph.HostAndUserNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mappedNode),
+                $"HostAndUserNodeMap should contain {node.ValidatedTypeInfo.Symbol.Name}"
             );
             Assert.Same(node, mappedNode);
         }
@@ -148,9 +148,9 @@ namespace Test
         var userNode = graph.UserNodes[0];
 
         // User节点不应该在索引中
-        Assert.False(graph.ServiceNodeMap.ContainsKey(userNode.ValidateTypeInfo.Symbol));
-        Assert.False(graph.HostNodeMap.ContainsKey(userNode.ValidateTypeInfo.Symbol));
-        Assert.False(graph.HostAndUserNodeMap.ContainsKey(userNode.ValidateTypeInfo.Symbol));
+        Assert.False(graph.ServiceNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
+        Assert.False(graph.HostNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
+        Assert.False(graph.HostAndUserNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
     }
 
     [Fact]
@@ -230,7 +230,7 @@ namespace Test
 
         Assert.True(found, "Should find ServiceA in ServiceNodeMap");
         Assert.NotNull(node);
-        Assert.Equal("ServiceA", node.ValidateTypeInfo.Symbol.Name);
+        Assert.Equal("ServiceA", node.ValidatedTypeInfo.Symbol.Name);
     }
 
     private static DiGraphBuildResult BuildGraph(string source)

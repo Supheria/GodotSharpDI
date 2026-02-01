@@ -7,7 +7,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 /// Scope 节点
 /// </summary>
 internal sealed record ScopeNode(
-    ValidateTypeInfo ValidateTypeInfo,
+    ValidatedTypeInfo ValidatedTypeInfo,
     ImmutableArray<INamedTypeSymbol> InstantiateServices,
     ImmutableArray<INamedTypeSymbol> ExpectHosts
 );

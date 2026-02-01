@@ -26,7 +26,7 @@ internal static class UserGenerator
     public static void GenerateUserSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Inject 成员
-        var injectMembers = node.ValidateTypeInfo.Members.Where(m => m.IsInjectMember).ToArray();
+        var injectMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsInjectMember).ToArray();
 
         // 如果没有 Inject 成员，不生成 User 代码
         if (injectMembers.Length == 0)
@@ -34,9 +34,9 @@ internal static class UserGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidateTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
-            var implementsIServicesReady = node.ValidateTypeInfo.ImplementsIServicesReady;
+            var implementsIServicesReady = node.ValidatedTypeInfo.ImplementsIServicesReady;
 
             // 如果实现了 IServicesReady，生成依赖跟踪代码
             if (implementsIServicesReady && injectMembers.Length > 0)

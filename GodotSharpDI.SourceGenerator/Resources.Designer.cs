@@ -204,7 +204,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member must be writable (field must not be readonly, property must have setter).
+        ///   Looks up a localized string similar to [Inject] member ‘{0}’ must be writable (field must not be readonly, property must have setter).
         /// </summary>
         internal static string InjectMemberNotAssignable {
             get {
@@ -222,7 +222,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] and [Inject] cannot be applied to the same member.
+        ///   Looks up a localized string similar to [Singleton] and [Inject] cannot be applied to the same member &apos;{0}&apos;.
         /// </summary>
         internal static string MemberConflictWithSingletonAndInject {
             get {
@@ -258,6 +258,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to To use [Modules], Type &apos;{0}&apos; must implement IScope.
+        /// </summary>
+        internal static string OnlyScopeCanUseModules {
+            get {
+                return ResourceManager.GetString("OnlyScopeCanUseModules", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Generator receives cancellation request: {0}.
         /// </summary>
         internal static string RequestCancellation {
@@ -285,7 +294,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify either [Modules] or [AutoModules].
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify [Modules].
         /// </summary>
         internal static string ScopeMissingModules {
             get {
@@ -393,7 +402,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] property must have a getter.
+        ///   Looks up a localized string similar to [Singleton] property &apos;{0}&apos; must have a getter.
         /// </summary>
         internal static string SingletonPropertyNotAccessible {
             get {
@@ -407,6 +416,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string UnknownTypeRole {
             get {
                 return ResourceManager.GetString("UnknownTypeRole", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User &apos;{0}&apos; cannot use [{1}].
+        /// </summary>
+        internal static string UserInvalidAttribute {
+            get {
+                return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
             }
         }
         

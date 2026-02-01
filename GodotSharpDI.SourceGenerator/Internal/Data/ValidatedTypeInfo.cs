@@ -6,7 +6,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 /// <summary>
 /// 类型信息（验证后）
 /// </summary>
-internal sealed record ValidateTypeInfo(
+internal sealed record ValidatedTypeInfo(
     INamedTypeSymbol Symbol,
     Location Location,
     TypeRole Role,

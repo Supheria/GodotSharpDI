@@ -15,7 +15,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 internal sealed class CircularDependencyDetector
 {
     private readonly Dictionary<ITypeSymbol, TypeNode> _serviceImplToNode;
-    private readonly Dictionary<ITypeSymbol, ValidateTypeInfo> _serviceProviders;
+    private readonly Dictionary<ITypeSymbol, ValidatedTypeInfo> _serviceProviders;
 
     // Tarjan 算法状态
     private readonly Dictionary<ITypeSymbol, int> _indices;
@@ -29,7 +29,7 @@ internal sealed class CircularDependencyDetector
 
     public CircularDependencyDetector(
         Dictionary<ITypeSymbol, TypeNode> serviceImplToNode,
-        Dictionary<ITypeSymbol, ValidateTypeInfo> serviceProviders
+        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders
     )
     {
         _serviceImplToNode = serviceImplToNode;
@@ -52,9 +52,9 @@ internal sealed class CircularDependencyDetector
         // 对所有服务节点运行 Tarjan 算法
         foreach (var node in _serviceImplToNode.Values)
         {
-            if (!_indices.ContainsKey(node.ValidateTypeInfo.Symbol))
+            if (!_indices.ContainsKey(node.ValidatedTypeInfo.Symbol))
             {
-                StrongConnect(node.ValidateTypeInfo.Symbol);
+                StrongConnect(node.ValidatedTypeInfo.Symbol);
             }
         }
 
@@ -77,9 +77,9 @@ internal sealed class CircularDependencyDetector
         // 考虑所有依赖
         if (_serviceImplToNode.TryGetValue(typeSymbol, out var node))
         {
-            if (node.ValidateTypeInfo.Constructor != null)
+            if (node.ValidatedTypeInfo.Constructor != null)
             {
-                foreach (var param in node.ValidateTypeInfo.Constructor.Parameters)
+                foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
                 {
                     // 获取参数类型的提供者
                     if (_serviceProviders.TryGetValue(param.Type, out var provider))
@@ -145,10 +145,10 @@ internal sealed class CircularDependencyDetector
         if (!_serviceImplToNode.TryGetValue(typeSymbol, out var node))
             return false;
 
-        if (node.ValidateTypeInfo.Constructor == null)
+        if (node.ValidatedTypeInfo.Constructor == null)
             return false;
 
-        foreach (var param in node.ValidateTypeInfo.Constructor.Parameters)
+        foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
         {
             if (_serviceProviders.TryGetValue(param.Type, out var provider))
             {
@@ -180,7 +180,7 @@ internal sealed class CircularDependencyDetector
             diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.CircularDependencyDetected,
-                    firstNode.ValidateTypeInfo.Location,
+                    firstNode.ValidatedTypeInfo.Location,
                     cyclePath
                 )
             );
@@ -232,9 +232,9 @@ internal sealed class CircularDependencyDetector
 
             if (_serviceImplToNode.TryGetValue(component, out var node))
             {
-                if (node.ValidateTypeInfo.Constructor != null)
+                if (node.ValidatedTypeInfo.Constructor != null)
                 {
-                    foreach (var param in node.ValidateTypeInfo.Constructor.Parameters)
+                    foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
                     {
                         if (_serviceProviders.TryGetValue(param.Type, out var provider))
                         {

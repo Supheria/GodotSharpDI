@@ -13,7 +13,7 @@ internal static class GeneratorHelper
     /// </summary>
     public static void BeginClassDeclaration(
         this CodeFormatter f,
-        ValidateTypeInfo validateType,
+        ValidatedTypeInfo validatedType,
         out string className
     )
     {
@@ -21,12 +21,12 @@ internal static class GeneratorHelper
         f.AppendLine();
         f.AppendLine("#nullable enable");
         f.AppendLine();
-        if (DisplayFormats.GetNamespace(validateType.Symbol, out var namespaceName))
+        if (DisplayFormats.GetNamespace(validatedType.Symbol, out var namespaceName))
         {
             f.AppendLine($"namespace {namespaceName};");
             f.AppendLine();
         }
-        className = DisplayFormats.GetClassName(validateType.Symbol);
+        className = DisplayFormats.GetClassName(validatedType.Symbol);
         f.AppendLine($"partial class {className}");
         f.BeginBlock();
     }

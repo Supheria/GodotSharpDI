@@ -21,7 +21,7 @@ internal static class AttributeHelper
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, symbols.SingletonAttribute)
             );
-        var exposedTypes = GetTypesFromAttribute(singletonAttr, ArgumentNames.ServiceTypes);
+        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ServiceTypes);
 
         // 如果没有指定服务类型，使用成员的类型
         if (exposedTypes.IsEmpty)

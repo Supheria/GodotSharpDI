@@ -21,7 +21,7 @@ GodotSharpDI 在编译时提供完整的错误检查。本文档列出所有诊�
 
 **消息**: `Host '{0}' cannot use [{1}]`
 
-**原因**: Host 使用了不兼容的特性（如 `[Singleton]` 或 `[Transient]`）。
+**原因**: Host 使用了不兼容的特性（`[Singleton]`）。
 
 **解决方案**: Host 不是 Service，移除生命周期标记。
 
@@ -42,11 +42,27 @@ public partial class GameManager : Node, IGameState
 
 ------
 
-### GDI_C011: ScopeInvalidAttribute
+### GDI_C011: UserInvalidAttribute
+
+**消息**: `User '{0}' cannot use [{1}]`
+
+**原因**: User 使用了不兼容的特性（`[Singleton]`）。
+
+------
+
+### GDI_C012: ScopeInvalidAttribute
 
 **消息**: `Scope '{0}' cannot use [{1}]`
 
 **原因**: Scope 使用了不兼容的特性（如 `[Singleton]`、`[Host]`、`[User]`）。
+
+------
+
+### GDI_C013: OnlyScopeCanUseModules
+
+**消息**: `To use [Modules], Type '{0}' must implement IScope`
+
+**原因**: 标记为 [Modules] 的类没有实现 IScope 接口。
 
 ------
 
@@ -113,9 +129,11 @@ public partial class MyComponent : Node, IServicesReady
 
 ### GDI_C040: ScopeMissingModules
 
-**消息**: `Scope '{0}' must specify either [Modules] or [AutoModules]`
+**消息**: `Scope '{0}' must specify [Modules]`
 
-**原因**: Scope 既没有 `[Modules]` 也没有 `[AutoModules]`。
+**原因**: Scope 没有指定 `[Modules]` 标记。
+
+**解决方案**: 添加 `[Modules]` 标记。
 
 ------
 

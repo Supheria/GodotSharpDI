@@ -17,30 +17,30 @@ internal static class NodeDIGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidateTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
-            GenerateNodeDICode(f, node.ValidateTypeInfo);
+            GenerateNodeDICode(f, node.ValidatedTypeInfo);
         }
         f.EndClassDeclaration();
 
         context.AddSource($"{className}.DI.g.cs", f.ToString());
     }
 
-    private static void GenerateNodeDICode(CodeFormatter f, ValidateTypeInfo validateType)
+    private static void GenerateNodeDICode(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         GenerateServiceScopeField(f);
         f.AppendLine();
 
-        GenerateGetServiceScope(f, validateType);
+        GenerateGetServiceScope(f, validatedType);
         f.AppendLine();
 
-        GenerateAttachToScope(f, validateType);
+        GenerateAttachToScope(f, validatedType);
         f.AppendLine();
 
-        GenerateUnattachToScope(f, validateType);
+        GenerateUnattachToScope(f, validatedType);
         f.AppendLine();
 
-        GenerateNotification(f, validateType);
+        GenerateNotification(f, validatedType);
     }
 
     private static void GenerateServiceScopeField(CodeFormatter f)
@@ -48,7 +48,7 @@ internal static class NodeDIGenerator
         f.AppendLine($"private {GlobalNames.IScope}? _serviceScope;");
     }
 
-    private static void GenerateGetServiceScope(CodeFormatter f, ValidateTypeInfo validateType)
+    private static void GenerateGetServiceScope(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // GetServiceScope
         f.AppendHiddenMethodCommentAndAttribute();
@@ -79,14 +79,14 @@ internal static class NodeDIGenerator
             f.EndBlock();
 
             f.AppendLine(
-                $"{GlobalNames.GodotGD}.PushError(\"{validateType.Symbol.Name} 没有最近的 Service Scope\");"
+                $"{GlobalNames.GodotGD}.PushError(\"{validatedType.Symbol.Name} 没有最近的 Service Scope\");"
             );
             f.AppendLine("return null;");
         }
         f.EndBlock();
     }
 
-    private static void GenerateAttachToScope(CodeFormatter f, ValidateTypeInfo validateType)
+    private static void GenerateAttachToScope(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // AttachToScope
         f.AppendHiddenMethodCommentAndAttribute();
@@ -96,12 +96,12 @@ internal static class NodeDIGenerator
             f.AppendLine("var scope = GetServiceScope();");
             f.AppendLine("if (scope is null) return;");
 
-            if (validateType.Role == TypeRole.Host || validateType.Role == TypeRole.HostAndUser)
+            if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.HostAndUser)
             {
                 f.AppendLine("AttachHostServices(scope);");
             }
 
-            if (validateType.Role == TypeRole.User || validateType.Role == TypeRole.HostAndUser)
+            if (validatedType.Role == TypeRole.User || validatedType.Role == TypeRole.HostAndUser)
             {
                 f.AppendLine("ResolveUserDependencies(scope);");
             }
@@ -109,7 +109,7 @@ internal static class NodeDIGenerator
         f.EndBlock();
     }
 
-    private static void GenerateUnattachToScope(CodeFormatter f, ValidateTypeInfo validateType)
+    private static void GenerateUnattachToScope(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // UnattachToScope
         f.AppendHiddenMethodCommentAndAttribute();
@@ -119,7 +119,7 @@ internal static class NodeDIGenerator
             f.AppendLine("var scope = GetServiceScope();");
             f.AppendLine("if (scope is null) return;");
 
-            if (validateType.Role == TypeRole.Host || validateType.Role == TypeRole.HostAndUser)
+            if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.HostAndUser)
             {
                 f.AppendLine("UnattachHostServices(scope);");
             }
@@ -127,7 +127,7 @@ internal static class NodeDIGenerator
         f.EndBlock();
     }
 
-    private static void GenerateNotification(CodeFormatter f, ValidateTypeInfo validateType)
+    private static void GenerateNotification(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // _Notification
         f.AppendLine("public override void _Notification(int what)");

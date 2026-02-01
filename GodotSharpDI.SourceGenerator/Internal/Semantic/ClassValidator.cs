@@ -73,13 +73,36 @@ internal sealed class ClassValidator
         // Scope
         if (_raw.ImplementsIScope)
         {
-            if (_raw.HasSingletonAttribute || _raw.HasHostAttribute || _raw.HasUserAttribute)
+            if (_raw.HasSingletonAttribute)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
                         DiagnosticDescriptors.ScopeInvalidAttribute,
                         _raw.Location,
-                        _raw.Symbol.Name
+                        _raw.Symbol.Name,
+                        ShortNames.Singleton
+                    )
+                );
+            }
+            if (_raw.HasHostAttribute)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.ScopeInvalidAttribute,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        ShortNames.Host
+                    )
+                );
+            }
+            if (_raw.HasUserAttribute)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.ScopeInvalidAttribute,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        ShortNames.User
                     )
                 );
             }
@@ -87,16 +110,39 @@ internal sealed class ClassValidator
             return TypeRole.Scope;
         }
 
+        if (_raw.HasModulesAttribute)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.OnlyScopeCanUseModules,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+
         // Service
         if (_raw.HasSingletonAttribute)
         {
-            if (_raw.HasHostAttribute || _raw.HasUserAttribute)
+            if (_raw.HasHostAttribute)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostInvalidAttribute, // TODO: 分离 Host 和 User 在此处的诊断描述
+                        DiagnosticDescriptors.HostInvalidAttribute,
                         _raw.Location,
-                        _raw.Symbol.Name
+                        _raw.Symbol.Name,
+                        ShortNames.Singleton
+                    )
+                );
+            }
+            if (_raw.HasUserAttribute)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.UserInvalidAttribute,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        ShortNames.Singleton
                     )
                 );
             }
@@ -153,8 +199,8 @@ internal sealed class ClassValidator
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, _symbols.ModulesAttribute)
             );
-        var services = AttributeHelper.GetTypesFromAttribute(modulesAttr, ArgumentNames.Services);
-        var hosts = AttributeHelper.GetTypesFromAttribute(modulesAttr, ArgumentNames.Hosts);
+        var services = AttributeHelper.GetTypesFromAttribute(modulesAttr, ShortNames.Services);
+        var hosts = AttributeHelper.GetTypesFromAttribute(modulesAttr, ShortNames.Hosts);
 
         return new ModulesInfo(services, hosts);
     }
@@ -171,7 +217,7 @@ internal sealed class ClassValidator
         ModulesInfo? modulesInfo
     )
     {
-        var typeInfo = new ValidateTypeInfo(
+        var typeInfo = new ValidatedTypeInfo(
             Symbol: _raw.Symbol,
             Location: _raw.Location,
             Role: role,

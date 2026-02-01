@@ -7,6 +7,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 /// 类验证结果
 /// </summary>
 internal sealed record ClassValidationResult(
-    ValidateTypeInfo? TypeInfo,
+    ValidatedTypeInfo? TypeInfo,
     ImmutableArray<Diagnostic> Diagnostics
 );

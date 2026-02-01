@@ -34,16 +34,16 @@
     <value>类型 “{0}” 必须标记为 [Host] 才能在成员上使用 [Singleton]</value>
   </data>
 
-    <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
-    <value>[Singleton] 和 [Inject] 不能同时应用于同一成员</value>
+  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <value>[Singleton] 和 [Inject] 不能同时应用于同一成员 “{0}”</value>
   </data>
 
-    <data name="InjectMemberNotAssignable" xml:space="preserve">
-    <value>[Inject] 成员必须可写（字段不能是 readonly，属性必须有 setter）</value>
+  <data name="InjectMemberNotAssignable" xml:space="preserve">
+    <value>[Inject] 成员 “{0}” 必须可写（字段不能是 readonly，属性必须有 setter）</value>
   </data>
 
-    <data name="SingletonPropertyNotAccessible" xml:space="preserve">
-    <value>[Singleton] 属性必须有 getter</value>
+  <data name="SingletonPropertyNotAccessible" xml:space="preserve">
+    <value>[Singleton] 属性 “{0}” 必须有 getter</value>
   </data>
 
     <data name="InjectMemberInvalidType" xml:space="preserve">
@@ -53,8 +53,8 @@
     <data name="ScopeMustBeNode" xml:space="preserve">
     <value>Scope “{0}” 必须继承自 Godot.Node</value>
   </data>
-    <data name="ScopeMissingModules" xml:space="preserve">
-    <value>Scope “{0}” 必须指定 [Modules] 或 [AutoModules]</value>
+  <data name="ScopeMissingModules" xml:space="preserve">
+    <value>Scope “{0}” 必须指定 [Modules]</value>
   </data>
 
     <data name="ScopeModulesServiceMustBeService" xml:space="preserve">
@@ -142,5 +142,11 @@
   </data>
     <data name="HostMemberExposedTypeNotImplemented" xml:space="preserve">
     <value>Host 成员 "{0}" 暴露了类型 "{1}"，但成员类型 "{2}" 未实现该类型</value>
+  </data>
+  <data name="UserInvalidAttribute" xml:space="preserve">
+    <value>User “{0}” 不能使用 [{1}]</value>
+  </data>
+  <data name="OnlyScopeCanUseModules" xml:space="preserve">
+    <value>类型 “{0}” 必须实现 IScope 才能使用 [Modules]</value>
   </data>
 </root>

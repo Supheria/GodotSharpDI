@@ -115,9 +115,19 @@ internal static class DiagnosticDescriptors
         Resources.HostInvalidAttribute
     );
 
-    public static readonly DiagnosticDescriptor ScopeInvalidAttribute = Class(
+    public static readonly DiagnosticDescriptor UserInvalidAttribute = Class(
         "011",
+        Resources.UserInvalidAttribute
+    );
+
+    public static readonly DiagnosticDescriptor ScopeInvalidAttribute = Class(
+        "012",
         Resources.ScopeInvalidAttribute
+    );
+
+    public static readonly DiagnosticDescriptor OnlyScopeCanUseModules = Class(
+        "013",
+        Resources.OnlyScopeCanUseModules
     );
 
     public static readonly DiagnosticDescriptor HostMustBeNode = Class(

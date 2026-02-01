@@ -12,7 +12,7 @@ internal static class ServiceGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        var type = node.ValidateTypeInfo;
+        var type = node.ValidatedTypeInfo;
 
         var f = new CodeFormatter();
 

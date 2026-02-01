@@ -82,7 +82,7 @@ internal sealed class RoleConstraintsProcessor
         var singletonAttr = _raw.Symbol.GetAttribute(_symbols.SingletonAttribute);
         var exposedTypes = AttributeHelper.GetTypesFromAttribute(
             singletonAttr,
-            ArgumentNames.ServiceTypes
+            ShortNames.ServiceTypes
         );
 
         foreach (var exposedType in exposedTypes)

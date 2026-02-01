@@ -5,12 +5,14 @@
 | Rule ID  | Category            | Severity | Notes                                                          |
 |----------|---------------------|----------|----------------------------------------------------------------|
 | GDI_C010 | GDI.Class           | Error    | Host cannot use incompatible attributes                        |
-| GDI_C011 | GDI.Class           | Error    | Scope cannot use incompatible attributes                       |
+| GDI_C011 | GDI.Class           | Error    | User cannot use incompatible attributes                        |
+| GDI_C012 | GDI.Class           | Error    | Scope cannot use incompatible attributes                       |
+| GDI_C013 | GDI.Class           | Error    | To use [Modules] must implement IScope                         |
 | GDI_C020 | GDI.Class           | Error    | Host must inherit from Godot.Node                              |
 | GDI_C021 | GDI.Class           | Error    | User must inherit from Godot.Node                              |
 | GDI_C022 | GDI.Class           | Error    | Scope must inherit from Godot.Node                             |
 | GDI_C030 | GDI.Class           | Error    | IServicesReady implementation requires [User] attribute        |
-| GDI_C040 | GDI.Class           | Error    | Scope must specify [Modules] or [AutoModules]                  |
+| GDI_C040 | GDI.Class           | Error    | Scope must specify [Modules]                                   |
 | GDI_C050 | GDI.Class           | Error    | DI-relative class must be partial                              |
 | GDI_C060 | GDI.Class           | Error    | Service must be non-Godot.Node, non-abstract, non-static class |
 | GDI_C070 | GDI.Class           | Error    | Service exposes type but does not implement it                 |

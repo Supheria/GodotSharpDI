@@ -76,7 +76,7 @@ internal static class DiGraphBuilder
         );
         foreach (var node in serviceNodes)
         {
-            serviceNodeMapBuilder[node.ValidateTypeInfo.Symbol] = node;
+            serviceNodeMapBuilder[node.ValidatedTypeInfo.Symbol] = node;
         }
 
         // 构建Host节点映射
@@ -85,7 +85,7 @@ internal static class DiGraphBuilder
         );
         foreach (var node in hostNodes)
         {
-            hostNodeMapBuilder[node.ValidateTypeInfo.Symbol] = node;
+            hostNodeMapBuilder[node.ValidatedTypeInfo.Symbol] = node;
         }
 
         // 构建HostAndUser节点映射
@@ -94,7 +94,7 @@ internal static class DiGraphBuilder
         );
         foreach (var node in hostAndUserNodes)
         {
-            hostAndUserNodeMapBuilder[node.ValidateTypeInfo.Symbol] = node;
+            hostAndUserNodeMapBuilder[node.ValidatedTypeInfo.Symbol] = node;
         }
 
         var graph = new DiGraph(
@@ -112,22 +112,22 @@ internal static class DiGraphBuilder
     }
 
     private static (
-        Dictionary<ITypeSymbol, ValidateTypeInfo>,
+        Dictionary<ITypeSymbol, ValidatedTypeInfo>,
         ImmutableArray<Diagnostic>
     ) BuildServiceProviderMap(
-        ImmutableArray<ValidateTypeInfo> services,
-        ImmutableArray<ValidateTypeInfo> hosts,
-        ImmutableArray<ValidateTypeInfo> hostAndUsers,
+        ImmutableArray<ValidatedTypeInfo> services,
+        ImmutableArray<ValidatedTypeInfo> hosts,
+        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
         CachedSymbols symbols
     )
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-        var map = new Dictionary<ITypeSymbol, ValidateTypeInfo>(SymbolEqualityComparer.Default);
+        var map = new Dictionary<ITypeSymbol, ValidatedTypeInfo>(SymbolEqualityComparer.Default);
         var conflictTracker = new Dictionary<ITypeSymbol, List<string>>(
             SymbolEqualityComparer.Default
         );
 
-        void AddProvider(ITypeSymbol exposedType, ValidateTypeInfo provider, string providerDescription)
+        void AddProvider(ITypeSymbol exposedType, ValidatedTypeInfo provider, string providerDescription)
         {
             if (!map.TryGetValue(exposedType, out var existing))
             {
@@ -186,7 +186,7 @@ internal static class DiGraphBuilder
     }
 
     private static ImmutableArray<ITypeSymbol> GetServiceExposedTypes(
-        ValidateTypeInfo service,
+        ValidatedTypeInfo service,
         CachedSymbols symbols
     )
     {
@@ -218,8 +218,8 @@ internal static class DiGraphBuilder
     }
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildServiceNodes(
-        ImmutableArray<ValidateTypeInfo> services,
-        Dictionary<ITypeSymbol, ValidateTypeInfo> serviceProviders,
+        ImmutableArray<ValidatedTypeInfo> services,
+        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders,
         CachedSymbols symbols
     )
     {
@@ -248,7 +248,7 @@ internal static class DiGraphBuilder
 
             nodes.Add(
                 new TypeNode(
-                    ValidateTypeInfo: service,
+                    ValidatedTypeInfo: service,
                     Dependencies: dependencies.ToImmutable(),
                     ProvidedServices: providedServices
                 )
@@ -259,7 +259,7 @@ internal static class DiGraphBuilder
     }
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostNodes(
-        ImmutableArray<ValidateTypeInfo> hosts
+        ImmutableArray<ValidatedTypeInfo> hosts
     )
     {
         var nodes = ImmutableArray.CreateBuilder<TypeNode>();
@@ -279,7 +279,7 @@ internal static class DiGraphBuilder
 
             nodes.Add(
                 new TypeNode(
-                    ValidateTypeInfo: host,
+                    ValidatedTypeInfo: host,
                     Dependencies: ImmutableArray<DependencyEdge>.Empty,
                     ProvidedServices: providedServices.ToImmutable()
                 )
@@ -290,7 +290,7 @@ internal static class DiGraphBuilder
     }
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildUserNodes(
-        ImmutableArray<ValidateTypeInfo> users
+        ImmutableArray<ValidatedTypeInfo> users
     )
     {
         var nodes = ImmutableArray.CreateBuilder<TypeNode>();
@@ -316,7 +316,7 @@ internal static class DiGraphBuilder
 
             nodes.Add(
                 new TypeNode(
-                    ValidateTypeInfo: user,
+                    ValidatedTypeInfo: user,
                     Dependencies: dependencies.ToImmutable(),
                     ProvidedServices: ImmutableArray<ITypeSymbol>.Empty
                 )
@@ -327,7 +327,7 @@ internal static class DiGraphBuilder
     }
 
     private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostAndUserNodes(
-        ImmutableArray<ValidateTypeInfo> hostAndUsers
+        ImmutableArray<ValidatedTypeInfo> hostAndUsers
     )
     {
         var nodes = ImmutableArray.CreateBuilder<TypeNode>();
@@ -358,7 +358,7 @@ internal static class DiGraphBuilder
 
             nodes.Add(
                 new TypeNode(
-                    ValidateTypeInfo: hostAndUser,
+                    ValidatedTypeInfo: hostAndUser,
                     Dependencies: dependencies.ToImmutable(),
                     ProvidedServices: providedServices.ToImmutable()
                 )
@@ -369,8 +369,8 @@ internal static class DiGraphBuilder
     }
 
     private static (ImmutableArray<ScopeNode>, ImmutableArray<Diagnostic>) BuildScopeNodes(
-        ImmutableArray<ValidateTypeInfo> scopes,
-        Dictionary<ITypeSymbol, ValidateTypeInfo> serviceProviders,
+        ImmutableArray<ValidatedTypeInfo> scopes,
+        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders,
         CachedSymbols symbols
     )
     {
@@ -444,7 +444,7 @@ internal static class DiGraphBuilder
             }
 
             nodes.Add(
-                new ScopeNode(ValidateTypeInfo: scope, InstantiateServices: services, ExpectHosts: hosts)
+                new ScopeNode(ValidatedTypeInfo: scope, InstantiateServices: services, ExpectHosts: hosts)
             );
         }
 
@@ -452,9 +452,9 @@ internal static class DiGraphBuilder
     }
 
     private static ImmutableArray<Diagnostic> ValidateHostServices(
-        ImmutableArray<ValidateTypeInfo> hosts,
-        ImmutableArray<ValidateTypeInfo> hostAndUsers,
-        Dictionary<ITypeSymbol, ValidateTypeInfo> serviceProviders
+        ImmutableArray<ValidatedTypeInfo> hosts,
+        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
+        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders
     )
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
@@ -464,7 +464,7 @@ internal static class DiGraphBuilder
     private static ImmutableArray<Diagnostic> ValidateDependencyGraph(
         ImmutableArray<TypeNode> serviceNodes,
         ImmutableArray<TypeNode> allUserNodes,
-        Dictionary<ITypeSymbol, ValidateTypeInfo> serviceProviders,
+        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders,
         CachedSymbols symbols
     )
     {
@@ -475,7 +475,7 @@ internal static class DiGraphBuilder
         );
         foreach (var node in serviceNodes)
         {
-            serviceImplToNode[node.ValidateTypeInfo.Symbol] = node;
+            serviceImplToNode[node.ValidatedTypeInfo.Symbol] = node;
         }
 
         // 检查循环依赖（使用优化的 Tarjan 算法）
@@ -489,9 +489,9 @@ internal static class DiGraphBuilder
         // 检查 Service 构造函数参数
         foreach (var node in serviceNodes)
         {
-            if (node.ValidateTypeInfo.Constructor != null)
+            if (node.ValidatedTypeInfo.Constructor != null)
             {
-                foreach (var param in node.ValidateTypeInfo.Constructor.Parameters)
+                foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
                 {
                     if (!serviceProviders.ContainsKey(param.Type))
                     {
@@ -499,7 +499,7 @@ internal static class DiGraphBuilder
                             DiagnosticBuilder.Create(
                                 DiagnosticDescriptors.ServiceConstructorParameterInvalid,
                                 param.Location,
-                                node.ValidateTypeInfo.Symbol.Name,
+                                node.ValidatedTypeInfo.Symbol.Name,
                                 param.Type.ToDisplayString()
                             )
                         );
@@ -521,7 +521,7 @@ internal static class DiGraphBuilder
                             DiagnosticBuilder.Create(
                                 DiagnosticDescriptors.InjectMemberInvalidType,
                                 dep.Location,
-                                node.ValidateTypeInfo.Symbol.Name,
+                                node.ValidatedTypeInfo.Symbol.Name,
                                 dep.TargetType.ToDisplayString()
                             )
                         );

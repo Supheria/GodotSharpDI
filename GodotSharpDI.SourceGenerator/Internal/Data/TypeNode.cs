@@ -7,7 +7,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 /// 类型节点
 /// </summary>
 internal sealed record TypeNode(
-    ValidateTypeInfo ValidateTypeInfo,
+    ValidatedTypeInfo ValidatedTypeInfo,
     ImmutableArray<DependencyEdge> Dependencies,
     ImmutableArray<ITypeSymbol> ProvidedServices
 );

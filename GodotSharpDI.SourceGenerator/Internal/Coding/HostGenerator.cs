@@ -26,7 +26,7 @@ internal static class HostGenerator
     public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Singleton 成员
-        var singletonMembers = node.ValidateTypeInfo.Members.Where(m => m.IsSingletonMember).ToArray();
+        var singletonMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsSingletonMember).ToArray();
 
         // 如果没有 Singleton 成员，不生成 Host 代码
         if (singletonMembers.Length == 0)
@@ -34,7 +34,7 @@ internal static class HostGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidateTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
             // AttachHostServices
             GenerateAttachHostServices(f, singletonMembers);
