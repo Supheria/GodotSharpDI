@@ -39,6 +39,14 @@
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=87e0e681_002Dbe85_002D4b11_002D8b77_002D1fde04a5a8aa/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="CircularDependencyTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
     &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Semantic.ClassValidatorTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.DiBuild.CircularDependencyDetectorTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.DiBuild.DiGraphBuilderTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.DiBuild.DiGraphIndexTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Semantic.ConstructorProcessorTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Semantic.ExposedTypeValidationTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Semantic.MemberProcessorTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.GeneratedMemberAccessAnalyzerTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Analyzers.GeneratedMemberAccessAnalyzerTests&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
 	<s:Boolean x:Key="/Default/ResxEditorPersonal/CheckedGroups/=GodotSharpDI_002ESourceGenerator_002FResources/@EntryIndexedValue">True</s:Boolean>

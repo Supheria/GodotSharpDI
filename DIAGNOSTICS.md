@@ -577,6 +577,20 @@ public partial class MyScope : Node, IScope { }
 
 **消息**: `Do not manually call generated method '{0}' on '{1}'. This method is managed by the DI framework and will be called automatically at the appropriate time`
 
-**原因**: 手动调用了框架生成的方法（如 `AttachToScope`、`ResolveUserDependencies`、`RegisterService` 等）。
+**原因**: 手动调用了框架生成的方法。
 
-**注意**: 对于非 Node 的 User，需要调用 `ResolveDependencies`（公共方法），而非 `ResolveUserDependencies`（私有方法）。
+------
+
+### GDI_U002: ManualAccessGeneratedField
+
+**消息**: `Do not manually access generated field '{0}' on '{1}'. This field is managed by the DI framework and should not be accessed directly by user code`
+
+**原因**: 手动访问了框架生成的私有字段。
+
+------
+
+### GDI_U003: ManualAccessGeneratedProperty
+
+**消息**: `Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code`
+
+**原因**: 手动访问了框架生成的属性。

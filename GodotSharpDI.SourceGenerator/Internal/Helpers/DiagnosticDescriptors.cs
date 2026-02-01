@@ -339,4 +339,14 @@ internal static class DiagnosticDescriptors
         "001",
         Resources.ManualCallGeneratedMethod
     );
+    
+    public static readonly DiagnosticDescriptor ManualAccessGeneratedField = UserBehavior(
+        "002",
+        Resources.ManualAccessGeneratedField
+    );
+    
+    public static readonly DiagnosticDescriptor ManualAccessGeneratedProperty = UserBehavior(
+        "003",
+        Resources.ManualAccessGeneratedProperty
+    );
 }

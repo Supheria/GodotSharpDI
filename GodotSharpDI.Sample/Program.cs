@@ -76,3 +76,30 @@ public partial class Scope : Node, IScope
 //     [Inject]
 //     private OtherUser _other = new();
 // }
+
+// [User]
+// public partial class TestUser : Node
+// {
+//     public void BadMethod()
+//     {
+//         var scope = _serviceScope;
+//     }
+// }
+
+[Modules(Services = [typeof(DataBase), typeof(PathFinderFactory)])]
+public partial class TestScope : Node, IScope
+{
+    public void BadMethod()
+    {
+        var count = _services.Count; // 不会报告 GDI_U002
+    }
+}
+
+[User]
+public partial class TestUser : Node
+{
+    public void BadMethod()
+    {
+        AttachToScope();
+    }
+}

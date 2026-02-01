@@ -46,3 +46,5 @@
 | GDI_E920 | GDI.Generator       | Error    | Unknown DI type role                                           |
 | GDI_E930 | GDI.Generator       | Error    | Scope unexpectedly loses Modules attribute                     |
 | GDI_U001 | GDI.User            | Error    | Manual call to generated method not allowed                    |
+| GDI_U002 | GDI.User            | Error    | Manual access to generated field not allowed                   |
+| GDI_U003 | GDI.User            | Error    | Manual access to generated property not allowed                |

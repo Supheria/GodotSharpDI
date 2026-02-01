@@ -156,4 +156,11 @@
   <data name="OnlyScopeCanUseModules" xml:space="preserve">
     <value>To use [Modules], Type '{0}' must implement IScope</value>
   </data>
+    
+    <data name="ManualAccessGeneratedField" xml:space="preserve">
+        <value>Do not manually access generated field '{0}' on '{1}'. This field is managed by the DI framework and should not be accessed directly by user code</value>
+    </data>
+    <data name="ManualAccessGeneratedProperty" xml:space="preserve">
+        <value>Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code</value>
+    </data>
 </root>

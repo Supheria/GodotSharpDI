@@ -213,6 +213,24 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Do not manually access generated field &apos;{0}&apos; on &apos;{1}&apos;. This field is managed by the DI framework and should not be accessed directly by user code.
+        /// </summary>
+        internal static string ManualAccessGeneratedField {
+            get {
+                return ResourceManager.GetString("ManualAccessGeneratedField", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Do not manually access generated property &apos;{0}&apos; on &apos;{1}&apos;. This property is managed by the DI framework and should not be accessed directly by user code.
+        /// </summary>
+        internal static string ManualAccessGeneratedProperty {
+            get {
+                return ResourceManager.GetString("ManualAccessGeneratedProperty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Do not manually call generated method &apos;{0}&apos; on &apos;{1}&apos;. This method is managed by the DI framework and will be called automatically at the appropriate time.
         /// </summary>
         internal static string ManualCallGeneratedMethod {

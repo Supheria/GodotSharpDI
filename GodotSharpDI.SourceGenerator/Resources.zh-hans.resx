@@ -149,4 +149,11 @@
   <data name="OnlyScopeCanUseModules" xml:space="preserve">
     <value>类型 “{0}” 必须实现 IScope 才能使用 [Modules]</value>
   </data>
+    
+    <data name="ManualAccessGeneratedField" xml:space="preserve">
+        <value>禁止手动访问生成的字段 '{0}' （位于 '{1}'）。此字段由 DI 框架管理，不应被用户代码直接访问</value>
+    </data>
+    <data name="ManualAccessGeneratedProperty" xml:space="preserve">
+        <value>禁止手动访问生成的属性 '{0}' （位于 '{1}'）。此属性由 DI 框架管理，不应被用户代码直接访问</value>
+    </data>
 </root>
