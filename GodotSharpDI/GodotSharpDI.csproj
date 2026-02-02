@@ -9,7 +9,7 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!-- Package Metadata -->
     <PackageId>GodotSharpDI</PackageId>
-    <Version>1.0.0-beta.4</Version>
+    <Version>1.0.0-rc.1</Version>
     <Authors>Supheria</Authors>
     <Description>A source generator based dependency injection framework for Godot C# projects. Provides compile-time DI with support for singleton services, constructor and member injection.</Description>
     <PackageTags>godot;dependency-injection;di;source-generator;csharp;dotnet</PackageTags>

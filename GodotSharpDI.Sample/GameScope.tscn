@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://cmpx3n8hmhvtj"]
+
+[ext_resource type="Script" uid="uid://dla2w1piam3q5" path="res://GameScope.cs" id="1_64i45"]
+[ext_resource type="Script" uid="uid://d0hhe7nm34l0i" path="res://PlayerUI.cs" id="2_gtp5e"]
+[ext_resource type="Script" uid="uid://djyaidvletfl3" path="res://GameManager.cs" id="3_j4dat"]
+
+[node name="GameScope" type="Node"]
+script = ExtResource("1_64i45")
+
+[node name="PlayerUI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("2_gtp5e")
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("3_j4dat")

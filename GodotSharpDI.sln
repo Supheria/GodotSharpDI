@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.SourceGenerato
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Abstractions", "GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj", "{43051CF0-A887-40BA-9A9B-2C2AEF5DD913}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Sample", "GodotSharpDI.Sample\GodotSharpDI.Sample.csproj", "{532649E7-572A-424A-B6A3-12E259323B91}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Sample", "GodotSharpDI.Sample\GodotSharpDI.Sample.csproj", "{823D339B-AA61-4ACB-B1A5-F762C8C0F488}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,9 +32,9 @@ Global
 		{43051CF0-A887-40BA-9A9B-2C2AEF5DD913}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{43051CF0-A887-40BA-9A9B-2C2AEF5DD913}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{43051CF0-A887-40BA-9A9B-2C2AEF5DD913}.Release|Any CPU.Build.0 = Release|Any CPU
-		{532649E7-572A-424A-B6A3-12E259323B91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{532649E7-572A-424A-B6A3-12E259323B91}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{532649E7-572A-424A-B6A3-12E259323B91}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{532649E7-572A-424A-B6A3-12E259323B91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{823D339B-AA61-4ACB-B1A5-F762C8C0F488}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{823D339B-AA61-4ACB-B1A5-F762C8C0F488}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{823D339B-AA61-4ACB-B1A5-F762C8C0F488}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{823D339B-AA61-4ACB-B1A5-F762C8C0F488}.Release|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal
