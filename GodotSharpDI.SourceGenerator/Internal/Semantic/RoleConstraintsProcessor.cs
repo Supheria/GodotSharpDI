@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
@@ -37,14 +38,17 @@ internal sealed class RoleConstraintsProcessor
             case TypeRole.Host:
             case TypeRole.HostAndUser:
                 ValidateHostConstraints();
+                ValidateNotificationMethod(); // 新增：Host 需要 _Notification
                 break;
 
             case TypeRole.User:
                 ValidateUserConstraints();
+                ValidateNotificationMethod(); // 新增：User 需要 _Notification
                 break;
 
             case TypeRole.Scope:
                 ValidateScopeConstraints();
+                ValidateNotificationMethod(); // 新增：Scope 需要 _Notification
                 break;
         }
 
@@ -180,6 +184,76 @@ internal sealed class RoleConstraintsProcessor
                     _raw.Symbol.Name
                 )
             );
+        }
+    }
+
+    /// <summary>
+    /// 验证用户代码中是否包含 _Notification 方法
+    /// Host、User、Scope 必须在用户代码中定义 public override partial void _Notification(int what);
+    /// </summary>
+    private void ValidateNotificationMethod()
+    {
+        // 查找用户定义的 _Notification 方法
+        var notificationMethod = _raw
+            .Symbol.GetMembers("_Notification")
+            .OfType<IMethodSymbol>()
+            .FirstOrDefault(m =>
+                m.Name == "_Notification"
+                && m.Parameters.Length == 1
+                && m.Parameters[0].Type.SpecialType == SpecialType.System_Int32
+                && m.IsPartialDefinition
+            ); // 必须是 partial 定义
+
+        if (notificationMethod == null)
+        {
+            // 未找到用户定义的 _Notification 方法，报告错误
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.MissingNotificationMethod,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+        else
+        {
+            // 找到了方法，验证签名是否正确
+            bool isValid = true;
+
+            // 检查是否是 public
+            if (notificationMethod.DeclaredAccessibility != Accessibility.Public)
+            {
+                isValid = false;
+            }
+
+            // 检查是否是 override
+            if (!notificationMethod.IsOverride)
+            {
+                isValid = false;
+            }
+
+            // 检查是否是 partial
+            if (!notificationMethod.IsPartialDefinition)
+            {
+                isValid = false;
+            }
+
+            // 检查返回类型是否是 void
+            if (notificationMethod.ReturnsVoid == false)
+            {
+                isValid = false;
+            }
+
+            if (!isValid)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.InvalidNotificationMethodSignature,
+                        notificationMethod.Locations.FirstOrDefault() ?? _raw.Location,
+                        _raw.Symbol.Name
+                    )
+                );
+            }
         }
     }
 }

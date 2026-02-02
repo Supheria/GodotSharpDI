@@ -176,6 +176,16 @@ internal static class DiagnosticDescriptors
         Resources.ServiceExposedTypeNotImplemented
     );
 
+    public static readonly DiagnosticDescriptor MissingNotificationMethod = Class(
+        "080",
+        Resources.MissingNotificationMethod
+    );
+
+    public static readonly DiagnosticDescriptor InvalidNotificationMethodSignature = Class(
+        "081",
+        Resources.InvalidNotificationMethodSignature
+    );
+
     // ============================================================
     // M — Member-level
     // ============================================================

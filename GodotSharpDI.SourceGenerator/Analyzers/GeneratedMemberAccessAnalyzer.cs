@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
-namespace GodotSharpDI.SourceGenerator;
+namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
 /// 分析器：检测对框架生成的成员（方法、字段、属性）的手动访问

@@ -132,7 +132,7 @@ internal static class NodeDIGenerator
     private static void GenerateNotification(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // _Notification
-        f.AppendLine("public override void _Notification(int what)");
+        f.AppendLine("public override partial void _Notification(int what)");
         f.BeginBlock();
         {
             f.AppendLine("base._Notification(what);");

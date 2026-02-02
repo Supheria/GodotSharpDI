@@ -204,7 +204,7 @@ internal static class ScopeLifecycleGenerator
 
     private static void GenerateNotification(CodeFormatter f)
     {
-        f.AppendLine("public override void _Notification(int what)");
+        f.AppendLine("public override partial void _Notification(int what)");
         f.BeginBlock();
         {
             f.AppendLine("base._Notification(what);");

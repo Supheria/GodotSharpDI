@@ -7,7 +7,7 @@ GodotSharpDI 在编译时提供完整的错误检查。本文档列出所有诊�
 ## 诊断代码分类
 
 | 前缀  | 类别             | 说明             |
-| ----- | ---------------- | ---------------- |
+| ----- | ---------- | ---------- |
 | GDI_C | Class            | 类级别错误       |
 | GDI_M | Member           | 成员级别错误     |
 | GDI_S | Constructor      | 构造函数级别错误 |
@@ -15,7 +15,7 @@ GodotSharpDI 在编译时提供完整的错误检查。本文档列出所有诊�
 | GDI_E | Internal Error   | 内部错误         |
 | GDI_U | User Behavior    | 用户行为警告     |
 
-------
+---
 
 ## Class 级别错误 (GDI_C)
 
@@ -42,7 +42,7 @@ public partial class GameManager : Node, IGameState
 }
 ```
 
-------
+---
 
 ### GDI_C011: UserInvalidAttribute
 
@@ -50,7 +50,7 @@ public partial class GameManager : Node, IGameState
 
 **原因**: User 使用了不兼容的特性（`[Singleton]`）。
 
-------
+---
 
 ### GDI_C012: ScopeInvalidAttribute
 
@@ -58,7 +58,7 @@ public partial class GameManager : Node, IGameState
 
 **原因**: Scope 使用了不兼容的特性（如 `[Singleton]`、`[Host]`、`[User]`）。
 
-------
+---
 
 ### GDI_C013: OnlyScopeCanUseModules
 
@@ -66,7 +66,7 @@ public partial class GameManager : Node, IGameState
 
 **原因**: 标记为 [Modules] 的类没有实现 IScope 接口。
 
-------
+---
 
 ### GDI_C020: HostMustBeNode
 
@@ -86,7 +86,7 @@ public partial class MyHost { }  // 不是 Node
 public partial class MyHost : Node { }
 ```
 
-------
+---
 
 ### GDI_C021: UserMustBeNode
 
@@ -94,7 +94,7 @@ public partial class MyHost : Node { }
 
 **原因**: 标记为 `[User]` 的类不是 Node 子类。
 
-------
+---
 
 ### GDI_C022: ScopeMustBeNode
 
@@ -102,7 +102,7 @@ public partial class MyHost : Node { }
 
 **原因**: 实现 `IScope` 的类不是 Node 子类。
 
-------
+---
 
 ### GDI_C030: ServiceReadyNeedUser
 
@@ -127,7 +127,7 @@ public partial class MyComponent : Node, IServicesReady
 }
 ```
 
-------
+---
 
 ### GDI_C040: ScopeMissingModules
 
@@ -137,7 +137,7 @@ public partial class MyComponent : Node, IServicesReady
 
 **解决方案**: 添加 `[Modules]` 标记。
 
-------
+---
 
 ### GDI_C050: DiClassMustBePartial
 
@@ -157,7 +157,7 @@ public class MyService : IService { }
 public partial class MyService : IService { }
 ```
 
-------
+---
 
 ### GDI_C060: ServiceTypeIsInvalid
 
@@ -165,7 +165,7 @@ public partial class MyService : IService { }
 
 **原因**: Service 继承了 Node，或者类型不符合要求（抽象类、静态类等）。
 
-------
+---
 
 ### GDI_M070: ServiceExposedTypeShouldBeInterface (Warning)
 
@@ -183,7 +183,7 @@ public partial class ConfigService { }
 public partial class ConfigService : IConfig { }
 ```
 
-------
+---
 
 ### GDI_C071: ServiceExposedTypeNotImplemented
 
@@ -201,7 +201,52 @@ public partial class MyService { }
 public partial class MyService : IService { }
 ```
 
+---
+
+### GDI_C080: MissingNotificationMethod
+
+**消息**：`类型 '{0}' 必须在节点附加的脚本中定义 'public override partial void _Notification(int what);'。DI 框架的生命周期管理需要此方法`
+
+**原因**：Host、User 或 Scope 类型在节点附加的脚本中缺少必需的 `_Notification` 方法声明。
+
+```csharp
+// ❌ 错误 - 缺少 _Notification 方法
+[Host]
+public partial class GameManager : Node
+{
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+}
+
+// ✅ 正确 - 包含 _Notification 声明
+[Host]
+public partial class GameManager : Node, IGameState
+{
+    // Godot 需要在节点附加的脚本中看到这个声明
+    public override partial void _Notification(int what);
+    
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+}
+```
+
+**解决方案**：在类中添加方法声明：（IDE 会提供快速修复以自动添加正确的方法声明）
+
+```csharp
+public override partial void _Notification(int what);
+```
+
 ------
+
+### GDI_C081: InvalidNotificationMethodSignature
+
+**消息**：`类型 '{0}' 的 _Notification 方法签名不正确。期望签名：'public override partial void _Notification(int what);'`
+
+**原因**：`_Notification` 方法存在但签名不正确。
+
+**解决方案**：将方法签名更正为完全匹配所需格式。
+
+---
 
 ## Member 级别错误 (GDI_M)
 
@@ -221,7 +266,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M011: MemberHasInjectButNotInUser
 
@@ -229,7 +274,7 @@ public partial class MyUser : Node
 
 **原因**: 非 User 类的成员使用了 `[Inject]`。
 
-------
+---
 
 ### GDI_M012: MemberConflictWithSingletonAndInject
 
@@ -237,7 +282,7 @@ public partial class MyUser : Node
 
 **原因**: 同一成员同时标记了 `[Singleton]` 和 `[Inject]`。
 
-------
+---
 
 ### GDI_M020: InjectMemberNotAssignable
 
@@ -263,7 +308,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M030: SingletonPropertyNotAccessible
 
@@ -271,7 +316,7 @@ public partial class MyUser : Node
 
 **原因**: Host 成员属性没有 getter。
 
-------
+---
 
 ### GDI_M040: InjectMemberInvalidType
 
@@ -279,7 +324,7 @@ public partial class MyUser : Node
 
 **原因**: 注入目标的类型不是有效的服务类型。
 
-------
+---
 
 ### GDI_M041: InjectMemberIsHostType
 
@@ -306,7 +351,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M042: InjectMemberIsUserType
 
@@ -314,7 +359,7 @@ public partial class MyUser : Node
 
 **原因**: 试图注入 User 类型。
 
-------
+---
 
 ### GDI_M043: InjectMemberIsScopeType
 
@@ -322,7 +367,7 @@ public partial class MyUser : Node
 
 **原因**: 试图注入 Scope 类型。
 
-------
+---
 
 ### GDI_M044: InjectMemberIsStatic
 
@@ -339,7 +384,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M045: SingletonMemberIsStatic
 
@@ -347,7 +392,7 @@ public partial class MyUser : Node
 
 **原因**: 静态成员使用了 `[Singleton]`。
 
-------
+---
 
 ### GDI_M050: HostSingletonMemberIsServiceType
 
@@ -375,7 +420,7 @@ public partial class GoodHost : Node
 }
 ```
 
-------
+---
 
 ### GDI_M060: HostMemberExposedTypeShouldBeInterface (Warning)
 
@@ -383,7 +428,7 @@ public partial class GoodHost : Node
 
 **原因**: 暴露的类型是具体类而非接口。
 
-------
+---
 
 ### GDI_M061: HostMemberExposedTypeNotInjectable (Warning)
 
@@ -391,7 +436,7 @@ public partial class GoodHost : Node
 
 **原因**: 暴露的类型不可注入。
 
-------
+---
 
 ### GDI_M062: HostMemberExposedTypeNotImplemented
 
@@ -417,7 +462,7 @@ public partial class MyHost : IService
 }
 ```
 
-------
+---
 
 ## Constructor 级别错误 (GDI_S)
 
@@ -427,7 +472,7 @@ public partial class MyHost : IService
 
 **原因**: Service 没有非静态构造函数。
 
-------
+---
 
 ### GDI_S011: AmbiguousConstructor
 
@@ -455,7 +500,7 @@ public partial class MyService : IService
 }
 ```
 
-------
+---
 
 ### GDI_S012: InjectConstructorAttributeIsInvalid
 
@@ -463,7 +508,7 @@ public partial class MyService : IService
 
 **原因**: 非 Service 类型使用了 `[InjectConstructor]`。
 
-------
+---
 
 ### GDI_S020: InjectConstructorParameterTypeInvalid
 
@@ -471,7 +516,7 @@ public partial class MyService : IService
 
 **原因**: 构造函数参数类型无效。
 
-------
+---
 
 ## Dependency Graph 错误 (GDI_D)
 
@@ -481,7 +526,7 @@ public partial class MyService : IService
 
 **原因**: `[Modules]` 的 `Services` 为空。
 
-------
+---
 
 ### GDI_D002: ScopeModulesHostsEmpty (Info)
 
@@ -489,7 +534,7 @@ public partial class MyService : IService
 
 **严重程度**: 信息（提示）
 
-------
+---
 
 ### GDI_D003: ScopeModulesServiceMustBeService
 
@@ -497,7 +542,7 @@ public partial class MyService : IService
 
 **原因**: `Services` 中的类型不是 Service。
 
-------
+---
 
 ### GDI_D004: ScopeModulesHostMustBeHost
 
@@ -505,7 +550,7 @@ public partial class MyService : IService
 
 **原因**: `Hosts` 中的类型不是 Host。
 
-------
+---
 
 ### GDI_D010: CircularDependencyDetected
 
@@ -523,7 +568,7 @@ public partial class B : IB { public B(IA a) { } }
 // 检测到：A -> B -> A
 ```
 
-------
+---
 
 ### GDI_D020: ServiceConstructorParameterInvalid
 
@@ -531,7 +576,7 @@ public partial class B : IB { public B(IA a) { } }
 
 **原因**: Service 构造函数参数的类型不是有效的服务类型。
 
-------
+---
 
 ### GDI_D040: ServiceTypeConflict
 
@@ -552,7 +597,7 @@ public partial class MyScope : Node, IScope { }
 // 两个都提供 IService，冲突
 ```
 
-------
+---
 
 ## Internal Error (GDI_E)
 
@@ -562,7 +607,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 源生成器执行被取消。
 
-------
+---
 
 ### GDI_E910: GeneratorInternalError
 
@@ -570,7 +615,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 源生成器内部错误。
 
-------
+---
 
 ### GDI_E920: UnknownTypeRole
 
@@ -578,7 +623,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 未知的 DI 角色分类。
 
-------
+---
 
 ### GDI_E930: ScopeLosesAttributeUnexpectedly
 
@@ -586,7 +631,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: Scope 意外丢失了 `[Modules]` 或 `[AutoModules]`。
 
-------
+---
 
 ## User Behavior 警告 (GDI_U)
 
@@ -596,7 +641,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 手动调用了框架生成的方法。
 
-------
+---
 
 ### GDI_U002: ManualAccessGeneratedField
 
@@ -604,7 +649,7 @@ public partial class MyScope : Node, IScope { }
 
 **原因**: 手动访问了框架生成的私有字段。
 
-------
+---
 
 ### GDI_U003: ManualAccessGeneratedProperty
 

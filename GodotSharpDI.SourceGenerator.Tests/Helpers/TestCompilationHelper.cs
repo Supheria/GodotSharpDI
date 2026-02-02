@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -28,9 +29,7 @@ internal static class TestCompilationHelper
         // Add System.Runtime reference
         var systemRuntime = RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(
-            MetadataReference.CreateFromFile(
-                Path.Combine(systemRuntime, "System.Runtime.dll")
-            )
+            MetadataReference.CreateFromFile(Path.Combine(systemRuntime, "System.Runtime.dll"))
         );
 
         return CSharpCompilation.Create(
@@ -61,9 +60,7 @@ internal static class TestCompilationHelper
 
         var systemRuntime = RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(
-            MetadataReference.CreateFromFile(
-                Path.Combine(systemRuntime, "System.Runtime.dll")
-            )
+            MetadataReference.CreateFromFile(Path.Combine(systemRuntime, "System.Runtime.dll"))
         );
 
         return CSharpCompilation.Create(
@@ -72,6 +69,105 @@ internal static class TestCompilationHelper
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
+    }
+
+    /// <summary>
+    /// 运行源生成器并获取生成的诊断
+    /// </summary>
+    /// <param name="compilation">要分析的编译</param>
+    /// <returns>源生成器产生的所有诊断</returns>
+    public static ImmutableArray<Diagnostic> GetGeneratorDiagnostics(Compilation compilation)
+    {
+        // 创建源生成器实例
+        var generator = new DiSourceGenerator();
+
+        // 创建生成器驱动
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+
+        // 运行生成器
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            compilation,
+            out var outputCompilation,
+            out var diagnostics
+        );
+
+        // 返回所有诊断
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// 运行源生成器并获取指定类型的诊断
+    /// </summary>
+    /// <param name="compilation">要分析的编译</param>
+    /// <param name="severity">诊断严重级别过滤器</param>
+    /// <returns>过滤后的诊断</returns>
+    public static ImmutableArray<Diagnostic> GetGeneratorDiagnostics(
+        Compilation compilation,
+        DiagnosticSeverity severity
+    )
+    {
+        var allDiagnostics = GetGeneratorDiagnostics(compilation);
+        return allDiagnostics.Where(d => d.Severity == severity).ToImmutableArray();
+    }
+
+    /// <summary>
+    /// 运行源生成器并获取错误诊断
+    /// </summary>
+    public static ImmutableArray<Diagnostic> GetGeneratorErrors(Compilation compilation)
+    {
+        return GetGeneratorDiagnostics(compilation, DiagnosticSeverity.Error);
+    }
+
+    /// <summary>
+    /// 运行源生成器并获取警告诊断
+    /// </summary>
+    public static ImmutableArray<Diagnostic> GetGeneratorWarnings(Compilation compilation)
+    {
+        return GetGeneratorDiagnostics(compilation, DiagnosticSeverity.Warning);
+    }
+
+    /// <summary>
+    /// 运行源生成器并检查是否有特定ID的诊断
+    /// </summary>
+    public static bool HasDiagnostic(Compilation compilation, string diagnosticId)
+    {
+        var diagnostics = GetGeneratorDiagnostics(compilation);
+        return diagnostics.Any(d => d.Id == diagnosticId);
+    }
+
+    /// <summary>
+    /// 运行源生成器并获取特定ID的所有诊断
+    /// </summary>
+    public static ImmutableArray<Diagnostic> GetDiagnosticsById(
+        Compilation compilation,
+        string diagnosticId
+    )
+    {
+        var diagnostics = GetGeneratorDiagnostics(compilation);
+        return diagnostics.Where(d => d.Id == diagnosticId).ToImmutableArray();
+    }
+
+    /// <summary>
+    /// 运行源生成器并获取生成的所有源代码
+    /// </summary>
+    public static ImmutableArray<GeneratedSourceResult> GetGeneratedSources(Compilation compilation)
+    {
+        var generator = new DiSourceGenerator();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+
+        var runResult = driver.GetRunResult();
+        return runResult.Results[0].GeneratedSources;
+    }
+
+    /// <summary>
+    /// 运行源生成器并检查是否生成了特定名称的源文件
+    /// </summary>
+    public static bool HasGeneratedSource(Compilation compilation, string hintName)
+    {
+        var sources = GetGeneratedSources(compilation);
+        return sources.Any(s => s.HintName == hintName);
     }
 
     private static string GetDIAttributesSource()
@@ -139,6 +235,7 @@ namespace Godot
     {
         public static void PushError(string message) { }
         public static void PushError(Exception ex) { }
+        public static void Print(string message) { }
     }
 }
 ";

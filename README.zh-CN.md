@@ -73,6 +73,64 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包** ：生成的代码依赖 Godot.Node 和 Godot.GD 。
 
+⚠️ **重要：需要显式声明 _Notification 方法**
+
+> **从 1.0.0-rc.1 版本开始**，所有 Host、User 和 Scope 类型**必须**在节点绑定的 C# 脚本中显式定义 `_Notification` 方法：
+>
+> ```csharp
+> public override partial void _Notification(int what);
+> ```
+>
+> ### 为什么要这样做？
+>
+> - 在 Godot 中将 C# 脚本附加到节点时，引擎会在节点和该特定脚本文件之间创建绑定
+> - Godot 的脚本绑定机制只扫描附加的脚本文件以查找虚方法重写
+> - 源代码生成的文件（*.g.cs）通过 `partial` 编译到同一个类中，但 Godot 不会扫描这些文件来查找生命周期方法
+> - 因此，像 `_Notification` 这样的生命周期钩子必须在节点脚本中声明为 `partial` 方法
+>
+> ### IDE 支持
+>
+> IDE（Visual Studio、Rider）会提供自动修复：
+>
+> 1. 如果忘记添加此方法，会产生 **GDI_C080** 错误
+> 2. 在错误上按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
+> 3. 选择“添加 _Notification 方法声明”以自动生成正确的声明
+>
+> ### 示例：
+>
+> ```csharp
+> // GameManager.cs（附加到节点）
+> [Host]
+> public partial class GameManager : Node
+> {
+>     // 必需：Godot 需要看到这个声明
+>     public override partial void _Notification(int what);
+>     
+>     [Singleton(typeof(IGameState))]
+>     private IGameState Self => this;
+> }
+> 
+> // 生成的文件：GameManager.DI.g.cs（不被 Godot 扫描）
+> partial class GameManager
+> {
+>     // 框架提供实现
+>     public override partial void _Notification(int what)
+>     {
+>         base._Notification(what);
+>         switch ((long)what)
+>         {
+>             case NotificationEnterTree:
+>                 AttachToScope();
+>                 break;
+>             case NotificationExitTree:
+>                 UnattachToScope();
+>                 break;
+>         }
+>     }
+> }
+> ```
+>
+
 ---
 
 ## 快速开始
@@ -109,7 +167,7 @@ public interface IEnemySpawner
 [Singleton(typeof(IEnemySpawner))]
 public partial class EnemyFactory : IEnemySpawner
 {
-    IPlayerStats _playerStats;
+    private IPlayerStats _playerStats;
     
     // 从构造函数注入依赖
     [InjectConstructor]
@@ -136,6 +194,9 @@ public partial class EnemyFactory : IEnemySpawner
 public partial class GameScope : Node, IScope
 {
     // 框架自动生成 IScope 实现
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -147,9 +208,12 @@ public partial class GameManager : Node, IGameState
 {
     // 将自己暴露为 IGameState 服务
     [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
+    private GameManager Self => this;
     
     public GameState CurrentState { get; set; }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -167,18 +231,18 @@ public partial class PlayerUI : Control, IServicesReady
     {
         UpdateUI();
     }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
 ### 6. 场景树结构
 
 ```
-GameScope (IScope)
-├── PlayerStatsService (Singleton)
-├── EnemyFactory (Singleton)
+GameScope (IScope
 ├── GameManager (Host)
-└── Player
-    └── PlayerUI (User) ← 自动接收注入
+└── PlayerUI (User) ← 自动接收注入
 ```
 
 ---
@@ -289,11 +353,12 @@ Host 是 Godot Node 系统与 DI 系统之间的桥梁，它将 Node 管理的�
 
 #### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 必须是 Node | 需要接入场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| 约束项        | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 #### 典型使用模式
 
@@ -312,6 +377,9 @@ public partial class ChunkManager : Node3D, IChunkGetter, IChunkLoader
     // 实现接口
     public Chunk GetChunk(Vector3I pos) => _chunks.GetValueOrDefault(pos);
     public void LoadChunk(Vector3I pos) { /* ... */ }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -328,6 +396,9 @@ public partial class WorldManager : Node
     
     [Singleton(typeof(IWorldState))]
     private WorldState _state = new();
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 
 public class WorldConfig : IWorldConfig { /* ... */ }
@@ -354,6 +425,9 @@ public partial class BadHost : Node
 {
     [Singleton(typeof(IConfig))]
     private ConfigService _config = new();  // 编译错误 GDI_M050
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 
 // ✅ 正确：使用注入而非持有
@@ -365,6 +439,9 @@ public partial class GoodHost : Node
     
     [Inject]
     private IConfig _config;  // 通过注入获取 Service
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -378,11 +455,12 @@ User 是依赖消费者，通过字段或属性注入接收服务依赖。
 
 #### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 必须是 Node | 需要接入场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| **约束项**    | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 #### User 自动注入依赖
 
@@ -398,6 +476,9 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
     {
         GD.Print("所有服务已就绪，可以开始游戏逻辑");
     }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -421,6 +502,9 @@ public partial class MyUser : Node
     [Inject] private Node _node;                  // ❌ 错误
     [Inject] private MyHost _host;                // ❌ 错误
     [Inject] private static IService _static;     // ❌ 错误
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -442,6 +526,9 @@ public partial class MyComponent : Node, IServicesReady
         // 安全地使用所有依赖
         Initialize();
     }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -460,13 +547,14 @@ Scope 是 DI 容器，负责：
 
 #### 约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 必须是 Node | 利用场景树实现 Scope 层级 |
-| 接口 | 必须实现 IScope | 框架识别标志 |
-| 特性 | 必须有 [Modules] | 声明管理的服务 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+| **约束项**    | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
+| Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 #### 定义 Scope
 
@@ -478,6 +566,9 @@ Scope 是 DI 容器，负责：
 public partial class GameScope : Node, IScope
 {
     // 框架自动生成所有 IScope 实现
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -765,6 +856,9 @@ public partial class MyService : Node, IMyService
 
     [Inject]
     private IMyService _self;
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -804,6 +898,9 @@ public partial class HostUser : Node, IServiceB
 
     [Inject]
     private IServiceA _serviceA;
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -1258,6 +1355,9 @@ public partial class MyComponent : Node, IServicesReady
         _a.Initialize();
         _b.Connect(_a);
     }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -1265,12 +1365,12 @@ public partial class MyComponent : Node, IServicesReady
 
 ### 生成的代码
 
-#### Node User 生成的方法
+#### Hosts 和 User 都会生成的方法
 
-对于标记为 `[User]` 的 Node 类型，框架生成：
+对于标记为 `[Host]` 或 `[User]` 的类型，框架生成：
 
 ```csharp
-// 服务 Scope 引用
+// Scope 引用
 private IScope? _serviceScope;
 
 // 获取最近的 Scope
@@ -1284,7 +1384,13 @@ private void UnattachToScope();
 
 // 生命周期通知处理
 public override void _Notification(int what);
+```
 
+#### User 生成的方法
+
+对于标记为 `[User]` 的类型，框架生成：
+
+```csharp
 // 解析用户依赖
 private void ResolveUserDependencies(IScope scope);
 ```
@@ -1301,7 +1407,7 @@ private void AttachHostServices(IScope scope);
 private void UnattachHostServices(IScope scope);
 ```
 
-#### Service 生成的方法
+#### 服务生成的方法
 
 对于标记为 `[Singleton]` 的服务，框架生成工厂方法：
 
@@ -1313,7 +1419,7 @@ public static void CreateService(
 );
 ```
 
-#### Scope 生成的方法
+#### Scope 生成的内容
 
 对于实现 `IScope` 的类型，框架生成完整的容器实现：
 
@@ -1499,6 +1605,9 @@ public partial class GameManager : Node, IGameState, IServicesReady
         // 依赖已就绪,可以初始化
         LoadLastSave();
     }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -1556,6 +1665,9 @@ public partial class MyUser : Node
         using var product = _factory.Create(...);
         product.Execute();
     }
+    
+    // 需要集成 Godot 生命周期
+    public override partial void _Notification(int what);
 }
 ```
 

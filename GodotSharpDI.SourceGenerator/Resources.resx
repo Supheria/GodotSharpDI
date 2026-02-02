@@ -3,7 +3,7 @@
 <root>
     <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
         <xsd:element name="root" msdata:IsDataSet="true">
-            
+
         </xsd:element>
     </xsd:schema>
     <resheader name="resmimetype">
@@ -21,7 +21,7 @@
     <data name="ServiceReadyNeedUser" xml:space="preserve">
     <value>Type '{0}' implements IServicesReady but is not marked with [User]</value>
   </data>
-    
+
     <data name="NoNonStaticConstructor" xml:space="preserve">
     <value>Service '{0}' must define at least one non-static constructor</value>
   </data>
@@ -41,15 +41,15 @@
     <value>Type '{0}' must be marked as [Host] to use [Singleton] on members</value>
   </data>
 
-  <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
+    <data name="MemberConflictWithSingletonAndInject" xml:space="preserve">
     <value>[Singleton] and [Inject] cannot be applied to the same member '{0}'</value>
   </data>
 
-  <data name="InjectMemberNotAssignable" xml:space="preserve">
-    <value>[Inject] member ‘{0}’ must be writable (field must not be readonly, property must have setter)</value>
+    <data name="InjectMemberNotAssignable" xml:space="preserve">
+    <value>[Inject] member '{0}' must be writable (field must not be readonly, property must have setter)</value>
   </data>
 
-  <data name="SingletonPropertyNotAccessible" xml:space="preserve">
+    <data name="SingletonPropertyNotAccessible" xml:space="preserve">
     <value>[Singleton] property '{0}' must have a getter</value>
   </data>
 
@@ -60,7 +60,7 @@
     <data name="ScopeMustBeNode" xml:space="preserve">
     <value>Scope '{0}' must inherit from Godot.Node</value>
   </data>
-  <data name="ScopeMissingModules" xml:space="preserve">
+    <data name="ScopeMissingModules" xml:space="preserve">
     <value>Scope '{0}' must specify [Modules]</value>
   </data>
 
@@ -135,7 +135,7 @@
     <data name="HostSingletonMemberIsServiceType" xml:space="preserve">
     <value>[Singleton] member '{0}' has type '{1}', which is already marked as a Service ([Singleton]). Host should not hold Service instances directly</value>
   </data>
-  <data name="ServiceExposedTypeShouldBeInterface" xml:space="preserve">
+    <data name="ServiceExposedTypeShouldBeInterface" xml:space="preserve">
     <value>Service '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
   </data>
     <data name="ServiceTypeConflict" xml:space="preserve">
@@ -150,23 +150,33 @@
     <data name="HostMemberExposedTypeNotImplemented" xml:space="preserve">
     <value>Host member '{0}' has exposed type '{1}', but which is not implemented</value>
   </data>
-  <data name="UserInvalidAttribute" xml:space="preserve">
+    <data name="UserInvalidAttribute" xml:space="preserve">
     <value>User '{0}' cannot use [{1}]</value>
   </data>
-  <data name="OnlyScopeCanUseModules" xml:space="preserve">
+    <data name="OnlyScopeCanUseModules" xml:space="preserve">
     <value>To use [Modules], Type '{0}' must implement IScope</value>
   </data>
-    
+
     <data name="ManualAccessGeneratedField" xml:space="preserve">
         <value>Do not manually access generated field '{0}' on '{1}'. This field is managed by the DI framework and should not be accessed directly by user code</value>
     </data>
     <data name="ManualAccessGeneratedProperty" xml:space="preserve">
         <value>Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code</value>
     </data>
-  <data name="HostMemberExposedTypeNotInjectable" xml:space="preserve">
+    <data name="HostMemberExposedTypeNotInjectable" xml:space="preserve">
     <value>Host member '{0}' has exposed type '{1}', which is not injectable. Injectable type must be non-Host, non-User, non-Scope interface or non-static class</value>
   </data>
-  <data name="HostMemberExposedTypeShouldBeInterface" xml:space="preserve">
+    <data name="HostMemberExposedTypeShouldBeInterface" xml:space="preserve">
     <value>Host member '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
+  </data>
+    
+    <data name="MissingNotificationMethod" xml:space="preserve">
+    <value>Type '{0}' must define 'public override partial void _Notification(int what);' in the script file attached to Node. This method is required for DI framework lifecycle management</value>
+  </data>
+    <data name="InvalidNotificationMethodSignature" xml:space="preserve">
+    <value>Type '{0}' has incorrect _Notification method signature. Expected: 'public override partial void _Notification(int what);'</value>
+  </data>
+  <data name="CodeFix_Notification" xml:space="preserve">
+    <value>Add _Notification method declaration</value>
   </data>
 </root>

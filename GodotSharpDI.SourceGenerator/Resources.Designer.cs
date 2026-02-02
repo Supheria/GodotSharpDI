@@ -78,6 +78,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Add _Notification method declaration.
+        /// </summary>
+        internal static string CodeFix_Notification {
+            get {
+                return ResourceManager.GetString("CodeFix_Notification", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to DI-relative class &apos;{0}&apos; must be declared as partial to enable code generation.
         /// </summary>
         internal static string DiClassMustBePartial {
@@ -213,11 +222,20 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member ‘{0}’ must be writable (field must not be readonly, property must have setter).
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; must be writable (field must not be readonly, property must have setter).
         /// </summary>
         internal static string InjectMemberNotAssignable {
             get {
                 return ResourceManager.GetString("InjectMemberNotAssignable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; has incorrect _Notification method signature. Expected: &apos;public override partial void _Notification(int what);&apos;.
+        /// </summary>
+        internal static string InvalidNotificationMethodSignature {
+            get {
+                return ResourceManager.GetString("InvalidNotificationMethodSignature", resourceCulture);
             }
         }
         
@@ -272,6 +290,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string MemberHasSingletonButNotInHost {
             get {
                 return ResourceManager.GetString("MemberHasSingletonButNotInHost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; must define &apos;public override partial void _Notification(int what);&apos; in the script file attached to Node. This method is required for DI framework lifecycle management.
+        /// </summary>
+        internal static string MissingNotificationMethod {
+            get {
+                return ResourceManager.GetString("MissingNotificationMethod", resourceCulture);
             }
         }
         

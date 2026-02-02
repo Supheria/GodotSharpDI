@@ -7,7 +7,7 @@ GodotSharpDI provides comprehensive error checking at compile time. This documen
 ## Diagnostic Code Categories
 
 | Prefix | Category | Description |
-| ------ | ---------------- | ---------------- |
+| --- | ---------- | ---------- |
 | GDI_C | Class | Class-level errors |
 | GDI_M | Member | Member-level errors |
 | GDI_S | Constructor | Constructor-level errors |
@@ -15,7 +15,7 @@ GodotSharpDI provides comprehensive error checking at compile time. This documen
 | GDI_E | Internal Error | Internal errors |
 | GDI_U | User Behavior | User behavior warnings |
 
-------
+---
 
 ## Class-Level Errors (GDI_C)
 
@@ -42,7 +42,7 @@ public partial class GameManager : Node, IGameState
 }
 ```
 
-------
+---
 
 ### GDI_C011: UserInvalidAttribute
 
@@ -50,7 +50,7 @@ public partial class GameManager : Node, IGameState
 
 **Cause**: User is using incompatible attributes (`[Singleton]`).
 
-------
+---
 
 ### GDI_C012: ScopeInvalidAttribute
 
@@ -58,7 +58,7 @@ public partial class GameManager : Node, IGameState
 
 **Cause**: Scope is using incompatible attributes (such as `[Singleton]`, `[Host]`, `[User]`).
 
-------
+---
 
 ### GDI_C013: OnlyScopeCanUseModules
 
@@ -66,7 +66,7 @@ public partial class GameManager : Node, IGameState
 
 **Cause**: A class marked with [Modules] does not implement the IScope interface.
 
-------
+---
 
 ### GDI_C020: HostMustBeNode
 
@@ -86,7 +86,7 @@ public partial class MyHost { }  // Not a Node
 public partial class MyHost : Node { }
 ```
 
-------
+---
 
 ### GDI_C021: UserMustBeNode
 
@@ -94,7 +94,7 @@ public partial class MyHost : Node { }
 
 **Cause**: A class marked as `[User]` is not a Node subclass.
 
-------
+---
 
 ### GDI_C022: ScopeMustBeNode
 
@@ -102,7 +102,7 @@ public partial class MyHost : Node { }
 
 **Cause**: A class implementing `IScope` is not a Node subclass.
 
-------
+---
 
 ### GDI_C030: ServiceReadyNeedUser
 
@@ -127,7 +127,7 @@ public partial class MyComponent : Node, IServicesReady
 }
 ```
 
-------
+---
 
 ### GDI_C040: ScopeMissingModules
 
@@ -137,7 +137,7 @@ public partial class MyComponent : Node, IServicesReady
 
 **Solution**: Add `[Modules]` annotation.
 
-------
+---
 
 ### GDI_C050: DiClassMustBePartial
 
@@ -157,7 +157,7 @@ public class MyService : IService { }
 public partial class MyService : IService { }
 ```
 
-------
+---
 
 ### GDI_C060: ServiceTypeIsInvalid
 
@@ -165,7 +165,7 @@ public partial class MyService : IService { }
 
 **Cause**: Service inherits from Node, or the type does not meet requirements (abstract class, static class, etc.).
 
-------
+---
 
 ### GDI_M070: ServiceExposedTypeShouldBeInterface (Warning)
 
@@ -183,7 +183,7 @@ public partial class ConfigService { }
 public partial class ConfigService : IConfig { }
 ```
 
-------
+---
 
 ### GDI_C071: ServiceExposedTypeNotImplemented
 
@@ -201,7 +201,52 @@ public partial class MyService { }
 public partial class MyService : IService { }
 ```
 
+---
+
+### GDI_C080: MissingNotificationMethod
+
+**Message**: `Type '{0}' must define 'public override partial void _Notification(int what);' in the script file attached to Node. This method is required for DI framework lifecycle management`
+
+**Cause**: A Host, User, or Scope type is missing the required `_Notification` method declaration in the script file attached to Node.
+
+```csharp
+// ❌ Error - Missing _Notification method
+[Host]
+public partial class GameManager : Node
+{
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+}
+
+// ✅ Correct - Includes _Notification declaration
+[Host]
+public partial class GameManager : Node, IGameState
+{
+    // Godot needs to see this declaration in the attached script
+    public override partial void _Notification(int what);
+    
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+}
+```
+
+**Solution**: Add the method declaration to the class: (IDE will offer a quick fix to automatically add the correct method declaration.)
+
+```csharp
+public override partial void _Notification(int what);
+```
+
 ------
+
+### GDI_C081: InvalidNotificationMethodSignature
+
+**Message**: `Type '{0}' has incorrect _Notification method signature. Expected: 'public override partial void _Notification(int what);'`
+
+**Cause**: The `_Notification` method exists but has an incorrect signature.
+
+**Solution**: Correct the method signature to match the required format exactly.
+
+---
 
 ## Member-Level Errors (GDI_M)
 
@@ -221,7 +266,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M011: MemberHasInjectButNotInUser
 
@@ -229,7 +274,7 @@ public partial class MyUser : Node
 
 **Cause**: A member of a non-User class uses `[Inject]`.
 
-------
+---
 
 ### GDI_M012: MemberConflictWithSingletonAndInject
 
@@ -237,7 +282,7 @@ public partial class MyUser : Node
 
 **Cause**: The same member is marked with both `[Singleton]` and `[Inject]`.
 
-------
+---
 
 ### GDI_M020: InjectMemberNotAssignable
 
@@ -263,7 +308,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M030: SingletonPropertyNotAccessible
 
@@ -271,7 +316,7 @@ public partial class MyUser : Node
 
 **Cause**: Host member property does not have a getter.
 
-------
+---
 
 ### GDI_M040: InjectMemberInvalidType
 
@@ -279,7 +324,7 @@ public partial class MyUser : Node
 
 **Cause**: The type of the injection target is not a valid service type.
 
-------
+---
 
 ### GDI_M041: InjectMemberIsHostType
 
@@ -306,7 +351,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M042: InjectMemberIsUserType
 
@@ -314,7 +359,7 @@ public partial class MyUser : Node
 
 **Cause**: Attempting to inject a User type.
 
-------
+---
 
 ### GDI_M043: InjectMemberIsScopeType
 
@@ -322,7 +367,7 @@ public partial class MyUser : Node
 
 **Cause**: Attempting to inject a Scope type.
 
-------
+---
 
 ### GDI_M044: InjectMemberIsStatic
 
@@ -339,7 +384,7 @@ public partial class MyUser : Node
 }
 ```
 
-------
+---
 
 ### GDI_M045: SingletonMemberIsStatic
 
@@ -347,7 +392,7 @@ public partial class MyUser : Node
 
 **Cause**: A static member uses `[Singleton]`.
 
-------
+---
 
 ### GDI_M050: HostSingletonMemberIsServiceType
 
@@ -375,7 +420,7 @@ public partial class GoodHost : Node
 }
 ```
 
-------
+---
 
 ### GDI_M060: HostMemberExposedTypeShouldBeInterface (Warning)
 
@@ -383,7 +428,7 @@ public partial class GoodHost : Node
 
 **Cause**: The exposed type is a concrete class rather than an interface.
 
-------
+---
 
 ### GDI_M061: HostMemberExposedTypeNotInjectable
 
@@ -391,7 +436,7 @@ public partial class GoodHost : Node
 
 **Cause**: The exposed type is not inectable.
 
-------
+---
 
 ### GDI_M062: HostMemberExposedTypeNotImplemented
 
@@ -417,7 +462,7 @@ public partial class MyHost : IService
 }
 ```
 
-------
+---
 
 ## Constructor-Level Errors (GDI_S)
 
@@ -427,7 +472,7 @@ public partial class MyHost : IService
 
 **Cause**: Service does not have a non-static constructor.
 
-------
+---
 
 ### GDI_S011: AmbiguousConstructor
 
@@ -455,7 +500,7 @@ public partial class MyService : IService
 }
 ```
 
-------
+---
 
 ### GDI_S012: InjectConstructorAttributeIsInvalid
 
@@ -463,7 +508,7 @@ public partial class MyService : IService
 
 **Cause**: A non-Service type uses `[InjectConstructor]`.
 
-------
+---
 
 ### GDI_S020: InjectConstructorParameterTypeInvalid
 
@@ -471,7 +516,7 @@ public partial class MyService : IService
 
 **Cause**: Constructor parameter type is invalid.
 
-------
+---
 
 ## Dependency Graph Errors (GDI_D)
 
@@ -481,7 +526,7 @@ public partial class MyService : IService
 
 **Cause**: `Services` in `[Modules]` is empty.
 
-------
+---
 
 ### GDI_D002: ScopeModulesHostsEmpty (Info)
 
@@ -489,7 +534,7 @@ public partial class MyService : IService
 
 **Severity**: Info (suggestion)
 
-------
+---
 
 ### GDI_D003: ScopeModulesServiceMustBeService
 
@@ -497,7 +542,7 @@ public partial class MyService : IService
 
 **Cause**: A type in `Services` is not a Service.
 
-------
+---
 
 ### GDI_D004: ScopeModulesHostMustBeHost
 
@@ -505,7 +550,7 @@ public partial class MyService : IService
 
 **Cause**: A type in `Hosts` is not a Host.
 
-------
+---
 
 ### GDI_D010: CircularDependencyDetected
 
@@ -523,7 +568,7 @@ public partial class B : IB { public B(IA a) { } }
 // Detected: A -> B -> A
 ```
 
-------
+---
 
 ### GDI_D020: ServiceConstructorParameterInvalid
 
@@ -531,7 +576,7 @@ public partial class B : IB { public B(IA a) { } }
 
 **Cause**: A Service constructor parameter's type is not a valid service type.
 
-------
+---
 
 ### GDI_D040: ServiceTypeConflict
 
@@ -552,7 +597,7 @@ public partial class MyScope : Node, IScope { }
 // Both provide IService, conflict
 ```
 
-------
+---
 
 ## Internal Errors (GDI_E)
 
@@ -562,7 +607,7 @@ public partial class MyScope : Node, IScope { }
 
 **Cause**: Source generator execution was cancelled.
 
-------
+---
 
 ### GDI_E910: GeneratorInternalError
 
@@ -570,7 +615,7 @@ public partial class MyScope : Node, IScope { }
 
 **Cause**: Internal error in the source generator.
 
-------
+---
 
 ### GDI_E920: UnknownTypeRole
 
@@ -578,7 +623,7 @@ public partial class MyScope : Node, IScope { }
 
 **Cause**: Unknown DI role classification.
 
-------
+---
 
 ### GDI_E930: ScopeLosesAttributeUnexpectedly
 
@@ -586,7 +631,7 @@ public partial class MyScope : Node, IScope { }
 
 **Cause**: Scope unexpectedly lost `[Modules]` or `[AutoModules]`.
 
-------
+---
 
 ## User Behavior Warnings (GDI_U)
 
@@ -596,7 +641,7 @@ public partial class MyScope : Node, IScope { }
 
 **Cause**: Manually calling a framework-generated method.
 
-------
+---
 
 ### GDI_U002: ManualAccessGeneratedField
 
@@ -604,7 +649,7 @@ public partial class MyScope : Node, IScope { }
 
 **Cause**: Manually accessing a framework-generated private field.
 
-------
+---
 
 ### GDI_U003: ManualAccessGeneratedProperty
 

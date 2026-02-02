@@ -73,6 +73,65 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
+
+⚠️ **Important: _Notification method explicitly definition requirement**
+
+> **Starting from version 1.0.0-rc.1**, all Host, User, and Scope types **must** explicitly define the `_Notification` method in C# script file attached to the node:
+>
+> ```csharp
+> public override partial void _Notification(int what);
+> ```
+>
+> ### Why is this required?
+>
+> - When you attach a C# script to a node in Godot, the engine creates a binding between the node and that specific script file
+> - Godot's script binding mechanism scans only the attached script file for virtual method overrides
+> - Source-generated files (*.g.cs) are compiled into the same class via `partial`, but Godot doesn't scan these files for lifecycle methods
+> - Therefore, lifecycle hooks like `_Notification` must be declared in the user's source file as a `partial` method
+>
+> ### IDE Support
+>
+> IDE (Visual Studio, Rider) will provide automatic fixes:
+>
+> 1. If you forget to add this method, you'll see a **GDI_C080** error
+> 2. Press `Ctrl+.` (VS) or `Alt+Enter` (Rider) on the error
+> 3. Select "Add _Notification method declaration" to auto-generate the correct declaration
+>
+> ### Example:
+>
+> ```csharp
+> // Your source file: GameManager.cs (attached to node)
+> [Host]
+> public partial class GameManager : Node
+> {
+>     // Required: Godot needs to see this declaration
+>     public override partial void _Notification(int what);
+>     
+>     [Singleton(typeof(IGameState))]
+>     private IGameState Self => this;
+> }
+> 
+> // Generated file: GameManager.DI.g.cs (not scanned by Godot)
+> partial class GameManager
+> {
+>     // Framework provides the implementation
+>     public override partial void _Notification(int what)
+>     {
+>         base._Notification(what);
+>         switch ((long)what)
+>         {
+>             case NotificationEnterTree:
+>                 AttachToScope();
+>                 break;
+>             case NotificationExitTree:
+>                 UnattachToScope();
+>                 break;
+>         }
+>     }
+> }
+> ```
+>
+
 ---
 
 ## Quick Start
@@ -109,7 +168,7 @@ public interface IEnemySpawner
 [Singleton(typeof(IEnemySpawner))]
 public partial class EnemyFactory : IEnemySpawner
 {
-    IPlayerStats _playerStats;
+    private IPlayerStats _playerStats;
     
     // Inject dependencies through constructor
     [InjectConstructor]
@@ -136,6 +195,9 @@ public partial class EnemyFactory : IEnemySpawner
 public partial class GameScope : Node, IScope
 {
     // Framework automatically generates IScope implementation
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -147,9 +209,12 @@ public partial class GameManager : Node, IGameState
 {
     // Expose itself as IGameState service
     [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
+    private GameManager Self => this;
     
     public GameState CurrentState { get; set; }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -167,6 +232,9 @@ public partial class PlayerUI : Control, IServicesReady
     {
         UpdateUI();
     }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -174,11 +242,8 @@ public partial class PlayerUI : Control, IServicesReady
 
 ```
 GameScope (IScope)
-├── PlayerStatsService (Singleton)
-├── EnemyFactory (Singleton)
 ├── GameManager (Host)
-└── Player
-    └── PlayerUI (User) ← Automatically receives injection
+└── PlayerUI (User) ← Automatically receives injection
 ```
 
 ---
@@ -289,11 +354,12 @@ Host is the bridge between the Godot Node system and the DI system, exposing Nod
 
 #### Constraints
 
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Type | Must be class | Needs instantiation |
-| Inheritance | Must be Node | Needs to integrate with scene tree lifecycle |
-| Declaration | Must be partial | Source generator needs to extend the class |
+| Constraint    | Requirement                                                  | Reason                                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Type          | Must be class                                                | Needs instantiation                                          |
+| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
+| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 #### Typical Usage Patterns
 
@@ -312,6 +378,9 @@ public partial class ChunkManager : Node3D, IChunkGetter, IChunkLoader
     // Implement interfaces
     public Chunk GetChunk(Vector3I pos) => _chunks.GetValueOrDefault(pos);
     public void LoadChunk(Vector3I pos) { /* ... */ }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -328,6 +397,9 @@ public partial class WorldManager : Node
     
     [Singleton(typeof(IWorldState))]
     private WorldState _state = new();
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 
 public class WorldConfig : IWorldConfig { /* ... */ }
@@ -354,6 +426,9 @@ public partial class BadHost : Node
 {
     [Singleton(typeof(IConfig))]
     private ConfigService _config = new();  // Compile error GDI_M050
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 
 // ✅ Correct: Use injection instead of holding
@@ -365,6 +440,9 @@ public partial class GoodHost : Node
     
     [Inject]
     private IConfig _config;  // Get Service through injection
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -378,11 +456,12 @@ User is the dependency consumer, receiving service dependencies through field or
 
 #### Constraints
 
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Type | Must be class | Needs instantiation |
-| Inheritance | Must be Node | Needs to integrate with scene tree lifecycle |
-| Declaration | Must be partial | Source generator needs to extend the class |
+| Constraint    | Requirement                                                  | Reason                                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Type          | Must be class                                                | Needs instantiation                                          |
+| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
+| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 #### User Automatic Dependency Injection
 
@@ -398,6 +477,9 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
     {
         GD.Print("All services are ready, can start game logic");
     }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -421,6 +503,9 @@ public partial class MyUser : Node
     [Inject] private Node _node;                  // ❌ Error
     [Inject] private MyHost _host;                // ❌ Error
     [Inject] private static IService _static;     // ❌ Error
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -461,6 +546,9 @@ public partial class UIManager : Control, IServicesReady
         UpdateHealthBar(_stats.Health);
         UpdateGameState(_gameState.CurrentState);
     }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -478,13 +566,14 @@ Scope is the DI container responsible for:
 
 #### Constraints
 
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Type | Must be class | Needs instantiation |
-| Inheritance | Must be Node | Needs to integrate with scene tree lifecycle |
-| Interface | Must implement IScope | Container interface requirements |
-| Declaration | Must be partial | Source generator needs to extend the class |
-| Attributes | Must have [Modules] | Must specify managed services |
+| Constraint    | Requirement                                                  | Reason                                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Type          | Must be class                                                | Needs instantiation                                          |
+| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Interface     | Must implement IScope                                        | Provides service registration API                            |
+| Modules       | Must specify [Modules]                                       | Defines service composition                                  |
+| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
+| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 #### Defining a Scope
 
@@ -496,6 +585,9 @@ Scope is the DI container responsible for:
 public partial class GameScope : Node, IScope
 {
     // Framework automatically generates IScope implementation
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -771,6 +863,9 @@ public partial class HostUser : Node, IServiceB
 
     [Inject]
     private IServiceA _serviceA;
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -1147,11 +1242,14 @@ public interface IServicesReady
 
 The framework generates different code for different role types through Source Generator.
 
-#### Common Generated Methods for Node Types
+#### Common Generated Content for Host and User
 
-All Node types (Host, User, Scope) generate:
+Host or User both generate:
 
 ```csharp
+// Scope reference
+private IScope? _serviceScope;
+
 // Find nearest parent Scope
 private IScope? GetServiceScope();
 
@@ -1162,10 +1260,10 @@ private void AttachToScope();
 private void UnattachToScope();
 
 // Override Godot's notification method
-public override void _Notification(int what);
+public override partial void _Notification(int what);
 ```
 
-#### User Generated Methods
+#### User Generated Content
 
 For types marked with `[User]`, the framework generates:
 
@@ -1174,7 +1272,7 @@ For types marked with `[User]`, the framework generates:
 private void ResolveUserDependencies(IScope scope);
 ```
 
-#### Host Generated Methods
+#### Host Generated Content
 
 For types marked with `[Host]`, the framework generates:
 
@@ -1186,7 +1284,7 @@ private void AttachHostServices(IScope scope);
 private void UnattachHostServices(IScope scope);
 ```
 
-#### Service Generated Methods
+#### Service Generated Content
 
 For services marked with `[Singleton]`, the framework generates factory methods:
 
@@ -1198,7 +1296,7 @@ public static void CreateService(
 );
 ```
 
-#### Scope Generated Methods
+#### Scope Generated Content
 
 For types implementing `IScope`, the framework generates complete container implementation:
 
@@ -1217,7 +1315,7 @@ private IScope? GetParentScope();
 private void InstantiateScopeSingletons();
 private void DisposeScopeSingletons();
 private void CheckWaitList();
-public override void _Notification(int what);
+public override partial void _Notification(int what);
 
 // IScope implementation
 void IScope.ResolveDependency<T>(Action<T> onResolved);
@@ -1384,6 +1482,9 @@ public partial class GameManager : Node, IGameState, IServicesReady
         // Dependencies are ready, can initialize
         LoadLastSave();
     }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
@@ -1441,6 +1542,9 @@ public partial class MyUser : Node
         using var product = _factory.Create(...);
         product.Execute();
     }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 ```
 
