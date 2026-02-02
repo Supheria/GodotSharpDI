@@ -14,10 +14,11 @@
 - [安装](#安装)
 - [快速开始](#快速开始)
   - [1. 定义服务](#1-定义服务)
-  - [2. 定义 Scope](#2-定义-scope)
-  - [3. 定义 Host](#3-定义-host)
-  - [4. 定义 User](#4-定义-user)
-  - [5. 场景树结构](#5-场景树结构)
+  - [2. 定义服务工厂](#2-定义服务工厂)
+  - [3. 定义 Scope](#3-定义-scope)
+  - [4. 定义 Host](#4-定义-host)
+  - [5. 定义 User](#5-定义-user)
+  - [6. 场景树结构](#6-场景树结构)
 - [核心概念](#核心概念)
   - [四种角色类型](#四种角色类型)
   - [服务生命周期](#服务生命周期)
@@ -48,6 +49,7 @@
   - [避免循环依赖](#避免循环依赖)
   - [接口优先原则](#接口优先原则)
   - [Host + User 组合使用](#host--user-组合使用)
+  - [使用服务工厂](#使用服务工厂)
 - [诊断代码](#诊断代码)
 - [许可证](#许可证)
 - [Todo List](#todo-list)
@@ -85,7 +87,7 @@ public interface IPlayerStats
     int Mana { get; set; }
 }
 
-// 实现服务 (Singleton 生命周期)
+// 实现服务
 [Singleton(typeof(IPlayerStats))]
 public partial class PlayerStatsService : IPlayerStats
 {
@@ -94,11 +96,41 @@ public partial class PlayerStatsService : IPlayerStats
 }
 ```
 
-### 2. 定义 Scope
+### 2. 定义服务工厂
+
+```csharp
+// 定义服务接口
+public interface IEnemySpawner
+{
+    Enemy SpawnEnemy();
+}
+
+// 实现服务工厂
+[Singleton(typeof(IEnemySpawner))]
+public partial class EnemyFactory : IEnemySpawner
+{
+    IPlayerStats _playerStats;
+    
+    // 从构造函数注入依赖
+    [InjectConstructor]
+    public EnemyFactory(IPlayerStats playerStats)
+    {
+        _playerStats = playerStats;
+    }
+    
+    public Enemy SpawnEnemy()
+    {
+        // 向动态对象传递依赖
+        return new Enemy(_playerStats);
+    }
+}
+```
+
+### 3. 定义 Scope
 
 ```csharp
 [Modules(
-    Services = [typeof(PlayerStatsService)],
+    Services = [typeof(PlayerStatsService), typeof(EnemyFactory)],
     Hosts = [typeof(GameManager)]
 )]
 public partial class GameScope : Node, IScope
@@ -107,7 +139,7 @@ public partial class GameScope : Node, IScope
 }
 ```
 
-### 3. 定义 Host
+### 4. 定义 Host
 
 ```csharp
 [Host]
@@ -121,7 +153,7 @@ public partial class GameManager : Node, IGameState
 }
 ```
 
-### 4. 定义 User
+### 5. 定义 User
 
 ```csharp
 [User]
@@ -138,14 +170,15 @@ public partial class PlayerUI : Control, IServicesReady
 }
 ```
 
-### 5. 场景树结构
+### 6. 场景树结构
 
 ```
 GameScope (IScope)
+├── PlayerStatsService (Singleton)
+├── EnemyFactory (Singleton)
 ├── GameManager (Host)
-├── Player
-│   └── PlayerUI (User) ← 自动接收注入
-└── Enemies
+└── Player
+    └── PlayerUI (User) ← 自动接收注入
 ```
 
 ---
@@ -312,7 +345,7 @@ Host 可以持有和管理其他对象，并将它们暴露为服务。**这些�
 | 属性 | 必须有 getter | 需要读取值来注册服务 |
 
 ```csharp
-// ❌ 错误: 标记为 [Singleton]的类型只能由 Scope 持有
+// ❌ 错误：标记为 [Singleton]的类型只能由 Scope 持有
 [Singleton(typeof(IConfig))]
 public partial class ConfigService : IConfig { }
 
@@ -323,7 +356,7 @@ public partial class BadHost : Node
     private ConfigService _config = new();  // 编译错误 GDI_M050
 }
 
-// ✅ 正确: 使用注入而非持有
+// ✅ 正确：使用注入而非持有
 [Host, User]
 public partial class GoodHost : Node
 {
@@ -784,17 +817,17 @@ public partial class HostUser : Node, IServiceB
 
 1. HostUser 注册 `IServiceB` 时**不会触发** `_serviceA` **的注入**
 2. ServiceA 构造函数解析 `IServiceB` → 得到 HostUser
-3. ServiceA 构造完成后,HostUser 的 `_serviceA` 在 User 注入阶段被赋值
+3. ServiceA 构造完成后，HostUser 的 `_serviceA` 在 User 注入阶段被赋值
 4. 整个链路中没有构造函数环路
 
-**依赖图如下**:
+**依赖图如下**：
 
 ```
 ServiceA → IServiceB (HostUser)
 HostUser(User) → IServiceA
 ```
 
-这是一个"菱形依赖",不是循环。
+这是一个"菱形依赖"，不是循环。
 
 **结论**
 
@@ -806,18 +839,18 @@ GodotSharpDI 的循环依赖检测仅针对:
 
 - **Service → Service 的构造函数依赖链**
 
-不包括:
+不包括：
 
 - User 的 `[Inject]` 成员
 - Host 的 `[Singleton]` 成员
 - Host+User 的自注入
 - Host 与 User 之间的交叉依赖
 
-原因:
+原因：
 
 > **User 注入发生在所有 Service 构造完成之后,不参与构造时的依赖闭环。**
 
-因此,只有以下情况会被判定为循环依赖:
+因此，只有以下情况会被判定为循环依赖：
 
 ```csharp
 [Singleton(typeof(IA))]
@@ -835,7 +868,7 @@ class B : IB { public B(IA a) {} }
 | Host 提供服务 + 自身作为 User 注入 | ❌ | 注入时序分离,不形成构造函数环 |
 | Service ↔ Service 构造函数互相依赖 | ✔️ | 构造函数闭环 |
 
-最终规则:
+最终规则：
 
 > **只要依赖链不在 Service 构造函数之间形成闭环，就不是循环依赖。Host+User 的注入时序天然避免构造函数循环。**
 
@@ -911,14 +944,14 @@ class B : IB { public B(IA a) {} }
 | delegate | ❌ | 不支持 |
 | dynamic | ❌ | 无法静态分析 |
 
-**代码示例**:
+**代码示例**：
 
 ```csharp
 [User]
 public partial class MyComponent : Node
 {
     [Inject] private IService _service;           // ✅ 接口
-    [Inject] private ConcreteClass _concrete;     // ✅ 普通类 (不推荐)
+    [Inject] private ConcreteClass _concrete;     // ✅ 普通类（不推荐）
     [Inject] private Node _node;                  // ❌ Node
     [Inject] private MyHost _host;                // ❌ Host 类型
     [Inject] private MyUser _user;                // ❌ User 类型
@@ -963,7 +996,7 @@ public partial class MyComponent : Node
 | Host/User/Scope | ❌ | 不允许 |
 | 开放泛型 | ❌ | 不允许 |
 
-**最佳实践**:
+**最佳实践**：
 
 ```csharp
 // ✅ 推荐: 暴露接口
@@ -1044,10 +1077,10 @@ public sealed class SingletonAttribute : Attribute
 }
 ```
 
-**用法**:
+**用法**：
 
 ```csharp
-// 在类上 (Service)
+// 在类上 (服务)
 [Singleton(typeof(IPlayerStats))]
 public partial class PlayerStatsService : IPlayerStats { }
 
@@ -1099,7 +1132,7 @@ namespace GodotSharpDI.Abstractions;
 public sealed class InjectAttribute : Attribute { }
 ```
 
-**用法**:
+**用法**：
 
 ```csharp
 [User]
@@ -1114,7 +1147,7 @@ public partial class MyComponent : Node
 
 #### InjectConstructorAttribute
 
-指定 Service 使用的构造函数。
+指定服务使用的构造函数。
 
 ```csharp
 namespace GodotSharpDI.Abstractions;
@@ -1123,7 +1156,7 @@ namespace GodotSharpDI.Abstractions;
 public sealed class InjectConstructorAttribute : Attribute { }
 ```
 
-**用法**:
+**用法**：
 
 ```csharp
 [Singleton(typeof(IService))]
@@ -1153,14 +1186,14 @@ public sealed class ModulesAttribute : Attribute
 }
 ```
 
-**参数**:
+**参数**：
 
 | 参数 | 说明 |
 |------|------|
 | `Services` | Scope 创建和管理的 Service 类型列表 |
 | `Hosts` | Scope 期望接收的 Host 类型列表 |
 
-**用法**:
+**用法**：
 
 ```csharp
 [Modules(
@@ -1191,9 +1224,9 @@ public interface IScope
 
 **方法**:
 
-- `RegisterService<T>`: 注册服务实例（由框架自动调用，手动调用会触发 GDI_U001）
-- `UnregisterService<T>`: 注销服务（由框架自动调用，手动调用会触发 GDI_U001）
-- `ResolveDependency<T>`: 解析依赖：如果服务已注册，立即回调；否则加入等待队列（由框架自动调用，手动调用会触发 GDI_U001）
+- `RegisterService<T>`：注册服务实例（由框架自动生成并调用，手动调用会触发 GDI_U001）
+- `UnregisterService<T>`：注销服务（由框架自动生成并调用，手动调用会触发 GDI_U001）
+- `ResolveDependency<T>`：解析依赖：如果服务已注册，立即回调；否则加入等待队列（由框架自动生成并调用，手动调用会触发 GDI_U001）
 
 ---
 
@@ -1210,7 +1243,7 @@ public interface IServicesReady
 }
 ```
 
-**用法**:
+**用法**：
 
 ```csharp
 [User]
@@ -1270,7 +1303,7 @@ private void UnattachHostServices(IScope scope);
 
 #### Service 生成的方法
 
-对于标记为 `[Singleton]` 的服务,框架生成工厂方法：
+对于标记为 `[Singleton]` 的服务，框架生成工厂方法：
 
 ```csharp
 // 创建服务实例
@@ -1282,7 +1315,7 @@ public static void CreateService(
 
 #### Scope 生成的方法
 
-对于实现 `IScope` 的类型,框架生成完整的容器实现：
+对于实现 `IScope` 的类型，框架生成完整的容器实现：
 
 ```csharp
 // 静态集合
@@ -1324,7 +1357,7 @@ void IScope.UnregisterService<T>();
 
 #### 场景树查找
 
-获取 Scope 的逻辑:
+获取 Scope 的逻辑：
 
 ```csharp
 private IScope? GetServiceScope()
@@ -1403,10 +1436,10 @@ public partial class A : IA
 [Singleton(typeof(IB))]
 public partial class B : IB
 {
-    public B(IA a) { }  // B 依赖 A → 循环!
+    public B(IA a) { }  // B 依赖 A → 循环！
 }
 
-// ✅ 打破循环: 使用事件或回调
+// ✅ 打破循环：使用事件或回调
 [Singleton(typeof(IA))]
 public partial class A : IA
 {
@@ -1428,11 +1461,11 @@ public partial class B : IB
 ### 接口优先原则
 
 ```csharp
-// ✅ 推荐: 暴露接口
+// ✅ 推荐：暴露接口
 [Singleton(typeof(IPlayerStats))]
 public partial class PlayerStatsService : IPlayerStats { }
 
-// ⚠️ 不推荐: 暴露具体类
+// ⚠️ 不推荐：暴露具体类
 [Singleton(typeof(ConfigService))]
 public partial class ConfigService { }
 ```
@@ -1440,14 +1473,14 @@ public partial class ConfigService { }
 **原因**:
 
 - 接口提供更好的松耦合
-- 便于单元测试 (使用 mock)
+- 便于单元测试（使用 mock）
 - 更容易替换实现
 
 ---
 
 ### Host + User 组合使用
 
-一个 Node 可以同时是 Host 和 User:
+一个 Node 可以同时是 Host 和 User：
 
 ```csharp
 [Host, User]
@@ -1470,6 +1503,173 @@ public partial class GameManager : Node, IGameState, IServicesReady
 ```
 
 这在需要同时提供服务和消费服务的 Node 上非常有用。
+
+---
+
+## 使用服务工厂
+
+**工厂是 Singleton：**
+
+```csharp
+[Singleton(typeof(IFactory))]
+public partial class MyFactory : IFactory
+{
+    private readonly IDep _dep;
+    
+    public MyFactory(IDep dep)
+    {
+        _dep = dep;
+    }
+    
+    public Product Create(params...)
+    {
+        return new Product(_dep, params...);
+    }
+}
+```
+
+**产品是普通类：**
+
+```csharp
+public class Product : IDisposable
+{
+    private readonly IDep _dep;
+    
+    public Product(IDep dep, ...)
+    {
+        _dep = dep;
+    }
+    
+    public void Dispose() { }
+}
+```
+
+**使用：**
+```csharp
+[User]
+public partial class MyUser : Node
+{
+    [Inject] private IFactory _factory;
+    
+    public void DoWork()
+    {
+        using var product = _factory.Create(...);
+        product.Execute();
+    }
+}
+```
+
+### 常见模式
+
+#### 1. 简单工厂
+```csharp
+[Singleton(typeof(IBulletFactory))]
+public partial class BulletFactory : IBulletFactory
+{
+    public Bullet Create() => new Bullet();
+}
+```
+
+#### 2. 对象池
+```csharp
+[Singleton(typeof(IPooledFactory))]
+public partial class PooledFactory : IPooledFactory
+{
+    private ObjectPool _pool = new();
+    
+    public Item Get() => _pool.Get();
+    public void Return(Item item) => _pool.Return(item);
+}
+```
+
+#### 3. 依赖传递
+```csharp
+[Singleton(typeof(IComplexFactory))]
+public partial class ComplexFactory : IComplexFactory
+{
+    private readonly IPhysics _physics;
+    private readonly IAudio _audio;
+    
+    public ComplexFactory(IPhysics physics, IAudio audio)
+    {
+        _physics = physics;
+        _audio = audio;
+    }
+    
+    public ComplexObject Create(params...)
+    {
+        return new ComplexObject(_physics, _audio, params...);
+    }
+}
+```
+
+#### 4. 拓展：ECS 集成示例
+
+```csharp
+// System 是 Singleton 服务
+
+[Singleton(typeof(IMovementSystem))]
+public partial class MovementSystem : IMovementSystem { ... }
+
+[Singleton(typeof(IWorld))]
+public partial class GameWorld : IWorld
+{
+    public GameWorld(IMovementSystem movement) { ... }
+    public void Update(double delta) { ... }
+}
+
+[Singleton(typeof(IProjectileSystem))]
+public partial class ProjectileSystem : IProjectileSystem
+{
+    private readonly IPhysics _physics;
+    private readonly IWorld _world;
+    
+    public ProjectileSystem(IPhysics physics, IWorld world)
+    {
+        _physics = physics;
+        _world = world;
+    }
+    
+    // 创建 Entity（ECS 方式）
+    public void SpawnProjectile(Vector3 pos, Vector3 vel)
+    {
+        var entity = _world.CreateEntity();
+        entity.Set(new Position { Value = pos });
+        entity.Set(new Velocity { Value = vel });
+    }
+    
+    // 或者使用工厂创建普通对象
+    public Projectile CreateProjectile(Vector3 pos, Vector3 vel)
+    {
+        return new Projectile(_physics, pos, vel);
+    }
+}
+
+// Entity 是纯数据（ECS 推荐）
+public struct ProjectileEntity
+{
+    public Vector3 Position;
+    public Vector3 Velocity;
+}
+
+// 或者普通类对象（传统方式）
+public class Projectile : IDisposable
+{
+    private readonly IPhysics _physics;
+    public Vector3 Position { get; set; }
+    public Vector3 Velocity { get; set; }
+    
+    public Projectile(IPhysics physics, Vector3 pos, Vector3 vel)
+    {
+        _physics = physics;
+        Position = pos;
+        Velocity = vel;
+    }
+    
+    public void Update(double delta) { }
+    public void Dispose() { }
+}
+```
 
 ---
 
@@ -1496,10 +1696,21 @@ MIT License
 
 ## Todo List
 
+### 1. 文档与示例
+
 - [ ] 完善中英文双语支持
 - [ ] 添加示例项目（从 Godot 实际运行 GodotSharpDI.Sample）
-- [ ] 添加运行时集成测试
-- [ ] 实现依赖回调的等待计时和超时处理
 - [ ] 增强生成代码的注释覆盖率
-- [ ] 诊断生成器内部错误（GDI_E）
 
+### 2. 测试
+
+- [ ] 添加运行时集成测试
+
+### 3. 功能
+
+- [ ] 实现依赖回调的等待计时和超时处理
+- [ ] 支持异步（使用 CallDeferred）
+
+### 4. 诊断
+
+- [ ] 诊断生成器内部错误（GDI_E）
