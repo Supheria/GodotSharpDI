@@ -47,7 +47,7 @@ internal static class RawClassSemanticInfoFactory
 
         var info = new RawClassSemanticInfo(
             Symbol: symbol,
-            Location: syntax.GetLocation(),
+            Location: syntax.Identifier.GetLocation(),
             HasSingletonAttribute: hasSingleton,
             HasHostAttribute: hasHost,
             HasUserAttribute: hasUser,
