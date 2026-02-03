@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
@@ -30,6 +31,12 @@ internal static class ScopeGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
+            GenerateStaticCollections(f, node, graph);
+            f.AppendLine();
+
+            GenerateInstanceFields(f);
+            f.AppendLine();
+
             GenerateInstantiateScopeSingletons(f, node, graph);
             f.AppendLine();
 
@@ -42,6 +49,87 @@ internal static class ScopeGenerator
         f.EndClassDeclaration();
 
         context.AddSource($"{className}.DI.Scope.g.cs", f.ToString());
+    }
+
+    private static HashSet<ITypeSymbol> CollectServiceTypes(ScopeNode node, DiGraph graph)
+    {
+        var singletonServiceTypes = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
+        // 从 Instantiate 的服务中收集
+        foreach (var serviceType in node.InstantiateServices)
+        {
+            if (graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
+            {
+                foreach (var exposedType in serviceNode.ProvidedServices)
+                {
+                    singletonServiceTypes.Add(exposedType);
+                }
+            }
+        }
+
+        // 从 Expect 的 Host 中收集
+        foreach (var hostType in node.ExpectHosts)
+        {
+            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
+            {
+                // 添加 Host 提供的所有服务类型
+                foreach (var exposedType in hostNode.ProvidedServices)
+                {
+                    singletonServiceTypes.Add(exposedType);
+                }
+            }
+            else if (graph.HostAndUserNodeMap.TryGetValue(hostType, out var hostAndUserNode))
+            {
+                // 添加 HostAndUser 提供的所有服务类型
+                foreach (var exposedType in hostAndUserNode.ProvidedServices)
+                {
+                    singletonServiceTypes.Add(exposedType);
+                }
+            }
+        }
+
+        return singletonServiceTypes;
+    }
+
+    private static void GenerateStaticCollections(CodeFormatter f, ScopeNode node, DiGraph graph)
+    {
+        // ServiceTypes
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine(
+            $"private static readonly {GlobalNames.HashSet}<{GlobalNames.Type}> ServiceTypes = new()"
+        );
+        f.BeginBlock();
+        {
+            var singletonServiceTypes = CollectServiceTypes(node, graph);
+            foreach (var serviceType in singletonServiceTypes)
+            {
+                f.AppendLine($"typeof({serviceType.ToFullyQualifiedName()}),");
+            }
+        }
+        f.EndBlock(";");
+    }
+
+    private static void GenerateInstanceFields(CodeFormatter f)
+    {
+        // _services
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine(
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Object}> _services = new();"
+        );
+        f.AppendLine();
+
+        // _waiters
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine(
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Object}>>> _waiters = new();"
+        );
+        f.AppendLine();
+
+        // _disposableSingletons
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine(
+            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
+        );
     }
 
     private static void GenerateInstantiateScopeSingletons(
@@ -81,7 +169,7 @@ internal static class ScopeGenerator
                         foreach (var exposedType in serviceNode.ProvidedServices)
                         {
                             f.AppendLine(
-                                $"scope.RegisterService(({exposedType.ToFullyQualifiedName()})instance);"
+                                $"scope.ProvideService(({exposedType.ToFullyQualifiedName()})instance);"
                             );
                         }
                     }

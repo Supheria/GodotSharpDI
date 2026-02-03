@@ -21,7 +21,7 @@ internal static class HostGenerator
     }
 
     /// <summary>
-    /// 生成 Host 特定代码（AttachHostServices/UnattachHostServices）
+    /// 生成 Host 特定代码（ProvideHostServices/UnattachHostServices）
     /// </summary>
     public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
@@ -34,12 +34,8 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
-            // AttachHostServices
-            GenerateAttachHostServices(f, singletonMembers);
+            GenerateProvideHostServices(f, singletonMembers);
             f.AppendLine();
-
-            // UnattachHostServices
-            GenerateUnattachHostServices(f, singletonMembers);
         }
         f.EndClassDeclaration();
 
@@ -47,12 +43,13 @@ internal static class HostGenerator
     }
 
     /// <summary>
-    /// 生成 AttachHostServices 方法
+    /// 生成 ProvideHostServices 方法
     /// </summary>
-    private static void GenerateAttachHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
+    private static void GenerateProvideHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
     {
+        // ProvideHostServices
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void AttachHostServices()");
+        f.AppendLine("private void ProvideHostServices()");
         f.BeginBlock();
         {
             f.AppendLine("var scope = GetParentScope();");
@@ -66,36 +63,10 @@ internal static class HostGenerator
                     f.BeginTryCatch();
                     {
                         f.AppendLine(
-                            $"scope.RegisterService<{exposedType.ToFullyQualifiedName()}>({member.Symbol.Name});"
+                            $"scope.ProvideService<{exposedType.ToFullyQualifiedName()}>({member.Symbol.Name});"
                         );
                     }
                     f.EndTryCatch();
-                }
-            }
-        }
-        f.EndBlock();
-    }
-
-    /// <summary>
-    /// 生成 UnattachHostServices 方法
-    /// </summary>
-    private static void GenerateUnattachHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
-    {
-        f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void UnattachHostServices()");
-        f.BeginBlock();
-        {
-            f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null) return;");
-            f.AppendLine();
-
-            foreach (var member in singletonMembers)
-            {
-                foreach (var exposedType in member.ExposedTypes)
-                {
-                    f.AppendLine(
-                        $"scope.UnregisterService<{exposedType.ToFullyQualifiedName()}>();"
-                    );
                 }
             }
         }

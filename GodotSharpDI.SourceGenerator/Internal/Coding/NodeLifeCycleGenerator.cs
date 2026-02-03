@@ -93,20 +93,24 @@ internal static class NodeLifeCycleGenerator
             f.AppendLine("switch ((long)what)");
             f.BeginBlock();
             {
-                // NotificationEnterTree
-                f.AppendLine("case NotificationEnterTree:");
+                // NotificationPostinitialize
+                f.AppendLine("case NotificationPostinitialize:");
                 f.BeginBlock();
                 {
                     switch (validatedType.Role)
                     {
-                        case TypeRole.Host:
-                        case TypeRole.HostAndUser:
-                            f.AppendLine("AttachHostServices();");
-                            break;
                         case TypeRole.Scope:
                             f.AppendLine("InstantiateScopeSingletons();");
                             break;
                     }
+                    f.AppendLine("break;");
+                }
+                f.EndBlock();
+                // NotificationEnterTree
+                f.AppendLine("case NotificationEnterTree:");
+                f.BeginBlock();
+                {
+                    f.AppendLine("_parentScope = null;");
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -116,11 +120,18 @@ internal static class NodeLifeCycleGenerator
                 {
                     switch (validatedType.Role)
                     {
+                        case TypeRole.Host:
+                            f.AppendLine("ProvideHostServices();");
+                            break;
                         case TypeRole.User:
+                            f.AppendLine("ResolveUserDependencies();");
+                            break;
                         case TypeRole.HostAndUser:
+                            f.AppendLine("ProvideHostServices();");
                             f.AppendLine("ResolveUserDependencies();");
                             break;
                         case TypeRole.Scope:
+                            f.AppendLine("InstantiateScopeSingletons();");
                             f.AppendLine("CheckWaitList();");
                             break;
                     }
@@ -131,19 +142,20 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("case NotificationExitTree:");
                 f.BeginBlock();
                 {
+                    f.AppendLine("_parentScope = null;");
+                    f.AppendLine("break;");
+                }
+                f.EndBlock();
+                // NotificationPredelete
+                f.AppendLine("case NotificationPredelete:");
+                f.BeginBlock();
+                {
                     switch (validatedType.Role)
                     {
-                        case TypeRole.Host:
-                        case TypeRole.HostAndUser:
-                            f.AppendLine("UnattachHostServices();");
-                            break;
                         case TypeRole.Scope:
                             f.AppendLine("DisposeScopeSingletons();");
                             break;
                     }
-                    f.AppendLine();
-
-                    f.AppendLine("_parentScope = null;");
                     f.AppendLine("break;");
                 }
                 f.EndBlock();

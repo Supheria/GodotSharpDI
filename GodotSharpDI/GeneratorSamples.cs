@@ -1,5 +1,9 @@
-﻿/*
+﻿// #define SAMPLE
 
+#if SAMPLE
+
+using System;
+using System.Collections.Generic;
 using System.Text;
 using GodotSharpDI.Abstractions;
 
@@ -157,7 +161,7 @@ partial class CellManager // CellManager.DI.Lifecycle.g.cs
 {
     private IScope? _parentScope;
 
-    private IScope? GetServiceScope()
+    private IScope? GetParentScope()
     {
         if (_parentScope is not null)
         {
@@ -185,22 +189,24 @@ partial class CellManager // CellManager.DI.Lifecycle.g.cs
         {
             case NotificationEnterTree:
             {
-                // Host 才生成
-                AttachHostServices();
+                _parentScope = null;
                 break;
             }
             case NotificationReady:
             {
+                // Host 才生成
+                ProvideHostServices();
                 // User 才生成
                 ResolveUserDependencies();
                 break;
             }
             case NotificationExitTree:
             {
-                // Host 才生成
-                UnattachHostServices();
-
                 _parentScope = null;
+                break;
+            }
+            case NotificationPredelete:
+            {
                 break;
             }
         }
@@ -213,31 +219,16 @@ partial class CellManager // CellManager.DI.Host.g.cs
     /// <summary>
     /// 注册所有标记为 [Singleton] 的字段或属性
     /// </summary>
-    private void AttachHostServices()
+    private void ProvideHostServices()
     {
-        var scope = GetServiceScope();
+        var scope = GetParentScope();
         if (scope is null)
         {
             return;
         }
         // 注册为 Singleton 特性指定的类型
-        scope.RegisterService<ICellGetter>(Self);
-        scope.RegisterService<ICellEditor>(Self);
-    }
-
-    /// <summary>
-    /// 取消注册所有标记为 [Singleton] 的字段或属性
-    /// </summary>
-    private void UnattachHostServices()
-    {
-        var scope = GetServiceScope();
-        if (scope is null)
-        {
-            return;
-        }
-        // 取消注册 Singleton 特性指定的类型
-        scope.UnregisterService<ICellGetter>();
-        scope.UnregisterService<ICellEditor>();
+        scope.ProvideService<ICellGetter>(Self);
+        scope.ProvideService<ICellEditor>(Self);
     }
 }
 
@@ -267,7 +258,7 @@ partial class CellManager // CellManager.DI.User.g.cs
     /// </summary>
     private void ResolveUserDependencies()
     {
-        var scope = GetServiceScope();
+        var scope = GetParentScope();
         if (scope is null)
         {
             return;
@@ -329,22 +320,25 @@ partial class MyScope // MyScope.DI.Lifecycle.g.cs
         {
             case NotificationEnterTree:
             {
-                // Scope 才生成
-                InstantiateScopeSingletons();
+                _parentScope = null;
                 break;
             }
             case NotificationReady:
             {
                 // Scope 才生成
+                InstantiateScopeSingletons();
                 CheckWaitList();
                 break;
             }
             case NotificationExitTree:
             {
+                _parentScope = null;
+                break;
+            }
+            case NotificationPredelete:
+            {
                 // Scope 才生成
                 DisposeScopeSingletons();
-
-                _parentScope = null;
                 break;
             }
         }
@@ -354,6 +348,26 @@ partial class MyScope // MyScope.DI.Lifecycle.g.cs
 // 实现了 IScope 才生成
 partial class MyScope // MyContext.DI.Scope.g.cs
 {
+    private static readonly HashSet<Type> ServiceTypes = new()
+    {
+        // 注册为 Singleton 特性指定的类型
+        // 如果没有指定服务类型则注册为原类型
+
+        // DatabaseWriter 提供的单例服务
+        typeof(IDataWriter),
+        typeof(IDataReader),
+        // CellManager 提供的单例服务
+        typeof(ICellGetter),
+        typeof(ICellEditor),
+        // MovementManager 提供的单例服务
+        typeof(IPathProvider),
+        typeof(IPathGenerator),
+    };
+
+    private readonly Dictionary<Type, object> _services = new();
+    private readonly Dictionary<Type, List<Action<object>>> _waiters = new();
+    private readonly HashSet<IDisposable> _disposableSingletons = new();
+
     /// <summary>
     /// 实例化所有 Scope 约束的单例服务
     /// </summary>
@@ -370,8 +384,8 @@ partial class MyScope // MyContext.DI.Scope.g.cs
                 // 在此注册 Singleton 单例服务
                 // 注册为 Singleton 特性指定的类型
                 // 如果没有指定服务类型则注册为原类型
-                scope.RegisterService((IDataWriter)instance);
-                scope.RegisterService((IDataReader)instance);
+                scope.ProvideService((IDataWriter)instance);
+                scope.ProvideService((IDataReader)instance);
             }
         );
         PathFinderFactory.CreateService(
@@ -382,7 +396,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
                 {
                     _disposableSingletons.Add(disposable);
                 }
-                scope.RegisterService((PathFinderFactory)instance);
+                scope.ProvideService((PathFinderFactory)instance);
             }
         );
     }
@@ -432,26 +446,6 @@ partial class MyScope // MyContext.DI.Scope.g.cs
 // 实现了 IScope 才生成
 partial class MyScope // MyContext.DI.IScope.g.cs
 {
-    private static readonly HashSet<Type> ServiceTypes = new()
-    {
-        // 注册为 Singleton 特性指定的类型
-        // 如果没有指定服务类型则注册为原类型
-
-        // DatabaseWriter 提供的单例服务
-        typeof(IDataWriter),
-        typeof(IDataReader),
-        // CellManager 提供的单例服务
-        typeof(ICellGetter),
-        typeof(ICellEditor),
-        // MovementManager 提供的单例服务
-        typeof(IPathProvider),
-        typeof(IPathGenerator),
-    };
-
-    private readonly Dictionary<Type, object> _services = new();
-    private readonly Dictionary<Type, List<Action<object>>> _waiters = new();
-    private readonly HashSet<IDisposable> _disposableSingletons = new();
-
     void IScope.ResolveDependency<T>(Action<T> onResolved)
     {
         var type = typeof(T);
@@ -479,7 +473,7 @@ partial class MyScope // MyContext.DI.IScope.g.cs
         waiterList.Add(obj => onResolved.Invoke((T)obj));
     }
 
-    void IScope.RegisterService<T>(T instance)
+    void IScope.ProvideService<T>(T instance)
     {
         var type = typeof(T);
         if (!ServiceTypes.Contains(type))
@@ -487,7 +481,7 @@ partial class MyScope // MyContext.DI.IScope.g.cs
             var parent = GetParentScope();
             if (parent is not null)
             {
-                parent.RegisterService(instance);
+                parent.ProvideService(instance);
                 return;
             }
             Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
@@ -505,25 +499,8 @@ partial class MyScope // MyContext.DI.IScope.g.cs
             }
         }
     }
-
-    void IScope.UnregisterService<T>()
-    {
-        var type = typeof(T);
-        if (!ServiceTypes.Contains(type))
-        {
-            var parent = GetParentScope();
-            if (parent is not null)
-            {
-                parent.UnregisterService<T>();
-                return;
-            }
-            Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
-            return;
-        }
-        _services.Remove(type);
-    }
 }
 
 // - generated code end -
 
-*/
+#endif
