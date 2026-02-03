@@ -18,6 +18,13 @@ public sealed partial class PlayerUI : Control, IServicesReady
         set => GD.Print("PlayerUI inject Game State");
     }
 
+    public override void _Ready()
+    {
+        base._Ready();
+
+        GD.Print("PlayerUI is ready before services ready");
+    }
+
     void IServicesReady.OnServicesReady()
     {
         GD.Print("PlayerUI updated after services ready");

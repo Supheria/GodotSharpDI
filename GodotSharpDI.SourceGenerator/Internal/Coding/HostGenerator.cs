@@ -13,8 +13,8 @@ internal static class HostGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        // 生成基础 DI 文件
-        NodeDIGenerator.GenerateBaseDI(context, node);
+        // 生成 Node 声明周期
+        NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
 
         // 生成 Host 特定代码
         GenerateHostSpecific(context, node);
@@ -26,7 +26,9 @@ internal static class HostGenerator
     public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Singleton 成员
-        var singletonMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsSingletonMember).ToArray();
+        var singletonMembers = node
+            .ValidatedTypeInfo.Members.Where(m => m.IsSingletonMember)
+            .ToArray();
 
         var f = new CodeFormatter();
 
@@ -50,9 +52,13 @@ internal static class HostGenerator
     private static void GenerateAttachHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
     {
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"private void AttachHostServices({GlobalNames.IScope} scope)");
+        f.AppendLine("private void AttachHostServices()");
         f.BeginBlock();
         {
+            f.AppendLine("var scope = GetParentScope();");
+            f.AppendLine("if (scope is null) return;");
+            f.AppendLine();
+
             foreach (var member in singletonMembers)
             {
                 foreach (var exposedType in member.ExposedTypes)
@@ -76,9 +82,13 @@ internal static class HostGenerator
     private static void GenerateUnattachHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
     {
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"private void UnattachHostServices({GlobalNames.IScope} scope)");
+        f.AppendLine("private void UnattachHostServices()");
         f.BeginBlock();
         {
+            f.AppendLine("var scope = GetParentScope();");
+            f.AppendLine("if (scope is null) return;");
+            f.AppendLine();
+
             foreach (var member in singletonMembers)
             {
                 foreach (var exposedType in member.ExposedTypes)

@@ -12,7 +12,7 @@ internal static class HostAndUserGenerator
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
         // 生成基础 DI 文件（包含 Node DI 代码）
-        NodeDIGenerator.GenerateBaseDI(context, node);
+        NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
 
         // 生成 Host 特定代码
         HostGenerator.GenerateHostSpecific(context, node);

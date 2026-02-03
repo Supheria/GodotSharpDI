@@ -30,7 +30,7 @@ internal static class ServiceGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.g.cs", f.ToString());
+        context.AddSource($"{className}.DI.Service.g.cs", f.ToString());
     }
 
     private static void GenerateParameterlessFactory(CodeFormatter f, string className)

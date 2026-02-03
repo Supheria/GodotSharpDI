@@ -25,7 +25,7 @@ internal static class ScopeInterfaceGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Scope.g.cs", f.ToString());
+        context.AddSource($"{className}.DI.IScope.g.cs", f.ToString());
     }
 
     private static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
