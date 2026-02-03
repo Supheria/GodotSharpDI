@@ -82,6 +82,8 @@ internal sealed class MemberProcessor
                 members.Add(memberInfo);
         }
 
+        CheckMembersEmpty(members);
+
         return members.ToImmutable();
     }
 
@@ -324,7 +326,7 @@ internal sealed class MemberProcessor
         return true;
     }
 
-    private void CheckMembersEmpty(ImmutableArray<MemberInfo> memberInfos)
+    private void CheckMembersEmpty(ImmutableArray<MemberInfo>.Builder memberInfos)
     {
         if (_role == TypeRole.Host || _role == TypeRole.HostAndUser)
         {

@@ -473,6 +473,60 @@ namespace Test
         );
     }
 
+    [Fact]
+    public void Process_HostWithoutSingletonMember_ReportsWarning()
+    {
+        // Arrange
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+
+namespace Test
+{
+    [Host]
+    public partial class MyHost : Node
+    {
+
+    }
+}
+";
+        var (result, symbols) = GetValidationResult(source, "MyHost");
+
+        // Assert
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M070" // HostMissingSingletonMember (Warning)
+        );
+    }
+
+    [Fact]
+    public void Process_UserWithoutInjectMember_ReportsWarning()
+    {
+        // Arrange
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+
+namespace Test
+{
+    [User]
+    public partial class MyUser : Node
+    {
+
+    }
+}
+";
+        var (result, symbols) = GetValidationResult(source, "MyUser");
+
+        // Assert
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M071" // UserMissingInjectMember (Warning)
+        );
+    }
+
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(
         string source,
         string className

@@ -40,11 +40,11 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C070" && d.GetMessage().Contains("IDataWriter")
+            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataWriter")
         );
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C070" && d.GetMessage().Contains("IDataReader")
+            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataReader")
         );
     }
 
@@ -73,11 +73,11 @@ namespace Test
         // Assert
         Assert.DoesNotContain(
             result.Diagnostics,
-            d => d.Id == "GDI_C070" && d.GetMessage().Contains("IDataWriter")
+            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataWriter")
         );
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C070" && d.GetMessage().Contains("IDataReader")
+            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataReader")
         );
     }
 
@@ -156,7 +156,7 @@ namespace Test
         var (result, symbols) = GetValidationResult(source, "MyService");
 
         // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C070");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C071");
     }
 
     [Fact]
@@ -181,7 +181,7 @@ namespace Test
         var (result, symbols) = GetValidationResult(source, "DerivedService");
 
         // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C070");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C062");
     }
 
     #endregion
@@ -216,11 +216,11 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M070" && d.GetMessage().Contains("IChunkGetter")
+            d => d.Id == "GDI_M062" && d.GetMessage().Contains("IChunkGetter")
         );
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M070" && d.GetMessage().Contains("IChunkGenerator")
+            d => d.Id == "GDI_M062" && d.GetMessage().Contains("IChunkGenerator")
         );
     }
 
@@ -252,11 +252,11 @@ namespace Test
         // Assert
         Assert.DoesNotContain(
             result.Diagnostics,
-            d => d.Id == "GDI_M070" && d.GetMessage().Contains("IChunkGetter")
+            d => d.Id == "GDI_M062" && d.GetMessage().Contains("IChunkGetter")
         );
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M070" && d.GetMessage().Contains("IChunkGenerator")
+            d => d.Id == "GDI_M062" && d.GetMessage().Contains("IChunkGenerator")
         );
     }
 
@@ -316,7 +316,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M070" && d.GetMessage().Contains("IWorldConfig")
+            d => d.Id == "GDI_M062" && d.GetMessage().Contains("IWorldConfig")
         );
     }
 
@@ -376,7 +376,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M070" && d.GetMessage().Contains("ConfigA")
+            d => d.Id == "GDI_M062" && d.GetMessage().Contains("ConfigA")
         );
     }
 
