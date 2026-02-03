@@ -83,13 +83,10 @@
     <data name="MemberHasInjectButNotInUser" xml:space="preserve">
     <value>类型 '{0}' 必须标记为 [User] 才能在成员上使用 [Inject]</value>
   </data>
-    <data name="ScopeModulesServicesEmpty" xml:space="preserve">
-    <value>Scope '{0}' 必须在 [Modules] Services 中至少指定一个类型</value>
+  <data name="ScopeModulesEmpty" xml:space="preserve">
+    <value>Scope '{0}' 没有在 [Modules] 中指定 Services 或 Hosts</value>
   </data>
-    <data name="ScopeModulesHostsEmpty" xml:space="preserve">
-    <value>Scope '{0}' 在 [Modules] Hosts 中未指定 Host 类型</value>
-  </data>
-    <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
+  <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
     <value>Scope '{0}' 意外丢失了 [Modules] 或 [AutoModules]</value>
   </data>
     <data name="RequestCancellation" xml:space="preserve">

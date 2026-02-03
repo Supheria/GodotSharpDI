@@ -17,6 +17,8 @@
 | GDI_C060 | GDI.Class           | Error    | Service must be non-Godot.Node, non-abstract, non-static class |
 | GDI_M070 | GDI.Class           | Warning  | Serive exposed type should be interface                        |
 | GDI_C071 | GDI.Class           | Error    | Service exposes type but does not implement it                 |
+| GDI_C080 | GDI.Class           | Error    | Host, User or Scope missing _Notification declaration          |
+| GDI_C081 | GDI.Class           | Error    | Unexpected Signature of _Notification declaration              |
 | GDI_M010 | GDI.Member          | Error    | [Singleton] on member requires [Host] on type                  |
 | GDI_M011 | GDI.Member          | Error    | [Inject] on member requires [User] on type                     |
 | GDI_M012 | GDI.Member          | Error    | [Singleton] and [Inject] cannot be on same member              |
@@ -36,10 +38,9 @@
 | GDI_S011 | GDI.Constructor     | Error    | Multiple constructors require [InjectConstructor]              |
 | GDI_S012 | GDI.Constructor     | Error    | [InjectConstructor] is invalid on non-Service                  |
 | GDI_S020 | GDI.Constructor     | Error    | Inject constructor parameter type invalid                      |
-| GDI_D001 | GDI.DependencyGraph | Error    | Scope Services cannot be empty                                 |
-| GDI_D002 | GDI.DependencyGraph | Info     | Scope Hosts is empty                                           |
-| GDI_D003 | GDI.DependencyGraph | Error    | Modules Services must be Service types                         |
-| GDI_D004 | GDI.DependencyGraph | Error    | Modules Hosts must be Host types                               |
+| GDI_D001 | GDI.DependencyGraph | Warning  | Scope specifies no Services or Hosts in [Modules]              |
+| GDI_D002 | GDI.DependencyGraph | Error    | Modules Services must be Service types                         |
+| GDI_D003 | GDI.DependencyGraph | Error    | Modules Hosts must be Host types                               |
 | GDI_D010 | GDI.DependencyGraph | Error    | Circular dependency detected                                   |
 | GDI_D020 | GDI.DependencyGraph | Error    | Service constructor parameter invalid                          |
 | GDI_D040 | GDI.DependencyGraph | Error    | Service type conflict - multiple providers                     |

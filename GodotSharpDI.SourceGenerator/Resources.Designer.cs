@@ -357,6 +357,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Services or Hosts in [Modules].
+        /// </summary>
+        internal static string ScopeModulesEmpty {
+            get {
+                return ResourceManager.GetString("ScopeModulesEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Host type &apos;{1}&apos; must be a Host.
         /// </summary>
         internal static string ScopeModulesHostMustBeHost {
@@ -366,29 +375,11 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Host type in [Modules] Hosts.
-        /// </summary>
-        internal static string ScopeModulesHostsEmpty {
-            get {
-                return ResourceManager.GetString("ScopeModulesHostsEmpty", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Service type &apos;{1}&apos; must be a Service.
         /// </summary>
         internal static string ScopeModulesServiceMustBeService {
             get {
                 return ResourceManager.GetString("ScopeModulesServiceMustBeService", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify at least one type in [Modules] Services.
-        /// </summary>
-        internal static string ScopeModulesServicesEmpty {
-            get {
-                return ResourceManager.GetString("ScopeModulesServicesEmpty", resourceCulture);
             }
         }
         

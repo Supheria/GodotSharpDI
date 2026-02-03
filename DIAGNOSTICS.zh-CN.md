@@ -520,23 +520,15 @@ public partial class MyService : IService
 
 ## Dependency Graph 错误 (GDI_D)
 
-### GDI_D001: ScopeModulesServicesEmpty
+### GDI_D001: ScopeModulesServicesEmpty (Warning)
 
-**消息**: `Scope '{0}' must specify at least one type in [Modules] Services`
+**消息**: `Scope '{0}' specifies no Services and Hosts in [Modules]`
 
-**原因**: `[Modules]` 的 `Services` 为空。
-
----
-
-### GDI_D002: ScopeModulesHostsEmpty (Info)
-
-**消息**: `Scope '{0}' specifies no Host type in [Modules] Hosts`
-
-**严重程度**: 信息（提示）
+**原因**: `[Modules]` 的 `Services` 和 `Hosts` 都为空。
 
 ---
 
-### GDI_D003: ScopeModulesServiceMustBeService
+### GDI_D002: ScopeModulesServiceMustBeService
 
 **消息**: `Scope '{0}' Modules Service type '{1}' must be a Service`
 
@@ -544,7 +536,7 @@ public partial class MyService : IService
 
 ---
 
-### GDI_D004: ScopeModulesHostMustBeHost
+### GDI_D003: ScopeModulesHostMustBeHost
 
 **消息**: `Scope '{0}' Modules Host type '{1}' must be a Host`
 

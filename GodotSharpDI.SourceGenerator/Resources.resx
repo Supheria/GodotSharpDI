@@ -96,13 +96,10 @@
     <data name="MemberHasInjectButNotInUser" xml:space="preserve">
     <value>Type '{0}' must be marked as [User] to use [Inject] on members</value>
   </data>
-    <data name="ScopeModulesServicesEmpty" xml:space="preserve">
-    <value>Scope '{0}' must specify at least one type in [Modules] Services</value>
+  <data name="ScopeModulesEmpty" xml:space="preserve">
+    <value>Scope '{0}' specifies no Services or Hosts in [Modules]</value>
   </data>
-    <data name="ScopeModulesHostsEmpty" xml:space="preserve">
-    <value>Scope '{0}' specifies no Host type in [Modules] Hosts</value>
-  </data>
-    <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
+  <data name="ScopeLosesAttributeUnexpectedly" xml:space="preserve">
     <value>Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]</value>
   </data>
     <data name="RequestCancellation" xml:space="preserve">

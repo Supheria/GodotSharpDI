@@ -520,23 +520,15 @@ public partial class MyService : IService
 
 ## Dependency Graph Errors (GDI_D)
 
-### GDI_D001: ScopeModulesServicesEmpty
+### GDI_D001: ScopeModulesEmpty (Warning)
 
-**Message**: `Scope '{0}' must specify at least one type in [Modules] Services`
+**Message**: `Scope '{0}' specifies no Services and Hosts in [Modules]`
 
-**Cause**: `Services` in `[Modules]` is empty.
-
----
-
-### GDI_D002: ScopeModulesHostsEmpty (Info)
-
-**Message**: `Scope '{0}' specifies no Host type in [Modules] Hosts`
-
-**Severity**: Info (suggestion)
+**Cause**: `Services` and `Hosts` in `[Modules]` are both empty.
 
 ---
 
-### GDI_D003: ScopeModulesServiceMustBeService
+### GDI_D002: ScopeModulesServiceMustBeService
 
 **Message**: `Scope '{0}' Modules Service type '{1}' must be a Service`
 
@@ -544,7 +536,7 @@ public partial class MyService : IService
 
 ---
 
-### GDI_D004: ScopeModulesHostMustBeHost
+### GDI_D003: ScopeModulesHostMustBeHost
 
 **Message**: `Scope '{0}' Modules Host type '{1}' must be a Host`
 

@@ -127,7 +127,11 @@ internal static class DiGraphBuilder
             SymbolEqualityComparer.Default
         );
 
-        void AddProvider(ITypeSymbol exposedType, ValidatedTypeInfo provider, string providerDescription)
+        void AddProvider(
+            ITypeSymbol exposedType,
+            ValidatedTypeInfo provider,
+            string providerDescription
+        )
         {
             if (!map.TryGetValue(exposedType, out var existing))
             {
@@ -421,22 +425,11 @@ internal static class DiGraphBuilder
                 }
             }
 
-            if (services.IsEmpty)
+            if (services.IsEmpty && hosts.IsEmpty)
             {
                 diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeModulesServicesEmpty,
-                        scope.Location,
-                        scope.Symbol.Name
-                    )
-                );
-            }
-
-            if (hosts.IsEmpty)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeModulesHostsEmpty,
+                        DiagnosticDescriptors.ScopeModulesEmpty,
                         scope.Location,
                         scope.Symbol.Name
                     )
@@ -444,7 +437,11 @@ internal static class DiGraphBuilder
             }
 
             nodes.Add(
-                new ScopeNode(ValidatedTypeInfo: scope, InstantiateServices: services, ExpectHosts: hosts)
+                new ScopeNode(
+                    ValidatedTypeInfo: scope,
+                    InstantiateServices: services,
+                    ExpectHosts: hosts
+                )
             );
         }
 
