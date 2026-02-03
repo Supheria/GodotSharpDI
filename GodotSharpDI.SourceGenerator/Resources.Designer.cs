@@ -141,6 +141,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Host &apos;{0}&apos; has no member marked as [Singleton].
+        /// </summary>
+        internal static string HostMissingSingletonMember {
+            get {
+                return ResourceManager.GetString("HostMissingSingletonMember", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Host &apos;{0}&apos; must inherit from Godot.Node.
         /// </summary>
         internal static string HostMustBeNode {
@@ -479,6 +488,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string UserInvalidAttribute {
             get {
                 return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User &apos;{0}&apos; has no member marked as [Inject].
+        /// </summary>
+        internal static string UserMissingInjectMember {
+            get {
+                return ResourceManager.GetString("UserMissingInjectMember", resourceCulture);
             }
         }
         

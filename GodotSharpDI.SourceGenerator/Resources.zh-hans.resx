@@ -162,4 +162,10 @@
   <data name="CodeFix_Notification" xml:space="preserve">
     <value>添加  _Notification 方法声明</value>
   </data>
+  <data name="HostMissingSingletonMember" xml:space="preserve">
+    <value>Host "{0}" 没有成员标记为 [Singleton]</value>
+  </data>
+  <data name="UserMissingInjectMember" xml:space="preserve">
+    <value>User "{0}" 没有成员标记为 [Inject]</value>
+  </data>
 </root>

@@ -34,6 +34,8 @@
 | GDI_M060 | GDI.Member          | Warning  | Host member exposed type should be interface                   |
 | GDI_M061 | GDI.Member          | Error    | Host member exposed type is not injectable                     |
 | GDI_M062 | GDI.Member          | Error    | Host member exposes type but member type does not implement it |
+| GDI_M070 | GDI.Member          | Warning  | Host has not member marked as [Singleton]                      |
+| GDI_M071 | GDI.Member          | Warning  | User has not member marked as [Inject]                         |
 | GDI_S010 | GDI.Constructor     | Error    | Service must define at least one non-static constructor        |
 | GDI_S011 | GDI.Constructor     | Error    | Multiple constructors require [InjectConstructor]              |
 | GDI_S012 | GDI.Constructor     | Error    | [InjectConstructor] is invalid on non-Service                  |

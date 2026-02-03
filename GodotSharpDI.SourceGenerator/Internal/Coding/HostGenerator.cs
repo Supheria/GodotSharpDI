@@ -28,10 +28,6 @@ internal static class HostGenerator
         // 收集 Singleton 成员
         var singletonMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsSingletonMember).ToArray();
 
-        // 如果没有 Singleton 成员，不生成 Host 代码
-        if (singletonMembers.Length == 0)
-            return;
-
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);

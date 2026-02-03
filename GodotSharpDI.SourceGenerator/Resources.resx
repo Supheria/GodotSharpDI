@@ -176,4 +176,10 @@
   <data name="CodeFix_Notification" xml:space="preserve">
     <value>Add _Notification method declaration</value>
   </data>
+  <data name="HostMissingSingletonMember" xml:space="preserve">
+    <value>Host '{0}' has no member marked as [Singleton]</value>
+  </data>
+  <data name="UserMissingInjectMember" xml:space="preserve">
+    <value>User '{0}' has no member marked as [Inject]</value>
+  </data>
 </root>

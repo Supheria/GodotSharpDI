@@ -28,10 +28,6 @@ internal static class UserGenerator
         // 收集 Inject 成员
         var injectMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsInjectMember).ToArray();
 
-        // 如果没有 Inject 成员，不生成 User 代码
-        if (injectMembers.Length == 0)
-            return;
-
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);

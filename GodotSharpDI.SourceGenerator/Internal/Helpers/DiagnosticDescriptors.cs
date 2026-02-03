@@ -266,6 +266,18 @@ internal static class DiagnosticDescriptors
         Resources.HostMemberExposedTypeNotImplemented
     );
 
+    public static readonly DiagnosticDescriptor HostMissingSingletonMember = Member(
+        "070",
+        Resources.HostMissingSingletonMember,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor UserMissingInjectMember = Member(
+        "071",
+        Resources.UserMissingInjectMember,
+        DiagnosticSeverity.Warning
+    );
+
     // ============================================================
     // S — Constructor-level
     // ============================================================

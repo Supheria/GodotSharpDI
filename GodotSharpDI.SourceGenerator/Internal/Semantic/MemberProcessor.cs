@@ -323,4 +323,36 @@ internal sealed class MemberProcessor
 
         return true;
     }
+
+    private void CheckMembersEmpty(ImmutableArray<MemberInfo> memberInfos)
+    {
+        if (_role == TypeRole.Host || _role == TypeRole.HostAndUser)
+        {
+            var singletonMembers = memberInfos.Where(m => m.IsSingletonMember).ToArray();
+            if (singletonMembers.Length == 0)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.HostMissingSingletonMember,
+                        _raw.Location,
+                        _raw.Symbol.Name
+                    )
+                );
+            }
+        }
+        if (_role == TypeRole.User || _role == TypeRole.HostAndUser)
+        {
+            var injectMembers = memberInfos.Where(m => m.IsInjectMember).ToArray();
+            if (injectMembers.Length == 0)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.UserMissingInjectMember,
+                        _raw.Location,
+                        _raw.Symbol.Name
+                    )
+                );
+            }
+        }
+    }
 }

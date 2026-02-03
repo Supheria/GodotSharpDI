@@ -464,6 +464,22 @@ public partial class MyHost : IService
 
 ---
 
+### GDI_M070: HostMissingSingletonMember (Warning)
+
+**Message**: `Host '{0}' has no member marked as [Singleton]`
+
+**Cause**: A type marked as [Host] but without any member marked as [Singleton].
+
+---
+
+### GDI_M071: UserMissingInjectMember (Warning)
+
+**Message**: `User '{0}' has no member marked as [Inject]`
+
+**Cause**: A type marked as [User] but without any member marked as [Inject].
+
+---
+
 ## Constructor-Level Errors (GDI_S)
 
 ### GDI_S010: NoNonStaticConstructor
