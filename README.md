@@ -4,7 +4,7 @@
 
 <p align="left"> <a href="README.zh-CN.md">中文</a> </p>
 
-A compile-time dependency injection framework specifically designed for the Godot Engine, implementing zero-reflection, high-performance DI support through C# Source Generator.
+A compile-time dependency injection framework specifically designed for the Godot Engine 4, implementing zero-reflection, high-performance DI support through C# Source Generator.
 
 [![NuGet Version](https://img.shields.io/nuget/v/GodotSharpDI.svg?style=flat)](https://www.nuget.org/packages/GodotSharpDI/)
 
@@ -361,6 +361,27 @@ Host is the bridge between the Godot Node system and the DI system, exposing Nod
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
+#### Static Constraints
+
+Host is a **static** component of Scope, not a dynamic service provider.
+
+**❌ Don't:**
+
+* Reparent at runtime
+* Dynamically add/remove Hosts
+* Expect Hosts to migrate between different Scopes
+
+**✅ Do:**
+
+* Treat Host as a fixed part of the Scope node tree
+* Determine Host's position during scene design
+* Make Host a scene tree child of Scope, cleaned up when Scope is destroyed
+* Use service factory pattern for dynamic services (see **[Using Service Factories](#using-service-factories)** section)
+
+> These constraints give Scope singleton characteristics within its scope. Compared to traditional global singletons, Scope can actively limit its influence—naturally partitioning service boundaries through the scene tree hierarchy. This makes the scene structure more flexible and controllable, allowing Users to conveniently access required dependencies at various levels of the scene tree without global pollution.
+>
+> In short, treat Scope and Host as stable "anchor points" in the scene tree, where Host serves as a "functional module" for Scope to partition logic and manage resources.
+
 #### Typical Usage Patterns
 
 **Pattern 1: Host Exposes Itself**
@@ -513,6 +534,8 @@ public partial class MyUser : Node
 
 User types can implement the `IServicesReady` interface to receive notifications when all dependencies are ready:
 
+⚠️ **`OnServicesReady()` is always called after `_Ready()`**, because User starts dependency resolution at NotificationReady.
+
 ```csharp
 public interface IServicesReady
 {
@@ -574,6 +597,38 @@ Scope is the DI container responsible for:
 | Modules       | Must specify [Modules]                                       | Defines service composition                                  |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
+
+#### Static Constraints
+
+Scope is a **static service container** in the scene tree with well-defined scope boundaries.
+
+**❌ Don't:**
+
+- Dynamically create/destroy Scopes at runtime (unless the entire subscene needs to be unloaded)
+- Expect Scopes to frequently move positions in the scene tree
+- Use Scope as a temporary service cache or dynamic service pool
+- Change Scope's parent-child relationships at runtime to "switch" service scopes
+
+**✅ Do:**
+
+- Treat Scope as a **fixed structural node** of the scene tree
+- Determine Scope's hierarchy and position during scene design phase
+- Synchronize Scope's lifecycle with its corresponding scene region
+- Create and destroy Scope together with its scene node
+- Register service factories within Scope for dynamic services (see **[Using Service Factories](#using-service-factories)** section)
+
+> These constraints give Scope singleton characteristics within its scope. Compared to traditional global singletons, Scope can actively limit its influence—naturally partitioning service boundaries through the scene tree hierarchy. This makes the scene structure more flexible and controllable, allowing Users to conveniently access required dependencies at various levels of the scene tree without global pollution.
+>
+> In short, treat Scope as a stable "anchor point" in the scene tree that defines the visibility range of services, while Host serves as a "functional module" for Scope to partition logic and manage resources.
+
+> **Static Nature: Host vs Scope**
+>
+> | Aspect             | Host                          | Scope                                  |
+> | ------------------ | ----------------------------- | -------------------------------------- |
+> | **Nature**         | Component of Scope            | Structural node of scene tree          |
+> | **Scope**          | No independent scope          | Defines service scope boundaries       |
+> | **Static Meaning** | Cannot migrate between Scopes | Cannot be frequently created/destroyed |
+> | **Lifecycle**      | Destroyed with Scope          | Follows scene region lifecycle         |
 
 #### Defining a Scope
 
@@ -656,7 +711,7 @@ Scope listens to these Godot notifications:
 
 ## Lifecycle Management
 
-### Singleton Lifecycle
+### Singleton Service Lifecycle
 
 #### Creation Timing
 
@@ -684,22 +739,6 @@ public partial class ResourceManager : IResourceManager, IDisposable
 ---
 
 ### Scope Hierarchy
-
-#### Parent-Child Relationship
-
-Scopes form a hierarchy through the scene tree:
-
-```
-RootScope (Global)
-├── Singleton A (Globally shared)
-├── Singleton B (Globally shared)
-└── GameScope (Game)
-    ├── Singleton C (Only within Game)
-    ├── Singleton D (Only within Game)
-    └── LevelScope (Level)
-        ├── Singleton E (Only within Level)
-        └── Singleton F (Only within Level)
-```
 
 #### Service Visibility Rules
 
@@ -729,36 +768,9 @@ public partial class LevelScope : Node, IScope { }
 
 ### Dependency Injection Timing
 
-#### User Injection Timing
-
+#### Singleton Service Creation Timeline
 ```
-User Node enters scene tree
-    ↓
-GetServiceScope() finds nearest parent Scope
-    ↓
-For each [Inject] member:
-    ↓
-    Scope.ResolveDependency<T>()
-    ↓
-    Service found? ──Yes→ Immediate callback
-    │
-    No
-    ↓
-Add to waiting queue
-    ↓
-Service created later
-    ↓
-Notify waiting queue
-    ↓
-All dependencies resolved
-    ↓
-Call IServicesReady.OnServicesReady() (if implemented)
-```
-
-#### Service Creation Timing
-
-```
-Scope.NotificationReady event
+Scope Node Ready (NotificationReady)
     ↓
 Scope.InstantiateScopeSingletons()
     ↓
@@ -774,10 +786,36 @@ For each Service in Modules.Services:
     ↓
     Yes
     ↓
-Create service instance
+    scope.ProvideService<T>(service)
     ↓
-Register to Scope
-    ↓
+    Notify waiting queue
+```
+
+#### User Injection Timeline
+```
+User Node Ready (NotificationReady)
+ ↓
+GetServiceScope() ← Search upward for nearest IScope
+ ↓
+ResolveUserDependencies(scope)
+ ↓
+scope.ResolveDependency<T>(callback) ← For each [Inject] member
+ ↓
+Wait for service ready or immediate callback
+ ↓
+OnServicesReady() ← All dependencies injected (if implements IServicesReady)
+```
+
+#### Host Service Registration Timeline
+```
+Host Node Ready (NotificationReady)
+ ↓
+GetServiceScope() ← Search upward for nearest IScope
+ ↓
+ProvideHostServices(scope)
+ ↓
+scope.ProvideService<T>(this.Member) ← For each [Singleton] member
+ ↓
 Notify waiting queue
 ```
 
@@ -938,153 +976,129 @@ Final rule:
 
 ## Type Constraints
 
-### Role Type Constraints
+> **Terminology**:
+> - **Host + User**: A node marked with both Host and User attributes
+> - **Non-Node class**: Regular C# class that does not inherit from Godot.Node
+> - **Regular Node**: Node that inherits from Node but is not marked with special roles
 
-#### Service Constraints
+### Singleton Service Detailed Constraints
 
-| Constraint | Requirement | Diagnostic Code |
-|------------|-------------|-----------------|
-| Type | Must be class | GDI_C060 |
-| Inheritance | Cannot be Node | GDI_C060 |
-| Modifiers | Cannot be abstract or static | GDI_C060 |
-| Declaration | Must be partial | GDI_C050 |
+**Basic Constraints**
 
-#### Host Constraints
+| Constraint | Requirement | Reason |
+|------------|-------------|--------|
+| Type | class | Needs instantiation |
+| Inheritance | Cannot be Node | Node lifecycle controlled by Godot |
+| Modifiers | Cannot be abstract or static | Needs instantiation |
+| Declaration | Must be partial | Source generator needs to extend |
 
-| Constraint | Requirement | Diagnostic Code |
-|------------|-------------|-----------------|
-| Type | Must be class | (Implicit) |
-| Inheritance | Must be Node | GDI_C020 |
-| Declaration | Must be partial | GDI_C050 |
-| Incompatible Attributes | Cannot have [Singleton] | GDI_C010 |
+**Type Constraints**
 
-#### User Constraints
+| Type | Allowed | Description |
+|------|---------|-------------|
+| Non-Node class | ✅ | **Recommended** |
+| Host / Host + User | ❌ | Should provide services through members |
+| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
+| User | ❌ | No static constraints, cannot guarantee lifecycle |
+| Scope | ❌ | Container cannot be a service |
+| Other types | ❌ | Not supported |
 
-| Constraint | Requirement | Diagnostic Code |
-|------------|-------------|-----------------|
-| Type | Must be class | (Implicit) |
-| Inheritance | Must be Node | GDI_C021 |
-| Declaration | Must be partial | GDI_C050 |
-| Incompatible Attributes | Cannot have [Singleton] | GDI_C011 |
+**Exposed Type Constraints**
 
-#### Scope Constraints
+| Type | Allowed | Description |
+|------|---------|-------------|
+| Implemented interface | ✅ | **Recommended** |
+| Inherited class | ✅ | Allowed |
+| Unimplemented interface | ❌ | Meaningless |
+| Non-inherited class | ❌ | Meaningless |
 
-| Constraint | Requirement | Diagnostic Code |
-|------------|-------------|-----------------|
-| Type | Must be class | (Implicit) |
-| Inheritance | Must be Node | GDI_C022 |
-| Interface | Must implement IScope | (Implicit) |
-| Declaration | Must be partial | GDI_C050 |
-| Required Attributes | Must have [Modules] | GDI_C040 |
-| Incompatible Attributes | Cannot have [Singleton]/[Host]/[User] | GDI_C012 |
+**Constructor Constraints**
 
----
+| Constraint | Requirement |
+|------------|-------------|
+| Visibility | At least one non-static constructor |
+| Multiple constructors | Must specify with [InjectConstructor] |
 
-### Injectable Type Constraints
+**Constructor Parameter Type Constraints**
 
-Types that can be injected (appear in constructor parameters or [Inject] members):
-
-| Type Category | Allowed | Examples |
-|---------------|---------|----------|
-| Interface | ✅ | IService, IRepository |
-| Regular Class | ✅ | ConcreteService (not recommended) |
-| Node | ❌ | Node, Control, CharacterBody3D |
-| Host Type | ❌ | Types marked with [Host] |
-| User Type | ❌ | Types marked with [User] |
-| Scope Type | ❌ | Types implementing IScope |
-| Abstract Class | ❌ | abstract class Base |
-| Static Class | ❌ | static class Util |
-| Open Generic | ❌ | Service<T> |
-
-**Diagnostic Codes**:
-- Constructor parameters: `GDI_S020`
-- [Inject] members: `GDI_M040`, `GDI_M041`, `GDI_M042`, `GDI_M043`
+| Type | Allowed | Description |
+|------|---------|-------------|
+| interface | ✅ | **Recommended approach** |
+| Non-Node class | ✅ | Allowed |
+| Host / Host + User | ⚠️ | Allowed but not recommended, should depend on interfaces exposed by Host |
+| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
+| User | ❌ | No static constraints, cannot guarantee lifecycle |
+| Scope | ❌ | Container cannot be a service |
+| Other types | ❌ | Not supported |
 
 ---
 
-### Service Implementation Type Constraints
+### Host Detailed Constraints
 
-Types that can be marked with [Singleton]:
+**Basic Constraints**
 
-| Constraint | Allowed | Diagnostic Code |
-|------------|---------|-----------------|
-| Must be class | ✅ | - |
-| Cannot be Node | ❌ | GDI_C060 |
-| Cannot be abstract | ❌ | GDI_C060 |
-| Cannot be static | ❌ | GDI_C060 |
-| Cannot be open generic | ❌ | GDI_C060 |
+| Constraint | Requirement | Reason |
+|------------|-------------|--------|
+| Type | class | Needs instantiation |
+| Inheritance | Must be Node | Requires scene tree lifecycle |
+| Declaration | Must be partial | Source generator needs to extend |
 
-```csharp
-// ✅ Allowed
-[Singleton(typeof(IService))]
-public partial class MyService : IService { }
+**Host Singleton Member Type Constraints**
 
-// ❌ Not allowed
-[Singleton(typeof(IService))]
-public partial class MyNode : Node, IService { }  // GDI_C060
+| Type | Allowed | Description |
+|------|---------|-------------|
+| Non-Node class | ✅ | **Recommended** |
+| Host / Host + User (self type) | ✅ | Can expose itself as a service |
+| Host / Host + User (non-self type) | ❌ | Host nesting not allowed |
+| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
+| User | ❌ | No static constraints, cannot guarantee lifecycle |
+| Scope | ❌ | Container nesting not allowed |
+| Other types | ❌ | Not supported |
 
-[Singleton(typeof(IService))]
-public abstract partial class MyAbstractService : IService { }  // GDI_C060
+**Host Singleton Member Exposed Type Constraints**
 
-[Singleton(typeof(IService))]
-public static partial class MyStaticService { }  // GDI_C060
-```
-
----
-
-### Exposed Type Constraints
-
-Types specified in [Singleton] parameters (service exposed types):
-
-| Constraint | Recommendation | Diagnostic Code |
-|------------|----------------|-----------------|
-| Should be interface | ⚠️ Recommended | GDI_M060 (Warning) |
-| Must be implemented by service | ✅ Required | GDI_C070 (Service), GDI_M070 (Host) |
-
-```csharp
-// ✅ Recommended: Expose interface
-[Singleton(typeof(IService))]
-public partial class MyService : IService { }
-
-// ⚠️ Warning: Expose concrete class (generates warning GDI_M060)
-[Singleton(typeof(MyService))]
-public partial class MyService { }
-
-// ❌ Error: Service does not implement exposed type
-[Singleton(typeof(IOtherInterface))]
-public partial class MyService : IService { }  // GDI_C070
-```
+| Type | Allowed | Description |
+|------|---------|-------------|
+| Implemented interface | ✅ | **Recommended** |
+| Inherited class | ✅ | Allowed |
+| Unimplemented interface | ❌ | Meaningless |
+| Non-inherited class | ❌ | Meaningless |
 
 ---
 
-### Other Constraints
+### User Detailed Constraints
 
-#### Constructor Constraints
+**Basic Constraints**
 
-| Constraint | Requirement | Diagnostic Code |
-|------------|-------------|-----------------|
-| Service must have constructor | At least one non-static constructor | GDI_S010 |
-| Multiple constructors | Must specify unique [InjectConstructor] | GDI_S011 |
-| [InjectConstructor] usage | Can only be used on Service | GDI_S012 |
+| Constraint | Requirement | Reason |
+|------------|-------------|--------|
+| Type | class | Needs instantiation |
+| Inheritance | Must be Node | Requires scene tree lifecycle |
+| Declaration | Must be partial | Source generator needs to extend |
 
-#### Member Constraints
+**User Inject Member Type Constraints**
 
-| Member Type | Constraint | Diagnostic Code |
-|-------------|------------|-----------------|
-| [Inject] field | Non-readonly | GDI_M020 |
-| [Inject] property | Must have setter | GDI_M020 |
-| [Singleton] property | Must have getter | GDI_M030 |
-| [Inject] / [Singleton] | Cannot coexist | GDI_M012 |
-| [Inject] / [Singleton] | Cannot be static | GDI_M044, GDI_M045 |
+| Type | Allowed | Description |
+|------|---------|-------------|
+| interface | ✅ | **Recommended approach** |
+| Non-Node class | ✅ | Allowed |
+| Host / Host + User | ⚠️ | Allowed but not recommended, should depend on interfaces exposed by Host |
+| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
+| User | ❌ | No static constraints, cannot guarantee lifecycle |
+| Scope | ❌ | Container cannot be a service |
+| Other types | ❌ | Not supported |
 
-#### Scope Module Constraints
+---
 
-| Constraint | Requirement | Diagnostic Code |
-|------------|-------------|-----------------|
-| Services | Cannot be empty | GDI_D001 |
-| Services elements | Must be Service types | GDI_D003 |
-| Hosts | Can be empty (Info) | GDI_D002 |
-| Hosts elements | Must be Host types | GDI_D004 |
+### Scope Detailed Constraints
+
+| Constraint | Requirement | Reason |
+|------------|-------------|--------|
+| Type | class | Needs instantiation |
+| Inheritance | Must be Node | Leverages scene tree for hierarchy |
+| Interface | Must implement IScope | Framework identification marker |
+| Attribute | Must have [Modules] | Declares managed services |
+| Declaration | Must be partial | Source generator needs to extend |
 
 ---
 
@@ -1109,6 +1123,7 @@ public class SingletonAttribute : Attribute
 ```
 
 **Usage Scenarios**:
+
 1. On Service classes: Mark the class as a Singleton service
 2. On Host members: Expose the member as a service
 
@@ -1149,7 +1164,8 @@ namespace GodotSharpDI.Abstractions;
 public class InjectAttribute : Attribute { }
 ```
 
-**Constraints**:
+**Usage Rules**:
+
 - Can only be used on User or Host+User types
 - Member must be writable (field non-readonly, property must have setter)
 - Cannot be static
@@ -1166,7 +1182,8 @@ public class InjectConstructorAttribute : Attribute { }
 ```
 
 **Usage Rules**:
-- Can only be used on Service types
+
+- Can only be used on Singleton Service types
 - Required when there are multiple constructors
 - Must be unique (only one constructor can be marked)
 
@@ -1186,8 +1203,11 @@ public class ModulesAttribute : Attribute
 ```
 
 **Parameters**:
-- `Services`: List of Singleton service types (must not be empty)
-- `Hosts`: List of Host types (can be empty)
+
+| Parameter  | Description                                         |
+| ---------- | --------------------------------------------------- |
+| `Services` | List of Service types created and managed by Scope  |
+| `Hosts`    | List of Host types expected to be received by Scope |
 
 ---
 
@@ -1202,9 +1222,8 @@ namespace GodotSharpDI.Abstractions;
 
 public interface IScope
 {
-    void ResolveDependency<T>(Action<T> onResolved);
-    void RegisterService<T>(T instance);
-    void UnregisterService<T>();
+    void ProvideService<T>(T instance) where T : notnull;
+    void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
 }
 ```
 
@@ -1212,9 +1231,8 @@ public interface IScope
 
 | Method | Description | When to Use |
 |--------|-------------|-------------|
+| `ProvideService<T>` | Provide a service | Called automatically by framework, no manual call needed |
 | `ResolveDependency<T>` | Request a dependency | Called automatically by framework, no manual call needed |
-| `RegisterService<T>` | Register a service | Called automatically by framework, no manual call needed |
-| `UnregisterService<T>` | Unregister a service | Called automatically by framework, no manual call needed |
 
 > ⚠️ **Important**: These methods are managed by the framework and should not be called manually. Framework generates appropriate calls in User, Host, and Service code.
 
@@ -1231,7 +1249,8 @@ public interface IServicesReady
 }
 ```
 
-**Usage**:
+**Usage Rules**:
+
 - Can only be implemented by User or Host+User types
 - Called immediately after all [Inject] members are resolved
 - Suitable for initialization logic that depends on injected services
@@ -1240,11 +1259,9 @@ public interface IServicesReady
 
 ### Generated Code
 
-The framework generates different code for different role types through Source Generator.
+#### Node Lifecycle Related Methods
 
-#### Common Generated Content for Host and User
-
-Host or User both generate:
+For types marked with `[Host]`, `[User]`, or `[Scope]`, the framework generates:
 
 ```csharp
 // Scope reference
@@ -1252,12 +1269,6 @@ private IScope? _serviceScope;
 
 // Find nearest parent Scope
 private IScope? GetServiceScope();
-
-// Attach to Scope when entering scene tree
-private void AttachToScope();
-
-// Detach from Scope when exiting scene tree
-private void UnattachToScope();
 
 // Override Godot's notification method
 public override partial void _Notification(int what);
@@ -1278,10 +1289,7 @@ For types marked with `[Host]`, the framework generates:
 
 ```csharp
 // Register Host services to Scope
-private void AttachHostServices(IScope scope);
-
-// Unregister Host services from Scope
-private void UnattachHostServices(IScope scope);
+private void ProvideHostServices(IScope scope);
 ```
 
 #### Service Generated Content
@@ -1308,19 +1316,15 @@ private static readonly HashSet<Type> ServiceTypes;
 private readonly Dictionary<Type, object> _services;
 private readonly Dictionary<Type, List<Action<object>>> _waiters;
 private readonly HashSet<IDisposable> _disposableSingletons;
-private IScope? _parentScope;
 
 // Lifecycle methods
-private IScope? GetParentScope();
 private void InstantiateScopeSingletons();
 private void DisposeScopeSingletons();
 private void CheckWaitList();
-public override partial void _Notification(int what);
 
 // IScope implementation
+void IScope.ProvideService<T>(T instance);
 void IScope.ResolveDependency<T>(Action<T> onResolved);
-void IScope.RegisterService<T>(T instance);
-void IScope.UnregisterService<T>();
 ```
 
 ---
@@ -1329,14 +1333,47 @@ void IScope.UnregisterService<T>();
 
 #### Lifecycle Events
 
-The framework listens to the following Godot notifications:
+**EnterTree (Top to Bottom)**
+```
+1. Scope EnterTree
+   └→ Clear _parentScope cache
+2. Host EnterTree
+   └→ Clear _parentScope cache
+3. User EnterTree
+   └→ Clear _parentScope cache
+```
 
-| Notification | Processing |
-|--------------|-----------|
-| `NotificationEnterTree` | User: Attach to Scope, trigger injection<br>Host: Register services<br>Scope: Clear parent Scope cache |
-| `NotificationExitTree` | User: Clear Scope reference<br>Host: Unregister services<br>Scope: Clear parent Scope cache |
-| `NotificationReady` | Scope: Create Singletons, check waiting queue |
-| `NotificationPredelete` | Scope: Release all services |
+**Ready (Bottom to Top)**
+```
+1. Host Ready
+   └→ Provide Host Service ⭐
+2. User Ready
+   └→ Resolve dependencies ⭐
+   └→ OnServicesReady() ⭐
+3. Scope Ready
+   └→ Create all Scope Services ⭐
+   └→ Check if waiting queue is empty ⭐
+```
+
+**ExitTree (Bottom to Top)**
+```
+1. User ExitTree
+   └→ Clear _parentScope cache
+2. Host ExitTree
+   └→ Clear _parentScope cache
+3. Scope ExitTree
+   └→ Clear _parentScope cache
+```
+
+**Predelete**
+```
+1. User Predelete
+   └→ (No additional operations needed)
+2. Host Predelete
+   └→ (No additional operations needed)
+3. Scope Predelete
+   └→ Release all singletons ⭐
+```
 
 #### Scene Tree Search
 
