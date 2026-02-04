@@ -516,7 +516,7 @@ internal static class DiGraphBuilder
                     {
                         diagnostics.Add(
                             DiagnosticBuilder.Create(
-                                DiagnosticDescriptors.InjectMemberInvalidType,
+                                DiagnosticDescriptors.InjectMemberTypeIsNotExposed,
                                 dep.Location,
                                 node.ValidatedTypeInfo.Symbol.Name,
                                 dep.TargetType.ToDisplayString()

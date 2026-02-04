@@ -169,7 +169,7 @@ namespace Test
     }
 
     [Fact]
-    public void Build_UserInjectMemberNotService_ReportsDiagnostic()
+    public void Build_UserInjectMemberTypeIsNotExposed_ReportsDiagnostic()
     {
         // Arrange
         var source =
@@ -194,7 +194,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M040" // InjectMemberInvalidType
+            d => d.Id == "GDI_D050" // InjectMemberTypeIsNotExposed
         );
     }
 

@@ -60,20 +60,137 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; has multiple constructors, should specify unique [InjectConstructor].
+        ///   Looks up a localized string similar to DI-relative class &apos;{0}&apos; must be declared as partial to enable code generation.
         /// </summary>
-        internal static string AmbiguousConstructor {
+        internal static string C_DiClassMustBePartial {
             get {
-                return ResourceManager.GetString("AmbiguousConstructor", resourceCulture);
+                return ResourceManager.GetString("C_DiClassMustBePartial", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Circular dependency detected: {0}.
+        ///   Looks up a localized string similar to Host &apos;{0}&apos; cannot use [{1}].
         /// </summary>
-        internal static string CircularDependencyDetected {
+        internal static string C_HostInvalidAttribute {
             get {
-                return ResourceManager.GetString("CircularDependencyDetected", resourceCulture);
+                return ResourceManager.GetString("C_HostInvalidAttribute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Host &apos;{0}&apos; must inherit from Godot.Node.
+        /// </summary>
+        internal static string C_HostMustBeNode {
+            get {
+                return ResourceManager.GetString("C_HostMustBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; has incorrect _Notification method signature. Expected: &apos;public override partial void _Notification(int what);&apos;.
+        /// </summary>
+        internal static string C_InvalidNotificationMethodSignature {
+            get {
+                return ResourceManager.GetString("C_InvalidNotificationMethodSignature", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; must define &apos;public override partial void _Notification(int what);&apos; in the script file attached to Node. This method is required for DI framework lifecycle management.
+        /// </summary>
+        internal static string C_MissingNotificationMethod {
+            get {
+                return ResourceManager.GetString("C_MissingNotificationMethod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to To use [Modules], Type &apos;{0}&apos; must implement IScope.
+        /// </summary>
+        internal static string C_OnlyScopeCanUseModules {
+            get {
+                return ResourceManager.GetString("C_OnlyScopeCanUseModules", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use [{1}].
+        /// </summary>
+        internal static string C_ScopeInvalidAttribute {
+            get {
+                return ResourceManager.GetString("C_ScopeInvalidAttribute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify [Modules].
+        /// </summary>
+        internal static string C_ScopeMissingModules {
+            get {
+                return ResourceManager.GetString("C_ScopeMissingModules", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must inherit from Godot.Node.
+        /// </summary>
+        internal static string C_ScopeMustBeNode {
+            get {
+                return ResourceManager.GetString("C_ScopeMustBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
+        /// </summary>
+        internal static string C_ServiceExposedTypeNotImplemented {
+            get {
+                return ResourceManager.GetString("C_ServiceExposedTypeNotImplemented", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; exposed type &apos;{1}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string C_ServiceExposedTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("C_ServiceExposedTypeShouldBeInterface", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IServicesReady but is not marked with [User].
+        /// </summary>
+        internal static string C_ServiceReadyNeedUser {
+            get {
+                return ResourceManager.GetString("C_ServiceReadyNeedUser", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node, and must be non-abstract, non-static class type.
+        /// </summary>
+        internal static string C_ServiceTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("C_ServiceTypeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User &apos;{0}&apos; cannot use [{1}].
+        /// </summary>
+        internal static string C_UserInvalidAttribute {
+            get {
+                return ResourceManager.GetString("C_UserInvalidAttribute", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User &apos;{0}&apos; must inherit from Godot.Node.
+        /// </summary>
+        internal static string C_UserMustBeNode {
+            get {
+                return ResourceManager.GetString("C_UserMustBeNode", resourceCulture);
             }
         }
         
@@ -87,425 +204,407 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to DI-relative class &apos;{0}&apos; must be declared as partial to enable code generation.
+        ///   Looks up a localized string similar to Circular dependency detected: {0}.
         /// </summary>
-        internal static string DiClassMustBePartial {
+        internal static string D_CircularDependencyDetected {
             get {
-                return ResourceManager.GetString("DiClassMustBePartial", resourceCulture);
+                return ResourceManager.GetString("D_CircularDependencyDetected", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Internal error in source generator: {0}.
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type. Available types in current scope: {2}.
         /// </summary>
-        internal static string GeneratorInternalError {
+        internal static string D_InjectMemberTypeIsNotExposed {
             get {
-                return ResourceManager.GetString("GeneratorInternalError", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; cannot use [{1}].
-        /// </summary>
-        internal static string HostInvalidAttribute {
-            get {
-                return ResourceManager.GetString("HostInvalidAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host member &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
-        /// </summary>
-        internal static string HostMemberExposedTypeNotImplemented {
-            get {
-                return ResourceManager.GetString("HostMemberExposedTypeNotImplemented", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host member &apos;{0}&apos; has exposed type &apos;{1}&apos;, which is not injectable. Injectable type must be non-Host, non-User, non-Scope interface or non-static class.
-        /// </summary>
-        internal static string HostMemberExposedTypeNotInjectable {
-            get {
-                return ResourceManager.GetString("HostMemberExposedTypeNotInjectable", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host member &apos;{0}&apos; exposed type &apos;{1}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
-        /// </summary>
-        internal static string HostMemberExposedTypeShouldBeInterface {
-            get {
-                return ResourceManager.GetString("HostMemberExposedTypeShouldBeInterface", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; has no member marked as [Singleton].
-        /// </summary>
-        internal static string HostMissingSingletonMember {
-            get {
-                return ResourceManager.GetString("HostMissingSingletonMember", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; must inherit from Godot.Node.
-        /// </summary>
-        internal static string HostMustBeNode {
-            get {
-                return ResourceManager.GetString("HostMustBeNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is already marked as a Service ([Singleton]). Host should not hold Service instances directly.
-        /// </summary>
-        internal static string HostSingletonMemberIsServiceType {
-            get {
-                return ResourceManager.GetString("HostSingletonMemberIsServiceType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Service but uses [InjectConstructor].
-        /// </summary>
-        internal static string InjectConstructorAttributeIsInvalid {
-            get {
-                return ResourceManager.GetString("InjectConstructorAttributeIsInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Inject constructor parameter must be an interface type, or a non-Node, non-Host, non-User and non-Scope class type.
-        /// </summary>
-        internal static string InjectConstructorParameterTypeInvalid {
-            get {
-                return ResourceManager.GetString("InjectConstructorParameterTypeInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Injected member in &apos;{0}&apos; has type &apos;{1}&apos;, which is not a Service.
-        /// </summary>
-        internal static string InjectMemberInvalidType {
-            get {
-                return ResourceManager.GetString("InjectMemberInvalidType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type. Consider using interfaces exposed by Host instead for better testability and loose coupling.
-        /// </summary>
-        internal static string InjectMemberIsHostType {
-            get {
-                return ResourceManager.GetString("InjectMemberIsHostType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be injected.
-        /// </summary>
-        internal static string InjectMemberIsScopeType {
-            get {
-                return ResourceManager.GetString("InjectMemberIsScopeType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be static.
-        /// </summary>
-        internal static string InjectMemberIsStatic {
-            get {
-                return ResourceManager.GetString("InjectMemberIsStatic", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be injected.
-        /// </summary>
-        internal static string InjectMemberIsUserType {
-            get {
-                return ResourceManager.GetString("InjectMemberIsUserType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; must be writable (field must not be readonly, property must have setter).
-        /// </summary>
-        internal static string InjectMemberNotAssignable {
-            get {
-                return ResourceManager.GetString("InjectMemberNotAssignable", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; has incorrect _Notification method signature. Expected: &apos;public override partial void _Notification(int what);&apos;.
-        /// </summary>
-        internal static string InvalidNotificationMethodSignature {
-            get {
-                return ResourceManager.GetString("InvalidNotificationMethodSignature", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Do not manually access generated field &apos;{0}&apos; on &apos;{1}&apos;. This field is managed by the DI framework and should not be accessed directly by user code.
-        /// </summary>
-        internal static string ManualAccessGeneratedField {
-            get {
-                return ResourceManager.GetString("ManualAccessGeneratedField", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Do not manually access generated property &apos;{0}&apos; on &apos;{1}&apos;. This property is managed by the DI framework and should not be accessed directly by user code.
-        /// </summary>
-        internal static string ManualAccessGeneratedProperty {
-            get {
-                return ResourceManager.GetString("ManualAccessGeneratedProperty", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Do not manually call generated method &apos;{0}&apos; on &apos;{1}&apos;. This method is managed by the DI framework and will be called automatically at the appropriate time.
-        /// </summary>
-        internal static string ManualCallGeneratedMethod {
-            get {
-                return ResourceManager.GetString("ManualCallGeneratedMethod", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] and [Inject] cannot be applied to the same member &apos;{0}&apos;.
-        /// </summary>
-        internal static string MemberConflictWithSingletonAndInject {
-            get {
-                return ResourceManager.GetString("MemberConflictWithSingletonAndInject", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; must be marked as [User] to use [Inject] on members.
-        /// </summary>
-        internal static string MemberHasInjectButNotInUser {
-            get {
-                return ResourceManager.GetString("MemberHasInjectButNotInUser", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; must be marked as [Host] to use [Singleton] on members.
-        /// </summary>
-        internal static string MemberHasSingletonButNotInHost {
-            get {
-                return ResourceManager.GetString("MemberHasSingletonButNotInHost", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; must define &apos;public override partial void _Notification(int what);&apos; in the script file attached to Node. This method is required for DI framework lifecycle management.
-        /// </summary>
-        internal static string MissingNotificationMethod {
-            get {
-                return ResourceManager.GetString("MissingNotificationMethod", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; must define at least one non-static constructor.
-        /// </summary>
-        internal static string NoNonStaticConstructor {
-            get {
-                return ResourceManager.GetString("NoNonStaticConstructor", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to To use [Modules], Type &apos;{0}&apos; must implement IScope.
-        /// </summary>
-        internal static string OnlyScopeCanUseModules {
-            get {
-                return ResourceManager.GetString("OnlyScopeCanUseModules", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Generator receives cancellation request: {0}.
-        /// </summary>
-        internal static string RequestCancellation {
-            get {
-                return ResourceManager.GetString("RequestCancellation", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use [{1}].
-        /// </summary>
-        internal static string ScopeInvalidAttribute {
-            get {
-                return ResourceManager.GetString("ScopeInvalidAttribute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Unexpectedly loses [Modules] or [AutoModules].
-        /// </summary>
-        internal static string ScopeLosesAttributeUnexpectedly {
-            get {
-                return ResourceManager.GetString("ScopeLosesAttributeUnexpectedly", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must specify [Modules].
-        /// </summary>
-        internal static string ScopeMissingModules {
-            get {
-                return ResourceManager.GetString("ScopeMissingModules", resourceCulture);
+                return ResourceManager.GetString("D_InjectMemberTypeIsNotExposed", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; specifies no Services or Hosts in [Modules].
         /// </summary>
-        internal static string ScopeModulesEmpty {
+        internal static string D_ScopeModulesEmpty {
             get {
-                return ResourceManager.GetString("ScopeModulesEmpty", resourceCulture);
+                return ResourceManager.GetString("D_ScopeModulesEmpty", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Host type &apos;{1}&apos; must be a Host.
         /// </summary>
-        internal static string ScopeModulesHostMustBeHost {
+        internal static string D_ScopeModulesHostMustBeHost {
             get {
-                return ResourceManager.GetString("ScopeModulesHostMustBeHost", resourceCulture);
+                return ResourceManager.GetString("D_ScopeModulesHostMustBeHost", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Service type &apos;{1}&apos; must be a Service.
         /// </summary>
-        internal static string ScopeModulesServiceMustBeService {
+        internal static string D_ScopeModulesServiceMustBeService {
             get {
-                return ResourceManager.GetString("ScopeModulesServiceMustBeService", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; must inherit from Godot.Node.
-        /// </summary>
-        internal static string ScopeMustBeNode {
-            get {
-                return ResourceManager.GetString("ScopeMustBeNode", resourceCulture);
+                return ResourceManager.GetString("D_ScopeModulesServiceMustBeService", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Service &apos;{0}&apos; has constructor parameter of type &apos;{1}&apos;, which is not a Service.
         /// </summary>
-        internal static string ServiceConstructorParameterInvalid {
+        internal static string D_ServiceConstructorParameterInvalid {
             get {
-                return ResourceManager.GetString("ServiceConstructorParameterInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
-        /// </summary>
-        internal static string ServiceExposedTypeNotImplemented {
-            get {
-                return ResourceManager.GetString("ServiceExposedTypeNotImplemented", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; exposed type &apos;{1}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
-        /// </summary>
-        internal static string ServiceExposedTypeShouldBeInterface {
-            get {
-                return ResourceManager.GetString("ServiceExposedTypeShouldBeInterface", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IServicesReady but is not marked with [User].
-        /// </summary>
-        internal static string ServiceReadyNeedUser {
-            get {
-                return ResourceManager.GetString("ServiceReadyNeedUser", resourceCulture);
+                return ResourceManager.GetString("D_ServiceConstructorParameterInvalid", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Service type &apos;{0}&apos; is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope.
         /// </summary>
-        internal static string ServiceTypeConflict {
+        internal static string D_ServiceTypeConflict {
             get {
-                return ResourceManager.GetString("ServiceTypeConflict", resourceCulture);
+                return ResourceManager.GetString("D_ServiceTypeConflict", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node, and must be non-abstract, non-static class type.
+        ///   Looks up a localized string similar to Internal error in source generator: {0}.
         /// </summary>
-        internal static string ServiceTypeIsInvalid {
+        internal static string E_GeneratorInternalError {
             get {
-                return ResourceManager.GetString("ServiceTypeIsInvalid", resourceCulture);
+                return ResourceManager.GetString("E_GeneratorInternalError", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be static.
+        ///   Looks up a localized string similar to Generator receives cancellation request: {0}.
         /// </summary>
-        internal static string SingletonMemberIsStatic {
+        internal static string E_RequestCancellation {
             get {
-                return ResourceManager.GetString("SingletonMemberIsStatic", resourceCulture);
+                return ResourceManager.GetString("E_RequestCancellation", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] property &apos;{0}&apos; must have a getter.
+        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Unexpectedly loses [Modules] or [AutoModules].
         /// </summary>
-        internal static string SingletonPropertyNotAccessible {
+        internal static string E_ScopeLosesAttributeUnexpectedly {
             get {
-                return ResourceManager.GetString("SingletonPropertyNotAccessible", resourceCulture);
+                return ResourceManager.GetString("E_ScopeLosesAttributeUnexpectedly", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to Unknown DI Type Role.
         /// </summary>
-        internal static string UnknownTypeRole {
+        internal static string E_UnknownTypeRole {
             get {
-                return ResourceManager.GetString("UnknownTypeRole", resourceCulture);
+                return ResourceManager.GetString("E_UnknownTypeRole", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to User &apos;{0}&apos; cannot use [{1}].
+        ///   Looks up a localized string similar to Host &apos;{0}&apos; has no member marked as [Singleton].
         /// </summary>
-        internal static string UserInvalidAttribute {
+        internal static string M_HostMissingSingletonMember {
             get {
-                return ResourceManager.GetString("UserInvalidAttribute", resourceCulture);
+                return ResourceManager.GetString("M_HostMissingSingletonMember", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type. While allowed, injecting Host types directly is not recommended - consider injecting an interface exposed by the Host instead.
+        /// </summary>
+        internal static string M_InjectMemberIsHostType {
+            get {
+                return ResourceManager.GetString("M_InjectMemberIsHostType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be injected.
+        /// </summary>
+        internal static string M_InjectMemberIsScopeType {
+            get {
+                return ResourceManager.GetString("M_InjectMemberIsScopeType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be static.
+        /// </summary>
+        internal static string M_InjectMemberIsStatic {
+            get {
+                return ResourceManager.GetString("M_InjectMemberIsStatic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be injected.
+        /// </summary>
+        internal static string M_InjectMemberIsUserType {
+            get {
+                return ResourceManager.GetString("M_InjectMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; must be writable (field must not be readonly, property must have setter).
+        /// </summary>
+        internal static string M_InjectMemberNotAssignable {
+            get {
+                return ResourceManager.GetString("M_InjectMemberNotAssignable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static).
+        /// </summary>
+        internal static string M_InjectMemberTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("M_InjectMemberTypeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos; which is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string M_InjectMemberTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("M_InjectMemberTypeShouldBeInterface", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] and [Inject] cannot be applied to the same member &apos;{0}&apos;.
+        /// </summary>
+        internal static string M_MemberConflictWithSingletonAndInject {
+            get {
+                return ResourceManager.GetString("M_MemberConflictWithSingletonAndInject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; must be marked as [User] to use [Inject] on members.
+        /// </summary>
+        internal static string M_MemberHasInjectButNotInUser {
+            get {
+                return ResourceManager.GetString("M_MemberHasInjectButNotInUser", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; must be marked as [Host] to use [Singleton] on members.
+        /// </summary>
+        internal static string M_MemberHasSingletonButNotInHost {
+            get {
+                return ResourceManager.GetString("M_MemberHasSingletonButNotInHost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has exposed type &apos;{1}&apos;, but type &apos;{2}&apos; does not implement it.
+        /// </summary>
+        internal static string M_SingletonMemberExposedTypeNotImplemented {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberExposedTypeNotImplemented", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member exposed type &apos;{0}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string M_SingletonMemberExposedTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberExposedTypeShouldBeInterface", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type. Host can only expose itself through [Singleton] members, not other Host types.
+        /// </summary>
+        internal static string M_SingletonMemberIsHostType {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberIsHostType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Node (not marked with DI attributes) and cannot be used as a Singleton member.
+        /// </summary>
+        internal static string M_SingletonMemberIsRegularNode {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberIsRegularNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be used as a Singleton member.
+        /// </summary>
+        internal static string M_SingletonMemberIsScopeType {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberIsScopeType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is already marked as a Service ([Singleton]). Host should not hold Service instances directly.
+        /// </summary>
+        internal static string M_SingletonMemberIsServiceType {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberIsServiceType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be static.
+        /// </summary>
+        internal static string M_SingletonMemberIsStatic {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberIsStatic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be used as a Singleton member.
+        /// </summary>
+        internal static string M_SingletonMemberIsUserType {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid type. Singleton member types must be interfaces or concrete classes (non-abstract, non-static).
+        /// </summary>
+        internal static string M_SingletonMemberTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberTypeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] property &apos;{0}&apos; must have a getter.
+        /// </summary>
+        internal static string M_SingletonPropertyNotAccessible {
+            get {
+                return ResourceManager.GetString("M_SingletonPropertyNotAccessible", resourceCulture);
             }
         }
         
         /// <summary>
         ///   Looks up a localized string similar to User &apos;{0}&apos; has no member marked as [Inject].
         /// </summary>
-        internal static string UserMissingInjectMember {
+        internal static string M_UserMissingInjectMember {
             get {
-                return ResourceManager.GetString("UserMissingInjectMember", resourceCulture);
+                return ResourceManager.GetString("M_UserMissingInjectMember", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to User &apos;{0}&apos; must inherit from Godot.Node.
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; has multiple constructors, should specify unique [InjectConstructor].
         /// </summary>
-        internal static string UserMustBeNode {
+        internal static string S_AmbiguousConstructor {
             get {
-                return ResourceManager.GetString("UserMustBeNode", resourceCulture);
+                return ResourceManager.GetString("S_AmbiguousConstructor", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; is not a Service but uses [InjectConstructor].
+        /// </summary>
+        internal static string S_InjectConstructorAttributeIsInvalid {
+            get {
+                return ResourceManager.GetString("S_InjectConstructorAttributeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static, non-Node).
+        /// </summary>
+        internal static string S_InjectConstructorParameterTypeInvalid {
+            get {
+                return ResourceManager.GetString("S_InjectConstructorParameterTypeInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type. While allowed, injecting Host types is not recommended - consider injecting an interface instead.
+        /// </summary>
+        internal static string S_InjectCtorParamIsHostType {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamIsHostType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Node (not marked with DI attributes) and cannot be injected.
+        /// </summary>
+        internal static string S_InjectCtorParamIsRegularNode {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamIsRegularNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be injected.
+        /// </summary>
+        internal static string S_InjectCtorParamIsScopeType {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamIsScopeType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be injected.
+        /// </summary>
+        internal static string S_InjectCtorParamIsUserType {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos; which is a concrete class. Consider using an interface instead for better testability.
+        /// </summary>
+        internal static string S_InjectCtorParamTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamTypeShouldBeInterface", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; must define at least one non-static constructor.
+        /// </summary>
+        internal static string S_NoNonStaticConstructor {
+            get {
+                return ResourceManager.GetString("S_NoNonStaticConstructor", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Do not manually access generated field &apos;{0}&apos; on &apos;{1}&apos;. This field is managed by the DI framework and should not be accessed directly by user code.
+        /// </summary>
+        internal static string U_ManualAccessGeneratedField {
+            get {
+                return ResourceManager.GetString("U_ManualAccessGeneratedField", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Do not manually access generated property &apos;{0}&apos; on &apos;{1}&apos;. This property is managed by the DI framework and should not be accessed directly by user code.
+        /// </summary>
+        internal static string U_ManualAccessGeneratedProperty {
+            get {
+                return ResourceManager.GetString("U_ManualAccessGeneratedProperty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Do not manually call generated method &apos;{0}&apos; on &apos;{1}&apos;. This method is managed by the DI framework and will be called automatically at the appropriate time.
+        /// </summary>
+        internal static string U_ManualCallGeneratedMethod {
+            get {
+                return ResourceManager.GetString("U_ManualCallGeneratedMethod", resourceCulture);
             }
         }
     }

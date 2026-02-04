@@ -851,7 +851,7 @@ class B : IB { public B(IA a) {} }
 | 情况 | 是否循环依赖 | 原因 |
 |------|-------------|------|
 | Host+User 自注入 | ❌ | Host 注册不触发注入,User 注入在之后 |
-| Host 提供服务 + 自身作为 User 注入 | ❌ | 注入时序分离,不形成构造函数环 |
+| Host 提供服务 + 自身作为 User 注入 | ❌ | 注入时序分离，不形成构造函数环 |
 | Service ↔ Service 构造函数互相依赖 | ✔️ | 构造函数闭环 |
 
 最终规则：
@@ -895,7 +895,7 @@ class B : IB { public B(IA a) {} }
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
 | 已实现的 interface | ✅ | **推荐** |
-| 已继承的 class | ✅ | 允许 |
+| 已继承的 class | ⚠️        | 允许但不推荐 |
 | 未实现的 interface | ❌ | 无意义 |
 | 未继承的 class | ❌ | 无意义 |
 
@@ -911,7 +911,7 @@ class B : IB { public B(IA a) {} }
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
 | interface | ✅ | **推荐方式** |
-| 非Node class | ✅ | 允许 |
+| 非Node class | ⚠️        | 允许但不推荐 |
 | Host / Host + User | ⚠️ | 允许但不推荐，应该依赖 Host 所暴露的接口 |
 | 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
 | User | ❌ | 无静态约束，无法保证生命周期 |
@@ -948,7 +948,7 @@ class B : IB { public B(IA a) {} }
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
 | 已实现的 interface | ✅ | **推荐** |
-| 已继承的 class | ✅ | 允许 |
+| 已继承的 class非Node class | ⚠️        | 允许但不推荐 |
 | 未实现的 interface | ❌ | 无意义 |
 | 未继承的 class | ❌ | 无意义 |
 
@@ -970,7 +970,7 @@ class B : IB { public B(IA a) {} }
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
 | interface | ✅ | **推荐方式** |
-| 非Node class | ✅ | 允许 |
+| 非Node class | ⚠️        | 允许但不推荐 |
 | Host / Host + User | ⚠️ | 允许但不推荐，应该依赖 Host 所暴露的接口 |
 | 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
 | User | ❌ | 无静态约束，无法保证生命周期 |
@@ -1648,9 +1648,9 @@ public class Projectile : IDisposable
 
 ## 诊断代码
 
-框架提供完整的编译时错误检查。完整诊断代码列表请参阅 [DIAGNOSTICS.md](./DIAGNOSTICS.zh-CN.md)。
+框架提供完整的编译时错误检查。完整诊断代码列表请参阅 [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md)。
 
-**诊断代码分类**:
+**诊断代码分类**：
 
 | 前缀 | 类别 | 说明 |
 |------|------|------|

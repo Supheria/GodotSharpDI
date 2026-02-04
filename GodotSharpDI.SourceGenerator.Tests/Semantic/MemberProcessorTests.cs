@@ -3,6 +3,7 @@ using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
@@ -277,7 +278,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M041" // InjectMemberIsHostType
+            d => d.Id == "GDI_M042" // InjectMemberIsHostType
         );
     }
 
@@ -308,7 +309,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M042" // InjectMemberIsUserType
+            d => d.Id == "GDI_M043" // InjectMemberIsUserType
         );
     }
 
@@ -347,7 +348,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M043" // InjectMemberIsScopeType
+            d => d.Id == "GDI_M044" // InjectMemberIsScopeType
         );
     }
 
@@ -377,7 +378,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M044" // InjectMemberIsStatic
+            d => d.Id == "GDI_M040" // InjectMemberIsStatic
         );
     }
 
@@ -408,7 +409,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M045" // SingletonMemberIsStatic
+            d => d.Id == "GDI_M050" // SingletonMemberIsStatic
         );
     }
 
@@ -439,7 +440,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M050" // HostSingletonMemberIsServiceType
+            d => d.Id == "GDI_M052" // SingletonMemberIsServiceType
         );
     }
 
@@ -469,7 +470,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M060" // ExposedTypeShouldBeInterface (Warning)
+            d => d.Id == "GDI_M058" && d.Severity == DiagnosticSeverity.Warning // ExposedTypeShouldBeInterface (Warning)
         );
     }
 

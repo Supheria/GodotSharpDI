@@ -1385,6 +1385,44 @@ public partial class PlayerStatsService : IPlayerStats { }
 public partial class ConfigService { }
 ```
 
+```csharp
+// ✅ Recommended
+// Host exposes interfaces
+[Host]
+public partial class GameManager : Node, IGameManager
+{
+    [Singleton(typeof(IGameManager))]
+    private GameManager Self => this; // ✅ Recommended
+    
+    [Singleton(typeof(ICombatSystem))]
+    private CombatSystemImpl _combat = new(); // ✅ Recommended
+}
+
+// User injects interfaces
+[User]
+public partial class Player : Node
+{
+    [Inject] private IGameManager _gameManager; // ✅ Recommended
+    [Inject] private ICombatSystem _combat; // ✅ Recommended
+}
+
+// ⚠️ Not Recommended
+// Host directly exposes concrete types
+[Host]
+public partial class GameManager : Node
+{
+    [Singleton] private GameManager Self => this; // ⚠️ Will produce warning
+    [Singleton] private CombatSystemImpl _combat = new(); // ⚠️ Will produce warning
+}
+
+// User injects concrete types
+[User]
+public partial class Player : Node
+{
+    [Inject] private GameManager _state; // ⚠️ Will produce warning
+}
+```
+
 **Reasons**:
 
 - Interfaces provide better loose coupling
@@ -1596,7 +1634,7 @@ public class Projectile : IDisposable
 
 ## Diagnostic Codes
 
-The framework provides comprehensive compile-time error checking. For a complete list of diagnostic codes, please refer to [DIAGNOSTICS.md](./DIAGNOSTICS.md).
+The framework provides comprehensive compile-time error checking. For a complete list of diagnostic codes, please refer to [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md).
 
 **Diagnostic Code Categories**:
 

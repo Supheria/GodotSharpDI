@@ -201,7 +201,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_S020" // InjectConstructorParameterTypeInvalid
+            d => d.Id == "GDI_S024" // InjectCtorParamIsRegularNode
         );
     }
 

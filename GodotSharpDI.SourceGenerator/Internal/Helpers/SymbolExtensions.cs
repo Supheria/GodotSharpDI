@@ -87,30 +87,11 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否是有效的注入类型
+    /// 检查类型是否是接口或有效类
     /// </summary>
-    public static bool IsValidInjectType(this ITypeSymbol type, CachedSymbols symbols)
+    public static bool IsValidInterfaceOrConcreteClass(this ITypeSymbol type)
     {
-        // 1. 检查 Node 类型
-        // Host 类型 - 允许
-        if (symbols.IsHostType(type))
-            return true;
-
-        // User 类型 - 完全禁止
-        if (symbols.IsUserType(type))
-            return false;
-
-        // Scope 类型 - 完全禁止
-        if (symbols.ImplementsIScope(type))
-            return false;
-
-        // 普通 Node 类型 - 完全禁止
-        if (symbols.IsNode(type))
-        {
-            return false;
-        }
-
-        // 2. 检查不能是抽象类、静态类
+        // 检查不能是抽象类、静态类
         if (type is INamedTypeSymbol named)
         {
             if (named.IsAbstract && named.TypeKind == TypeKind.Class)
@@ -119,11 +100,11 @@ internal static class SymbolExtensions
                 return false;
         }
 
-        // 3. 不能是开放泛型
+        // 不能是开放泛型
         if (type is INamedTypeSymbol generic && generic.IsUnboundGenericType)
             return false;
 
-        // 4. 必须是 interface 或 class
+        // 必须是 interface 或 class
         return type.TypeKind == TypeKind.Interface || type.TypeKind == TypeKind.Class;
     }
 
