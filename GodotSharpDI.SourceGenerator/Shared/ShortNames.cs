@@ -15,5 +15,5 @@ public static class ShortNames
     //
     // SingletonAttribute arguments
     //
-    public const string ServiceTypes = "ServiceTypes";
+    public const string ExposedTypes = "ExposedTypes";
 }
