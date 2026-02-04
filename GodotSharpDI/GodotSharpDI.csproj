@@ -9,7 +9,7 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!-- Package Metadata -->
     <PackageId>GodotSharpDI</PackageId>
-    <Version>1.0.0-rc.1.2</Version>
+    <Version>1.0.0-rc.2</Version>
     <Authors>Supheria</Authors>
     <Description>A source generator based dependency injection framework for Godot C# projects. Provides compile-time DI with support for singleton services, constructor and member injection.</Description>
     <PackageTags>godot;dependency-injection;di;source-generator;csharp;dotnet</PackageTags>
@@ -18,6 +18,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) Supheria and Godot Engine contributors</Copyright>
   </PropertyGroup>
@@ -42,9 +43,10 @@
       Visible="false"
     />
   </ItemGroup>
-  <!-- Include Icon -->
+  <!-- Include README and Icon -->
   <ItemGroup>
     <None Include="../icon.png" Pack="true" PackagePath="/" />
+    <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <!-- Project References for Build -->
   <ItemGroup>
