@@ -106,16 +106,8 @@ internal sealed class ConstructorProcessor
 
         foreach (var param in selectedCtor.Parameters)
         {
-            if (!param.Type.IsValidInjectType(_symbols))
+            if (!ValidateInjectCtorParamType(param))
             {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.InjectConstructorParameterTypeInvalid,
-                        param.Locations.FirstOrDefault() ?? _raw.Location,
-                        param.Name,
-                        param.Type.ToDisplayString()
-                    )
-                );
                 hasInvalidParameter = true;
                 continue;
             }
@@ -140,5 +132,96 @@ internal sealed class ConstructorProcessor
             Location: selectedCtor.Locations.FirstOrDefault() ?? _raw.Location,
             Parameters: parameters.ToImmutable()
         );
+    }
+
+    private bool ValidateInjectCtorParamType(IParameterSymbol param)
+    {
+        var location = param.Locations.FirstOrDefault() ?? _raw.Location;
+        var paramType = param.Type;
+
+        // 必须是接口或有效类
+        if (!paramType.IsValidInterfaceOrConcreteClass())
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamTypeInvalid,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 可以是 Host 类型吗，但不推荐并产生警告
+        if (_symbols.IsHostType(paramType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamIsHostType,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+            return true;
+        }
+
+        // 不能是 User 类型
+        if (_symbols.IsUserType(paramType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamIsUserType,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是 Scope 类型
+        if (_symbols.ImplementsIScope(paramType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamIsScopeType,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是普通 Node
+        if (_symbols.IsNode(paramType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamIsRegularNode,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 可以是非接口，但不推荐并产生警告
+        if (paramType.TypeKind != TypeKind.Interface)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamTypeShouldBeInterface,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+        }
+
+        return true;
     }
 }

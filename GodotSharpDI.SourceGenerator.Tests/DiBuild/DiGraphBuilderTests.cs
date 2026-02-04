@@ -75,7 +75,7 @@ namespace Test
     }
 
     [Fact]
-    public void Build_ScopeWithEmptyServices_ReportsDiagnostic()
+    public void Build_ScopeWithEmptyModules_ReportsDiagnostic()
     {
         // Arrange
         var source =
@@ -85,7 +85,7 @@ using Godot;
 
 namespace Test
 {
-    [Modules(Services = new System.Type[] { })]
+    [Modules]
     public partial class MyScope : Node, IScope
     {
         public void RegisterService<T>(T instance) where T : notnull { }
@@ -99,39 +99,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_D001" // ScopeModulesServicesEmpty
-        );
-    }
-
-    [Fact]
-    public void Build_ScopeWithEmptyHosts_ReportsInfoDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-using Godot;
-
-namespace Test
-{
-    [Singleton]
-    public partial class MyService { }
-
-    [Modules(Services = new[] { typeof(MyService) }, Hosts = new System.Type[] { })]
-    public partial class MyScope : Node, IScope
-    {
-        public void RegisterService<T>(T instance) where T : notnull { }
-        public void UnregisterService<T>() where T : notnull { }
-        public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
-    }
-}
-";
-        var result = BuildGraph(source);
-
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_D002" // ScopeModulesHostsEmpty (Info)
+            d => d.Id == "GDI_D001" // ScopeModulesEmpty
         );
     }
 
@@ -162,7 +130,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_D003" // ScopeModulesServiceMustBeService
+            d => d.Id == "GDI_D002" // ScopeModulesServiceMustBeService
         );
     }
 
@@ -196,12 +164,12 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_D004" // ScopeModulesHostMustBeHost
+            d => d.Id == "GDI_D003" // ScopeModulesHostMustBeHost
         );
     }
 
     [Fact]
-    public void Build_UserInjectMemberNotService_ReportsDiagnostic()
+    public void Build_UserInjectMemberTypeIsNotExposed_ReportsDiagnostic()
     {
         // Arrange
         var source =
@@ -226,7 +194,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M040" // InjectMemberInvalidType
+            d => d.Id == "GDI_D050" // InjectMemberTypeIsNotExposed
         );
     }
 
@@ -283,9 +251,7 @@ namespace Test
 
         // Assert
         Assert.NotNull(result.Graph);
-        var errors = result
-            .Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
-            .ToList();
+        var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         Assert.Empty(errors);
     }
 

@@ -9,7 +9,7 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!-- Package Metadata -->
     <PackageId>GodotSharpDI</PackageId>
-    <Version>1.0.0-beta.4</Version>
+    <Version>1.0.0-rc.2</Version>
     <Authors>Supheria</Authors>
     <Description>A source generator based dependency injection framework for Godot C# projects. Provides compile-time DI with support for singleton services, constructor and member injection.</Description>
     <PackageTags>godot;dependency-injection;di;source-generator;csharp;dotnet</PackageTags>
@@ -17,8 +17,8 @@
     <RepositoryUrl>https://github.com/Supheria/GodotSharpDI</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) Supheria and Godot Engine contributors</Copyright>
   </PropertyGroup>
@@ -39,20 +39,14 @@
     <None
       Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharpDI.SourceGenerator.resources.dll"
       Pack="true"
-      PackagePath="lib/netstandard2.0/zh-hans"
-      Visible="false"
-    />
-    <None
-      Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharpDI.SourceGenerator.resources.dll"
-      Pack="true"
       PackagePath="analyzers/dotnet/cs/zh-hans"
       Visible="false"
     />
   </ItemGroup>
   <!-- Include README and Icon -->
   <ItemGroup>
-    <None Include="../README.md" Pack="true" PackagePath="/" />
     <None Include="../icon.png" Pack="true" PackagePath="/" />
+    <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <!-- Project References for Build -->
   <ItemGroup>

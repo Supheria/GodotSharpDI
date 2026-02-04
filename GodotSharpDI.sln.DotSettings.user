@@ -47,6 +47,7 @@
     &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Semantic.MemberProcessorTests&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.GeneratedMemberAccessAnalyzerTests&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Analyzers.GeneratedMemberAccessAnalyzerTests&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;xUnit::6603205A-6272-4EBF-95C9-6766D8D65D8D::net8.0::GodotSharpDI.SourceGenerator.Tests.Semantic.NotificationMethodValidationTests&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String>
 	<s:Boolean x:Key="/Default/ResxEditorPersonal/CheckedGroups/=GodotSharpDI_002ESourceGenerator_002FResources/@EntryIndexedValue">True</s:Boolean>

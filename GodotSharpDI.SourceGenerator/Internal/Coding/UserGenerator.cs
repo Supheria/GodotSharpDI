@@ -14,7 +14,7 @@ internal static class UserGenerator
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
         // 生成基础 DI 文件
-        NodeDIGenerator.GenerateBaseDI(context, node);
+        NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
 
         // 生成 User 特定代码
         GenerateUserSpecific(context, node);
@@ -27,10 +27,6 @@ internal static class UserGenerator
     {
         // 收集 Inject 成员
         var injectMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsInjectMember).ToArray();
-
-        // 如果没有 Inject 成员，不生成 User 代码
-        if (injectMembers.Length == 0)
-            return;
 
         var f = new CodeFormatter();
 
@@ -95,10 +91,14 @@ internal static class UserGenerator
     {
         // ResolveUserDependencies
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"private void ResolveUserDependencies({GlobalNames.IScope} scope)");
+        f.AppendLine("private void ResolveUserDependencies()");
         f.BeginBlock();
         {
-            // 先注入 [Inject] 成员
+            f.AppendLine("var scope = GetParentScope();");
+            f.AppendLine("if (scope is null) return;");
+            f.AppendLine();
+
+            // 注入 [Inject] 成员
             foreach (var member in injectMembersList)
             {
                 f.AppendLine(

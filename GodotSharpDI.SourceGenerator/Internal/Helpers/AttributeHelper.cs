@@ -16,7 +16,7 @@ internal static class AttributeHelper
     )
     {
         var singletonAttr = member.GetAttribute(symbols.SingletonAttribute);
-        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ServiceTypes);
+        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ExposedTypes);
 
         // 如果没有指定服务类型，使用成员的类型
         if (exposedTypes.IsEmpty)
@@ -46,7 +46,7 @@ internal static class AttributeHelper
     )
     {
         var singletonAttr = service.GetAttribute(symbols.SingletonAttribute);
-        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ServiceTypes);
+        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ExposedTypes);
 
         // 如果没有指定服务类型，使用自身型
         return exposedTypes.IsEmpty ? ImmutableArray.Create(service) : exposedTypes;

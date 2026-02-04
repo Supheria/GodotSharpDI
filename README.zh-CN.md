@@ -4,7 +4,7 @@
 
 <p align="left"> <a href="README.md">English</a> </p>
 
-一个专为 Godot 引擎设计的编译时依赖注入框架，通过 C# Source Generator 实现零反射、高性能的 DI 支持。
+一个专为 Godot 4 设计的编译时依赖注入框架，通过 C# 源生成器实现零反射、高性能的 DI 支持。
 
 [![NuGet Version](https://img.shields.io/nuget/v/GodotSharpDI.svg?style=flat)](https://www.nuget.org/packages/GodotSharpDI/)
 
@@ -23,12 +23,12 @@
   - [四种角色类型](#四种角色类型)
   - [服务生命周期](#服务生命周期)
 - [角色详解](#角色详解)
-  - [Singleton 服务](#singleton-服务)
+  - [单例服务](#单例服务)
   - [Host (宿主)](#host-宿主)
   - [User (消费者)](#user-消费者)
   - [Scope (容器)](#scope-容器)
 - [生命周期管理](#生命周期管理)
-  - [Singleton 生命周期](#singleton-生命周期)
+  - [单例生命周期](#单例生命周期)
   - [Scope 层级](#scope-层级)
   - [依赖注入时序](#依赖注入时序)
   - [Host + User 与循环依赖](#host--user-与循环依赖)
@@ -39,8 +39,8 @@
   - [暴露类型约束](#暴露类型约束)
   - [其他约束](#其他约束)
 - [API 参考](#api-参考)
-  - [特性 (Attributes)](#特性-attributes)
-  - [接口 (Interfaces)](#接口-interfaces)
+  - [特性](#特性)
+  - [接口](#接口)
   - [生成的代码](#生成的代码)
   - [场景树集成](#场景树集成)
 - [最佳实践](#最佳实践)
@@ -253,7 +253,7 @@ GameScope (IScope
 
 | 角色 | 说明 | 约束 |
 |------|------|------|
-| **Singleton 服务** | 纯逻辑服务，在 Scope 内唯一，由 Scope 创建和管理，Scope 销毁时释放 | 必须是非 Node 的 class |
+| **单例服务** | 纯逻辑服务，在 Scope 内唯一，由 Scope 创建和管理，Scope 销毁时释放 | 必须是非 Node 的 class |
 | **Host** | 场景级资源提供者，将 Node 资源桥接到 DI 世界 | 必须是 Node |
 | **User** | 依赖消费者，接收注入 | 必须是 Node |
 | **Scope** | DI 容器，管理服务生命周期 | 必须是 Node，实现 IScope |
@@ -262,21 +262,11 @@ GameScope (IScope
 
 ## 角色详解
 
-### Singleton 服务
+### 单例服务
 
 #### 职责
 
 标记为 [Singleton] 的类型是纯逻辑服务，封装业务逻辑和数据处理，**不依赖 Godot Node 系统**。
-
-#### 约束
-
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制,与 DI 容器冲突 |
-| 修饰符 | 不能是 abstract 或 static | 需要实例化 |
-| 泛型 | 不能是开放泛型 | 需要具体类型来实例化 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
 
 #### 生命周期标记
 
@@ -288,7 +278,7 @@ public partial class PlayerStatsService : IPlayerStats { }
 
 #### 构造函数注入
 
-Singleton 服务通过构造函数注入依赖：
+单例服务通过构造函数注入依赖：
 
 ```csharp
 [Singleton(typeof(ICombatSystem))]
@@ -341,7 +331,7 @@ public partial class FileService : IReader, IWriter { }
 public partial class ConfigService { }
 ```
 
-> ⚠️ **最佳实践**: 始终暴露接口而非具体类，以保持松耦合和可测试性。
+> ⚠️ **最佳实践**： 始终暴露接口而非具体类，以保持松耦合和可测试性。
 
 ---
 
@@ -351,14 +341,26 @@ public partial class ConfigService { }
 
 Host 是 Godot Node 系统与 DI 系统之间的桥梁，它将 Node 管理的资源暴露为可注入的服务。
 
-#### 约束
+#### 静态性约束
 
-| 约束项        | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
+Host 是 Scope 的**静态**组成部分，不是动态服务提供者。
+
+**❌ 不应该：**
+
+* 在运行时 reparent 
+* 动态添加/移除 Host 
+* 期望 Host 在不同 Scope 间迁移
+
+**✅ 应该：**
+
+* 将 Host 视为 Scope 节点树的固定部分
+* 在场景设计时确定 Host 的位置
+* 将 Host 作为 Scope 的场景树子节点，由 Scope 销毁时清理
+* 如需动态服务，应使用服务工厂模式（参考 **[使用服务工厂](#使用服务工厂)** 小节）
+
+> 这样的约束让 Scope 在其作用域内具有单例特性。与传统全局单例相比，Scope 能够主动限制自己的影响范围——通过场景树的层级关系自然划分服务边界。这使得场景结构更加灵活且可控，User 可以在场景树的各个层级方便地获取所需依赖，而不会产生全局污染。
+>
+> 简而言之，将 Scope 和 Host 视为场景树中稳定的“锚定点”，Host 是 Scope 用于拆分逻辑和管理资源的“功能模块”。
 
 #### 典型使用模式
 
@@ -407,14 +409,6 @@ public class WorldState : IWorldState { /* ... */ }
 
 Host 可以持有和管理其他对象，并将它们暴露为服务。**这些对象的生命周期由 Host 控制。**
 
-#### Host 成员约束
-
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 成员类型 | 不能是已标记为 Service 的类型 | 避免生命周期冲突 |
-| static 成员 | 不允许 | 需要实例级别的服务 |
-| 属性 | 必须有 getter | 需要读取值来注册服务 |
-
 ```csharp
 // ❌ 错误：标记为 [Singleton]的类型只能由 Scope 持有
 [Singleton(typeof(IConfig))]
@@ -453,15 +447,6 @@ public partial class GoodHost : Node
 
 User 是依赖消费者，通过字段或属性注入接收服务依赖。
 
-#### 约束
-
-| **约束项**    | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
-
 #### User 自动注入依赖
 
 ```csharp
@@ -482,49 +467,39 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 }
 ```
 
-Node 类型的 User 会在进入场景树时自动触发注入，无需手动操作。
-
-#### Inject 成员约束
-
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 成员类型 | interface 或普通 class | 必须是可注入类型 |
-| 成员类型 | 不能是 Node/Host/User/Scope | 这些不是服务类型 |
-| static 成员 | 不允许 | 需要实例级别的注入 |
-| 属性 | 必须有 setter | 需要写入注入值 |
-
-```csharp
-[User]
-public partial class MyUser : Node
-{
-    [Inject] private IService _service;           // ✅ 正确
-    [Inject] private MyConcreteClass _concrete;   // ✅ 允许但不推荐
-    [Inject] private Node _node;                  // ❌ 错误
-    [Inject] private MyHost _host;                // ❌ 错误
-    [Inject] private static IService _static;     // ❌ 错误
-    
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-```
+> User 会在进入场景树时自动触发注入，无需手动操作。
+>
 
 #### IServicesReady 接口
 
-实现 `IServicesReady` 接口可以在所有依赖注入完成后收到通知:
+User 类型可以实现 `IServicesReady` 接口，`OnServicesReady()` 在所有 `[Inject]` 成员解析完成后被立即调用。
+```csharp
+public interface IServicesReady
+{
+    void OnServicesReady();
+}
+```
+
+> ⚠️ **`OnServicesReady()` 始终在 `_Ready()` 之后被调用**，因为 User 在 NotificationReady 处开始依赖解析。
+
+**示例**：
 
 ```csharp
 [User]
-public partial class MyComponent : Node, IServicesReady
+public partial class UIManager : Control, IServicesReady
 {
-    [Inject] private IServiceA _a;
-    [Inject] private IServiceB _b;
-    [Inject] private IServiceC _c;
+    [Inject] private IPlayerStats _stats;
+    [Inject] private IGameState _gameState;
     
-    // 当 _a, _b, _c 都注入完成后调用
     public void OnServicesReady()
     {
-        // 安全地使用所有依赖
-        Initialize();
+        // 所有依赖已就绪，可以安全地访问它们
+        _stats.OnHealthChanged += UpdateHealthBar;
+        _gameState.OnStateChanged += UpdateGameState;
+        
+        // 初始 UI 更新
+        UpdateHealthBar(_stats.Health);
+        UpdateGameState(_gameState.CurrentState);
     }
     
     // 需要集成 Godot 生命周期
@@ -540,21 +515,42 @@ public partial class MyComponent : Node, IServicesReady
 
 Scope 是 DI 容器，负责：
 
-1. 创建和管理 Singleton 服务实例
+1. 创建和管理 单例服务实例
 2. 收集 Host 所提供的服务实例
 3. 处理依赖解析请求
 4. 管理自己创建的服务实例的生命周期
 
-#### 约束
+#### 静态性约束
 
-| **约束项**    | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
-| Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
+Scope 是场景树中的**静态服务容器**，具有明确的作用域边界。
+
+**❌ 不应该：**
+
+- 在运行时动态创建/销毁 Scope（除非整个子场景需要卸载）
+- 期望 Scope 在场景树中频繁移动位置
+- 将 Scope 用作临时的服务缓存或动态服务池
+- 在运行时改变 Scope 的父子关系来"切换"服务作用域
+
+**✅ 应该：**
+
+- 将 Scope 视为场景树结构的**固定骨架节点**
+- 在场景设计阶段确定 Scope 的层级和位置
+- Scope 的生命周期与其对应的场景区域同步
+- Scope 随其场景节点一起创建和销毁
+- 如需动态服务，应在 Scope 内注册服务工厂（参考 **[使用服务工厂](#使用服务工厂)** 小节）
+
+> 这样的约束让 Scope 在其作用域内具有单例特性。与传统全局单例相比，Scope 能够主动限制自己的影响范围——通过场景树的层级关系自然划分服务边界。这使得场景结构更加灵活且可控，User 可以在场景树的各个层级方便地获取所需依赖，而不会产生全局污染。
+>
+> 简而言之，将 Scope 视为场景树中稳定的"锚定点"，它定义了服务的可见范围，而 Host 则是 Scope 用于拆分逻辑和管理资源的"功能模块"。
+
+> **Host vs Scope 的静态性**
+>
+> | 维度           | Host                | Scope              |
+> | -------------- | ------------------- | ------------------ |
+> | **本质**       | Scope 的组成部分    | 场景树的结构节点   |
+> | **作用域**     | 无独立作用域        | 定义服务作用域边界 |
+> | **静态性含义** | 不能在 Scope 间迁移 | 不能频繁创建/销毁  |
+> | **生命周期**   | 随 Scope 销毁       | 随场景区域生命周期 |
 
 #### 定义 Scope
 
@@ -572,182 +568,115 @@ public partial class GameScope : Node, IScope
 }
 ```
 
-**Modules 参数说明**:
+**Modules 参数说明**：
 
 | 参数 | 说明 | 约束 |
 |------|------|------|
 | `Services` | Scope 创建和管理的 服务类型列表 | 必须是服务（有 [Singleton]） |
 | `Hosts` | Scope 期望接收的 Host 类型列表 | 必须是 Host（有 [Host]） |
 
-#### Scope 层级
+---
+
+## 生命周期管理
+
+### 单例生命周期
+
+#### 创建时机
+单例服务在以下时机创建：
+1. **Scope 就绪时**：当 Scope 的 `NotificationReady` 事件触发时，[Modules] 中指定的所有服务都会被创建
+2. **按需创建**：当依赖请求到来且服务尚未创建时
+
+#### 销毁时机
+单例服务在以下时机销毁：
+1. **Scope 销毁时**：当 Scope 的 `NotificationPredelete` 事件触发时
+2. **IDisposable 支持**：实现 `IDisposable` 的服务会调用其 `Dispose()` 方法
+```csharp
+[Singleton(typeof(IResourceManager))]
+public partial class ResourceManager : IResourceManager, IDisposable
+{
+    public void Dispose()
+    {
+        // 释放资源
+    }
+}
+```
+
+---
+
+### Scope 层级结构
 
 Scope 通过场景树结构形成层级关系：
-
 ```
 RootScope
 ├── GameManager (Host)
 ├── GlobalServices...
 │
 └── LevelScope
- ├── LevelManager (Host)
- ├── LevelServices...
- │
- └── Player
-     └── PlayerUI (User)
+    ├── LevelManager (Host)
+    ├── LevelServices...
+    │
+    └── Player
+        └── PlayerUI (User)
 ```
 
-**依赖解析规则**:
+#### 服务可见性规则
+| 服务位置 | 可访问范围 |
+|-----------------|----------------|
+| RootScope | 所有后代 Scope |
+| GameScope | GameScope 和 LevelScope |
+| LevelScope | 仅 LevelScope |
 
-1. 首先在当前 Scope 查找
-2. 如果未找到且服务类型不属于当前 Scope，向父 Scope 查找
-3. 递归直到根 Scope 或找到服务
-
-#### Scope 生命周期事件
-
-| 事件 | 触发时机 | 行为 |
-|------|----------|------|
-| `NotificationReady` | Node 准备就绪 | 创建所有 Singleton Service |
-| `NotificationPredelete` | Node 即将删除 | 释放所有 Service (调用 IDisposable.Dispose) |
-
----
-
-## 生命周期管理
-
-### Singleton 生命周期
-
-Singleton 服务在所属 Scope 内唯一，随 Scope 创建和销毁。
-
+**示例**：
 ```csharp
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats, IDisposable
-{
-    public int Health { get; set; } = 100;
-    
-    public void Dispose()
-    {
-        GD.Print("PlayerStatsService 被释放");
-    }
-}
+// RootScope
+[Modules(Services = [typeof(ConfigService)])]
+public partial class RootScope : Node, IScope { }
+
+// GameScope 可以访问 ConfigService
+[Modules(Services = [typeof(PlayerService)])]
+public partial class GameScope : Node, IScope { }
+
+// LevelScope 可以访问 ConfigService 和 PlayerService
+[Modules(Services = [typeof(EnemyService)])]
+public partial class LevelScope : Node, IScope { }
 ```
 
-**生命周期时序**:
-
-```
-Scope 进入场景树 (NotificationEnterTree)
- ↓
-Scope 就绪 (NotificationReady)
- ↓ 创建 Singleton 实例
- ↓ 注册到服务容器
- ↓ 通知等待的消费者
- ↓
-... 服务运行中 ...
- ↓
-Scope 即将删除 (NotificationPredelete)
- ↓ 调用 IDisposable.Dispose() (如果实现)
- ↓ 从容器移除
- ↓
-Scope 删除完成
-```
-
----
-
-### Scope 层级
-
-#### 层级结构
-
-Scope 通过 Godot 场景树形成自然的层级结构：
-
-```
-Application
-└── RootScope                 ← 根 Scope
- ├── GlobalServices           ← 全局服务
- │   ├── IConfigService
- │   └── ISaveService
- │
- └── LevelScene
-     └── LevelScope           ← 子 Scope
-         ├── LevelServices    ← 关卡服务
-         │   ├── IEnemySpawner
-         │   └── ILootSystem
-         │
-         └── Player
-             └── PlayerScope  ← 更深层 Scope
-                 └── PlayerServices
-                     └── IInventory
-```
-
-#### 服务解析规则
-
-当 User 请求依赖时:
-
-1. **检查当前 Scope**
-   - 如果服务类型在当前 Scope 的 `SingletonServiceTypes` 中，在当前 Scope 解析
-   - 如果已注册，立即返回
-   - 如果未注册，加入等待队列
-
-2. **向上委托**
-   - 如果服务类型不属于当前 Scope，向父 Scope 递归查找
-   - 直到根 Scope 或找到服务
-
-3. **错误处理**
-   - 如果直到根 Scope 都未找到，记录错误
-
-```csharp
-// 简化的解析逻辑
-void ResolveDependency<T>(Action<T> onResolved)
-{
-    var type = typeof(T);
-    
-    // 检查是否属于当前 Scope
-    if (!SingletonServiceTypes.Contains(type))
-    {
-        // 委托给父 Scope
-        GetParentScope()?.ResolveDependency(onResolved);
-        return;
-    }
-    
-    // 尝试已注册的服务
-    if (_singletonServices.TryGetValue(type, out var singleton))
-    {
-        onResolved((T)singleton);
-        return;
-    }
-    
-    // 加入等待队列
-    AddToWaitList(type, onResolved);
-}
-```
-
-#### 服务可见性
-
-| 服务位置 | 可见范围 |
-|----------|----------|
-| 根 Scope | 所有子 Scope |
-| 父 Scope | 所有子孙 Scope |
-| 子 Scope | 仅该 Scope 及其子孙 |
-
-```
-RootScope
-├── IGlobalConfig    ← 对所有 Scope 可见
-│
-└── LevelScope
- ├── ILevelConfig    ← 对 LevelScope 及其子 Scope 可见，
- │                     对 RootScope 不可见
- │
- └── PlayerScope
-     └── IInventory  ← 仅对 PlayerScope 可见
-```
+> **层级规则**：
+>
+> - Scope 在场景树中向上搜索以找到其父 Scope
+> - 如果在当前 Scope 中未找到服务，则在父 Scope 中搜索
+> - 服务生命周期绑定到其定义的 Scope
 
 ---
 
 ### 依赖注入时序
 
-#### User 的注入时序
-
+#### 单例服务创建时序
 ```
-User Node 进入场景树 (NotificationEnterTree)
- ↓
-AttachToScope()
+Scope 节点就绪 (NotificationReady)
+    ↓
+Scope.InstantiateScopeSingletons()
+    ↓
+对于 Modules.Services 中的每个服务：
+    ↓
+    Service.CreateService()
+    ↓
+    对于每个构造函数参数：
+        ↓
+        Scope.ResolveDependency<T>()
+    ↓
+    所有依赖都已解析？
+    ↓
+    是
+    ↓
+    scope.ProvideService<T>(service)
+    ↓
+    通知等待队列
+```
+
+#### User 的注入时序
+```
+User Node 准备完毕 (NotificationReady)
  ↓
 GetServiceScope() ← 向上查找最近的 IScope
  ↓
@@ -755,62 +684,22 @@ ResolveUserDependencies(scope)
  ↓
 scope.ResolveDependency<T>(callback) ← 每个 [Inject] 成员
  ↓
-[等待服务就绪或立即回调]
+等待服务就绪或立即回调
  ↓
 OnServicesReady() ← 所有依赖注入完成（如果实现 IServicesReady）
 ```
 
 #### Host 的服务注册时序
-
 ```
-Host Node 进入场景树 (NotificationEnterTree)
- ↓
-AttachToScope()
+Host Node 准备完毕 (NotificationReady)
  ↓
 GetServiceScope() ← 向上查找最近的 IScope
  ↓
-AttachHostServices(scope)
+ProvideHostServices(scope)
  ↓
-scope.RegisterService<T>(this.Member) ← 每个 [Singleton] 成员
+scope.ProvideService<T>(this.Member) ← 每个 [Singleton] 成员
  ↓
-[通知等待该服务的 User]
-```
-
-#### 完整时序示例
-
-假设场景结构:
-
-```
-GameScope
-├── GameManager (Host， 提供 IGameState)
-└── PlayerUI (User， 需要 IGameState)
-```
-
-执行时序:
-
-```
-1. GameScope 进入场景树
-2. GameScope._Notification(EnterTree)
-
-3. GameManager 进入场景树
-4. GameManager._Notification(EnterTree)
-   → GetServiceScope() 找到 GameScope
-   → AttachHostServices(GameScope)
-   → GameScope.RegisterService<IGameState>(this)
-   → [此时 PlayerUI 可能还未进入，加入等待队列为空]
-
-5. PlayerUI 进入场景树
-6. PlayerUI._Notification(EnterTree)
-   → GetServiceScope() 找到 GameScope
-   → ResolveUserDependencies(GameScope)
-   → GameScope.ResolveDependency<IGameState>(callback)
-   → [IGameState 已注册，立即回调]
-   → _gameState = injectedValue
-   → OnServicesReady() [如果实现]
-
-7. GameScope._Notification(Ready)
-   → InstantiateScopeSingletons() [创建 Service]
-   → CheckWaitList() [检查未完成的依赖]
+通知等待队列
 ```
 
 ---
@@ -962,7 +851,7 @@ class B : IB { public B(IA a) {} }
 | 情况 | 是否循环依赖 | 原因 |
 |------|-------------|------|
 | Host+User 自注入 | ❌ | Host 注册不触发注入,User 注入在之后 |
-| Host 提供服务 + 自身作为 User 注入 | ❌ | 注入时序分离,不形成构造函数环 |
+| Host 提供服务 + 自身作为 User 注入 | ❌ | 注入时序分离，不形成构造函数环 |
 | Service ↔ Service 构造函数互相依赖 | ✔️ | 构造函数闭环 |
 
 最终规则：
@@ -973,188 +862,141 @@ class B : IB { public B(IA a) {} }
 
 ## 类型约束
 
-### 角色类型约束
+> **术语说明**：
+> - **Host + User**：同时标记了 Host 和 User 特性的节点
+> - **非Node class**：不继承 Godot.Node 的普通 C# 类
+> - **普通 Node**：继承 Node 但未标记特殊角色的节点
 
-| 角色 | 必须是 class | 是否 Node | 生命周期标记 | 可作为 Service | 可被注入 | 可暴露类型 |
-|------|-------------|-----------|--------------|----------------|----------|------------|
-| **Service** | ✅ | ❌ 禁止 | ✅ 必须 | ✅ 是 | ✅ 是 | ✅ 必须 |
-| **Host** | ✅ | ✅ 必须 | ❌ 禁止 | ❌ 否 | ❌ 否 | ✅ 通过成员 |
-| **User** | ✅ | ✅ 必须 | ❌ 禁止 | ❌ 否 | ❌ 否 | ❌ 否 |
-| **Scope** | ✅ | ✅ 必须 | ❌ 禁止 | ❌ 否 | ❌ 否 | ❌ 否 |
+### 单例服务详细约束
 
-#### Service 详细约束
+**基本约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制 |
-| 修饰符 | 不能是 abstract | 需要实例化 |
-| 修饰符 | 不能是 static | 需要实例化 |
-| 泛型 | 不能是开放泛型 | 需要具体类型 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| 约束项 | 要求 | 原因 |
+|--------|------|------|
+| 类型 | 必须是 class | 需要实例化 |
+| 继承 | 不能是 Node | Node 生命周期由 Godot 控制,与 DI 容器冲突 |
+| 修饰符 | 不能是 abstract 或 static | 需要实例化 |
+| 泛型 | 不能是开放泛型 | 需要具体类型来实例化 |
+| 声明 | 必须是 partial | 源生成器需要扩展类 |
 
-#### Host 详细约束
+**类型约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 必须是 Node | 需要场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| 类型 | 是否允许 | 说明 |
+|------|----------|------|
+| 非Node class | ✅ | **推荐** |
+| Host / Host + User | ❌ | 应该通过成员提供服务 |
+| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
+| User | ❌ | 无静态约束，无法保证生命周期 |
+| Scope | ❌ | 容器不能作为服务 |
+| 其他类型 | ❌ | 不支持 |
 
-#### User 详细约束
+**暴露类型约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 必须是 Node | 需要场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| 类型 | 是否允许 | 说明 |
+|------|----------|------|
+| 已实现的 interface | ✅ | **推荐** |
+| 已继承的 class | ⚠️        | 允许但不推荐 |
+| 未实现的 interface | ❌ | 无意义 |
+| 未继承的 class | ❌ | 无意义 |
 
-#### Scope 详细约束
+**构造函数约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 必须是 Node | 利用场景树实现层级 |
-| 接口 | 必须实现 IScope | 框架识别标志 |
-| 特性 | 必须有 [Modules] | 声明管理的服务 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| 约束 | 要求 |
+|------|------|
+| 可见性 | 至少有一个非静态构造函数 |
+| 多构造函数 | 必须用 [InjectConstructor] 指定 |
 
----
-
-### 注入类型约束
-
-可以作为 `[Inject]` 成员类型或 Service 构造函数参数类型的类型。
+**构造函数参数类型约束**
 
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
 | interface | ✅ | **推荐方式** |
-| class (普通) | ✅ | 允许但不如接口灵活 |
-| Node | ❌ | 生命周期由 Godot 控制 |
-| Host | ❌ | Host 不是服务 |
-| User | ❌ | User 不是服务 |
-| Scope | ❌ | Scope 不是服务 |
-| abstract class | ❌ | 无法实例化 |
-| static class | ❌ | 无法实例化 |
-| 开放泛型 | ❌ | 无法实例化 |
-| array | ❌ | 不支持 |
-| pointer | ❌ | 不支持 |
-| delegate | ❌ | 不支持 |
-| dynamic | ❌ | 无法静态分析 |
-
-**代码示例**：
-
-```csharp
-[User]
-public partial class MyComponent : Node
-{
-    [Inject] private IService _service;           // ✅ 接口
-    [Inject] private ConcreteClass _concrete;     // ✅ 普通类（不推荐）
-    [Inject] private Node _node;                  // ❌ Node
-    [Inject] private MyHost _host;                // ❌ Host 类型
-    [Inject] private MyUser _user;                // ❌ User 类型
-    [Inject] private MyScope _scope;              // ❌ Scope 类型
-    [Inject] private AbstractClass _abstract;     // ❌ 抽象类
-}
-```
+| 非Node class | ⚠️        | 允许但不推荐 |
+| Host / Host + User | ⚠️ | 允许但不推荐，应该依赖 Host 所暴露的接口 |
+| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
+| User | ❌ | 无静态约束，无法保证生命周期 |
+| Scope | ❌ | 容器不能作为服务 |
+| 其他类型 | ❌ | 不支持 |
 
 ---
 
-### 服务实现类型约束
+### Host 详细约束
 
-标记为 `[Singleton]` 的类型。
+**基本约束**
+
+| 约束项        | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
+
+**Host Singleton 成员类型约束**
 
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
-| class | ✅ | 必须是 class |
-| sealed class | ✅ | 推荐 |
-| abstract class | ❌ | 无法实例化 |
-| static class | ❌ | 无法实例化 |
-| Node | ❌ | 生命周期冲突 |
-| Host | ❌ | Host 不是 Service |
-| User | ❌ | User 不是 Service |
-| Scope | ❌ | Scope 不是 Service |
-| interface | ❌ | 不能作为实现类型 |
-| 开放泛型 | ❌ | 无法实例化 |
-| struct | ❌ | 不支持 |
+| 非Node class | ✅ | **推荐** |
+| Host / Host + User（自身类型） | ✅ | 可以将自己暴露为服务 |
+| Host / Host + User（非自身类型） | ❌ | 不允许 Host 互相嵌套 |
+| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
+| User | ❌ | 无静态约束，无法保证生命周期 |
+| Scope | ❌ | 不允许嵌套容器 |
+| 其他类型 | ❌ | 不支持 |
 
----
-
-### 暴露类型约束
-
-可以在 `[Singleton(typeof(...))]` 中指定的类型。
+**Host Singleton 成员暴露类型约束**
 
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
-| interface | ✅ | **强烈推荐** |
-| concrete class | ✅ | 允许 (会产生 Warning) |
-| sealed class | ✅ | 允许 |
-| abstract class | ❌ | 无意义 |
-| Node | ❌ | 不允许 |
-| Host/User/Scope | ❌ | 不允许 |
-| 开放泛型 | ❌ | 不允许 |
-
-**最佳实践**：
-
-```csharp
-// ✅ 推荐: 暴露接口
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-
-// ⚠️ 允许但产生 Warning: 暴露具体类
-[Singleton(typeof(GameConfig))]
-public partial class GameConfig
-{
-    public string GameName { get; set; }
-}
-
-// ✅ 暴露多个接口
-[Singleton(typeof(IReader), typeof(IWriter))]
-public partial class FileService : IReader, IWriter { }
-```
+| 已实现的 interface | ✅ | **推荐** |
+| 已继承的 class非Node class | ⚠️        | 允许但不推荐 |
+| 未实现的 interface | ❌ | 无意义 |
+| 未继承的 class | ❌ | 无意义 |
 
 ---
 
-### 其他约束
+### User 详细约束
 
-#### User Inject 成员约束
+**基本约束**
 
-| 约束 | 要求 | 诊断代码 |
-|------|------|----------|
-| 成员类型 | 必须是有效的 Inject Type | GDI_M040 |
-| 成员类型 | 不能是 Host 类型 | GDI_M041 |
-| 成员类型 | 不能是 User 类型 | GDI_M042 |
-| 成员类型 | 不能是 Scope 类型 | GDI_M043 |
-| static | 不允许 | GDI_M044 |
-| 字段 | 允许 (不能是 readonly) | GDI_M020 |
-| 属性 | 必须有 setter | GDI_M020 |
+| **约束项**    | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
-#### Host Singleton 成员约束
+**User Inject 成员类型约束**
 
-| 约束 | 要求 | 诊断代码 |
-|------|------|----------|
-| 成员类型 | 可以是任意类型 (包括 Host 自身) | - |
-| 成员类型 | 不能是标记为 Service 的类型 | GDI_M050 |
-| 暴露类型 | 必须是有效的 Exposed Type | - |
-| 暴露类型 | 推荐使用 interface | GDI_M060 (Warning) |
-| static | 不允许 | GDI_M045 |
-| 字段 | 允许 | - |
-| 属性 | 必须有 getter | GDI_M030 |
+| 类型 | 是否允许 | 说明 |
+|------|----------|------|
+| interface | ✅ | **推荐方式** |
+| 非Node class | ⚠️        | 允许但不推荐 |
+| Host / Host + User | ⚠️ | 允许但不推荐，应该依赖 Host 所暴露的接口 |
+| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
+| User | ❌ | 无静态约束，无法保证生命周期 |
+| Scope | ❌ | 容器不能作为服务 |
+| 其他类型 | ❌ | 不支持 |
 
-#### 构造函数约束
+---
 
-| 约束 | 要求 | 诊断代码 |
-|------|------|----------|
-| 可见性 | 至少有一个 public 构造函数 | GDI_S010 |
-| 多构造函数 | 必须用 [InjectConstructor] 指定 | GDI_S011 |
-| 参数类型 | 必须是有效的 Inject Type | GDI_S020 |
+### Scope 详细约束
+
+| **约束项**    | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
+| Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 ---
 
 ## API 参考
 
-### 特性 (Attributes)
+### 特性
 
-#### SingletonAttribute
+#### [Singleton]
 
 标记一个类为 Singleton 生命周期的服务，或标记 Host 成员为暴露的服务。
 
@@ -1168,31 +1010,22 @@ namespace GodotSharpDI.Abstractions;
 )]
 public sealed class SingletonAttribute : Attribute
 {
-    public Type[] ServiceTypes { get; }
+    public Type[] ExposedTypes { get; }
     
-    public SingletonAttribute(params Type[] serviceTypes);
+    public SingletonAttribute(params Type[] exposedTypes) { }
 }
 ```
+**使用场景**：
 
-**用法**：
+1. 在 Service 类上：将类标记为单例服务
+2. 在 Host 成员上：将成员暴露为服务
 
-```csharp
-// 在类上 (服务)
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
+**参数**：
 
-// 在成员上 (Host)
-[Host]
-public partial class GameManager : Node, IGameState
-{
-    [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
-}
-```
-
----
-
-#### HostAttribute
+* `serviceTypes`：要暴露的服务类型（接口或基类）
+* 为空时：Service 类暴露自身；Host 成员暴露其自身类型
+* 
+#### [Host]
 
 标记一个类为 Host (服务提供者)。
 
@@ -1203,9 +1036,7 @@ namespace GodotSharpDI.Abstractions;
 public sealed class HostAttribute : Attribute { }
 ```
 
----
-
-#### UserAttribute
+#### [User]
 
 标记一个类为 User (服务消费者)。
 
@@ -1216,9 +1047,7 @@ namespace GodotSharpDI.Abstractions;
 public sealed class UserAttribute : Attribute { }
 ```
 
----
-
-#### InjectAttribute
+#### [Inject]
 
 标记一个字段或属性为注入目标。
 
@@ -1229,20 +1058,13 @@ namespace GodotSharpDI.Abstractions;
 public sealed class InjectAttribute : Attribute { }
 ```
 
-**用法**：
+**使用规则**：
 
-```csharp
-[User]
-public partial class MyComponent : Node
-{
-    [Inject] private IService _service;           // 字段
-    [Inject] public IConfig Config { get; set; }  // 属性 (需要 setter)
-}
-```
+* 只能用于 User 或 Host+User 类型
+* 成员必须可写（字段不能是 readonly，属性必须有 setter）
+* 不能是 static
 
----
-
-#### InjectConstructorAttribute
+#### [InjectConstructor]
 
 指定服务使用的构造函数。
 
@@ -1253,20 +1075,11 @@ namespace GodotSharpDI.Abstractions;
 public sealed class InjectConstructorAttribute : Attribute { }
 ```
 
-**用法**：
+**使用规则**：
 
-```csharp
-[Singleton(typeof(IService))]
-public partial class MyService : IService
-{
-    [InjectConstructor]
-    public MyService(IDep1 dep1) { }
-    
-    public MyService(IDep1 dep1, IDep2 dep2) { }
-}
-```
-
----
+* 只能用于单例服务类型
+* 当存在多个构造函数时必须使用
+* 必须唯一（只能标记一个构造函数）
 
 #### ModulesAttribute
 
@@ -1290,19 +1103,9 @@ public sealed class ModulesAttribute : Attribute
 | `Services` | Scope 创建和管理的 Service 类型列表 |
 | `Hosts` | Scope 期望接收的 Host 类型列表 |
 
-**用法**：
-
-```csharp
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(CombatSystem)],
-    Hosts = [typeof(GameManager), typeof(WorldManager)]
-)]
-public partial class GameScope : Node, IScope { }
-```
-
 ---
 
-### 接口 (Interfaces)
+### 接口
 
 #### IScope
 
@@ -1313,19 +1116,19 @@ namespace GodotSharpDI.Abstractions;
 
 public interface IScope
 {
-    void RegisterService<T>(T instance) where T : notnull;
-    void UnregisterService<T>() where T : notnull;
+    void ProvideService<T>(T instance) where T : notnull;
     void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
 }
 ```
 
-**方法**:
+方法：
 
-- `RegisterService<T>`：注册服务实例（由框架自动生成并调用，手动调用会触发 GDI_U001）
-- `UnregisterService<T>`：注销服务（由框架自动生成并调用，手动调用会触发 GDI_U001）
-- `ResolveDependency<T>`：解析依赖：如果服务已注册，立即回调；否则加入等待队列（由框架自动生成并调用，手动调用会触发 GDI_U001）
+| 方法                   | 描述     | 何时使用                     |
+| ---------------------- | -------- | ---------------------------- |
+| `ProvideService<T>`    | 提供服务 | 由框架自动调用，无需手动调用 |
+| `ResolveDependency<T>` | 请求依赖 | 由框架自动调用，无需手动调用 |
 
----
+> ⚠️ 重要提示：这些方法由框架管理，不应手动调用。框架会在 User、Host 和 Service 代码中生成适当的调用。
 
 #### IServicesReady
 
@@ -1340,47 +1143,26 @@ public interface IServicesReady
 }
 ```
 
-**用法**：
+**使用规则**：
 
-```csharp
-[User]
-public partial class MyComponent : Node, IServicesReady
-{
-    [Inject] private IServiceA _a;
-    [Inject] private IServiceB _b;
-    
-    public void OnServicesReady()
-    {
-        // 所有依赖已注入,安全使用
-        _a.Initialize();
-        _b.Connect(_a);
-    }
-    
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-```
+* 只能由 User 或 Host+User 类型实现
+* 在所有 [Inject] 成员解析完成后立即调用
+* 适用于依赖注入服务的初始化逻辑
 
 ---
 
 ### 生成的代码
 
-#### Hosts 和 User 都会生成的方法
+#### 节点声明周期相关方法
 
-对于标记为 `[Host]` 或 `[User]` 的类型，框架生成：
+对于标记为 `[Host]` 、 `[User]` 或 `[Scope]` 的类型，框架生成：
 
 ```csharp
 // Scope 引用
-private IScope? _serviceScope;
+private IScope? _parentScope;
 
 // 获取最近的 Scope
-private IScope? GetServiceScope();
-
-// 附加到 Scope (注入依赖)
-private void AttachToScope();
-
-// 从 Scope 分离 (Host 用)
-private void UnattachToScope();
+private IScope? GetParentScope();
 
 // 生命周期通知处理
 public override void _Notification(int what);
@@ -1392,7 +1174,7 @@ public override void _Notification(int what);
 
 ```csharp
 // 解析用户依赖
-private void ResolveUserDependencies(IScope scope);
+private void ResolveUserDependencies();
 ```
 
 #### Host 生成的方法
@@ -1400,16 +1182,13 @@ private void ResolveUserDependencies(IScope scope);
 对于标记为 `[Host]` 的类型，框架生成：
 
 ```csharp
-// 注册 Host 服务到 Scope
-private void AttachHostServices(IScope scope);
-
-// 从 Scope 注销 Host 服务
-private void UnattachHostServices(IScope scope);
+// 向 Scope 提供服务 
+private void ProvideHostServices();
 ```
 
-#### 服务生成的方法
+#### 单例服务生成的方法
 
-对于标记为 `[Singleton]` 的服务，框架生成工厂方法：
+对于标记为 `[Singleton]` 的单例服务，框架生成工厂方法：
 
 ```csharp
 // 创建服务实例
@@ -1431,19 +1210,15 @@ private static readonly HashSet<Type> ServiceTypes;
 private readonly Dictionary<Type, object> _services;
 private readonly Dictionary<Type, List<Action<object>>> _waiters;
 private readonly HashSet<IDisposable> _disposableSingletons;
-private IScope? _parentScope;
 
-// 生命周期方法
-private IScope? GetParentScope();
+// 容器相关方法
 private void InstantiateScopeSingletons();
 private void DisposeScopeSingletons();
 private void CheckWaitList();
-public override void _Notification(int what);
 
 // IScope 实现
+void IScope.ProvideService<T>(T instance);
 void IScope.ResolveDependency<T>(Action<T> onResolved);
-void IScope.RegisterService<T>(T instance);
-void IScope.UnregisterService<T>();
 ```
 
 ---
@@ -1452,37 +1227,82 @@ void IScope.UnregisterService<T>();
 
 #### 生命周期事件
 
-框架监听以下 Godot 通知：
+**EnterTree（从上到下）**
 
-| 通知 | 处理 |
-|------|------|
-| `NotificationEnterTree` | User：附加到 Scope，触发注入<br>Host：注册服务<br>Scope： 清除父 Scope 缓存 |
-| `NotificationExitTree` | User： 清除 Scope 引用<br>Host： 注销服务<br>Scope： 清除父 Scope 缓存 |
-| `NotificationReady` | Scope： 创建 Singleton，检查等待队列 |
-| `NotificationPredelete` | Scope： 释放所有服务 |
+```
+1. Scope EnterTree
+   └→ 清理 _parentScope 缓存
+
+2. Host EnterTree
+   └→ 清理 _parentScope 缓存
+
+3. User EnterTree
+   └→ 清理 _parentScope 缓存
+```
+
+**Ready（从下到上）**
+
+```
+1. Host Ready
+   └→ 提供 Host Service ⭐
+
+2. User Ready
+   └→ 解析依赖 ⭐
+   └→ OnServicesReady() ⭐
+
+3. Scope Ready
+   └→ 创建所有 Scope Service ⭐
+   └→ 检查等待队列是否为空 ⭐
+```
+
+**ExitTree（从下到上）**
+
+```
+1. User ExitTree
+   └→ 清理 _parentScope 缓存
+
+2. Host ExitTree
+   └→ 清理 _parentScope 缓存
+
+3. Scope ExitTree
+   └→ 清理 _parentScope 缓存
+```
+
+**Predelete**
+
+```
+1. User Predelete
+   └→ (不需要额外操作)
+
+2. Host Predelete
+   └→ (不需要额外操作)
+
+3. Scope ExitTree
+   └→ 释放所有单例 ⭐
+```
 
 #### 场景树查找
 
 获取 Scope 的逻辑：
 
 ```csharp
-private IScope? GetServiceScope()
+private IScope? GetParentScope()
 {
-    if (_serviceScope is not null)
-        return _serviceScope;
+    if (_parentScope is not null)
+        return _parentScope;
     
     var parent = GetParent();
     while (parent is not null)
     {
         if (parent is IScope scope)
         {
-            _serviceScope = scope;
-            return _serviceScope;
+            _parentScope = scope;
+            return _parentScope;
         }
         parent = parent.GetParent();
     }
     
-    GD.PushError("没有找到最近的 Service Scope");
+    GD.PushError("没有找到最近的 Parent Scope");
     return null;
 }
 ```
@@ -1574,6 +1394,47 @@ public partial class PlayerStatsService : IPlayerStats { }
 // ⚠️ 不推荐：暴露具体类
 [Singleton(typeof(ConfigService))]
 public partial class ConfigService { }
+
+```
+
+```csharp
+// ✅ 推荐
+
+// Host 暴露接口
+[Host]
+public partial class GameManager : Node, IGameManager
+{
+    [Singleton(typeof(IGameManager))]
+    private GameManager Self => this; // ✅ 推荐
+    
+    [Singleton(typeof(ICombatSystem))]
+    private CombatSystemImpl _combat = new(); // ✅ 推荐
+}
+
+// User 注入接口
+[User]
+public partial class Player : Node
+{
+    [Inject] private IGameManager _gameManager; // ✅ 推荐
+    [Inject] private ICombatSystem _combat; // ✅ 推荐
+}
+
+// ⚠️ 不推荐
+
+// Host 直接暴露类型
+[Host]
+public partial class GameManager : Node
+{
+    [Singleton] private GameManager Self => this; // ⚠️ 会产生警告 
+    [Singleton] private CombatSystemImpl _combat = new(); // ⚠️ 会产生警告 
+}
+
+// User 注入接口
+[User]
+public partial class Player : Node
+{
+    [Inject] private GameManager _state; // ⚠️ 会产生警告 
+}
 ```
 
 **原因**:
@@ -1617,7 +1478,7 @@ public partial class GameManager : Node, IGameState, IServicesReady
 
 ## 使用服务工厂
 
-**工厂是 Singleton：**
+**工厂是单例服务：**
 
 ```csharp
 [Singleton(typeof(IFactory))]
@@ -1718,7 +1579,7 @@ public partial class ComplexFactory : IComplexFactory
 #### 4. 拓展：ECS 集成示例
 
 ```csharp
-// System 是 Singleton 服务
+// System 是 单例服务
 
 [Singleton(typeof(IMovementSystem))]
 public partial class MovementSystem : IMovementSystem { ... }
@@ -1787,9 +1648,9 @@ public class Projectile : IDisposable
 
 ## 诊断代码
 
-框架提供完整的编译时错误检查。完整诊断代码列表请参阅 [DIAGNOSTICS.md](./DIAGNOSTICS.zh-CN.md)。
+框架提供完整的编译时错误检查。完整诊断代码列表请参阅 [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md)。
 
-**诊断代码分类**:
+**诊断代码分类**：
 
 | 前缀 | 类别 | 说明 |
 |------|------|------|
@@ -1826,3 +1687,4 @@ MIT License
 ### 4. 诊断
 
 - [ ] 诊断生成器内部错误（GDI_E）
+

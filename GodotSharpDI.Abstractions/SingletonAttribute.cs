@@ -9,10 +9,10 @@ namespace GodotSharpDI.Abstractions;
 )]
 public sealed class SingletonAttribute : Attribute
 {
-    public Type[] ServiceTypes { get; }
+    public Type[] ExposedTypes { get; }
 
-    public SingletonAttribute(params Type[] serviceTypes)
+    public SingletonAttribute(params Type[] exposedTypes)
     {
-        ServiceTypes = serviceTypes;
+        ExposedTypes = exposedTypes;
     }
 }

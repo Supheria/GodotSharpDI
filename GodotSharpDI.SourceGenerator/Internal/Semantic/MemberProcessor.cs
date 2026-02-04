@@ -82,6 +82,8 @@ internal sealed class MemberProcessor
                 members.Add(memberInfo);
         }
 
+        CheckMembersEmpty(members);
+
         return members.ToImmutable();
     }
 
@@ -163,96 +165,22 @@ internal sealed class MemberProcessor
         if (memberType == null)
             return null;
 
-        // 验证类型
+        // 验证 Inject 成员
         if (hasInject)
         {
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
         }
 
-        // 获取暴露类型
         var exposedTypes = ImmutableArray<INamedTypeSymbol>.Empty;
+
+        // 验证 Inject 成员
         if (hasSingleton)
         {
-            // 检查成员类型是否是 Service 类型（Host 不应直接持有 Service 实例）
-            if (_symbols.IsServiceType(memberType))
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostSingletonMemberIsServiceType,
-                        location,
-                        member.Name,
-                        memberType.ToDisplayString()
-                    )
-                );
+            if (!ValidateSingletonMemberType(memberType, member, location))
                 return null;
-            }
-
             exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
-
-            foreach (var exposedType in exposedTypes)
-            {
-                // 检查暴露类型是否是可注入类型
-                if (!exposedType.IsValidInjectType(_symbols))
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.HostMemberExposedTypeNotInjectable,
-                            location,
-                            _raw.Symbol.Name,
-                            exposedType.ToDisplayString()
-                        )
-                    );
-                }
-
-                // 检查暴露类型是否是接口（Warning）
-                if (exposedType.TypeKind != TypeKind.Interface)
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.HostMemberExposedTypeShouldBeInterface,
-                            location,
-                            exposedType.ToDisplayString()
-                        )
-                    );
-                }
-
-                // 检查是否实现了暴露的接口
-                if (exposedType.TypeKind == TypeKind.Interface)
-                {
-                    if (!memberType.ImplementsInterface(exposedType))
-                    {
-                        _diagnostics.Add(
-                            DiagnosticBuilder.Create(
-                                DiagnosticDescriptors.HostMemberExposedTypeNotImplemented,
-                                location,
-                                member.Name,
-                                exposedType.ToDisplayString(),
-                                memberType.ToDisplayString()
-                            )
-                        );
-                    }
-                }
-                // 检查是否是继承关系
-                else if (exposedType.TypeKind == TypeKind.Class)
-                {
-                    if (
-                        !SymbolEqualityComparer.Default.Equals(memberType, exposedType)
-                        && !memberType.InheritsFrom(exposedType)
-                    )
-                    {
-                        _diagnostics.Add(
-                            DiagnosticBuilder.Create(
-                                DiagnosticDescriptors.HostMemberExposedTypeNotImplemented,
-                                location,
-                                member.Name,
-                                exposedType.ToDisplayString(),
-                                memberType.ToDisplayString()
-                            )
-                        );
-                    }
-                }
-            }
+            ValidateSingletonMemberExposedTypes(memberType, member, location, exposedTypes);
         }
 
         return new MemberInfo(
@@ -266,7 +194,21 @@ internal sealed class MemberProcessor
 
     private bool ValidateInjectMemberType(ITypeSymbol memberType, ISymbol member, Location location)
     {
-        // 检查是否是 Host 类型
+        // 必须是接口或有效类
+        if (!memberType.IsValidInterfaceOrConcreteClass())
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectMemberTypeIsInvalid,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 可以是 Host 类型吗，但不推荐并产生警告
         if (_symbols.IsHostType(memberType))
         {
             _diagnostics.Add(
@@ -277,10 +219,10 @@ internal sealed class MemberProcessor
                     memberType.ToDisplayString()
                 )
             );
-            return false;
+            return true;
         }
 
-        // 检查是否是 User 类型
+        // 不能是 User 类型
         if (_symbols.IsUserType(memberType))
         {
             _diagnostics.Add(
@@ -294,7 +236,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 检查是否是 Scope 类型
+        // 不能是 Scope 类型
         if (_symbols.ImplementsIScope(memberType))
         {
             _diagnostics.Add(
@@ -308,11 +250,123 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        if (!memberType.IsValidInjectType(_symbols))
+        // 不能是普通 Node
+        if (_symbols.IsNode(memberType))
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.InjectMemberInvalidType,
+                    DiagnosticDescriptors.InjectMemberIsRegularNode,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 可以是非接口，但不推荐并产生警告
+        if (memberType.TypeKind != TypeKind.Interface)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectMemberTypeShouldBeInterface,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+        }
+
+        return true;
+    }
+
+    private bool ValidateSingletonMemberType(
+        ITypeSymbol memberType,
+        ISymbol member,
+        Location location
+    )
+    {
+        // 必须是接口或有效类
+        if (!memberType.IsValidInterfaceOrConcreteClass())
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.SingletonMemberTypeIsInvalid,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是 Service 类型（Host 不应直接持有 Service 实例）
+        if (_symbols.IsServiceType(memberType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.SingletonMemberIsServiceType,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 检查 Host 类型
+        if (_symbols.IsHostType(memberType))
+        {
+            // 不允许除自身类型之外的 Host 类型
+            if (!SymbolEqualityComparer.Default.Equals(memberType, _raw.Symbol))
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.SingletonMemberIsHostType,
+                        location,
+                        member.Name,
+                        memberType.ToDisplayString()
+                    )
+                );
+                return false;
+            }
+            return true;
+        }
+
+        // 不能是 User 类型
+        if (_symbols.IsUserType(memberType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.SingletonMemberIsUserType,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是 Scope 类型
+        if (_symbols.ImplementsIScope(memberType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.SingletonMemberIsScopeType,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是普通 Node
+        if (_symbols.IsNode(memberType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.SingletonMemberIsRegularNode,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -322,5 +376,96 @@ internal sealed class MemberProcessor
         }
 
         return true;
+    }
+
+    private void ValidateSingletonMemberExposedTypes(
+        ITypeSymbol memberType,
+        ISymbol member,
+        Location location,
+        ImmutableArray<INamedTypeSymbol> exposedTypes
+    )
+    {
+        foreach (var exposedType in exposedTypes)
+        {
+            // 可以是非接口，但不推荐并产生警告
+            if (exposedType.TypeKind != TypeKind.Interface)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.SingletonMemberExposedTypeShouldBeInterface,
+                        location,
+                        exposedType.ToDisplayString()
+                    )
+                );
+            }
+
+            // 检查是否实现了暴露的接口
+            if (exposedType.TypeKind == TypeKind.Interface)
+            {
+                if (!memberType.ImplementsInterface(exposedType))
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.SingletonMemberExposedTypeNotImplemented,
+                            location,
+                            member.Name,
+                            exposedType.ToDisplayString(),
+                            memberType.ToDisplayString()
+                        )
+                    );
+                }
+            }
+            // 检查是否是继承关系
+            else if (exposedType.TypeKind == TypeKind.Class)
+            {
+                if (
+                    !SymbolEqualityComparer.Default.Equals(memberType, exposedType)
+                    && !memberType.InheritsFrom(exposedType)
+                )
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.SingletonMemberExposedTypeNotImplemented,
+                            location,
+                            member.Name,
+                            exposedType.ToDisplayString(),
+                            memberType.ToDisplayString()
+                        )
+                    );
+                }
+            }
+        }
+    }
+
+    private void CheckMembersEmpty(ImmutableArray<MemberInfo>.Builder memberInfos)
+    {
+        if (_role == TypeRole.Host || _role == TypeRole.HostAndUser)
+        {
+            var singletonMembers = memberInfos.Where(m => m.IsSingletonMember).ToArray();
+            if (singletonMembers.Length == 0)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.HostMissingSingletonMember,
+                        _raw.Location,
+                        _raw.Symbol.Name
+                    )
+                );
+            }
+        }
+        if (_role == TypeRole.User || _role == TypeRole.HostAndUser)
+        {
+            var injectMembers = memberInfos.Where(m => m.IsInjectMember).ToArray();
+            if (injectMembers.Length == 0)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.UserMissingInjectMember,
+                        _raw.Location,
+                        _raw.Symbol.Name
+                    )
+                );
+            }
+        }
     }
 }
