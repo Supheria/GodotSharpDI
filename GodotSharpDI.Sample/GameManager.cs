@@ -13,7 +13,7 @@ public interface IGameState
 [Host]
 public sealed partial class GameManager : Node, IGameState
 {
-    [Singleton(typeof(IGameState))]
+    [Singleton(typeof(GameManager))]
     private GameManager Self
     {
         get

@@ -268,7 +268,7 @@ internal sealed class MemberProcessor
 
     private bool ValidateInjectMemberType(ITypeSymbol memberType, ISymbol member, Location location)
     {
-        // 检查是否是 Host 类型
+        // 检查是否是 Host 类型（允许但不推荐）
         if (_symbols.IsHostType(memberType))
         {
             _diagnostics.Add(
@@ -279,7 +279,6 @@ internal sealed class MemberProcessor
                     memberType.ToDisplayString()
                 )
             );
-            return false;
         }
 
         // 检查是否是 User 类型

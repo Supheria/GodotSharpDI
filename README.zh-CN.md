@@ -1394,6 +1394,47 @@ public partial class PlayerStatsService : IPlayerStats { }
 // ⚠️ 不推荐：暴露具体类
 [Singleton(typeof(ConfigService))]
 public partial class ConfigService { }
+
+```
+
+```csharp
+// ✅ 推荐
+
+// Host 暴露接口
+[Host]
+public partial class GameManager : Node, IGameManager
+{
+    [Singleton(typeof(IGameManager))]
+    private GameManager Self => this; // ✅ 推荐
+    
+    [Singleton(typeof(ICombatSystem))]
+    private CombatSystemImpl _combat = new(); // ✅ 推荐
+}
+
+// User 注入接口
+[User]
+public partial class Player : Node
+{
+    [Inject] private IGameManager _gameManager; // ✅ 推荐
+    [Inject] private ICombatSystem _combat; // ✅ 推荐
+}
+
+// ⚠️ 不推荐
+
+// Host 直接暴露类型
+[Host]
+public partial class GameManager : Node
+{
+    [Singleton] private GameManager Self => this; // ⚠️ 会产生警告 
+    [Singleton] private CombatSystemImpl _combat = new(); // ⚠️ 会产生警告 
+}
+
+// User 注入接口
+[User]
+public partial class Player : Node
+{
+    [Inject] private GameManager _state; // ⚠️ 会产生警告 
+}
 ```
 
 **原因**:

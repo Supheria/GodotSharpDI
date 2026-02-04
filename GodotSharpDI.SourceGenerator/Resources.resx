@@ -114,8 +114,8 @@
     <data name="DiClassMustBePartial" xml:space="preserve">
     <value>DI-relative class '{0}' must be declared as partial to enable code generation</value>
   </data>
-    <data name="InjectMemberIsHostType" xml:space="preserve">
-    <value>[Inject] member '{0}' has type '{1}', which is a [Host] type and cannot be injected</value>
+  <data name="InjectMemberIsHostType" xml:space="preserve">
+    <value>[Inject] member '{0}' has type '{1}', which is a [Host] type. Consider using interfaces exposed by Host instead for better testability and loose coupling</value>
   </data>
     <data name="InjectMemberIsUserType" xml:space="preserve">
     <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>

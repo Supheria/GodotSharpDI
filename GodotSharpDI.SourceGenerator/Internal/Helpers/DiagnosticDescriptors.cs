@@ -222,7 +222,8 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InjectMemberIsHostType = Member(
         "041",
-        Resources.InjectMemberIsHostType
+        Resources.InjectMemberIsHostType,
+        DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor InjectMemberIsUserType = Member(

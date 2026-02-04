@@ -328,26 +328,26 @@ public partial class MyUser : Node
 
 ### GDI_M041: InjectMemberIsHostType
 
-**消息**: `[Inject] member '{0}' has type '{1}', which is a [Host] type and cannot be injected`
+**消息**: `[Inject] member '{0}' has type '{1}', which is a [Host] type. Consider using interfaces exposed by Host instead for better testability and loose coupling`
 
-**原因**: 试图注入 Host 类型。
+**原因**: 注入目标的类型是 Host 类型而不是 Host 所暴露的接口。
 
 ```csharp
-// ❌ 错误
+// ⚠️ 警告
 [Host]
-public partial class GameManager : Node { }
+public partial class GameManager : Node, IGameManager { ... }
 
 [User]
 public partial class MyUser : Node
 {
-    [Inject] private GameManager _manager;  // Host 不可注入
+    [Inject] private GameManager _manager;
 }
 
-// ✅ 正确：注入 Host 暴露的接口
+// ✅ 推荐：注入 Host 暴露的接口
 [User]
 public partial class MyUser : Node
 {
-    [Inject] private IGameState _state;  // 注入接口
+    [Inject] private IGameManager _state;  // 注入接口
 }
 ```
 

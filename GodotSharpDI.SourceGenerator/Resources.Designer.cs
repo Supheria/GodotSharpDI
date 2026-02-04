@@ -195,7 +195,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type and cannot be injected.
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [Host] type. Consider using interfaces exposed by Host instead for better testability and loose coupling.
         /// </summary>
         internal static string InjectMemberIsHostType {
             get {

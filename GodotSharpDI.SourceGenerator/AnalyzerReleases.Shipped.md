@@ -25,7 +25,7 @@
 | GDI_M020 | GDI.Member          | Error    | [Inject] member must be writable                               |
 | GDI_M030 | GDI.Member          | Error    | [Singleton] property must have getter                          |
 | GDI_M040 | GDI.Member          | Error    | Injected member type must be a Service                         |
-| GDI_M041 | GDI.Member          | Error    | Cannot inject Host type                                        |
+| GDI_M041 | GDI.Member          | Warning  | Should not inject Host type directly (prefer interfaces)       |
 | GDI_M042 | GDI.Member          | Error    | Cannot inject User type                                        |
 | GDI_M043 | GDI.Member          | Error    | Cannot inject Scope type                                       |
 | GDI_M044 | GDI.Member          | Error    | [Inject] member cannot be static                               |

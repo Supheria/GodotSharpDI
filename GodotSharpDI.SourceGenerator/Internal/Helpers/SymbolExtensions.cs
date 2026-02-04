@@ -91,11 +91,26 @@ internal static class SymbolExtensions
     /// </summary>
     public static bool IsValidInjectType(this ITypeSymbol type, CachedSymbols symbols)
     {
-        // 不能是 Node、Host、User、Scope
-        if (symbols.IsNode(type))
+        // 1. 检查 Node 类型
+        // Host 类型 - 允许
+        if (symbols.IsHostType(type))
+            return true;
+
+        // User 类型 - 完全禁止
+        if (symbols.IsUserType(type))
             return false;
 
-        // 不能是抽象类、静态类
+        // Scope 类型 - 完全禁止
+        if (symbols.ImplementsIScope(type))
+            return false;
+
+        // 普通 Node 类型 - 完全禁止
+        if (symbols.IsNode(type))
+        {
+            return false;
+        }
+
+        // 2. 检查不能是抽象类、静态类
         if (type is INamedTypeSymbol named)
         {
             if (named.IsAbstract && named.TypeKind == TypeKind.Class)
@@ -104,11 +119,11 @@ internal static class SymbolExtensions
                 return false;
         }
 
-        // 不能是开放泛型
+        // 3. 不能是开放泛型
         if (type is INamedTypeSymbol generic && generic.IsUnboundGenericType)
             return false;
 
-        // 必须是 interface 或 class
+        // 4. 必须是 interface 或 class
         return type.TypeKind == TypeKind.Interface || type.TypeKind == TypeKind.Class;
     }
 

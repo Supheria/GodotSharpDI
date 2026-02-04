@@ -13,7 +13,7 @@ public sealed partial class PlayerUI : Control, IServicesReady
     }
 
     [Inject]
-    private IGameState GameState
+    private GameManager GameState
     {
         set => GD.Print("PlayerUI inject Game State");
     }
