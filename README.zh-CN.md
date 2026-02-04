@@ -28,7 +28,7 @@
   - [User (消费者)](#user-消费者)
   - [Scope (容器)](#scope-容器)
 - [生命周期管理](#生命周期管理)
-  - [Singleton 生命周期](#singleton-生命周期)
+  - [单例生命周期](#单例生命周期)
   - [Scope 层级](#scope-层级)
   - [依赖注入时序](#依赖注入时序)
   - [Host + User 与循环依赖](#host--user-与循环依赖)
@@ -39,8 +39,8 @@
   - [暴露类型约束](#暴露类型约束)
   - [其他约束](#其他约束)
 - [API 参考](#api-参考)
-  - [特性 (Attributes)](#特性-attributes)
-  - [接口 (Interfaces)](#接口-interfaces)
+  - [特性](#特性)
+  - [接口](#接口)
   - [生成的代码](#生成的代码)
   - [场景树集成](#场景树集成)
 - [最佳实践](#最佳实践)
@@ -268,16 +268,6 @@ GameScope (IScope
 
 标记为 [Singleton] 的类型是纯逻辑服务，封装业务逻辑和数据处理，**不依赖 Godot Node 系统**。
 
-#### 约束
-
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制,与 DI 容器冲突 |
-| 修饰符 | 不能是 abstract 或 static | 需要实例化 |
-| 泛型 | 不能是开放泛型 | 需要具体类型来实例化 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
-
 #### 生命周期标记
 
 ```csharp
@@ -351,15 +341,6 @@ public partial class ConfigService { }
 
 Host 是 Godot Node 系统与 DI 系统之间的桥梁，它将 Node 管理的资源暴露为可注入的服务。
 
-#### 约束
-
-| 约束项        | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
-
 #### 静态性约束
 
 Host 是 Scope 的**静态**组成部分，不是动态服务提供者。
@@ -428,14 +409,6 @@ public class WorldState : IWorldState { /* ... */ }
 
 Host 可以持有和管理其他对象，并将它们暴露为服务。**这些对象的生命周期由 Host 控制。**
 
-#### Host 成员约束
-
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 成员类型 | 不能是已标记为 Service 的类型 | 避免生命周期冲突 |
-| static 成员 | 不允许 | 需要实例级别的服务 |
-| 属性 | 必须有 getter | 需要读取值来注册服务 |
-
 ```csharp
 // ❌ 错误：标记为 [Singleton]的类型只能由 Scope 持有
 [Singleton(typeof(IConfig))]
@@ -474,15 +447,6 @@ public partial class GoodHost : Node
 
 User 是依赖消费者，通过字段或属性注入接收服务依赖。
 
-#### 约束
-
-| **约束项**    | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
-
 #### User 自动注入依赖
 
 ```csharp
@@ -503,51 +467,39 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 }
 ```
 
-Node 类型的 User 会在进入场景树时自动触发注入，无需手动操作。
-
-#### Inject 成员约束
-
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 成员类型 | interface 或普通 class | 必须是可注入类型 |
-| 成员类型 | 不能是 Node/Host/User/Scope | 这些不是服务类型 |
-| static 成员 | 不允许 | 需要实例级别的注入 |
-| 属性 | 必须有 setter | 需要写入注入值 |
-
-```csharp
-[User]
-public partial class MyUser : Node
-{
-    [Inject] private IService _service;           // ✅ 正确
-    [Inject] private MyConcreteClass _concrete;   // ✅ 允许但不推荐
-    [Inject] private Node _node;                  // ❌ 错误
-    [Inject] private MyHost _host;                // ❌ 错误
-    [Inject] private static IService _static;     // ❌ 错误
-    
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-```
+> User 会在进入场景树时自动触发注入，无需手动操作。
+>
 
 #### IServicesReady 接口
 
-实现 `IServicesReady` 接口可以在所有依赖注入完成后收到通知：
+User 类型可以实现 `IServicesReady` 接口，`OnServicesReady()` 在所有 `[Inject]` 成员解析完成后被立即调用。
+```csharp
+public interface IServicesReady
+{
+    void OnServicesReady();
+}
+```
 
-⚠️ **`OnServicesReady()` 始终在 `_Ready()` 之后被调用**，因为 User 在 NotificationReady 处开始依赖解析。
+> ⚠️ **`OnServicesReady()` 始终在 `_Ready()` 之后被调用**，因为 User 在 NotificationReady 处开始依赖解析。
+
+**示例**：
 
 ```csharp
 [User]
-public partial class MyComponent : Node, IServicesReady
+public partial class UIManager : Control, IServicesReady
 {
-    [Inject] private IServiceA _a;
-    [Inject] private IServiceB _b;
-    [Inject] private IServiceC _c;
+    [Inject] private IPlayerStats _stats;
+    [Inject] private IGameState _gameState;
     
-    // 当 _a, _b, _c 都注入完成后调用
     public void OnServicesReady()
     {
-        // 安全地使用所有依赖
-        Initialize();
+        // 所有依赖已就绪，可以安全地访问它们
+        _stats.OnHealthChanged += UpdateHealthBar;
+        _gameState.OnStateChanged += UpdateGameState;
+        
+        // 初始 UI 更新
+        UpdateHealthBar(_stats.Health);
+        UpdateGameState(_gameState.CurrentState);
     }
     
     // 需要集成 Godot 生命周期
@@ -567,17 +519,6 @@ Scope 是 DI 容器，负责：
 2. 收集 Host 所提供的服务实例
 3. 处理依赖解析请求
 4. 管理自己创建的服务实例的生命周期
-
-#### 约束
-
-| **约束项**    | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
-| Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 #### 静态性约束
 
@@ -634,36 +575,6 @@ public partial class GameScope : Node, IScope
 | `Services` | Scope 创建和管理的 服务类型列表 | 必须是服务（有 [Singleton]） |
 | `Hosts` | Scope 期望接收的 Host 类型列表 | 必须是 Host（有 [Host]） |
 
-#### Scope 层级
-
-Scope 通过场景树结构形成层级关系：
-
-```
-RootScope
-├── GameManager (Host)
-├── GlobalServices...
-│
-└── LevelScope
- ├── LevelManager (Host)
- ├── LevelServices...
- │
- └── Player
-     └── PlayerUI (User)
-```
-
-**依赖解析规则**:
-
-1. 首先在当前 Scope 查找
-2. 如果未找到且服务类型不属于当前 Scope，向父 Scope 查找
-3. 递归直到根 Scope 或找到服务
-
-#### Scope 生命周期事件
-
-| 事件 | 触发时机 | 行为 |
-|------|----------|------|
-| `NotificationReady` | Node 准备就绪 | 创建所有 Singleton Service |
-| `NotificationPredelete` | Node 即将删除 | 释放所有 Service (调用 IDisposable.Dispose) |
-
 ---
 
 ## 生命周期管理
@@ -694,16 +605,28 @@ public partial class ResourceManager : IResourceManager, IDisposable
 
 ### Scope 层级结构
 
-#### 服务可见性规则
+Scope 通过场景树结构形成层级关系：
+```
+RootScope
+├── GameManager (Host)
+├── GlobalServices...
+│
+└── LevelScope
+    ├── LevelManager (Host)
+    ├── LevelServices...
+    │
+    └── Player
+        └── PlayerUI (User)
+```
 
+#### 服务可见性规则
 | 服务位置 | 可访问范围 |
-|---------|-----------|
+|-----------------|----------------|
 | RootScope | 所有后代 Scope |
 | GameScope | GameScope 和 LevelScope |
 | LevelScope | 仅 LevelScope |
 
 **示例**：
-
 ```csharp
 // RootScope
 [Modules(Services = [typeof(ConfigService)])]
@@ -717,6 +640,12 @@ public partial class GameScope : Node, IScope { }
 [Modules(Services = [typeof(EnemyService)])]
 public partial class LevelScope : Node, IScope { }
 ```
+
+> **层级规则**：
+>
+> - Scope 在场景树中向上搜索以找到其父 Scope
+> - 如果在当前 Scope 中未找到服务，则在父 Scope 中搜索
+> - 服务生命周期绑定到其定义的 Scope
 
 ---
 
@@ -942,12 +871,13 @@ class B : IB { public B(IA a) {} }
 
 **基本约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制 |
-| 修饰符 | 不能是 abstract 或者 static | 需要实例化 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| 约束项 | 要求 | 原因 |
+|--------|------|------|
+| 类型 | 必须是 class | 需要实例化 |
+| 继承 | 不能是 Node | Node 生命周期由 Godot 控制,与 DI 容器冲突 |
+| 修饰符 | 不能是 abstract 或 static | 需要实例化 |
+| 泛型 | 不能是开放泛型 | 需要具体类型来实例化 |
+| 声明 | 必须是 partial | 源生成器需要扩展类 |
 
 **类型约束**
 
@@ -994,11 +924,12 @@ class B : IB { public B(IA a) {} }
 
 **基本约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 必须是 Node | 需要场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| 约束项        | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 **Host Singleton 成员类型约束**
 
@@ -1027,11 +958,12 @@ class B : IB { public B(IA a) {} }
 
 **基本约束**
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 必须是 Node | 需要场景树生命周期 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| **约束项**    | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 **User Inject 成员类型约束**
 
@@ -1049,13 +981,14 @@ class B : IB { public B(IA a) {} }
 
 ### Scope 详细约束
 
-| 约束 | 要求 | 原因 |
-|------|------|------|
-| 类型 | class | 需要实例化 |
-| 继承 | 必须是 Node | 利用场景树实现层级 |
-| 接口 | 必须实现 IScope | 框架识别标志 |
-| 特性 | 必须有 [Modules] | 声明管理的服务 |
-| 声明 | 必须是 partial | 源生成器需要扩展 |
+| **约束项**    | 要求                                                         | 原因                                         |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| 类型          | 必须是 class                                                 | 需要实例化                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
+| Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
 ---
 

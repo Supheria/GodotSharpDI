@@ -28,7 +28,7 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [User (Consumer)](#user-consumer)
   - [Scope (Container)](#scope-container)
 - [Lifecycle Management](#lifecycle-management)
-  - [Singleton Lifecycle](#singleton-lifecycle)
+  - [Singleton Service Lifecycle](#singleton-service-lifecycle)
   - [Scope Hierarchy](#scope-hierarchy)
   - [Dependency Injection Timing](#dependency-injection-timing)
   - [Host + User and Circular Dependencies](#host--user-and-circular-dependencies)
@@ -269,16 +269,6 @@ GameScope (IScope)
 
 Types marked with [Singleton] are pure logic services that encapsulate business logic and data processing, **not dependent on the Godot Node system**.
 
-#### Constraints
-
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Type | Must be class | Needs instantiation |
-| Inheritance | Cannot be Node | Node lifecycle is controlled by Godot, conflicts with DI container |
-| Modifiers | Cannot be abstract or static | Needs instantiation |
-| Generics | Cannot be open generic | Needs concrete type for instantiation |
-| Declaration | Must be partial | Source generator needs to extend the class |
-
 #### Lifecycle Marking
 
 ```csharp
@@ -352,15 +342,6 @@ public partial class ConfigService { }
 
 Host is the bridge between the Godot Node system and the DI system, exposing Node-managed resources as injectable services.
 
-#### Constraints
-
-| Constraint    | Requirement                                                  | Reason                                                       |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Type          | Must be class                                                | Needs instantiation                                          |
-| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
-| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
-
 #### Static Constraints
 
 Host is a **static** component of Scope, not a dynamic service provider.
@@ -429,14 +410,6 @@ public class WorldState : IWorldState { /* ... */ }
 
 Host can hold and manage other objects and expose them as services. **The lifecycle of these objects is controlled by the Host.**
 
-#### Host Member Constraints
-
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Member Type | Cannot be a type already marked as Service | Avoids lifecycle conflicts |
-| static Members | Not allowed | Needs instance-level services |
-| Properties | Must have getter | Needs to read value to register service |
-
 ```csharp
 // ❌ Error: Types marked with [Singleton] can only be held by Scope
 [Singleton(typeof(IConfig))]
@@ -475,15 +448,6 @@ public partial class GoodHost : Node
 
 User is the dependency consumer, receiving service dependencies through field or property injection.
 
-#### Constraints
-
-| Constraint    | Requirement                                                  | Reason                                                       |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Type          | Must be class                                                | Needs instantiation                                          |
-| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
-| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
-
 #### User Automatic Dependency Injection
 
 ```csharp
@@ -504,37 +468,12 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 }
 ```
 
-Node type Users automatically trigger injection when entering the scene tree, no manual operation required.
-
-#### Inject Member Constraints
-
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Member Type | interface or regular class | Must be injectable type |
-| Member Type | Cannot be Node/Host/User/Scope | These are not service types |
-| static Members | Not allowed | Needs instance-level injection |
-| Properties | Must have setter | Needs to write injected value |
-
-```csharp
-[User]
-public partial class MyUser : Node
-{
-    [Inject] private IService _service;           // ✅ Correct
-    [Inject] private MyConcreteClass _concrete;   // ✅ Allowed but not recommended
-    [Inject] private Node _node;                  // ❌ Error
-    [Inject] private MyHost _host;                // ❌ Error
-    [Inject] private static IService _static;     // ❌ Error
-    
-    // Required for Godot lifecycle integration
-    public override partial void _Notification(int what);
-}
-```
+> Users automatically trigger injection when entering the scene tree, no manual operation required.
+>
 
 #### IServicesReady Interface
 
-User types can implement the `IServicesReady` interface to receive notifications when all dependencies are ready:
-
-⚠️ **`OnServicesReady()` is always called after `_Ready()`**, because User starts dependency resolution at NotificationReady.
+User types can implement the `IServicesReady` interface, `OnServicesReady()` is called immediately after all `[Inject]` members are resolved.
 
 ```csharp
 public interface IServicesReady
@@ -543,12 +482,7 @@ public interface IServicesReady
 }
 ```
 
-**Timing**: This method is called immediately after all `[Inject]` members are resolved.
-
-**Use Cases**:
-- Initialize state that depends on injected services
-- Subscribe to service events
-- Start game logic
+> ⚠️ **`OnServicesReady()` is always called after `_Ready()`**, because User starts dependency resolution at NotificationReady.
 
 **Example**:
 
@@ -586,17 +520,6 @@ Scope is the DI container responsible for:
 - Resolving dependency requests
 - Managing service lifecycle (creation and disposal)
 - Providing parent-child Scope hierarchy
-
-#### Constraints
-
-| Constraint    | Requirement                                                  | Reason                                                       |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Type          | Must be class                                                | Needs instantiation                                          |
-| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Interface     | Must implement IScope                                        | Provides service registration API                            |
-| Modules       | Must specify [Modules]                                       | Defines service composition                                  |
-| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
-| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 #### Static Constraints
 
@@ -653,60 +576,6 @@ public partial class GameScope : Node, IScope
 | Services | Type[] | List of Singleton service types, must be [Singleton] marked classes |
 | Hosts | Type[] | List of Host types, must be [Host] marked classes |
 
-**Parameter Constraints**:
-
-1. **Services**:
-   - Must not be empty
-   - Each type must be marked with [Singleton]
-   - Service implementation types, not interface types
-
-2. **Hosts**:
-   - Can be empty (will generate Info level diagnostic)
-   - Each type must be marked with [Host]
-   - Host class types, not interface types
-
-#### Scope Hierarchy
-
-Scopes form a parent-child hierarchy through the scene tree:
-
-```
-RootScope
-├── MenuScope
-│   └── SettingsMenuScope
-└── GameScope
-    ├── Level1Scope
-    └── Level2Scope
-```
-
-**Hierarchy Rules**:
-- A Scope searches upward in the scene tree to find its parent Scope
-- If a service is not found in the current Scope, it searches in the parent Scope
-- Service lifecycle is bound to its defining Scope
-
-#### Service Resolution
-
-When a User or Service requests a dependency:
-
-1. Framework searches for service in the current Scope
-2. If not found, continues searching in parent Scope
-3. If found, triggers service creation (if not yet created)
-4. After service is created, resolves its constructor dependencies
-5. After all dependencies are resolved, calls the requester's callback
-
-**Deferred Resolution**:
-
-If a dependency is not yet ready, the request is added to a waiting queue. When the service is registered (Host enters tree or Singleton is created), the waiting queue is automatically notified.
-
-#### Lifecycle Events
-
-Scope listens to these Godot notifications:
-
-| Notification | Behavior |
-|--------------|----------|
-| `NotificationReady` | Create all Singletons in the Scope |
-| `NotificationPredelete` | Release all Singleton instances |
-| `NotificationEnterTree/ExitTree` | Clear parent Scope cache |
-
 ---
 
 ## Lifecycle Management
@@ -740,6 +609,21 @@ public partial class ResourceManager : IResourceManager, IDisposable
 
 ### Scope Hierarchy
 
+Scope forms a hierarchical relationship through a scene tree structure:
+
+```
+RootScope
+├── GameManager (Host)
+├── GlobalServices...
+│
+└── LevelScope
+    ├── LevelManager (Host)
+    ├── LevelServices...
+    │
+    └── Player
+        └── PlayerUI (User)
+```
+
 #### Service Visibility Rules
 
 | Service Location | Accessible From |
@@ -763,6 +647,13 @@ public partial class GameScope : Node, IScope { }
 [Modules(Services = [typeof(EnemyService)])]
 public partial class LevelScope : Node, IScope { }
 ```
+
+> **Hierarchy Rules**:
+>
+> - A Scope searches upward in the scene tree to find its parent Scope
+> - If a service is not found in the current Scope, it searches in the parent Scope
+> - Service lifecycle is bound to its defining Scope
+>
 
 ---
 
@@ -986,11 +877,12 @@ Final rule:
 **Basic Constraints**
 
 | Constraint | Requirement | Reason |
-|------------|-------------|--------|
-| Type | class | Needs instantiation |
-| Inheritance | Cannot be Node | Node lifecycle controlled by Godot |
+|------------|-------------|---------|
+| Type | Must be class | Needs instantiation |
+| Inheritance | Cannot be Node | Node lifecycle is controlled by Godot, conflicts with DI container |
 | Modifiers | Cannot be abstract or static | Needs instantiation |
-| Declaration | Must be partial | Source generator needs to extend |
+| Generics | Cannot be open generic | Needs concrete type for instantiation |
+| Declaration | Must be partial | Source generator needs to extend the class |
 
 **Type Constraints**
 
@@ -1037,11 +929,12 @@ Final rule:
 
 **Basic Constraints**
 
-| Constraint | Requirement | Reason |
-|------------|-------------|--------|
-| Type | class | Needs instantiation |
-| Inheritance | Must be Node | Requires scene tree lifecycle |
-| Declaration | Must be partial | Source generator needs to extend |
+| Constraint    | Requirement                                                  | Reason                                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Type          | Must be class                                                | Needs instantiation                                          |
+| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
+| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 **Host Singleton Member Type Constraints**
 
@@ -1070,11 +963,12 @@ Final rule:
 
 **Basic Constraints**
 
-| Constraint | Requirement | Reason |
-|------------|-------------|--------|
-| Type | class | Needs instantiation |
-| Inheritance | Must be Node | Requires scene tree lifecycle |
-| Declaration | Must be partial | Source generator needs to extend |
+| Constraint    | Requirement                                                  | Reason                                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Type          | Must be class                                                | Needs instantiation                                          |
+| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
+| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 **User Inject Member Type Constraints**
 
@@ -1092,13 +986,14 @@ Final rule:
 
 ### Scope Detailed Constraints
 
-| Constraint | Requirement | Reason |
-|------------|-------------|--------|
-| Type | class | Needs instantiation |
-| Inheritance | Must be Node | Leverages scene tree for hierarchy |
-| Interface | Must implement IScope | Framework identification marker |
-| Attribute | Must have [Modules] | Declares managed services |
-| Declaration | Must be partial | Source generator needs to extend |
+| Constraint    | Requirement                                                  | Reason                                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Type          | Must be class                                                | Needs instantiation                                          |
+| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Interface     | Must implement IScope                                        | Provides service registration API                            |
+| Modules       | Must specify [Modules]                                       | Defines service composition                                  |
+| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
+| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
 ---
 
