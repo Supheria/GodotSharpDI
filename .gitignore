@@ -4,3 +4,7 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 /nuget_output/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
