@@ -150,7 +150,7 @@ internal static class ScopeGenerator
                     continue;
                 }
 
-                var simpleServiceName = serviceType.Name;
+                var simpleServiceName = serviceType.ToFullyQualifiedName();
 
                 f.AppendLine($"{simpleServiceName}.CreateService(");
                 f.BeginLevel();
