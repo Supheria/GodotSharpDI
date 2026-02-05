@@ -93,19 +93,6 @@ internal static class NodeLifeCycleGenerator
             f.AppendLine("switch ((long)what)");
             f.BeginBlock();
             {
-                // NotificationPostinitialize
-                f.AppendLine("case NotificationPostinitialize:");
-                f.BeginBlock();
-                {
-                    switch (validatedType.Role)
-                    {
-                        case TypeRole.Scope:
-                            f.AppendLine("InstantiateScopeSingletons();");
-                            break;
-                    }
-                    f.AppendLine("break;");
-                }
-                f.EndBlock();
                 // NotificationEnterTree
                 f.AppendLine("case NotificationEnterTree:");
                 f.BeginBlock();
