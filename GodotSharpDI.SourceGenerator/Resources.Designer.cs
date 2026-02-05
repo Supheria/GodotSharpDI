@@ -213,7 +213,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type. Available types in current scope: {2}.
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type.
         /// </summary>
         internal static string D_InjectMemberTypeIsNotExposed {
             get {

@@ -240,7 +240,7 @@
     </data>
 
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有服务暴露此类型。当前作用域中可用的类型: {2}</value>
+        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有服务暴露此类型</value>
     </data>
 
     <!-- ============================================================ -->
