@@ -189,12 +189,12 @@ internal static class DiGraphBuilder
         return (map, diagnostics.ToImmutable());
     }
 
-    private static ImmutableArray<ITypeSymbol> GetServiceExposedTypes(
+    private static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
         ValidatedTypeInfo service,
         CachedSymbols symbols
     )
     {
-        var builder = ImmutableArray.CreateBuilder<ITypeSymbol>();
+        var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
 
         var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
 
@@ -206,7 +206,7 @@ internal static class DiGraphBuilder
                 {
                     foreach (var item in arg.Values)
                     {
-                        if (item.Value is ITypeSymbol type)
+                        if (item.Value is INamedTypeSymbol type)
                             builder.Add(type);
                     }
                 }
@@ -271,7 +271,7 @@ internal static class DiGraphBuilder
 
         foreach (var host in hosts)
         {
-            var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
+            var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
 
             foreach (var member in host.Members)
             {
@@ -322,7 +322,7 @@ internal static class DiGraphBuilder
                 new TypeNode(
                     ValidatedTypeInfo: user,
                     Dependencies: dependencies.ToImmutable(),
-                    ProvidedServices: ImmutableArray<ITypeSymbol>.Empty
+                    ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty
                 )
             );
         }
@@ -339,7 +339,7 @@ internal static class DiGraphBuilder
 
         foreach (var hostAndUser in hostAndUsers)
         {
-            var providedServices = ImmutableArray.CreateBuilder<ITypeSymbol>();
+            var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
             var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
 
             foreach (var member in hostAndUser.Members)

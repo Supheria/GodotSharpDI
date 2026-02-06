@@ -13,19 +13,20 @@ internal static class ServiceGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        var type = node.ValidatedTypeInfo;
-
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(type, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
-            if (type.Constructor == null || type.Constructor.Parameters.IsEmpty)
+            if (
+                node.ValidatedTypeInfo.Constructor == null
+                || node.ValidatedTypeInfo.Constructor.Parameters.IsEmpty
+            )
             {
-                GenerateParameterlessFactory(f, className);
+                GenerateParameterlessFactory(f, node.ValidatedTypeInfo);
             }
             else
             {
-                GenerateParameterizedFactory(f, className, type.Constructor);
+                GenerateParameterizedFactory(f, node, node.ValidatedTypeInfo.Constructor);
             }
         }
         f.EndClassDeclaration();
@@ -33,23 +34,36 @@ internal static class ServiceGenerator
         context.AddSource($"{className}.DI.Service.g.cs", f.ToString());
     }
 
-    private static void GenerateParameterlessFactory(CodeFormatter f, string className)
+    private static void GenerateParameterlessFactory(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType
+    )
     {
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
             $"public static void CreateService("
-            + $"{GlobalNames.IScope} scope, "
-            + $"{GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated, "
-            + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
-            + $"{GlobalNames.String}? dependencyChain = null)"
+                + $"{GlobalNames.IScope} scope, "
+                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
+                + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
+                + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
             f.BeginTryCatch();
             {
-                f.AppendLine($"var instance = new {className}();");
-                f.AppendLine("onCreated.Invoke(instance, scope);");
+                f.AppendLine(
+                    $"var instance = new {validatedType.Symbol.ToFullyQualifiedName()}();"
+                );
+                f.AppendLine();
+
+                f.AppendLine("// 提供服务实例");
+                f.AppendLine(
+                    $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(instance);"
+                );
+                f.AppendLine();
+
+                f.AppendLine("onCreated.Invoke(instance);");
             }
             f.CatchBlock("ex");
             {
@@ -62,7 +76,7 @@ internal static class ServiceGenerator
 
     private static void GenerateParameterizedFactory(
         CodeFormatter f,
-        string className,
+        TypeNode typeNode,
         ConstructorInfo ctor
     )
     {
@@ -70,10 +84,10 @@ internal static class ServiceGenerator
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
             $"public static void CreateService("
-            + $"{GlobalNames.IScope} scope, "
-            + $"{GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated, "
-            + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
-            + $"{GlobalNames.String}? dependencyChain = null)"
+                + $"{GlobalNames.IScope} scope, "
+                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
+                + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
+                + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
@@ -117,7 +131,7 @@ internal static class ServiceGenerator
                         f.AppendLine("TryCreate();");
                     }
                     f.EndBlock(",");
-                    f.AppendLine($"requestorType: \"{className}\",");
+                    f.AppendLine($"requestorType: \"{typeNode.ValidatedTypeInfo.Symbol.Name}\",");
                     f.AppendLine("scopeChain: null,");
                     f.AppendLine("dependencyChain: dependencyChain");
                 }
@@ -136,7 +150,9 @@ internal static class ServiceGenerator
                 f.BeginStringBuilderAppend("errorMessage", true);
                 {
                     f.StringBuilderAppendLine("[GodotSharpDI] 依赖赋值失败");
-                    f.StringBuilderAppendLine($"  服务类型: {className}");
+                    f.StringBuilderAppendLine(
+                        $"  服务类型: {typeNode.ValidatedTypeInfo.Symbol.Name}"
+                    );
                     f.StringBuilderAppendLine("  参数名: {paramName}");
                     f.StringBuilderAppendLine("  参数类型: {paramType}");
                     f.StringBuilderAppendLine("  异常: {exMsg}");
@@ -164,8 +180,19 @@ internal static class ServiceGenerator
                             paramNames.Add($"p{i}!");
                         }
                         var paramList = string.Join(", ", paramNames);
-                        f.AppendLine($"var instance = new {className}({paramList});");
-                        f.AppendLine("onCreated.Invoke(instance, scope);");
+                        f.AppendLine(
+                            $"var instance = new {typeNode.ValidatedTypeInfo.Symbol.ToFullyQualifiedName()}({paramList});"
+                        );
+                        f.AppendLine();
+
+                        // 提供服务实例（使用实现类型作为键）
+                        f.AppendLine("// 提供服务实例");
+                        f.AppendLine(
+                            $"scope.ProvideService<{typeNode.ValidatedTypeInfo.Symbol.ToFullyQualifiedName()}>(instance);"
+                        );
+                        f.AppendLine();
+
+                        f.AppendLine("onCreated.Invoke(instance);");
                     }
                     f.CatchBlock("ex");
                     {
@@ -173,11 +200,14 @@ internal static class ServiceGenerator
                         f.BeginStringBuilderAppend("errorMessage", true);
                         {
                             f.StringBuilderAppendLine("[GodotSharpDI] 服务实例化失败");
-                            f.StringBuilderAppendLine($"  服务类型: {className}");
+                            f.StringBuilderAppendLine(
+                                $"  服务类型: {typeNode.ValidatedTypeInfo.Symbol.Name}"
+                            );
                             f.StringBuilderAppendLine("  异常: {ex.Message}");
                         }
                         f.EndStringBuilderAppend();
                         f.AppendLine();
+
                         f.AppendLine("onFailed(errorMessage.ToString());");
                     }
                     f.EndTryCatch();

@@ -43,7 +43,10 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var type = typeof(T);");
             f.AppendLine();
 
-            f.AppendLine("if (!ServiceTypes.Contains(type))", "检查是否是单例服务类型");
+            f.AppendLine(
+                "if (!ServiceImplementationMap.TryGetValue(type, out var implType))",
+                "检查是否是单例服务类型"
+            );
             f.BeginBlock();
             {
                 f.AppendLine("var parent = GetParentScope();", "尝试向父 Scope 注册");
@@ -63,15 +66,17 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine();
 
             f.AppendLine("// 更新或创建缓存条目");
-            f.AppendLine("if (!_serviceCache.TryGetValue(type, out var cacheEntry))");
+            f.AppendLine("if (!_serviceCache.TryGetValue(implType, out var cacheEntry))");
             f.BeginBlock();
             {
                 f.AppendLine("cacheEntry = new ServiceCacheEntry();");
+                f.AppendLine("_serviceCache[implType] = cacheEntry;");
             }
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine("if (cacheEntry.State == ServiceState.Created)");
+            // 按暴露类型判断是否重复注册
+            f.AppendLine("if (cacheEntry.ExposedTypes.Contains(type))");
             f.BeginBlock();
             {
                 f.PushError("$\"重复注册类型: {type.Name}\"");
@@ -80,12 +85,20 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine("cacheEntry.State = ServiceState.Created;");
-            f.AppendLine("cacheEntry.Instance = instance;");
-            f.AppendLine("_serviceCache[type] = cacheEntry;");
+            f.AppendLine("cacheEntry.ExposedTypes.Add(type);");
             f.AppendLine();
 
-            f.AppendLine("if (_waiters.Remove(type, out var waiterList))", "通知等待者");
+            f.AppendLine("if (cacheEntry.State != ServiceState.Created)");
+            f.BeginBlock();
+            {
+                f.AppendLine("cacheEntry.State = ServiceState.Created;");
+                f.AppendLine("cacheEntry.Instance = instance;");
+            }
+            f.EndBlock();
+            f.AppendLine();
+
+            // 按实现类型通知等待者
+            f.AppendLine("if (_waiters.Remove(implType, out var waiterList))", "通知等待者");
             f.BeginBlock();
             {
                 f.AppendLine("foreach (var waiter in waiterList)");
@@ -144,11 +157,14 @@ internal static class ScopeInterfaceGenerator
 
             f.AppendLine("// 构建依赖链条");
             f.AppendLine(
-                "var currentDependencyChain = dependencyChain ?? $\"{requestorType} -> {type.Name}\";"
+                "var currentDependencyChain = (dependencyChain ?? requestorType) + $\" -> {type.Name}\";"
             );
             f.AppendLine();
 
-            f.AppendLine("if (!ServiceTypes.Contains(type))", "检查是否是单例服务类型");
+            f.AppendLine(
+                "if (!ServiceImplementationMap.TryGetValue(type, out var implType))",
+                "检查是否是单例服务类型"
+            );
             f.BeginBlock();
             {
                 f.AppendLine("var parent = GetParentScope();", "尝试从父 Scope 解析");
@@ -183,7 +199,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine();
 
             f.AppendLine("// 获取或创建缓存条目");
-            f.AppendLine("if (!_serviceCache.TryGetValue(type, out var cacheEntry))");
+            f.AppendLine("if (!_serviceCache.TryGetValue(implType, out var cacheEntry))");
             f.BeginBlock();
             {
                 f.AppendLine("cacheEntry = new ServiceCacheEntry");
@@ -192,7 +208,7 @@ internal static class ScopeInterfaceGenerator
                     f.AppendLine("State = ServiceState.NotCreated");
                 }
                 f.EndBlock(";");
-                f.AppendLine("_serviceCache[type] = cacheEntry;");
+                f.AppendLine("_serviceCache[implType] = cacheEntry;");
             }
             f.EndBlock();
             f.AppendLine();
@@ -256,15 +272,48 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("case ServiceState.Creating:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("// 检测到循环依赖");
-                    f.BeginStringBuilderAppend("errorMessage", true);
+                    f.AppendLine("// 服务正在创建中");
+                    f.AppendLine("// 检查是否是真正的循环依赖（依赖链中包含当前类型）");
+                    f.AppendLine("if (currentDependencyChain.Contains(type.Name + \" -> \"))");
+                    f.BeginBlock();
                     {
-                        f.StringBuilderAppendLine("[GodotSharpDI] 检测到运行时循环依赖");
-                        f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
+                        f.AppendLine("// 真正的循环依赖");
+                        f.BeginStringBuilderAppend("errorMessage", true);
+                        {
+                            f.StringBuilderAppendLine("[GodotSharpDI] 检测到运行时循环依赖");
+                            f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
+                        }
+                        f.EndStringBuilderAppend();
+                        f.AppendLine();
+                        f.PushError("errorMessage.ToString()");
                     }
-                    f.EndStringBuilderAppend();
-                    f.AppendLine();
-                    f.PushError("errorMessage.ToString()");
+                    f.EndBlock();
+                    f.AppendLine("else");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("// 不是循环依赖，服务正在异步创建中，加入等待队列");
+                        f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
+                        f.BeginBlock();
+                        {
+                            f.AppendLine(
+                                $"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();"
+                            );
+                            f.AppendLine("_waiters[implType] = waiterList;");
+                        }
+                        f.EndBlock();
+                        f.AppendLine();
+                        f.AppendLine("waiterList.Add(new DependencyWaitInfo");
+                        f.BeginBlock();
+                        {
+                            f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
+                            f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
+                            f.AppendLine("RequestorType = requestorType,");
+                            f.AppendLine("ScopeChain = currentScopeChain,");
+                            f.AppendLine("DependencyChain = currentDependencyChain,");
+                        }
+                        f.EndBlock(");");
+                    }
+                    f.EndBlock();
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -274,12 +323,11 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine("// 检查是否有工厂（Scope 创建的服务）");
-                    f.AppendLine("if (_serviceFactories.TryGetValue(type, out var factory))");
+                    f.AppendLine("if (_serviceFactories.TryGetValue(implType, out var factory))");
                     f.BeginBlock();
                     {
                         f.AppendLine("// 按需创建服务");
                         f.AppendLine("cacheEntry.State = ServiceState.Creating;");
-                        f.AppendLine("_serviceCache[type] = cacheEntry;");
                         f.AppendLine();
 
                         f.AppendLine("// 调用工厂创建服务");
@@ -287,11 +335,19 @@ internal static class ScopeInterfaceGenerator
                         f.BeginLevel();
                         {
                             f.AppendLine("this,");
-                            f.AppendLine("(instance, scope) =>");
+                            f.AppendLine("(instance) =>");
                             f.BeginBlock();
                             {
-                                f.AppendLine("// 创建成功回调已在工厂中处理 ProvideService");
-                                f.AppendLine("// 这里直接调用用户回调");
+                                f.AppendLine(
+                                    $"if (instance is {GlobalNames.IDisposable} disposable)"
+                                );
+                                f.BeginBlock();
+                                {
+                                    f.AppendLine("_disposableSingletons.Add(disposable);");
+                                }
+                                f.EndBlock();
+                                f.AppendLine();
+
                                 f.BeginTryCatch();
                                 {
                                     f.AppendLine("onResolved.Invoke((T)instance);");
@@ -329,7 +385,7 @@ internal static class ScopeInterfaceGenerator
                                     f.AppendLine("FailureDependencyChain = currentDependencyChain");
                                 }
                                 f.EndBlock(";");
-                                f.AppendLine("_serviceCache[type] = failedEntry;");
+                                f.AppendLine("_serviceCache[implType] = failedEntry;");
                                 f.AppendLine();
 
                                 f.BeginStringBuilderAppend("errorMessage", true);
@@ -356,14 +412,14 @@ internal static class ScopeInterfaceGenerator
                     f.AppendLine("else");
                     f.BeginBlock();
                     {
-                        f.AppendLine("// 没有工厂 - 可能是 Host 提供的服务，加入等待队列");
-                        f.AppendLine("if (!_waiters.TryGetValue(type, out var waiterList))");
+                        f.AppendLine("// 没有工厂 - 是 Host 提供的服务，加入等待队列");
+                        f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
                         f.BeginBlock();
                         {
                             f.AppendLine(
                                 $"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();"
                             );
-                            f.AppendLine("_waiters[type] = waiterList;");
+                            f.AppendLine("_waiters[implType] = waiterList;");
                         }
                         f.EndBlock();
                         f.AppendLine();
