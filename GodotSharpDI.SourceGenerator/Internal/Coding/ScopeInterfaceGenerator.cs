@@ -90,6 +90,7 @@ internal static class ScopeInterfaceGenerator
                             f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
                             f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
                             f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
+                            f.StringBuilderAppendLine("  依赖链条: {waiter.DependencyChain}");
                             f.StringBuilderAppendLine("  异常: {ex.Message}");
                         }
                         f.EndStringBuilderAppend();
@@ -111,7 +112,11 @@ internal static class ScopeInterfaceGenerator
         // ResolveDependency
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"void {GlobalNames.IScope}.ResolveDependency<T>({GlobalNames.Action}<T> onResolved, {GlobalNames.String} requestorType, {GlobalNames.String}? scopeChain)"
+            $"void {GlobalNames.IScope}.ResolveDependency<T>("
+                + $"{GlobalNames.Action}<T> onResolved, "
+                + $"{GlobalNames.String} requestorType, "
+                + $"{GlobalNames.String}? scopeChain, "
+                + $"{GlobalNames.String}? dependencyChain)"
         );
         f.BeginBlock();
         {
@@ -123,6 +128,12 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var type = typeof(T);");
             f.AppendLine();
 
+            f.AppendLine("// 构建依赖链条");
+            f.AppendLine(
+                "var currentDependencyChain = dependencyChain ?? $\"{requestorType} -> {type.Name}\";"
+            );
+            f.AppendLine();
+
             f.AppendLine("if (!ServiceTypes.Contains(type))", "检查是否是单例服务类型");
             f.BeginBlock();
             {
@@ -131,7 +142,7 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        "parent.ResolveDependency(onResolved, requestorType, currentScopeChain);"
+                        "parent.ResolveDependency(onResolved, requestorType, currentScopeChain, currentDependencyChain);"
                     );
                     f.AppendLine("return;");
                 }
@@ -146,6 +157,7 @@ internal static class ScopeInterfaceGenerator
                     f.StringBuilderAppendLine("  请求者类型: {requestorType}");
                     f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
                     f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
+                    f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
                 }
                 f.EndStringBuilderAppend();
                 f.AppendLine();
@@ -175,6 +187,7 @@ internal static class ScopeInterfaceGenerator
                         f.StringBuilderAppendLine("  请求者类型: {requestorType}");
                         f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
                         f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
+                        f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
                         f.StringBuilderAppendLine("  异常: {ex.Message}");
                     }
                     f.EndStringBuilderAppend();
@@ -204,6 +217,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
                 f.AppendLine("RequestorType = requestorType,");
                 f.AppendLine("ScopeChain = currentScopeChain,");
+                f.AppendLine("DependencyChain = currentDependencyChain,");
             }
             f.EndBlock(");");
         }

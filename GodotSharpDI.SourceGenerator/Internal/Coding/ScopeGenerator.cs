@@ -242,6 +242,7 @@ internal static class ScopeGenerator
             f.AppendLine($"public {GlobalNames.Long} RequestTicks;");
             f.AppendLine($"public {GlobalNames.String} RequestorType;");
             f.AppendLine($"public {GlobalNames.String} ScopeChain;");
+            f.AppendLine($"public {GlobalNames.String} DependencyChain;");
         }
         f.EndBlock();
     }
@@ -330,6 +331,7 @@ internal static class ScopeGenerator
                                 f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
                                 f.StringBuilderAppendLine("  等待时间: {elapsedSeconds:F1}秒)");
                                 f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
+                                f.StringBuilderAppendLine("  依赖链条: {waiter.DependencyChain}");
                             }
                             f.EndStringBuilderAppend();
                             f.AppendLine();
@@ -396,6 +398,7 @@ internal static class ScopeGenerator
                         f.StringBuilderAppendLine("    • 请求者类型: {waiter.RequestorType}");
                         f.StringBuilderAppendLine("      等待时长: {elapsedSeconds:F1}秒");
                         f.StringBuilderAppendLine("      Scope 传递链: {waiter.ScopeChain}");
+                        f.StringBuilderAppendLine("      依赖链条: {waiter.DependencyChain}");
                     }
                     f.EndStringBuilderAppend();
                 }
