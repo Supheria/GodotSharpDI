@@ -337,7 +337,8 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InjectCtorParamIsHostType = Constructor(
         "021",
-        Resources.S_InjectCtorParamIsHostType
+        Resources.S_InjectCtorParamIsHostType,
+        DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor InjectCtorParamIsUserType = Constructor(
