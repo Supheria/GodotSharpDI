@@ -6,6 +6,6 @@ public interface IScope
 {
     void ProvideService<T>(T instance)
         where T : notnull;
-    void ResolveDependency<T>(Action<T> onResolved)
+    void ResolveDependency<T>(Action<T> onResolved, string requestorType, string? scopeChain = null)
         where T : notnull;
 }

@@ -76,26 +76,57 @@ internal static class ServiceGenerator
             for (int i = 0; i < ctor.Parameters.Length; i++)
             {
                 var param = ctor.Parameters[i];
-                f.AppendLine(
-                    $"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(dependency =>"
-                );
-                f.BeginBlock();
+
+                f.AppendLine($"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(");
+                f.BeginLevel();
                 {
-                    f.AppendLine($"p{i} = dependency;");
-                    f.BeginTryCatch();
+                    f.AppendLine("dependency =>");
+                    f.BeginBlock();
                     {
+                        f.BeginTryCatch();
+                        {
+                            f.AppendLine($"p{i} = dependency;");
+                        }
+                        f.CatchBlock("ex");
+                        {
+                            f.AppendLine(
+                                $"PushError(ex.Message, \"{param.Symbol.Name}\", \"{param.Type}\");"
+                            );
+                        }
+                        f.EndTryCatch();
                         f.AppendLine("TryCreate();");
                     }
-                    f.EndTryCatch();
+                    f.EndBlock(",");
+                    f.AppendLine($"requestorType: \"{className}\"");
                 }
-                f.EndBlock(");");
+                f.EndLevel();
+                f.AppendLine(");");
             }
 
             f.AppendLine();
             f.AppendLine("return;");
             f.AppendLine();
 
-            // TryCreate 本地函数
+            // PushError
+            f.AppendLine("void PushError(string exMsg, string paramName, string paramType)");
+            f.BeginBlock();
+            {
+                f.BeginStringBuilderAppend("errorMessage", true);
+                {
+                    f.StringBuilderAppendLine("[GodotSharpDI] 依赖赋值失败");
+                    f.StringBuilderAppendLine($"  服务类型: {className}");
+                    f.StringBuilderAppendLine("  参数名: {paramName}");
+                    f.StringBuilderAppendLine("  参数类型: {paramType}");
+                    f.StringBuilderAppendLine("  异常: {exMsg}");
+                }
+                f.EndStringBuilderAppend();
+                f.AppendLine();
+                f.PushError("errorMessage.ToString()");
+            }
+            f.EndBlock();
+            f.AppendLine();
+
+            // TryCreate
             f.AppendLine("void TryCreate()");
             f.BeginBlock();
             {

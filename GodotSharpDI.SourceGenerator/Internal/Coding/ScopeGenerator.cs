@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
@@ -15,7 +16,7 @@ internal static class ScopeGenerator
     {
         NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
 
-        ScopeInterfaceGenerator.GenerateInterface(context, node, graph);
+        ScopeInterfaceGenerator.GenerateInterface(context, node);
 
         // 生成 Scope 特定代码
         GenerateScopeSpecific(context, node, graph);
@@ -40,11 +41,13 @@ internal static class ScopeGenerator
             GenerateInstantiateScopeSingletons(f, node, graph);
             f.AppendLine();
 
-            GenerateDisposeScopeSingletons(f);
+            GenerateDisposeScopeSingletons(f, node.ValidatedTypeInfo);
             f.AppendLine();
 
-            GenerateCheckWaitList(f);
+            GenerateDependencyWaitInfoStruct(f);
             f.AppendLine();
+
+            GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
         }
         f.EndClassDeclaration();
 
@@ -121,7 +124,7 @@ internal static class ScopeGenerator
         // _waiters
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Object}>>> _waiters = new();"
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<DependencyWaitInfo>> _waiters = new();"
         );
         f.AppendLine();
 
@@ -130,6 +133,10 @@ internal static class ScopeGenerator
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
         );
+
+        // _dependencyCheckTimer
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine($"private {GlobalNames.GodotTimer}? _dependencyCheckTimer;");
     }
 
     private static void GenerateInstantiateScopeSingletons(
@@ -182,7 +189,10 @@ internal static class ScopeGenerator
         f.EndBlock();
     }
 
-    private static void GenerateDisposeScopeSingletons(CodeFormatter f)
+    private static void GenerateDisposeScopeSingletons(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType
+    )
     {
         // DisposeScopeSingletons
         f.AppendHiddenMethodCommentAndAttribute("释放所有 Scope 约束的单例服务实例");
@@ -196,6 +206,22 @@ internal static class ScopeGenerator
                 {
                     f.AppendLine("disposable.Dispose();");
                 }
+                f.CatchBlock("ex");
+                {
+                    f.BeginStringBuilderAppend("errorMsg", true);
+                    {
+                        f.StringBuilderAppendLine(
+                            $"[{ShortNames.GodotSharpDI}] 单例服务释放资源失败"
+                        );
+                        f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                        f.StringBuilderAppendLine("  服务类型: {disposable.GetType().Name}");
+                        f.StringBuilderAppendLine("  异常: {ex.Message}");
+                    }
+                    f.EndStringBuilderAppend();
+                    f.AppendLine();
+
+                    f.PushError("errorMsg.ToString()");
+                }
                 f.EndTryCatch();
             }
             f.EndBlock();
@@ -206,11 +232,124 @@ internal static class ScopeGenerator
         f.EndBlock();
     }
 
-    private static void GenerateCheckWaitList(CodeFormatter f)
+    private static void GenerateDependencyWaitInfoStruct(CodeFormatter f)
     {
-        // CheckWaitList
-        f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void CheckWaitList()");
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine("private struct DependencyWaitInfo");
+        f.BeginBlock();
+        {
+            f.AppendLine($"public {GlobalNames.Action}<{GlobalNames.Object}> Callback;");
+            f.AppendLine($"public {GlobalNames.Long} RequestTicks;");
+            f.AppendLine($"public {GlobalNames.String} RequestorType;");
+            f.AppendLine($"public {GlobalNames.String} ScopeChain;");
+        }
+        f.EndBlock();
+    }
+
+    private static void GenerateDependencyMonitoringMethods(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType
+    )
+    {
+        // StartDependencyMonitoring
+        f.AppendHiddenMethodCommentAndAttribute("启动依赖监控（仅在开发模式）");
+        f.AppendLine("private void StartDependencyMonitoring()");
+        f.BeginBlock();
+        {
+            f.BeginDebugRegion();
+            {
+                f.AppendLine("if (_dependencyCheckTimer != null) return;");
+                f.AppendLine();
+                f.AppendLine("_dependencyCheckTimer = new Godot.Timer();");
+                f.AppendLine("_dependencyCheckTimer.WaitTime = 5.0;");
+                f.AppendLine("_dependencyCheckTimer.Timeout += CheckPendingDependencies;");
+                f.AppendLine("AddChild(_dependencyCheckTimer);");
+                f.AppendLine("_dependencyCheckTimer.Start();");
+            }
+            f.EndDebugRegion();
+        }
+        f.EndBlock();
+        f.AppendLine();
+
+        // StopDependencyMonitoring
+        f.AppendHiddenMethodCommentAndAttribute("停止依赖监控（仅在开发模式）");
+        f.AppendLine("private void StopDependencyMonitoring()");
+        f.BeginBlock();
+        {
+            f.BeginDebugRegion();
+            {
+                f.AppendLine("if (_dependencyCheckTimer != null)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("_dependencyCheckTimer.Stop();");
+                    f.AppendLine("_dependencyCheckTimer.QueueFree();");
+                    f.AppendLine("_dependencyCheckTimer = null;");
+                }
+                f.EndBlock();
+            }
+            f.EndDebugRegion();
+        }
+        f.EndBlock();
+        f.AppendLine();
+
+        // CheckPendingDependencies
+        f.AppendHiddenMethodCommentAndAttribute("检查待处理的依赖（仅在开发模式定期调用）");
+        f.AppendLine("private void CheckPendingDependencies()");
+        f.BeginBlock();
+        {
+            f.BeginDebugRegion();
+            {
+                f.AppendLine("if (_waiters.Count == 0) return;");
+                f.AppendLine();
+                f.AppendLine($"var now = {GlobalNames.DateTime}.Now.Ticks;");
+                f.AppendLine($"var timeout = {GlobalNames.TimeSpan}.FromSeconds(10).Ticks;");
+                f.AppendLine();
+                f.AppendLine("foreach (var kvp in _waiters)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("var type = kvp.Key;");
+                    f.AppendLine("var waiters = kvp.Value;");
+                    f.AppendLine();
+                    f.AppendLine("foreach (var waiter in waiters)");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("var elapsed = now - waiter.RequestTicks;");
+                        f.AppendLine("if (elapsed > timeout)");
+                        f.BeginBlock();
+                        {
+                            f.AppendLine(
+                                $"var elapsedSeconds = {GlobalNames.TimeSpan}.FromTicks(elapsed).TotalSeconds;"
+                            );
+                            f.BeginStringBuilderAppend("message", true);
+                            {
+                                f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入超时");
+                                f.StringBuilderAppendLine(
+                                    $"  当前 Scope: {validatedType.Symbol.Name}"
+                                );
+                                f.StringBuilderAppendLine("  服务类型: {type.Name}");
+                                f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
+                                f.StringBuilderAppendLine("  等待时间: {elapsedSeconds:F1}秒)");
+                                f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
+                            }
+                            f.EndStringBuilderAppend();
+                            f.AppendLine();
+
+                            f.PushWarning("message");
+                        }
+                        f.EndBlock();
+                    }
+                    f.EndBlock();
+                }
+                f.EndBlock();
+            }
+            f.EndDebugRegion();
+        }
+        f.EndBlock();
+        f.AppendLine();
+
+        // ReportUnresolvedDependencies
+        f.AppendHiddenMethodCommentAndAttribute("报告所有未解决的依赖（仅在开发模式）");
+        f.AppendLine("public void ReportUnresolvedDependencies()");
         f.BeginBlock();
         {
             f.AppendLine("if (_waiters.Count == 0)");
@@ -221,26 +360,51 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine($"var sb = new {GlobalNames.StringBuilder}();");
-            f.AppendLine("var first = true;");
-            f.AppendLine("foreach (var type in _waiters.Keys)");
+            f.BeginStringBuilderAppend("message", true);
+            {
+                f.StringBuilderAppendLine(
+                    $"[GodotSharpDI] {validatedType.Symbol.Name} 存在未解决的依赖"
+                );
+            }
+            f.EndStringBuilderAppend();
+            f.AppendLine();
+
+            f.AppendLine("foreach (var kvp in _waiters)");
             f.BeginBlock();
             {
-                f.AppendLine("if (!first)");
+                f.AppendLine("var type = kvp.Key;");
+                f.AppendLine("var waiters = kvp.Value;");
+                f.BeginStringBuilderAppend("message", false);
+                {
+                    f.StringBuilderAppendLine("  ▶ 缺失服务: {type.Name}");
+                    f.StringBuilderAppendLine("    等待队列数量: {waiters.Count}");
+                }
+                f.EndStringBuilderAppend();
+                f.AppendLine();
+
+                f.AppendLine("foreach (var waiter in waiters)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("sb.Append(',');");
+                    f.AppendLine(
+                        $"var elapsed = {GlobalNames.DateTime}.Now.Ticks - waiter.RequestTicks;"
+                    );
+                    f.AppendLine(
+                        $"var elapsedSeconds = {GlobalNames.TimeSpan}.FromTicks(elapsed).TotalSeconds;"
+                    );
+                    f.BeginStringBuilderAppend("message", false);
+                    {
+                        f.StringBuilderAppendLine("    • 请求者类型: {waiter.RequestorType}");
+                        f.StringBuilderAppendLine("      等待时长: {elapsedSeconds:F1}秒");
+                        f.StringBuilderAppendLine("      Scope 传递链: {waiter.ScopeChain}");
+                    }
+                    f.EndStringBuilderAppend();
                 }
                 f.EndBlock();
-                f.AppendLine("sb.Append(type.Name);");
-                f.AppendLine("first = false;");
             }
             f.EndBlock();
+            f.AppendLine();
 
-            f.AppendLine(
-                $"{GlobalNames.GodotGD}.PushError($\"存在未完成注入的服务类型：{{sb}}\");"
-            );
-            f.AppendLine("_waiters.Clear();");
+            f.PushError("message");
         }
         f.EndBlock();
     }

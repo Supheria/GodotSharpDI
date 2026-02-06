@@ -42,7 +42,7 @@ internal static class UserGenerator
             }
 
             // 生成 ResolveUserDependencies
-            GenerateResolveUserDependencies(f, injectMembers, implementsIServicesReady);
+            GenerateResolveUserDependencies(f, node.ValidatedTypeInfo, injectMembers);
         }
         f.EndClassDeclaration();
 
@@ -85,8 +85,8 @@ internal static class UserGenerator
 
     private static void GenerateResolveUserDependencies(
         CodeFormatter f,
-        MemberInfo[] injectMembersList,
-        bool implementsIServicesReady
+        ValidatedTypeInfo validatedType,
+        MemberInfo[] injectMembersList
     )
     {
         // ResolveUserDependencies
@@ -95,31 +95,70 @@ internal static class UserGenerator
         f.BeginBlock();
         {
             f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null) return;");
+            f.AppendLine("if (scope is null)");
+            f.BeginBlock();
+            {
+                f.PushError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.AppendLine("return;");
+            }
+            f.EndBlock();
             f.AppendLine();
 
             // 注入 [Inject] 成员
             foreach (var member in injectMembersList)
             {
-                f.AppendLine(
-                    $"scope.ResolveDependency<{member.MemberType.ToFullyQualifiedName()}>(dependency =>"
-                );
-                f.BeginBlock();
+                var memberTypeName = member.MemberType.ToFullyQualifiedName();
+                var memberName = member.Symbol.Name;
+                f.AppendLine($"scope.ResolveDependency<{memberTypeName}>(");
+                f.BeginLevel();
                 {
-                    f.BeginTryCatch();
+                    f.AppendLine("dependency =>");
+                    f.BeginBlock();
                     {
-                        f.AppendLine($"{member.Symbol.Name} = dependency;");
-                        if (implementsIServicesReady)
+                        f.BeginTryCatch();
+                        {
+                            f.AppendLine($"{memberName} = dependency;");
+                        }
+                        f.CatchBlock("ex");
                         {
                             f.AppendLine(
-                                $"OnDependencyResolved<{member.MemberType.ToFullyQualifiedName()}>();"
+                                $"PushError(ex.Message, \"{member.Symbol.Name}\", \"{member.MemberType.Name}\");"
                             );
                         }
+                        f.EndTryCatch();
+                        if (validatedType.ImplementsIServicesReady)
+                        {
+                            f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
+                        }
                     }
-                    f.EndTryCatch();
+                    f.EndBlock(",");
+                    f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\"");
                 }
-                f.EndBlock(");");
+                f.EndLevel();
+                f.AppendLine(");");
             }
+
+            f.AppendLine();
+            f.AppendLine("return;");
+            f.AppendLine();
+
+            // PushError
+            f.AppendLine("void PushError(string exMsg, string memberName, string memberType)");
+            f.BeginBlock();
+            {
+                f.BeginStringBuilderAppend("errorMessage", true);
+                {
+                    f.StringBuilderAppendLine("[GodotSharpDI] 依赖赋值失败");
+                    f.StringBuilderAppendLine($"  User 类型: {validatedType.Symbol.Name}");
+                    f.StringBuilderAppendLine("  成员: {memberName}");
+                    f.StringBuilderAppendLine("  成员类型: {memberType}");
+                    f.StringBuilderAppendLine("  异常: {exMsg}");
+                }
+                f.EndStringBuilderAppend();
+                f.AppendLine();
+                f.PushError("errorMessage.ToString()");
+            }
+            f.EndBlock();
         }
         f.EndBlock();
     }

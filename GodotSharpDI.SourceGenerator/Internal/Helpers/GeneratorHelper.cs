@@ -85,14 +85,63 @@ internal static class GeneratorHelper
         f.BeginBlock();
     }
 
+    public static void CatchBlock(this CodeFormatter f, string exceptionName)
+    {
+        f.EndBlock();
+        f.AppendLine($"catch ({GlobalNames.Exception} {exceptionName})");
+        f.BeginBlock();
+    }
+
     public static void EndTryCatch(this CodeFormatter f)
     {
         f.EndBlock();
-        f.AppendLine($"catch ({GlobalNames.Exception} ex)");
+    }
+
+    public static void BeginDebugRegion(this CodeFormatter f)
+    {
+        f.AppendLine("#if DEBUG");
         f.BeginBlock();
-        {
-            f.AppendLine($"{GlobalNames.GodotGD}.PushError(ex);");
-        }
+    }
+
+    public static void EndDebugRegion(this CodeFormatter f)
+    {
         f.EndBlock();
+        f.AppendLine("#endif");
+    }
+
+    public static void BeginStringBuilderAppend(
+        this CodeFormatter f,
+        string stringBuilderName,
+        bool createNew
+    )
+    {
+        var declare = createNew
+            ? $"var {stringBuilderName} = new {GlobalNames.StringBuilder}()"
+            : $"{stringBuilderName}";
+        f.AppendRaw(declare, true);
+        f.BeginLevel();
+    }
+
+    public static void EndStringBuilderAppend(this CodeFormatter f)
+    {
+        f.AppendRaw(";");
+        f.AppendLine();
+        f.EndLevel();
+    }
+
+    public static void StringBuilderAppendLine(this CodeFormatter f, string content)
+    {
+        f.AppendLine();
+        f.AppendRaw($".AppendLine($\"{content}\")", true);
+    }
+
+    public static void PushWarning(this CodeFormatter f, string target)
+    {
+        f.AppendLine($"{GlobalNames.GodotGD}.PushWarning({target});");
+    }
+
+    public static void PushError(this CodeFormatter f, string target)
+    {
+        f.AppendLine($"{GlobalNames.GodotGD}.PushError({target});");
     }
 }

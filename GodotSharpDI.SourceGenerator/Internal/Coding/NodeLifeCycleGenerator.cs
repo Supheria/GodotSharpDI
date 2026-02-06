@@ -74,10 +74,6 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("parent = parent.GetParent();");
             }
             f.EndBlock();
-
-            f.AppendLine(
-                $"{GlobalNames.GodotGD}.PushError(\"{validatedType.Symbol.Name} Nearest parent scope node not found\");"
-            );
             f.AppendLine("return null;");
         }
         f.EndBlock();
@@ -119,7 +115,7 @@ internal static class NodeLifeCycleGenerator
                             break;
                         case TypeRole.Scope:
                             f.AppendLine("InstantiateScopeSingletons();");
-                            f.AppendLine("CheckWaitList();");
+                            f.AppendLine("StartDependencyMonitoring();");
                             break;
                     }
                     f.AppendLine("break;");
@@ -141,6 +137,8 @@ internal static class NodeLifeCycleGenerator
                     {
                         case TypeRole.Scope:
                             f.AppendLine("DisposeScopeSingletons();");
+                            f.AppendLine("StopDependencyMonitoring();");
+                            f.AppendLine("ReportUnresolvedDependencies();");
                             break;
                     }
                     f.AppendLine("break;");

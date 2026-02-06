@@ -11,33 +11,29 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 /// </summary>
 internal static class ScopeInterfaceGenerator
 {
-    public static void GenerateInterface(
-        SourceProductionContext context,
-        ScopeNode node,
-        DiGraph graph
-    )
+    public static void GenerateInterface(SourceProductionContext context, ScopeNode node)
     {
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
-            Generate(f, node, graph);
+            Generate(f, node);
         }
         f.EndClassDeclaration();
 
         context.AddSource($"{className}.DI.IScope.g.cs", f.ToString());
     }
 
-    private static void Generate(CodeFormatter f, ScopeNode node, DiGraph graph)
+    private static void Generate(CodeFormatter f, ScopeNode node)
     {
-        GenerateProvideService(f);
+        GenerateProvideService(f, node.ValidatedTypeInfo);
         f.AppendLine();
 
-        GenerateResolveDependency(f);
+        GenerateResolveDependency(f, node.ValidatedTypeInfo);
         f.AppendLine();
     }
 
-    private static void GenerateProvideService(CodeFormatter f)
+    private static void GenerateProvideService(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // ProvideService
         f.AppendHiddenMethodCommentAndAttribute();
@@ -60,9 +56,7 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
                 f.AppendLine();
 
-                f.AppendLine(
-                    $"{GlobalNames.GodotGD}.PushError($\"直到根 Service Scope 都无法注册服务类型：{{type.Name}}\");"
-                );
+                f.PushError("$\"直到根 Service Scope 都无法注册服务类型：{type.Name}\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -71,9 +65,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("if (!_services.TryAdd(type, instance))", "注册服务");
             f.BeginBlock();
             {
-                f.AppendLine(
-                    $"{GlobalNames.GodotGD}.PushError($\"重复注册类型: {{type.Name}}。\");"
-                );
+                f.PushError("$\"重复注册类型: {type.Name}\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -82,12 +74,28 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("if (_waiters.Remove(type, out var waiterList))", "通知等待者");
             f.BeginBlock();
             {
-                f.AppendLine("foreach (var callback in waiterList)");
+                f.AppendLine("foreach (var waiter in waiterList)");
                 f.BeginBlock();
                 {
                     f.BeginTryCatch();
                     {
-                        f.AppendLine("callback.Invoke(instance);");
+                        f.AppendLine("waiter.Callback.Invoke(instance);");
+                    }
+                    f.CatchBlock("ex");
+                    {
+                        f.BeginStringBuilderAppend("errorMessage", true);
+                        {
+                            f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
+                            f.StringBuilderAppendLine("  服务类型: {type.Name}");
+                            f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
+                            f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                            f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
+                            f.StringBuilderAppendLine("  异常: {ex.Message}");
+                        }
+                        f.EndStringBuilderAppend();
+                        f.AppendLine();
+
+                        f.PushError("errorMessage.ToString()");
                     }
                     f.EndTryCatch();
                 }
@@ -98,15 +106,20 @@ internal static class ScopeInterfaceGenerator
         f.EndBlock();
     }
 
-    private static void GenerateResolveDependency(CodeFormatter f)
+    private static void GenerateResolveDependency(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         // ResolveDependency
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"void {GlobalNames.IScope}.ResolveDependency<T>({GlobalNames.Action}<T> onResolved)"
+            $"void {GlobalNames.IScope}.ResolveDependency<T>({GlobalNames.Action}<T> onResolved, {GlobalNames.String} requestorType, {GlobalNames.String}? scopeChain)"
         );
         f.BeginBlock();
         {
+            f.AppendLine("// 构建 Scope 传递链");
+            f.AppendLine(
+                $"var currentScopeChain = scopeChain is null ? \"{validatedType.Symbol.Name}\" : scopeChain + \" -> {validatedType.Symbol.Name}\";"
+            );
+
             f.AppendLine("var type = typeof(T);");
             f.AppendLine();
 
@@ -117,15 +130,27 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("if (parent is not null)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("parent.ResolveDependency(onResolved);");
+                    f.AppendLine(
+                        "parent.ResolveDependency(onResolved, requestorType, currentScopeChain);"
+                    );
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
                 f.AppendLine();
 
-                f.AppendLine(
-                    $"{GlobalNames.GodotGD}.PushError($\"直到根 Service Scope 都无法找到服务类型：{{type.Name}}\");"
-                );
+                f.BeginStringBuilderAppend("errorMessage", true);
+                {
+                    f.StringBuilderAppendLine(
+                        "[GodotSharpDI] 直到根 Scope 都无法找到服务类型: {type.Name}"
+                    );
+                    f.StringBuilderAppendLine("  请求者类型: {requestorType}");
+                    f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                    f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
+                }
+                f.EndStringBuilderAppend();
+                f.AppendLine();
+
+                f.PushError("errorMessage.ToString()");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -141,6 +166,22 @@ internal static class ScopeInterfaceGenerator
                 {
                     f.AppendLine("onResolved.Invoke((T)singleton);");
                 }
+                f.CatchBlock("ex");
+                {
+                    f.BeginStringBuilderAppend("errorMessage", true);
+                    {
+                        f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
+                        f.StringBuilderAppendLine("  服务类型: {type.Name}");
+                        f.StringBuilderAppendLine("  请求者类型: {requestorType}");
+                        f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                        f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
+                        f.StringBuilderAppendLine("  异常: {ex.Message}");
+                    }
+                    f.EndStringBuilderAppend();
+                    f.AppendLine();
+
+                    f.PushError("errorMessage.ToString()");
+                }
                 f.EndTryCatch();
                 f.AppendLine("return;");
             }
@@ -150,13 +191,21 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("if (!_waiters.TryGetValue(type, out var waiterList))", "加入等待列表");
             f.BeginBlock();
             {
-                f.AppendLine(
-                    $"waiterList = new {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Object}>>();"
-                );
+                f.AppendLine($"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();");
                 f.AppendLine("_waiters[type] = waiterList;");
             }
             f.EndBlock();
-            f.AppendLine("waiterList.Add(obj => onResolved.Invoke((T)obj));");
+            f.AppendLine();
+
+            f.AppendLine("waiterList.Add(new DependencyWaitInfo");
+            f.BeginBlock();
+            {
+                f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
+                f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
+                f.AppendLine("RequestorType = requestorType,");
+                f.AppendLine("ScopeChain = currentScopeChain,");
+            }
+            f.EndBlock(");");
         }
         f.EndBlock();
     }

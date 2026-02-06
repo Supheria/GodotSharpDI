@@ -34,7 +34,7 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
         {
-            GenerateProvideHostServices(f, singletonMembers);
+            GenerateProvideHostServices(f, node.ValidatedTypeInfo, singletonMembers);
             f.AppendLine();
         }
         f.EndClassDeclaration();
@@ -45,7 +45,11 @@ internal static class HostGenerator
     /// <summary>
     /// 生成 ProvideHostServices 方法
     /// </summary>
-    private static void GenerateProvideHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
+    private static void GenerateProvideHostServices(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType,
+        MemberInfo[] singletonMembers
+    )
     {
         // ProvideHostServices
         f.AppendHiddenMethodCommentAndAttribute();
@@ -53,18 +57,42 @@ internal static class HostGenerator
         f.BeginBlock();
         {
             f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null) return;");
+            f.AppendLine("if (scope is null)");
+            f.BeginBlock();
+            {
+                f.PushError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.AppendLine("return;");
+            }
+            f.EndBlock();
             f.AppendLine();
 
             foreach (var member in singletonMembers)
             {
+                var memberName = member.Symbol.Name;
+                var memberType = member.MemberType.ToFullyQualifiedName();
+
                 foreach (var exposedType in member.ExposedTypes)
                 {
                     f.BeginTryCatch();
                     {
                         f.AppendLine(
-                            $"scope.ProvideService<{exposedType.ToFullyQualifiedName()}>({member.Symbol.Name});"
+                            $"scope.ProvideService<{exposedType.ToFullyQualifiedName()}>({memberName});"
                         );
+                    }
+                    f.CatchBlock("ex");
+                    {
+                        f.BeginStringBuilderAppend("errorMessage", true);
+                        {
+                            f.StringBuilderAppendLine($"[{ShortNames.GodotSharpDI}] 服务提供失败");
+                            f.StringBuilderAppendLine($"  Host: {validatedType.Symbol.Name}");
+                            f.StringBuilderAppendLine($"  成员: {memberName}");
+                            f.StringBuilderAppendLine($"  类型: {memberType}");
+                            f.StringBuilderAppendLine("  异常: {ex.Message}");
+                        }
+                        f.EndStringBuilderAppend();
+                        f.AppendLine();
+
+                        f.PushError("errorMessage.ToString()");
                     }
                     f.EndTryCatch();
                 }
