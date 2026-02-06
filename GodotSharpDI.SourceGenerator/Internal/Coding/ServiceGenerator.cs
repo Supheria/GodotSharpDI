@@ -38,12 +38,24 @@ internal static class ServiceGenerator
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"public static void CreateService({GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated)"
+            $"public static void CreateService("
+            + $"{GlobalNames.IScope} scope, "
+            + $"{GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated, "
+            + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
+            + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
-            f.AppendLine($"var instance = new {className}();");
-            f.AppendLine("onCreated.Invoke(instance, scope);");
+            f.BeginTryCatch();
+            {
+                f.AppendLine($"var instance = new {className}();");
+                f.AppendLine("onCreated.Invoke(instance, scope);");
+            }
+            f.CatchBlock("ex");
+            {
+                f.AppendLine("onFailed.Invoke(ex.Message);");
+            }
+            f.EndTryCatch();
         }
         f.EndBlock();
     }
@@ -57,11 +69,16 @@ internal static class ServiceGenerator
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"public static void CreateService({GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated)"
+            $"public static void CreateService("
+            + $"{GlobalNames.IScope} scope, "
+            + $"{GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated, "
+            + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
+            + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
             f.AppendLine($"var remaining = {ctor.Parameters.Length};");
+            f.AppendLine($"var hasFailed = false;");
             f.AppendLine();
 
             // 声明参数变量
@@ -83,12 +100,15 @@ internal static class ServiceGenerator
                     f.AppendLine("dependency =>");
                     f.BeginBlock();
                     {
+                        f.AppendLine("if (hasFailed) return;");
+                        f.AppendLine();
                         f.BeginTryCatch();
                         {
                             f.AppendLine($"p{i} = dependency;");
                         }
                         f.CatchBlock("ex");
                         {
+                            f.AppendLine("hasFailed = true;");
                             f.AppendLine(
                                 $"PushError(ex.Message, \"{param.Symbol.Name}\", \"{param.Type}\");"
                             );
@@ -97,7 +117,9 @@ internal static class ServiceGenerator
                         f.AppendLine("TryCreate();");
                     }
                     f.EndBlock(",");
-                    f.AppendLine($"requestorType: \"{className}\"");
+                    f.AppendLine($"requestorType: \"{className}\",");
+                    f.AppendLine("scopeChain: null,");
+                    f.AppendLine("dependencyChain: dependencyChain");
                 }
                 f.EndLevel();
                 f.AppendLine(");");
@@ -121,7 +143,7 @@ internal static class ServiceGenerator
                 }
                 f.EndStringBuilderAppend();
                 f.AppendLine();
-                f.PushError("errorMessage.ToString()");
+                f.AppendLine("onFailed(errorMessage.ToString());");
             }
             f.EndBlock();
             f.AppendLine();
@@ -130,17 +152,35 @@ internal static class ServiceGenerator
             f.AppendLine("void TryCreate()");
             f.BeginBlock();
             {
+                f.AppendLine("if (hasFailed) return;");
                 f.AppendLine("if (--remaining == 0)");
                 f.BeginBlock();
                 {
-                    var paramNames = new List<string>();
-                    for (int i = 0; i < ctor.Parameters.Length; i++)
+                    f.BeginTryCatch();
                     {
-                        paramNames.Add($"p{i}!");
+                        var paramNames = new List<string>();
+                        for (int i = 0; i < ctor.Parameters.Length; i++)
+                        {
+                            paramNames.Add($"p{i}!");
+                        }
+                        var paramList = string.Join(", ", paramNames);
+                        f.AppendLine($"var instance = new {className}({paramList});");
+                        f.AppendLine("onCreated.Invoke(instance, scope);");
                     }
-                    var paramList = string.Join(", ", paramNames);
-                    f.AppendLine($"var instance = new {className}({paramList});");
-                    f.AppendLine("onCreated.Invoke(instance, scope);");
+                    f.CatchBlock("ex");
+                    {
+                        f.AppendLine("hasFailed = true;");
+                        f.BeginStringBuilderAppend("errorMessage", true);
+                        {
+                            f.StringBuilderAppendLine("[GodotSharpDI] 服务实例化失败");
+                            f.StringBuilderAppendLine($"  服务类型: {className}");
+                            f.StringBuilderAppendLine("  异常: {ex.Message}");
+                        }
+                        f.EndStringBuilderAppend();
+                        f.AppendLine();
+                        f.AppendLine("onFailed(errorMessage.ToString());");
+                    }
+                    f.EndTryCatch();
                 }
                 f.EndBlock();
             }

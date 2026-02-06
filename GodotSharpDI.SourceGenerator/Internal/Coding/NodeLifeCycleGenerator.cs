@@ -114,7 +114,7 @@ internal static class NodeLifeCycleGenerator
                             f.AppendLine("ResolveUserDependencies();");
                             break;
                         case TypeRole.Scope:
-                            f.AppendLine("InstantiateScopeSingletons();");
+                            f.AppendLine("RegisterServiceFactories();");
                             f.AppendLine("StartDependencyMonitoring();");
                             break;
                     }

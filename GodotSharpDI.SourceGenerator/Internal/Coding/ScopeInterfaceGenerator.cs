@@ -62,13 +62,27 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine("if (!_services.TryAdd(type, instance))", "注册服务");
+            f.AppendLine("// 更新或创建缓存条目");
+            f.AppendLine("if (!_serviceCache.TryGetValue(type, out var cacheEntry))");
+            f.BeginBlock();
+            {
+                f.AppendLine("cacheEntry = new ServiceCacheEntry();");
+            }
+            f.EndBlock();
+            f.AppendLine();
+
+            f.AppendLine("if (cacheEntry.State == ServiceState.Created)");
             f.BeginBlock();
             {
                 f.PushError("$\"重复注册类型: {type.Name}\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
+            f.AppendLine();
+
+            f.AppendLine("cacheEntry.State = ServiceState.Created;");
+            f.AppendLine("cacheEntry.Instance = instance;");
+            f.AppendLine("_serviceCache[type] = cacheEntry;");
             f.AppendLine();
 
             f.AppendLine("if (_waiters.Remove(type, out var waiterList))", "通知等待者");
@@ -168,58 +182,209 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.AppendLine(
-                "if (_services.TryGetValue(type, out var singleton))",
-                "尝试从已注册的单例获取"
-            );
+            f.AppendLine("// 获取或创建缓存条目");
+            f.AppendLine("if (!_serviceCache.TryGetValue(type, out var cacheEntry))");
             f.BeginBlock();
             {
-                f.BeginTryCatch();
+                f.AppendLine("cacheEntry = new ServiceCacheEntry");
+                f.BeginBlock();
                 {
-                    f.AppendLine("onResolved.Invoke((T)singleton);");
+                    f.AppendLine("State = ServiceState.NotCreated");
                 }
-                f.CatchBlock("ex");
+                f.EndBlock(";");
+                f.AppendLine("_serviceCache[type] = cacheEntry;");
+            }
+            f.EndBlock();
+            f.AppendLine();
+
+            f.AppendLine("// 状态机处理");
+            f.AppendLine("switch (cacheEntry.State)");
+            f.BeginBlock();
+            {
+                // Case: Created
+                f.AppendLine("case ServiceState.Created:");
+                f.BeginBlock();
                 {
+                    f.AppendLine("// 直接返回缓存的实例");
+                    f.BeginTryCatch();
+                    {
+                        f.AppendLine("onResolved.Invoke((T)cacheEntry.Instance!);");
+                    }
+                    f.CatchBlock("ex");
+                    {
+                        f.BeginStringBuilderAppend("errorMessage", true);
+                        {
+                            f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
+                            f.StringBuilderAppendLine("  服务类型: {type.Name}");
+                            f.StringBuilderAppendLine("  请求者类型: {requestorType}");
+                            f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                            f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
+                            f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
+                            f.StringBuilderAppendLine("  异常: {ex.Message}");
+                        }
+                        f.EndStringBuilderAppend();
+                        f.AppendLine();
+                        f.PushError("errorMessage.ToString()");
+                    }
+                    f.EndTryCatch();
+                    f.AppendLine("break;");
+                }
+                f.EndBlock();
+
+                // Case: Failed
+                f.AppendLine("case ServiceState.Failed:");
+                f.BeginBlock();
+                {
+                    f.AppendLine("// 报告之前的失败信息");
                     f.BeginStringBuilderAppend("errorMessage", true);
                     {
-                        f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
-                        f.StringBuilderAppendLine("  服务类型: {type.Name}");
-                        f.StringBuilderAppendLine("  请求者类型: {requestorType}");
-                        f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                        f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
-                        f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
-                        f.StringBuilderAppendLine("  异常: {ex.Message}");
+                        f.StringBuilderAppendLine("[GodotSharpDI] 服务创建曾失败: {type.Name}");
+                        f.StringBuilderAppendLine("  当前请求链: {currentDependencyChain}");
+                        f.StringBuilderAppendLine(
+                            "  首次失败链: {cacheEntry.FailureDependencyChain}"
+                        );
+                        f.StringBuilderAppendLine("  失败原因: {cacheEntry.FailureReason}");
                     }
                     f.EndStringBuilderAppend();
                     f.AppendLine();
-
                     f.PushError("errorMessage.ToString()");
+                    f.AppendLine("break;");
                 }
-                f.EndTryCatch();
-                f.AppendLine("return;");
+                f.EndBlock();
+
+                // Case: Creating
+                f.AppendLine("case ServiceState.Creating:");
+                f.BeginBlock();
+                {
+                    f.AppendLine("// 检测到循环依赖");
+                    f.BeginStringBuilderAppend("errorMessage", true);
+                    {
+                        f.StringBuilderAppendLine("[GodotSharpDI] 检测到运行时循环依赖");
+                        f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
+                    }
+                    f.EndStringBuilderAppend();
+                    f.AppendLine();
+                    f.PushError("errorMessage.ToString()");
+                    f.AppendLine("break;");
+                }
+                f.EndBlock();
+
+                // Case: NotCreated
+                f.AppendLine("case ServiceState.NotCreated:");
+                f.BeginBlock();
+                {
+                    f.AppendLine("// 检查是否有工厂（Scope 创建的服务）");
+                    f.AppendLine("if (_serviceFactories.TryGetValue(type, out var factory))");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("// 按需创建服务");
+                        f.AppendLine("cacheEntry.State = ServiceState.Creating;");
+                        f.AppendLine("_serviceCache[type] = cacheEntry;");
+                        f.AppendLine();
+
+                        f.AppendLine("// 调用工厂创建服务");
+                        f.AppendLine("factory(");
+                        f.BeginLevel();
+                        {
+                            f.AppendLine("this,");
+                            f.AppendLine("(instance, scope) =>");
+                            f.BeginBlock();
+                            {
+                                f.AppendLine("// 创建成功回调已在工厂中处理 ProvideService");
+                                f.AppendLine("// 这里直接调用用户回调");
+                                f.BeginTryCatch();
+                                {
+                                    f.AppendLine("onResolved.Invoke((T)instance);");
+                                }
+                                f.CatchBlock("ex");
+                                {
+                                    f.BeginStringBuilderAppend("errorMessage", true);
+                                    {
+                                        f.StringBuilderAppendLine(
+                                            "[GodotSharpDI] 依赖注入回调执行失败"
+                                        );
+                                        f.StringBuilderAppendLine("  服务类型: {type.Name}");
+                                        f.StringBuilderAppendLine("  请求者类型: {requestorType}");
+                                        f.StringBuilderAppendLine(
+                                            "  依赖链条: {currentDependencyChain}"
+                                        );
+                                        f.StringBuilderAppendLine("  异常: {ex.Message}");
+                                    }
+                                    f.EndStringBuilderAppend();
+                                    f.AppendLine();
+                                    f.PushError("errorMessage.ToString()");
+                                }
+                                f.EndTryCatch();
+                            }
+                            f.EndBlock(",");
+                            f.AppendLine("(failureReason) =>");
+                            f.BeginBlock();
+                            {
+                                f.AppendLine("// 标记为失败");
+                                f.AppendLine("var failedEntry = new ServiceCacheEntry");
+                                f.BeginBlock();
+                                {
+                                    f.AppendLine("State = ServiceState.Failed,");
+                                    f.AppendLine("FailureReason = failureReason,");
+                                    f.AppendLine("FailureDependencyChain = currentDependencyChain");
+                                }
+                                f.EndBlock(";");
+                                f.AppendLine("_serviceCache[type] = failedEntry;");
+                                f.AppendLine();
+
+                                f.BeginStringBuilderAppend("errorMessage", true);
+                                {
+                                    f.StringBuilderAppendLine(
+                                        "[GodotSharpDI] 服务创建失败: {type.Name}"
+                                    );
+                                    f.StringBuilderAppendLine(
+                                        "  依赖链条: {currentDependencyChain}"
+                                    );
+                                    f.StringBuilderAppendLine("  失败原因: {failureReason}");
+                                }
+                                f.EndStringBuilderAppend();
+                                f.AppendLine();
+                                f.PushError("errorMessage.ToString()");
+                            }
+                            f.EndBlock(",");
+                            f.AppendLine("currentDependencyChain");
+                        }
+                        f.EndLevel();
+                        f.AppendLine(");");
+                    }
+                    f.EndBlock();
+                    f.AppendLine("else");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("// 没有工厂 - 可能是 Host 提供的服务，加入等待队列");
+                        f.AppendLine("if (!_waiters.TryGetValue(type, out var waiterList))");
+                        f.BeginBlock();
+                        {
+                            f.AppendLine(
+                                $"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();"
+                            );
+                            f.AppendLine("_waiters[type] = waiterList;");
+                        }
+                        f.EndBlock();
+                        f.AppendLine();
+
+                        f.AppendLine("waiterList.Add(new DependencyWaitInfo");
+                        f.BeginBlock();
+                        {
+                            f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
+                            f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
+                            f.AppendLine("RequestorType = requestorType,");
+                            f.AppendLine("ScopeChain = currentScopeChain,");
+                            f.AppendLine("DependencyChain = currentDependencyChain,");
+                        }
+                        f.EndBlock(");");
+                    }
+                    f.EndBlock();
+                    f.AppendLine("break;");
+                }
+                f.EndBlock();
             }
             f.EndBlock();
-            f.AppendLine();
-
-            f.AppendLine("if (!_waiters.TryGetValue(type, out var waiterList))", "加入等待列表");
-            f.BeginBlock();
-            {
-                f.AppendLine($"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();");
-                f.AppendLine("_waiters[type] = waiterList;");
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            f.AppendLine("waiterList.Add(new DependencyWaitInfo");
-            f.BeginBlock();
-            {
-                f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
-                f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
-                f.AppendLine("RequestorType = requestorType,");
-                f.AppendLine("ScopeChain = currentScopeChain,");
-                f.AppendLine("DependencyChain = currentDependencyChain,");
-            }
-            f.EndBlock(");");
         }
         f.EndBlock();
     }

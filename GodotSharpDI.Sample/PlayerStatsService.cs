@@ -13,4 +13,6 @@ public partial class PlayerStatsService : IPlayerStats
 {
     public int Health { get; set; } = 100;
     public int Mana { get; set; } = 50;
+
+    public PlayerStatsService(GameManager playerStats) { }
 }
