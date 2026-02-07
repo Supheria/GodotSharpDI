@@ -38,17 +38,17 @@ internal sealed class RoleConstraintsProcessor
             case TypeRole.Host:
             case TypeRole.HostAndUser:
                 ValidateHostConstraints();
-                ValidateNotificationMethod(); // 新增：Host 需要 _Notification
+                ValidateNotificationMethod();
                 break;
 
             case TypeRole.User:
                 ValidateUserConstraints();
-                ValidateNotificationMethod(); // 新增：User 需要 _Notification
+                ValidateNotificationMethod();
                 break;
 
             case TypeRole.Scope:
                 ValidateScopeConstraints();
-                ValidateNotificationMethod(); // 新增：Scope 需要 _Notification
+                ValidateNotificationMethod();
                 break;
         }
 
@@ -71,7 +71,8 @@ internal sealed class RoleConstraintsProcessor
 
     private void ValidateServiceConstraints()
     {
-        if (!_raw.Symbol.IsValidServiceType(_symbols))
+        // 必须是实体类
+        if (!_raw.Symbol.IsConcreteClass())
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
@@ -82,10 +83,47 @@ internal sealed class RoleConstraintsProcessor
             );
         }
 
+        // 不能是泛型类型
+        if (_raw.Symbol.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.ServiceTypeCannotBeGeneric,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+
+        // 不能是 Node
+        if (_symbols.IsNode(_raw.Symbol))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.ServiceCannotBeNode,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+
         var exposedTypes = AttributeHelper.GetServiceExposedTypes(_raw.Symbol, _symbols);
 
         foreach (var exposedType in exposedTypes)
         {
+            // 不能是泛型类型
+            if (exposedType.IsGenericType)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.ServiceExposedTypeCannotBeGeneric,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        exposedType.ToDisplayString()
+                    )
+                );
+            }
+
             // 检查暴露类型是否是接口（Warning）
             if (exposedType.TypeKind != TypeKind.Interface)
             {
@@ -147,6 +185,18 @@ internal sealed class RoleConstraintsProcessor
                 )
             );
         }
+
+        // 不能是泛型类型
+        if (_raw.Symbol.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.HostCannotBeGenericType,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
     }
 
     private void ValidateUserConstraints()
@@ -156,6 +206,18 @@ internal sealed class RoleConstraintsProcessor
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.UserMustBeNode,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+
+        // 不能是泛型类型
+        if (_raw.Symbol.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.UserCannotBeGenericType,
                     _raw.Location,
                     _raw.Symbol.Name
                 )
@@ -175,11 +237,24 @@ internal sealed class RoleConstraintsProcessor
                 )
             );
         }
+
         if (!_raw.HasModulesAttribute)
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ScopeMissingModules,
+                    _raw.Location,
+                    _raw.Symbol.Name
+                )
+            );
+        }
+
+        // 不能是泛型类型
+        if (_raw.Symbol.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.ScopeCannotBeGenericType,
                     _raw.Location,
                     _raw.Symbol.Name
                 )

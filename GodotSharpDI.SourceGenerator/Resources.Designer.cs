@@ -69,6 +69,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Host cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_HostCannotBeGenericType {
+            get {
+                return ResourceManager.GetString("C_HostCannotBeGenericType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Host &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string C_HostInvalidAttribute {
@@ -114,6 +123,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Scope cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_ScopeCannotBeGenericType {
+            get {
+                return ResourceManager.GetString("C_ScopeCannotBeGenericType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string C_ScopeInvalidAttribute {
@@ -137,6 +155,24 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string C_ScopeMustBeNode {
             get {
                 return ResourceManager.GetString("C_ScopeMustBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node..
+        /// </summary>
+        internal static string C_ServiceCannotBeNode {
+            get {
+                return ResourceManager.GetString("C_ServiceCannotBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot expose generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers..
+        /// </summary>
+        internal static string C_ServiceExposedTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("C_ServiceExposedTypeCannotBeGeneric", resourceCulture);
             }
         }
         
@@ -168,11 +204,29 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node, and must be non-abstract, non-static class type.
+        ///   Looks up a localized string similar to Service cannot be generic type ‘{0}’. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_ServiceTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("C_ServiceTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; must be a non-abstract, non-static class type.
         /// </summary>
         internal static string C_ServiceTypeIsInvalid {
             get {
                 return ResourceManager.GetString("C_ServiceTypeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_UserCannotBeGenericType {
+            get {
+                return ResourceManager.GetString("C_UserCannotBeGenericType", resourceCulture);
             }
         }
         
@@ -357,6 +411,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string M_InjectMemberTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_InjectMemberTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static).
         /// </summary>
         internal static string M_InjectMemberTypeIsInvalid {
@@ -398,6 +461,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_MemberHasSingletonButNotInHost {
             get {
                 return ResourceManager.GetString("M_MemberHasSingletonButNotInHost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot expose generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers..
+        /// </summary>
+        internal static string M_SingletonMemberExposedTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberExposedTypeCannotBeGeneric", resourceCulture);
             }
         }
         
@@ -470,6 +542,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_SingletonMemberIsUserType {
             get {
                 return ResourceManager.GetString("M_SingletonMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string M_SingletonMemberTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberTypeCannotBeGeneric", resourceCulture);
             }
         }
         
@@ -560,6 +641,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string S_InjectCtorParamIsUserType {
             get {
                 return ResourceManager.GetString("S_InjectCtorParamIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; cannot be a generic type &apos;{1}&apos; . Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string S_InjectCtorParamTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamTypeCannotBeGeneric", resourceCulture);
             }
         }
         

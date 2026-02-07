@@ -64,7 +64,7 @@
     </data>
 
     <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
-        <value>服务 '{0}' 不能继承自 Godot.Node，且必须是非抽象、非静态的类类型</value>
+        <value>服务 '{0}' 必须是非抽象、非静态的 class 类型</value>
     </data>
 
     <data name="C_ServiceExposedTypeShouldBeInterface" xml:space="preserve">
@@ -288,5 +288,35 @@
     </data>
     <data name="M_SingletonMemberIsStatic" xml:space="preserve">
         <value>[Singleton] 成员 '{0}' 不能是静态的</value>
+    </data>
+    <data name="C_ServiceCannotBeNode" xml:space="preserve">
+        <value>服务 '{0}' 不能继承自 Godot.Node</value>
+    </data>
+    <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
+        <value>服务不能是泛型类型 ‘{0}’。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>服务 '{0}' 不能暴露泛型类型 '{1}'。泛型类型无法实例化，也不能作为稳定的服务标识。</value>
+    </data>
+    <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 不能暴露泛型类型 '{1}'。泛型类型无法实例化，也不能作为稳定的服务标识。</value>
+    </data>
+    <data name="M_SingletonMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
+        <value>构造函数参数 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
     </data>
 </root>

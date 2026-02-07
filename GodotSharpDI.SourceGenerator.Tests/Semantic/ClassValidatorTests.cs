@@ -121,7 +121,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C060" // ServiceCannotBeNode
+            d => d.Id == "GDI_C061" // ServiceCannotBeNode
         );
     }
 

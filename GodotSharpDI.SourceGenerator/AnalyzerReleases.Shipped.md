@@ -4,23 +4,26 @@
 
 ### Class-level Diagnostics (C_)
 
-| Rule ID  | Category            | Severity | Notes                                                          |
-|----------|---------------------|----------|----------------------------------------------------------------|
-| GDI_C010 | GDI.Class           | Error    | Host cannot use incompatible attributes                        |
-| GDI_C011 | GDI.Class           | Error    | User cannot use incompatible attributes                        |
-| GDI_C012 | GDI.Class           | Error    | Scope cannot use incompatible attributes                       |
-| GDI_C013 | GDI.Class           | Error    | To use [Modules] must implement IScope                         |
-| GDI_C020 | GDI.Class           | Error    | Host must inherit from Godot.Node                              |
-| GDI_C021 | GDI.Class           | Error    | User must inherit from Godot.Node                              |
-| GDI_C022 | GDI.Class           | Error    | Scope must inherit from Godot.Node                             |
-| GDI_C030 | GDI.Class           | Error    | IServicesReady implementation requires [User] attribute        |
-| GDI_C040 | GDI.Class           | Error    | Scope must specify [Modules]                                   |
-| GDI_C050 | GDI.Class           | Error    | DI-relative class must be partial                              |
-| GDI_C060 | GDI.Class           | Error    | Service must be non-Godot.Node, non-abstract, non-static class |
-| GDI_C070 | GDI.Class           | Warning  | Service exposed type should be interface                       |
-| GDI_C071 | GDI.Class           | Error    | Service exposes type but does not implement it                 |
-| GDI_C080 | GDI.Class           | Error    | Host, User or Scope missing _Notification declaration          |
-| GDI_C081 | GDI.Class           | Error    | Unexpected Signature of _Notification declaration              |
+| Rule ID  | Category            | Severity | Notes                                                   |
+|----------|---------------------|----------|---------------------------------------------------------|
+| GDI_C010 | GDI.Class           | Error    | Host cannot use incompatible attributes                 |
+| GDI_C011 | GDI.Class           | Error    | User cannot use incompatible attributes                 |
+| GDI_C012 | GDI.Class           | Error    | Scope cannot use incompatible attributes                |
+| GDI_C013 | GDI.Class           | Error    | To use [Modules] must implement IScope                  |
+| GDI_C020 | GDI.Class           | Error    | Host must inherit from Godot.Node                       |
+| GDI_C021 | GDI.Class           | Error    | User must inherit from Godot.Node                       |
+| GDI_C022 | GDI.Class           | Error    | Scope must inherit from Godot.Node                      |
+| GDI_C030 | GDI.Class           | Error    | IServicesReady implementation requires [User] attribute |
+| GDI_C040 | GDI.Class           | Error    | Scope must specify [Modules]                            |
+| GDI_C050 | GDI.Class           | Error    | DI-relative class must be partial                       |
+| GDI_C060 | GDI.Class           | Error    | Service must be non-abstract, non-static class          |
+| GDI_C061 | GDI.Class           | Error    | Service cannot inherit from Godot.Node                  |
+| GDI_C062 | GDI.Class           | Error    | Service cannot be generic type                          |
+| GDI_C070 | GDI.Class           | Warning  | Service exposed type should be interface                |
+| GDI_C071 | GDI.Class           | Error    | Service exposes type but does not implement it          |
+| GDI_C072 | GDI.Class           | Error    | Service cannot expose generic type                      |
+| GDI_C080 | GDI.Class           | Error    | Host, User or Scope missing _Notification declaration   |
+| GDI_C081 | GDI.Class           | Error    | Unexpected Signature of _Notification declaration       |
 
 ### Member-level Diagnostics (M_)
 
@@ -38,14 +41,16 @@
 | GDI_M044 | GDI.Member          | Error    | Cannot inject Scope type                                        |
 | GDI_M045 | GDI.Member          | Error    | Inject member cannot be regular Node                            |
 | GDI_M046 | GDI.Member          | Warning  | Inject member type should be interface (for better testability) |
+| GDI_M047 | GDI.Member          | Error    | Inject member cannot be generic type                            |
 | GDI_M050 | GDI.Member          | Error    | Singleton member cannot be static                               |
 | GDI_M051 | GDI.Member          | Error    | Singleton member type is invalid                                |
 | GDI_M052 | GDI.Member          | Error    | Host Singleton member cannot be Service type                    |
 | GDI_M053 | GDI.Member          | Warning  | Singleton member is Host type (Host can only expose itself)     |
 | GDI_M054 | GDI.Member          | Error    | Singleton member cannot be User type                            |
 | GDI_M055 | GDI.Member          | Error    | Singleton member cannot be Scope type / regular Node            |
-| GDI_M056 | GDI.Member          | Error    | Singleton member exposed type not implemented                   |
-| GDI_M057 | GDI.Member          | Warning  | Singleton member exposed type should be interface               |
+| GDI_M056 | GDI.Member          | Error    | Singleton member cannot be generic type                         |
+| GDI_M061 | GDI.Member          | Warning  | Singleton member exposed type should be interface               |
+| GDI_M062 | GDI.Member          | Warning  | Singleton member cannot expose generic type                     |
 | GDI_M070 | GDI.Member          | Warning  | Host has no member marked as [Singleton]                        |
 | GDI_M071 | GDI.Member          | Warning  | User has no member marked as [Inject]                           |
 
@@ -62,6 +67,7 @@
 | GDI_S023 | GDI.Constructor     | Error    | Constructor parameter cannot be Scope type                              |
 | GDI_S024 | GDI.Constructor     | Error    | Constructor parameter cannot be regular Node                            |
 | GDI_S025 | GDI.Constructor     | Warning  | Constructor parameter type should be interface (for better testability) |
+| GDI_S026 | GDI.Constructor     | Error    | Constructor parameter cannot be generic type                            |
 
 ### Dependency Graph Diagnostics (D_)
 

@@ -145,6 +145,21 @@ internal static class DiagnosticDescriptors
         Resources.C_ScopeMustBeNode
     );
 
+    public static readonly DiagnosticDescriptor HostCannotBeGenericType = Class(
+        "023",
+        Resources.C_HostCannotBeGenericType
+    );
+
+    public static readonly DiagnosticDescriptor UserCannotBeGenericType = Class(
+        "024",
+        Resources.C_UserCannotBeGenericType
+    );
+
+    public static readonly DiagnosticDescriptor ScopeCannotBeGenericType = Class(
+        "025",
+        Resources.C_ScopeCannotBeGenericType
+    );
+
     public static readonly DiagnosticDescriptor ServiceReadyNeedUser = Class(
         "030",
         Resources.C_ServiceReadyNeedUser
@@ -165,6 +180,16 @@ internal static class DiagnosticDescriptors
         Resources.C_ServiceTypeIsInvalid
     );
 
+    public static readonly DiagnosticDescriptor ServiceCannotBeNode = Class(
+        "061",
+        Resources.C_ServiceCannotBeNode
+    );
+
+    public static readonly DiagnosticDescriptor ServiceTypeCannotBeGeneric = Class(
+        "062",
+        Resources.C_ServiceTypeCannotBeGeneric
+    );
+
     public static readonly DiagnosticDescriptor ServiceExposedTypeShouldBeInterface = Class(
         "070",
         Resources.C_ServiceExposedTypeShouldBeInterface,
@@ -174,6 +199,11 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ServiceExposedTypeNotImplemented = Class(
         "071",
         Resources.C_ServiceExposedTypeNotImplemented
+    );
+
+    public static readonly DiagnosticDescriptor ServiceExposedTypeCannotBeGeneric = Class(
+        "072",
+        Resources.C_ServiceExposedTypeCannotBeGeneric
     );
 
     public static readonly DiagnosticDescriptor MissingNotificationMethod = Class(
@@ -251,6 +281,11 @@ internal static class DiagnosticDescriptors
         Resources.M_InjectMemberTypeShouldBeInterface
     );
 
+    public static readonly DiagnosticDescriptor InjectMemberTypeCannotBeGeneric = Member(
+        "047",
+        Resources.M_InjectMemberTypeCannotBeGeneric
+    );
+
     public static readonly DiagnosticDescriptor SingletonMemberIsStatic = Member(
         "050",
         Resources.M_SingletonMemberIsStatic
@@ -287,17 +322,27 @@ internal static class DiagnosticDescriptors
         Resources.M_SingletonMemberIsRegularNode
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeNotImplemented = Member(
+    public static readonly DiagnosticDescriptor SingletonMemberTypeCannotBeGeneric = Member(
         "057",
+        Resources.M_SingletonMemberTypeCannotBeGeneric
+    );
+
+    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeNotImplemented = Member(
+        "060",
         Resources.M_SingletonMemberExposedTypeNotImplemented
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberExposedTypeShouldBeInterface =
         Member(
-            "058",
+            "061",
             Resources.M_SingletonMemberExposedTypeShouldBeInterface,
             DiagnosticSeverity.Warning
         );
+
+    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeCannotBeGeneric = Member(
+        "062",
+        Resources.M_SingletonMemberExposedTypeCannotBeGeneric
+    );
 
     public static readonly DiagnosticDescriptor HostMissingSingletonMember = Member(
         "070",
@@ -360,6 +405,11 @@ internal static class DiagnosticDescriptors
         "025",
         Resources.S_InjectCtorParamTypeShouldBeInterface,
         DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor InjectCtorParamTypeCannotBeGeneric = Constructor(
+        "026",
+        Resources.S_InjectCtorParamTypeCannotBeGeneric
     );
 
     // ============================================================

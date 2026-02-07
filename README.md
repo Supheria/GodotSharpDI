@@ -881,28 +881,18 @@ Final rule:
 | Type | Must be class | Needs instantiation |
 | Inheritance | Cannot be Node | Node lifecycle is controlled by Godot, conflicts with DI container |
 | Modifiers | Cannot be abstract or static | Needs instantiation |
-| Generics | Cannot be open generic | Needs concrete type for instantiation |
+| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Declaration | Must be partial | Source generator needs to extend the class |
-
-**Type Constraints**
-
-| Type | Allowed | Description |
-|------|---------|-------------|
-| Non-Node class | ✅ | **Recommended** |
-| Host / Host + User | ❌ | Should provide services through members |
-| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
-| User | ❌ | No static constraints, cannot guarantee lifecycle |
-| Scope | ❌ | Container cannot be a service |
-| Other types | ❌ | Not supported |
 
 **Exposed Type Constraints**
 
 | Type | Allowed | Description |
 |------|---------|-------------|
 | Implemented interface | ✅ | **Recommended** |
-| Inherited class | ✅ | Allowed |
+| Inherited class | ⚠️ | Allowed but not recommended |
 | Unimplemented interface | ❌ | Meaningless |
 | Non-inherited class | ❌ | Meaningless |
+| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers |
 
 **Constructor Constraints**
 
@@ -916,11 +906,12 @@ Final rule:
 | Type | Allowed | Description |
 |------|---------|-------------|
 | interface | ✅ | **Recommended approach** |
-| Non-Node class | ✅ | Allowed |
+| Non-Node class | ⚠️ | Allowed but not recommended |
 | Host / Host + User | ⚠️ | Allowed but not recommended, should depend on interfaces exposed by Host |
 | Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
 | User | ❌ | No static constraints, cannot guarantee lifecycle |
 | Scope | ❌ | Container cannot be a service |
+| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Other types | ❌ | Not supported |
 
 ---
@@ -933,6 +924,7 @@ Final rule:
 | ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Type          | Must be class                                                | Needs instantiation                                          |
 | Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
@@ -946,6 +938,7 @@ Final rule:
 | Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
 | User | ❌ | No static constraints, cannot guarantee lifecycle |
 | Scope | ❌ | Container nesting not allowed |
+| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Other types | ❌ | Not supported |
 
 **Host Singleton Member Exposed Type Constraints**
@@ -953,9 +946,10 @@ Final rule:
 | Type | Allowed | Description |
 |------|---------|-------------|
 | Implemented interface | ✅ | **Recommended** |
-| Inherited class | ✅ | Allowed |
+| Inherited class | ⚠️ | Allowed but not recommended |
 | Unimplemented interface | ❌ | Meaningless |
 | Non-inherited class | ❌ | Meaningless |
+| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers |
 
 ---
 
@@ -967,6 +961,7 @@ Final rule:
 | ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Type          | Must be class                                                | Needs instantiation                                          |
 | Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
+| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
@@ -975,11 +970,12 @@ Final rule:
 | Type | Allowed | Description |
 |------|---------|-------------|
 | interface | ✅ | **Recommended approach** |
-| Non-Node class | ✅ | Allowed |
+| Non-Node class | ⚠️ | Allowed but not recommended |
 | Host / Host + User | ⚠️ | Allowed but not recommended, should depend on interfaces exposed by Host |
 | Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
 | User | ❌ | No static constraints, cannot guarantee lifecycle |
 | Scope | ❌ | Container cannot be a service |
+| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Other types | ❌ | Not supported |
 
 ---
@@ -991,6 +987,7 @@ Final rule:
 | Type          | Must be class                                                | Needs instantiation                                          |
 | Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
 | Interface     | Must implement IScope                                        | Provides service registration API                            |
+| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
 | Modules       | Must specify [Modules]                                       | Defines service composition                                  |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |

@@ -87,21 +87,14 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否是接口或有效类
+    /// 检查类型是否是接口或具体类
     /// </summary>
-    public static bool IsValidInterfaceOrConcreteClass(this ITypeSymbol type)
+    public static bool IsInterfaceOrConcreteClass(this ITypeSymbol type)
     {
         // 检查不能是抽象类、静态类
-        if (type is INamedTypeSymbol named)
-        {
-            if (named.IsAbstract && named.TypeKind == TypeKind.Class)
-                return false;
-            if (named.IsStatic)
-                return false;
-        }
-
-        // 不能是开放泛型
-        if (type is INamedTypeSymbol generic && generic.IsUnboundGenericType)
+        if (type.IsAbstract && type.TypeKind == TypeKind.Class)
+            return false;
+        if (type.IsStatic)
             return false;
 
         // 必须是 interface 或 class
@@ -109,29 +102,16 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否是有效的服务类型
+    /// 检查类型是否是具体类
     /// </summary>
-    public static bool IsValidServiceType(this ITypeSymbol type, CachedSymbols symbols)
+    public static bool IsConcreteClass(this ITypeSymbol type)
     {
+        // 检查不能是抽象类、静态类
+        if (type.IsAbstract || type.IsStatic)
+            return false;
+
         // 必须是 class
-        if (type.TypeKind != TypeKind.Class)
-            return false;
-
-        var named = (INamedTypeSymbol)type;
-
-        // 不能是 Node
-        if (symbols.IsNode(type))
-            return false;
-
-        // 不能是抽象类、静态类
-        if (named.IsAbstract || named.IsStatic)
-            return false;
-
-        // 不能是开放泛型
-        if (named.IsUnboundGenericType)
-            return false;
-
-        return true;
+        return type.TypeKind == TypeKind.Class;
     }
 
     /// <summary>

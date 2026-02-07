@@ -64,7 +64,7 @@
     </data>
 
     <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
-        <value>Service '{0}' cannot inherit from Godot.Node, and must be non-abstract, non-static class type</value>
+        <value>Service '{0}' must be a non-abstract, non-static class type</value>
     </data>
 
     <data name="C_ServiceExposedTypeShouldBeInterface" xml:space="preserve">
@@ -290,5 +290,34 @@
     <data name="CodeFix_Notification" xml:space="preserve">
         <value>Add _Notification method declaration</value>
     </data>
-
+    <data name="C_ServiceCannotBeNode" xml:space="preserve">
+        <value>Service '{0}' cannot inherit from Godot.Node.</value>
+    </data>
+    <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
+        <value>Service cannot be generic type ‘{0}’. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>Service '{0}' cannot expose generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers.</value>
+    </data>
+    <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Singleton] member '{0}' cannot expose generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers.</value>
+    </data>
+    <data name="M_SingletonMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Singleton] member '{0}' cannot be generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] member '{0}' cannot be generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
+        <value>Constructor parameter '{0}' cannot be a generic type '{1}' . Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
 </root>
