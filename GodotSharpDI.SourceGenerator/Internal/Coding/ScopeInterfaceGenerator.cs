@@ -41,11 +41,12 @@ internal static class ScopeInterfaceGenerator
         f.BeginBlock();
         {
             f.AppendLine("var type = typeof(T);");
+            f.AppendLine("var implType = type;");
             f.AppendLine();
 
             f.AppendLine(
-                "if (!ServiceImplementationMap.TryGetValue(type, out var implType))",
-                "检查是否是单例服务类型"
+                "if (!ServiceFactories.ContainsKey(implType) && !ServiceImplementationMap.TryGetValue(type, out implType))",
+                "检查是否是已包含的服务类型"
             );
             f.BeginBlock();
             {
@@ -163,7 +164,7 @@ internal static class ScopeInterfaceGenerator
 
             f.AppendLine(
                 "if (!ServiceImplementationMap.TryGetValue(type, out var implType))",
-                "检查是否是单例服务类型"
+                "检查是否是已包含的服务类型"
             );
             f.BeginBlock();
             {
@@ -272,7 +273,6 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("case ServiceState.Creating:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("// 服务正在创建中");
                     f.AppendLine("// 检查是否是真正的循环依赖（依赖链中包含当前类型）");
                     f.AppendLine("if (currentDependencyChain.Contains(type.Name + \" -> \"))");
                     f.BeginBlock();
@@ -323,7 +323,7 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine("// 检查是否有工厂（Scope 创建的服务）");
-                    f.AppendLine("if (_serviceFactories.TryGetValue(implType, out var factory))");
+                    f.AppendLine("if (ServiceFactories.TryGetValue(implType, out var factory))");
                     f.BeginBlock();
                     {
                         f.AppendLine("// 按需创建服务");

@@ -35,13 +35,16 @@ internal static class ScopeGenerator
             GenerateDelegates(f);
             f.AppendLine();
 
-            GenerateStaticCollections(f, node, graph);
+            GenerateStaticCollections(f);
             f.AppendLine();
 
             GenerateServiceStructures(f);
             f.AppendLine();
 
             GenerateInstanceFields(f);
+            f.AppendLine();
+
+            GenerateCreateServiceImplementationMap(f, node, graph);
             f.AppendLine();
 
             GenerateCreateServiceFactories(f, node, graph);
@@ -60,65 +63,6 @@ internal static class ScopeGenerator
         context.AddSource($"{className}.DI.Scope.g.cs", f.ToString());
     }
 
-    private static Dictionary<INamedTypeSymbol, INamedTypeSymbol> CollectServiceImplementationMap(
-        ScopeNode node,
-        DiGraph graph
-    )
-    {
-        var serviceImplementationMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
-            SymbolEqualityComparer.Default
-        );
-
-        // 从 Services 的服务中收集
-        foreach (var serviceType in node.InstantiateServices)
-        {
-            if (graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
-            {
-                // 添加实现类型到自身的映射（单例服务工厂需要）
-                serviceImplementationMap.Add(serviceType, serviceType);
-
-                // 添加所有暴露类型到实现类型的映射
-                foreach (var exposedType in serviceNode.ProvidedServices)
-                {
-                    // 跳过实现类型本身（已经添加过了）
-                    if (!SymbolEqualityComparer.Default.Equals(exposedType, serviceType))
-                    {
-                        serviceImplementationMap.Add(exposedType, serviceType);
-                    }
-                }
-            }
-        }
-
-        // 从 Hosts 的 Host 中收集
-        foreach (var hostType in node.ExpectHosts)
-        {
-            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
-            {
-                // 添加 Host 提供的所有服务类型
-                foreach (var exposedType in hostNode.ProvidedServices)
-                {
-                    if (!serviceImplementationMap.ContainsKey(exposedType))
-                    {
-                        serviceImplementationMap.Add(exposedType, hostType);
-                    }
-                }
-            }
-            else if (graph.HostAndUserNodeMap.TryGetValue(hostType, out var hostAndUserNode))
-            {
-                // 添加 HostAndUser 提供的所有服务类型
-                foreach (var exposedType in hostAndUserNode.ProvidedServices)
-                {
-                    if (!serviceImplementationMap.ContainsKey(exposedType))
-                    {
-                        serviceImplementationMap.Add(exposedType, hostType);
-                    }
-                }
-            }
-        }
-
-        return serviceImplementationMap;
-    }
-
     private static void GenerateDelegates(CodeFormatter f)
     {
         // ServiceFactory 委托
@@ -131,24 +75,20 @@ internal static class ScopeGenerator
         );
     }
 
-    private static void GenerateStaticCollections(CodeFormatter f, ScopeNode node, DiGraph graph)
+    private static void GenerateStaticCollections(CodeFormatter f)
     {
         // ServiceImplementationMap
-        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendHiddenMemberCommentAndAttribute("服务类型映射表：暴露类型 -> 实现类型");
         f.AppendLine(
-            $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> ServiceImplementationMap = new()"
+            $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> ServiceImplementationMap = CreateServiceImplementationMap();"
         );
-        f.BeginBlock();
-        {
-            var singletonServiceTypes = CollectServiceImplementationMap(node, graph);
-            foreach (var kvp in singletonServiceTypes)
-            {
-                f.AppendLine(
-                    $"[typeof({kvp.Key.ToFullyQualifiedName()})] = typeof({kvp.Value.ToFullyQualifiedName()}),"
-                );
-            }
-        }
-        f.EndBlock(";");
+        f.AppendLine();
+
+        // ServiceFactories
+        f.AppendHiddenMemberCommentAndAttribute("单例服务创建工厂集合（使用实现类型作为键值）");
+        f.AppendLine(
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory> ServiceFactories = CreateServiceFactories();"
+        );
     }
 
     private static void GenerateServiceStructures(CodeFormatter f)
@@ -175,9 +115,7 @@ internal static class ScopeGenerator
             f.AppendLine($"public {GlobalNames.Object}? Instance;");
             f.AppendLine($"public {GlobalNames.String}? FailureReason;");
             f.AppendLine($"public {GlobalNames.String}? FailureDependencyChain;");
-            f.AppendLine(
-                $"public {GlobalNames.HashSet}<{GlobalNames.Type}> ExposedTypes = new();"
-            );
+            f.AppendLine($"public {GlobalNames.HashSet}<{GlobalNames.Type}> ExposedTypes = new();");
         }
         f.EndBlock();
         f.AppendLine();
@@ -189,13 +127,6 @@ internal static class ScopeGenerator
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> _serviceCache = new();"
-        );
-        f.AppendLine();
-
-        // _serviceFactories
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory> _serviceFactories = CreateServiceFactories();"
         );
         f.AppendLine();
 
@@ -217,6 +148,75 @@ internal static class ScopeGenerator
         f.AppendLine($"private {GlobalNames.GodotTimer}? _dependencyCheckTimer;");
     }
 
+    private static void GenerateCreateServiceImplementationMap(
+        CodeFormatter f,
+        ScopeNode node,
+        DiGraph graph
+    )
+    {
+        var serviceImplementationMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
+            SymbolEqualityComparer.Default
+        );
+
+        // 从 Services 的服务中收集
+        foreach (var serviceType in node.InstantiateServices)
+        {
+            if (graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
+            {
+                // 添加所有暴露类型到实现类型的映射
+                foreach (var exposedType in serviceNode.ProvidedServices)
+                {
+                    serviceImplementationMap.Add(exposedType, serviceType);
+                }
+            }
+        }
+
+        // 从 Hosts 的 Host 中收集
+        foreach (var hostType in node.ExpectHosts)
+        {
+            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
+            {
+                // 添加 Host 提供的所有服务类型
+                foreach (var exposedType in hostNode.ProvidedServices)
+                {
+                    serviceImplementationMap.Add(exposedType, hostType);
+                }
+            }
+            else if (graph.HostAndUserNodeMap.TryGetValue(hostType, out var hostAndUserNode))
+            {
+                // 添加 HostAndUser 提供的所有服务类型
+                foreach (var exposedType in hostAndUserNode.ProvidedServices)
+                {
+                    serviceImplementationMap.Add(exposedType, hostType);
+                }
+            }
+        }
+
+        // CreateServiceImplementationMap
+        f.AppendHiddenMethodCommentAndAttribute("添加已包含的所有暴露的服务类型");
+        f.AppendLine(
+            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> CreateServiceImplementationMap()"
+        );
+        f.BeginBlock();
+        {
+            f.AppendLine(
+                $"var serviceImplementationMap = new {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}>();"
+            );
+            f.AppendLine();
+
+            foreach (var kvp in serviceImplementationMap)
+            {
+                f.AppendLine(
+                    $"serviceImplementationMap[typeof({kvp.Key.ToFullyQualifiedName()})] = typeof({kvp.Value.ToFullyQualifiedName()});"
+                );
+            }
+            f.AppendLine();
+
+            f.AppendLine("return serviceImplementationMap;");
+        }
+        f.EndBlock();
+    }
+
     private static void GenerateCreateServiceFactories(
         CodeFormatter f,
         ScopeNode node,
@@ -233,6 +233,8 @@ internal static class ScopeGenerator
             f.AppendLine(
                 $"var serviceFactories = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory>();"
             );
+            f.AppendLine();
+
             foreach (var serviceType in node.InstantiateServices)
             {
                 if (!graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
@@ -252,8 +254,9 @@ internal static class ScopeGenerator
                     );
                 }
                 f.EndBlock(";");
-                f.AppendLine();
             }
+            f.AppendLine();
+
             f.AppendLine("return serviceFactories;");
         }
         f.EndBlock();
