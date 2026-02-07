@@ -32,14 +32,14 @@ internal static class HostGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
             GenerateProvideHostServices(f, node.ValidatedTypeInfo, singletonMembers);
             f.AppendLine();
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Host.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Host.g.cs", f.ToString());
     }
 
     /// <summary>

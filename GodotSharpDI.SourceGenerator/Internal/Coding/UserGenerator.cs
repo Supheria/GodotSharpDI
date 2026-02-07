@@ -30,7 +30,7 @@ internal static class UserGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
             var implementsIServicesReady = node.ValidatedTypeInfo.ImplementsIServicesReady;
 
@@ -46,7 +46,7 @@ internal static class UserGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.User.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.User.g.cs", f.ToString());
     }
 
     private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembersList)

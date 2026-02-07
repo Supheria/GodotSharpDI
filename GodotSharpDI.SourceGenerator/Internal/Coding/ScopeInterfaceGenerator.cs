@@ -15,13 +15,13 @@ internal static class ScopeInterfaceGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
             Generate(f, node);
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.IScope.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.IScope.g.cs", f.ToString());
     }
 
     private static void Generate(CodeFormatter f, ScopeNode node)
@@ -273,8 +273,20 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("case ServiceState.Creating:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("// 检查是否是真正的循环依赖（依赖链中包含当前类型）");
-                    f.AppendLine("if (currentDependencyChain.Contains(type.Name + \" -> \"))");
+                    f.AppendLine("// 服务正在创建中");
+                    f.AppendLine("// 检查是否是真正的循环依赖（依赖链中包含当前类型超过一次）");
+                    f.AppendLine("// 为避免误判，将链条两端补齐分隔符，并检查当前类型是否出现多次");
+                    f.AppendLine("var chain = \" -> \" + currentDependencyChain + \" -> \";");
+                    f.AppendLine("var marker = \" -> \" + type.Name + \" -> \";");
+                    f.AppendLine(
+                        "var firstIndex = chain.IndexOf(marker, global::System.StringComparison.Ordinal);"
+                    );
+                    f.AppendLine(
+                        "var lastIndex = chain.LastIndexOf(marker, global::System.StringComparison.Ordinal);"
+                    );
+                    f.AppendLine("var isCircular = firstIndex != lastIndex;");
+                    f.AppendLine();
+                    f.AppendLine("if (isCircular)");
                     f.BeginBlock();
                     {
                         f.AppendLine("// 真正的循环依赖");

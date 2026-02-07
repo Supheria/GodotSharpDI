@@ -30,7 +30,7 @@ internal static class ScopeGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
             GenerateDelegates(f);
             f.AppendLine();
@@ -60,7 +60,7 @@ internal static class ScopeGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Scope.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Scope.g.cs", f.ToString());
     }
 
     private static void GenerateDelegates(CodeFormatter f)

@@ -15,7 +15,7 @@ internal static class ServiceGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
             if (
                 node.ValidatedTypeInfo.Constructor == null
@@ -31,7 +31,7 @@ internal static class ServiceGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Service.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Service.g.cs", f.ToString());
     }
 
     private static void GenerateParameterlessFactory(

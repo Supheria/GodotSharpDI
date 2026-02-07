@@ -18,13 +18,13 @@ internal static class NodeLifeCycleGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(validatedTypeInfo, out var className);
+        f.BeginClassDeclaration(validatedTypeInfo, out var fileName);
         {
             GenerateNodeDICode(f, validatedTypeInfo);
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Lifecycle.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Lifecycle.g.cs", f.ToString());
     }
 
     private static void GenerateNodeDICode(CodeFormatter f, ValidatedTypeInfo validatedType)
