@@ -38,7 +38,7 @@ internal static class ScopeGenerator
             GenerateStaticCollections(f);
             f.AppendLine();
 
-            GenerateServiceStructures(f);
+            GenerateDataModels(f);
             f.AppendLine();
 
             GenerateInstanceFields(f);
@@ -51,9 +51,6 @@ internal static class ScopeGenerator
             f.AppendLine();
 
             GenerateDisposeScopeSingletons(f, node.ValidatedTypeInfo);
-            f.AppendLine();
-
-            GenerateDependencyWaitInfoStruct(f);
             f.AppendLine();
 
             GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
@@ -91,7 +88,7 @@ internal static class ScopeGenerator
         );
     }
 
-    private static void GenerateServiceStructures(CodeFormatter f)
+    private static void GenerateDataModels(CodeFormatter f)
     {
         // ServiceState 枚举
         f.AppendHiddenMemberCommentAndAttribute();
@@ -119,6 +116,19 @@ internal static class ScopeGenerator
         }
         f.EndBlock();
         f.AppendLine();
+
+        // DependencyWaitInfo 结构体
+        f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine("private struct DependencyWaitInfo");
+        f.BeginBlock();
+        {
+            f.AppendLine($"public {GlobalNames.Action}<{GlobalNames.Object}> Callback;");
+            f.AppendLine($"public {GlobalNames.Long} RequestTicks;");
+            f.AppendLine($"public {GlobalNames.String} RequestorType;");
+            f.AppendLine($"public {GlobalNames.String} ScopeChain;");
+            f.AppendLine($"public {GlobalNames.String} DependencyChain;");
+        }
+        f.EndBlock();
     }
 
     private static void GenerateInstanceFields(CodeFormatter f)
@@ -301,21 +311,6 @@ internal static class ScopeGenerator
 
             f.AppendLine("_disposableSingletons.Clear();");
             f.AppendLine("_serviceCache.Clear();");
-        }
-        f.EndBlock();
-    }
-
-    private static void GenerateDependencyWaitInfoStruct(CodeFormatter f)
-    {
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private struct DependencyWaitInfo");
-        f.BeginBlock();
-        {
-            f.AppendLine($"public {GlobalNames.Action}<{GlobalNames.Object}> Callback;");
-            f.AppendLine($"public {GlobalNames.Long} RequestTicks;");
-            f.AppendLine($"public {GlobalNames.String} RequestorType;");
-            f.AppendLine($"public {GlobalNames.String} ScopeChain;");
-            f.AppendLine($"public {GlobalNames.String} DependencyChain;");
         }
         f.EndBlock();
     }
