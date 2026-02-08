@@ -51,7 +51,6 @@ internal static class HostGenerator
         MemberInfo[] singletonMembers
     )
     {
-        // ProvideHostServices
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void ProvideHostServices()");
         f.BeginBlock();
@@ -71,32 +70,43 @@ internal static class HostGenerator
                 var memberName = member.Symbol.Name;
                 var memberType = member.MemberType.ToFullyQualifiedName();
 
-                foreach (var exposedType in member.ExposedTypes)
+                // 只调用一次 ProvideService（使用成员类型）
+                f.BeginTryCatch();
                 {
-                    f.BeginTryCatch();
-                    {
-                        f.AppendLine(
-                            $"scope.ProvideService<{exposedType.ToFullyQualifiedName()}>({memberName});"
-                        );
-                    }
-                    f.CatchBlock("ex");
-                    {
-                        f.BeginStringBuilderAppend("errorMessage", true);
-                        {
-                            f.StringBuilderAppendLine($"[{ShortNames.GodotSharpDI}] 服务提供失败");
-                            f.StringBuilderAppendLine($"  Host: {validatedType.Symbol.Name}");
-                            f.StringBuilderAppendLine($"  成员: {memberName}");
-                            f.StringBuilderAppendLine($"  类型: {memberType}");
-                            f.StringBuilderAppendLine("  异常: {ex.Message}");
-                        }
-                        f.EndStringBuilderAppend();
-                        f.AppendLine();
-
-                        f.PushError("errorMessage.ToString()");
-                    }
-                    f.EndTryCatch();
+                    f.AppendLine($"scope.ProvideService<{memberType}>({memberName});");
                 }
+                f.CatchBlock("ex");
+                {
+                    f.AppendLine(
+                        $"var errorMessage = GetErrorMessage(ex.Message, \"{memberName}\", \"{memberType}\");"
+                    );
+                    f.AppendLine($"scope.ProvideService<{memberType}>(default!, errorMessage);");
+                }
+                f.EndTryCatch();
             }
+            f.AppendLine();
+
+            f.AppendLine("return;");
+            f.AppendLine();
+
+            f.AppendLine(
+                $"{GlobalNames.String} GetErrorMessage({GlobalNames.String} exMsg, {GlobalNames.String} memberName, {GlobalNames.String} memberType)"
+            );
+            f.BeginBlock();
+            {
+                f.AppendLine("// 提供失败，传递错误消息给 Scope");
+                f.BeginStringBuilderAppend("errorMessage", true);
+                {
+                    f.StringBuilderAppendLine(
+                        $"Host '{validatedType.Symbol.Name}' 的成员 '{{memberName}}' 无法提供服务。 异常: {{exMsg}}"
+                    );
+                }
+                f.EndStringBuilderAppend();
+                f.AppendLine();
+
+                f.AppendLine("return errorMessage.ToString();");
+            }
+            f.EndBlock();
         }
         f.EndBlock();
     }

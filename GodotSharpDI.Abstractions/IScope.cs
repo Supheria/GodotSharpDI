@@ -4,8 +4,9 @@ namespace GodotSharpDI.Abstractions;
 
 public interface IScope
 {
-    void ProvideService<T>(T instance)
+    void ProvideService<T>(T instance, string? errorMessage = null)
         where T : notnull;
+
     void ResolveDependency<T>(
         Action<T> onResolved,
         string requestorType,

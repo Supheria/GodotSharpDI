@@ -37,7 +37,9 @@ internal static class ScopeInterfaceGenerator
     {
         // ProvideService
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"void {GlobalNames.IScope}.ProvideService<T>(T instance)");
+        f.AppendLine(
+            $"void {GlobalNames.IScope}.ProvideService<T>(T instance, {GlobalNames.String}? errorMessage)"
+        );
         f.BeginBlock();
         {
             f.AppendLine("var type = typeof(T);");
@@ -54,7 +56,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("if (parent is not null)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("parent.ProvideService(instance);");
+                    f.AppendLine("parent.ProvideService(instance, errorMessage);");
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
@@ -76,57 +78,123 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            // 按暴露类型判断是否重复注册
-            f.AppendLine("if (cacheEntry.ExposedTypes.Contains(type))");
+            f.AppendLine("// 检查是失败还是成功场景");
+            f.AppendLine("if (errorMessage is not null)");
             f.BeginBlock();
             {
-                f.PushError("$\"重复注册类型: {type.Name}\"");
-                f.AppendLine("return;");
-            }
-            f.EndBlock();
-            f.AppendLine();
+                f.AppendLine("// === 失败场景 ===");
+                f.AppendLine("// 标记为失败状态");
+                f.AppendLine("cacheEntry.State = ServiceState.Failed;");
+                f.AppendLine("cacheEntry.FailureReason = errorMessage;");
+                f.AppendLine();
 
-            f.AppendLine("cacheEntry.ExposedTypes.Add(type);");
-            f.AppendLine();
-
-            f.AppendLine("if (cacheEntry.State != ServiceState.Created)");
-            f.BeginBlock();
-            {
-                f.AppendLine("cacheEntry.State = ServiceState.Created;");
-                f.AppendLine("cacheEntry.Instance = instance;");
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            // 按实现类型通知等待者
-            f.AppendLine("if (_waiters.Remove(implType, out var waiterList))", "通知等待者");
-            f.BeginBlock();
-            {
-                f.AppendLine("foreach (var waiter in waiterList)");
+                f.AppendLine("// 使用等待者的依赖链（如果有），否则使用服务类型名");
+                f.AppendLine(
+                    "if (_waiters.TryGetValue(implType, out var waiterList) && waiterList.Count > 0)"
+                );
                 f.BeginBlock();
                 {
-                    f.BeginTryCatch();
+                    f.AppendLine("// 使用第一个等待者的完整依赖链");
+                    f.AppendLine(
+                        "cacheEntry.FailureDependencyChain = waiterList[0].DependencyChain;"
+                    );
+                }
+                f.EndBlock();
+                f.AppendLine("else");
+                f.BeginBlock();
+                {
+                    f.AppendLine("// 没有等待者（Host主动提供但无人请求），使用服务类型名");
+                    f.AppendLine("cacheEntry.FailureDependencyChain = type.Name;");
+                }
+                f.EndBlock();
+                f.AppendLine();
+
+                f.AppendLine("_serviceCache[implType] = cacheEntry;");
+            }
+            f.EndBlock();
+            f.AppendLine("else");
+            f.BeginBlock();
+            {
+                f.AppendLine("// === 成功场景 ===");
+                f.AppendLine("// 按暴露类型判断是否重复注册");
+                f.AppendLine("if (cacheEntry.ExposedTypes.Contains(type))");
+                f.BeginBlock();
+                {
+                    f.PushError("$\"重复注册类型: {type.Name}\"");
+                    f.AppendLine("return;");
+                }
+                f.EndBlock();
+                f.AppendLine();
+
+                f.AppendLine("cacheEntry.ExposedTypes.Add(type);");
+                f.AppendLine();
+
+                f.AppendLine("if (cacheEntry.State != ServiceState.Created)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("cacheEntry.State = ServiceState.Created;");
+                    f.AppendLine("cacheEntry.Instance = instance;");
+                }
+                f.EndBlock();
+            }
+            f.EndBlock();
+            f.AppendLine();
+
+            f.AppendLine("// 通知等待者");
+            f.AppendLine("if (_waiters.Remove(implType, out var waiters))");
+            f.BeginBlock();
+            {
+                f.AppendLine("foreach (var waiter in waiters)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("if (errorMessage is not null)");
+                    f.BeginBlock();
                     {
-                        f.AppendLine("waiter.Callback.Invoke(instance);");
-                    }
-                    f.CatchBlock("ex");
-                    {
-                        f.BeginStringBuilderAppend("errorMessage", true);
+                        f.AppendLine("// 失败场景：通知等待者服务提供失败");
+                        f.BeginStringBuilderAppend("failureMsg", true);
                         {
-                            f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
+                            f.StringBuilderAppendLine("[GodotSharpDI] 服务提供失败");
                             f.StringBuilderAppendLine("  服务类型: {type.Name}");
                             f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
                             f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
                             f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
                             f.StringBuilderAppendLine("  依赖链条: {waiter.DependencyChain}");
-                            f.StringBuilderAppendLine("  异常: {ex.Message}");
+                            f.StringBuilderAppendLine("  失败原因: {errorMessage}");
                         }
                         f.EndStringBuilderAppend();
                         f.AppendLine();
-
-                        f.PushError("errorMessage.ToString()");
+                        f.PushError("failureMsg.ToString()");
                     }
-                    f.EndTryCatch();
+                    f.EndBlock();
+                    f.AppendLine("else");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("// 成功场景：调用等待者的回调");
+                        f.BeginTryCatch();
+                        {
+                            f.AppendLine("waiter.Callback.Invoke(instance);");
+                        }
+                        f.CatchBlock("ex");
+                        {
+                            f.BeginStringBuilderAppend("callbackErrorMsg", true);
+                            {
+                                f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
+                                f.StringBuilderAppendLine("  服务类型: {type.Name}");
+                                f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
+                                f.StringBuilderAppendLine(
+                                    $"  当前 Scope: {validatedType.Symbol.Name}"
+                                );
+                                f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
+                                f.StringBuilderAppendLine("  依赖链条: {waiter.DependencyChain}");
+                                f.StringBuilderAppendLine("  异常: {ex.Message}");
+                            }
+                            f.EndStringBuilderAppend();
+                            f.AppendLine();
+                            f.PushError("callbackErrorMsg.ToString()");
+                        }
+                        f.EndTryCatch();
+                    }
+                    f.EndBlock();
                 }
                 f.EndBlock();
             }
