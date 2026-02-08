@@ -78,35 +78,13 @@ internal static class HostGenerator
                 f.CatchBlock("ex");
                 {
                     f.AppendLine(
-                        $"var errorMessage = GetErrorMessage(ex.Message, \"{memberName}\", \"{memberType}\");"
+                        $"var errorMessage = $\"Host '{validatedType.Symbol.Name}' 无法提供服务。 成员 '{memberName}' 异常: {{ex.Message}}\";"
                     );
-                    f.AppendLine($"scope.ProvideService<{memberType}>(default!, errorMessage);");
+                    f.AppendLine($"scope.ProvideService<{memberType}>(null, errorMessage);");
                 }
                 f.EndTryCatch();
             }
             f.AppendLine();
-
-            f.AppendLine("return;");
-            f.AppendLine();
-
-            f.AppendLine(
-                $"{GlobalNames.String} GetErrorMessage({GlobalNames.String} exMsg, {GlobalNames.String} memberName, {GlobalNames.String} memberType)"
-            );
-            f.BeginBlock();
-            {
-                f.AppendLine("// 提供失败，传递错误消息给 Scope");
-                f.BeginStringBuilderAppend("errorMessage", true);
-                {
-                    f.StringBuilderAppendLine(
-                        $"Host '{validatedType.Symbol.Name}' 的成员 '{{memberName}}' 无法提供服务。 异常: {{exMsg}}"
-                    );
-                }
-                f.EndStringBuilderAppend();
-                f.AppendLine();
-
-                f.AppendLine("return errorMessage.ToString();");
-            }
-            f.EndBlock();
         }
         f.EndBlock();
     }

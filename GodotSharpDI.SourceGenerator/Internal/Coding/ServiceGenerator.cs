@@ -26,7 +26,11 @@ internal static class ServiceGenerator
             }
             else
             {
-                GenerateParameterizedFactory(f, node, node.ValidatedTypeInfo.Constructor);
+                GenerateParameterizedFactory(
+                    f,
+                    node.ValidatedTypeInfo,
+                    node.ValidatedTypeInfo.Constructor
+                );
             }
         }
         f.EndClassDeclaration();
@@ -45,7 +49,6 @@ internal static class ServiceGenerator
             $"public static void CreateService("
                 + $"{GlobalNames.IScope} scope, "
                 + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
-                + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
                 + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
@@ -67,7 +70,12 @@ internal static class ServiceGenerator
             }
             f.CatchBlock("ex");
             {
-                f.AppendLine("onFailed.Invoke(ex.Message);");
+                f.AppendLine(
+                    $"var errorMessage = $\"单例服务 '{validatedType.Symbol.Name}' 实例化失败。异常: {{ex.Message}}\";"
+                );
+                f.AppendLine(
+                    $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(null, errorMessage);"
+                );
             }
             f.EndTryCatch();
         }
@@ -76,7 +84,7 @@ internal static class ServiceGenerator
 
     private static void GenerateParameterizedFactory(
         CodeFormatter f,
-        TypeNode typeNode,
+        ValidatedTypeInfo validatedType,
         ConstructorInfo ctor
     )
     {
@@ -86,13 +94,12 @@ internal static class ServiceGenerator
             $"public static void CreateService("
                 + $"{GlobalNames.IScope} scope, "
                 + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
-                + $"{GlobalNames.Action}<{GlobalNames.String}> onFailed, "
                 + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
             f.AppendLine($"var remaining = {ctor.Parameters.Length};");
-            f.AppendLine($"var hasFailed = false;");
+            f.AppendLine("var hasFailed = false;");
             f.AppendLine();
 
             // 声明参数变量
@@ -107,6 +114,7 @@ internal static class ServiceGenerator
             for (int i = 0; i < ctor.Parameters.Length; i++)
             {
                 var param = ctor.Parameters[i];
+                var paramName = param.Symbol.Name;
 
                 f.AppendLine($"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(");
                 f.BeginLevel();
@@ -114,24 +122,22 @@ internal static class ServiceGenerator
                     f.AppendLine("dependency =>");
                     f.BeginBlock();
                     {
-                        f.AppendLine("if (hasFailed) return;");
-                        f.AppendLine();
                         f.BeginTryCatch();
                         {
                             f.AppendLine($"p{i} = dependency;");
+                            f.AppendLine("TryCreate();");
                         }
                         f.CatchBlock("ex");
                         {
-                            f.AppendLine("hasFailed = true;");
                             f.AppendLine(
-                                $"PushError(ex.Message, \"{param.Symbol.Name}\", \"{param.Type}\");"
+                                $"var errorMessage = $\"单例服务 '{validatedType.Symbol.Name}' 无法提供服务。 参数 ‘{paramName}’ 异常: {{ex.Message}}\";"
                             );
+                            f.AppendLine("TryCreate(errorMessage);");
                         }
                         f.EndTryCatch();
-                        f.AppendLine("TryCreate();");
                     }
                     f.EndBlock(",");
-                    f.AppendLine($"requestorType: \"{typeNode.ValidatedTypeInfo.Symbol.Name}\",");
+                    f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\",");
                     f.AppendLine("scopeChain: null,");
                     f.AppendLine("dependencyChain: dependencyChain");
                 }
@@ -143,32 +149,21 @@ internal static class ServiceGenerator
             f.AppendLine("return;");
             f.AppendLine();
 
-            // PushError
-            f.AppendLine("void PushError(string exMsg, string paramName, string paramType)");
-            f.BeginBlock();
-            {
-                f.BeginStringBuilderAppend("errorMessage", true);
-                {
-                    f.StringBuilderAppendLine("[GodotSharpDI] 依赖赋值失败");
-                    f.StringBuilderAppendLine(
-                        $"  服务类型: {typeNode.ValidatedTypeInfo.Symbol.Name}"
-                    );
-                    f.StringBuilderAppendLine("  参数名: {paramName}");
-                    f.StringBuilderAppendLine("  参数类型: {paramType}");
-                    f.StringBuilderAppendLine("  异常: {exMsg}");
-                }
-                f.EndStringBuilderAppend();
-                f.AppendLine();
-                f.AppendLine("onFailed(errorMessage.ToString());");
-            }
-            f.EndBlock();
-            f.AppendLine();
-
             // TryCreate
-            f.AppendLine("void TryCreate()");
+            f.AppendLine($"void TryCreate({GlobalNames.String}? errorMessage = null)");
             f.BeginBlock();
             {
                 f.AppendLine("if (hasFailed) return;");
+                f.AppendLine("if (errorMessage is not null)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("hasFailed = true;");
+                    f.AppendLine(
+                        $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(null, errorMessage);"
+                    );
+                    f.AppendLine("return;");
+                }
+                f.EndBlock();
                 f.AppendLine("if (--remaining == 0)");
                 f.BeginBlock();
                 {
@@ -181,14 +176,14 @@ internal static class ServiceGenerator
                         }
                         var paramList = string.Join(", ", paramNames);
                         f.AppendLine(
-                            $"var instance = new {typeNode.ValidatedTypeInfo.Symbol.ToFullyQualifiedName()}({paramList});"
+                            $"var instance = new {validatedType.Symbol.ToFullyQualifiedName()}({paramList});"
                         );
                         f.AppendLine();
 
                         // 提供服务实例（使用实现类型作为键）
                         f.AppendLine("// 提供服务实例");
                         f.AppendLine(
-                            $"scope.ProvideService<{typeNode.ValidatedTypeInfo.Symbol.ToFullyQualifiedName()}>(instance);"
+                            $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(instance);"
                         );
                         f.AppendLine();
 
@@ -196,19 +191,12 @@ internal static class ServiceGenerator
                     }
                     f.CatchBlock("ex");
                     {
-                        f.AppendLine("hasFailed = true;");
-                        f.BeginStringBuilderAppend("errorMessage", true);
-                        {
-                            f.StringBuilderAppendLine("[GodotSharpDI] 服务实例化失败");
-                            f.StringBuilderAppendLine(
-                                $"  服务类型: {typeNode.ValidatedTypeInfo.Symbol.Name}"
-                            );
-                            f.StringBuilderAppendLine("  异常: {ex.Message}");
-                        }
-                        f.EndStringBuilderAppend();
-                        f.AppendLine();
-
-                        f.AppendLine("onFailed(errorMessage.ToString());");
+                        f.AppendLine(
+                            $"errorMessage = $\"单例服务 '{validatedType.Symbol.Name}' 实例化失败。异常: {{ex.Message}}\";"
+                        );
+                        f.AppendLine(
+                            $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(null, errorMessage);"
+                        );
                     }
                     f.EndTryCatch();
                 }

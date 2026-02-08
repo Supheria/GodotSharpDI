@@ -1,4 +1,5 @@
-﻿using Godot;
+﻿using System;
+using Godot;
 using GodotSharpDI.Abstractions;
 
 namespace GodotSharpDI.Sample;
@@ -19,6 +20,7 @@ public sealed partial class GameManager : Node, IGameState
         get
         {
             GD.Print("GameManager self provided");
+            throw new Exception();
             return this;
         }
     }

@@ -146,4 +146,11 @@ internal static class GeneratorHelper
     {
         f.AppendLine($"{GlobalNames.GodotGD}.PushError({target});");
     }
+
+    public static void AppendTypeConstraints(this CodeFormatter f, string typeConstraints)
+    {
+        f.BeginLevel();
+        f.AppendLine(typeConstraints);
+        f.EndLevel();
+    }
 }
