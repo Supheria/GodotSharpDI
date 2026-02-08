@@ -80,7 +80,9 @@ internal static class ScopeGenerator
             f.AppendLine("public ServiceState State = ServiceState.NotCreated;");
             f.AppendLine($"public {GlobalNames.Object}? Instance = null;");
             f.AppendLine($"public {GlobalNames.String}? FailureReason = null;");
-            f.AppendLine($"public {GlobalNames.String}? FailureDependencyChain = null;");
+            f.AppendLine(
+                $"public {GlobalNames.List}<{GlobalNames.String}> FailureDependencyChains = new();"
+            );
         }
         f.EndBlock();
         f.AppendLine();

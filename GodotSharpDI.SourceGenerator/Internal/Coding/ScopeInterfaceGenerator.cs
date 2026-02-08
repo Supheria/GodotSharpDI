@@ -26,13 +26,48 @@ internal static class ScopeInterfaceGenerator
 
     private static void Generate(CodeFormatter f, ScopeNode node)
     {
-        GenerateProvideService(f, node.ValidatedTypeInfo);
+        GenerateCreateErrorMessageBuilder(f, node.ValidatedTypeInfo);
+        f.AppendLine();
+
+        GenerateProvideService(f);
         f.AppendLine();
 
         GenerateResolveDependency(f, node.ValidatedTypeInfo);
     }
 
-    private static void GenerateProvideService(CodeFormatter f, ValidatedTypeInfo validatedType)
+    private static void GenerateCreateErrorMessageBuilder(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType
+    )
+    {
+        f.AppendLine(
+            $"private static {GlobalNames.StringBuilder} CreateErrorMessageBuilder("
+                + $"{GlobalNames.String} title, "
+                + $"{GlobalNames.String} reason, "
+                + $"{GlobalNames.String} serviceImplType, "
+                + $"{GlobalNames.String} requestorType, "
+                + $"{GlobalNames.String} scopeChain, "
+                + $"{GlobalNames.String} dependencyChain)"
+        );
+        f.BeginBlock();
+        {
+            f.BeginStringBuilderAppend("sb", true);
+            {
+                f.StringBuilderAppendLine("[GodotSharpDI] {title}");
+                f.StringBuilderAppendLine("  原因: {reason}");
+                f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                f.StringBuilderAppendLine("  服务的实现类型: {serviceImplType}");
+                f.StringBuilderAppendLine("  请求者类型: {requestorType}");
+                f.StringBuilderAppendLine("  当前 Scope 传递链: {scopeChain}");
+                f.StringBuilderAppendLine("  当前依赖链条: {dependencyChain}");
+            }
+            f.EndStringBuilderAppend();
+            f.AppendLine("return sb;");
+        }
+        f.EndBlock();
+    }
+
+    private static void GenerateProvideService(CodeFormatter f)
     {
         // ProvideService
         f.AppendHiddenMethodCommentAndAttribute("以实现类型（而非暴露类型）提供服务");
@@ -61,7 +96,12 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
                 f.AppendLine();
 
-                f.PushError("$\"直到根 Service Scope 都无法注册服务类型：{implType.Name}\"");
+                f.AppendLine(
+                    "var sb = CreateErrorMessageBuilder($\"无法提供服务\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型：{implType.Name}\", $\"{implType.Name}\", \"none\", \"none\", \"none\");"
+                );
+                f.PushError("sb.ToString()");
+                f.AppendLine();
+
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -82,10 +122,15 @@ internal static class ScopeInterfaceGenerator
                 );
                 f.BeginBlock();
                 {
-                    f.AppendLine("// 使用第一个等待者的完整依赖链（首次失败链）");
-                    f.AppendLine(
-                        "cacheEntry.FailureDependencyChain = waiterList[0].DependencyChain;"
-                    );
+                    f.AppendLine("// 记录所有已有等待者的依赖链");
+                    f.AppendLine("foreach (var waiter in waiterList)");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine(
+                            "cacheEntry.FailureDependencyChains.Add(waiter.DependencyChain);"
+                        );
+                    }
+                    f.EndBlock();
                 }
                 f.EndBlock();
                 f.AppendLine("else");
@@ -93,7 +138,7 @@ internal static class ScopeInterfaceGenerator
                 {
                     f.AppendLine("// 没有等待者（Host主动提供但尚无请求）");
                     f.AppendLine(
-                        "cacheEntry.FailureDependencyChain = implType.Name + \" (on provided)\";"
+                        "cacheEntry.FailureDependencyChains.Add(implType.Name + \" (on provided)\");"
                     );
                 }
                 f.EndBlock();
@@ -114,13 +159,8 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
                 f.AppendLine();
 
-                f.AppendLine("if (cacheEntry.State != ServiceState.Created)");
-                f.BeginBlock();
-                {
-                    f.AppendLine("cacheEntry.State = ServiceState.Created;");
-                    f.AppendLine("cacheEntry.Instance = instance;");
-                }
-                f.EndBlock();
+                f.AppendLine("cacheEntry.State = ServiceState.Created;");
+                f.AppendLine("cacheEntry.Instance = instance;");
             }
             f.EndBlock();
             f.AppendLine();
@@ -136,19 +176,10 @@ internal static class ScopeInterfaceGenerator
                     f.BeginBlock();
                     {
                         f.AppendLine("// 失败场景：通知等待者服务提供失败");
-                        f.BeginStringBuilderAppend("failureMsg", true);
-                        {
-                            f.StringBuilderAppendLine("[GodotSharpDI] 服务提供失败");
-                            f.StringBuilderAppendLine("  服务类型: {implType.Name}");
-                            f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
-                            f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                            f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
-                            f.StringBuilderAppendLine("  依赖链条: {waiter.DependencyChain}");
-                            f.StringBuilderAppendLine("  失败原因: {errorMessage}");
-                        }
-                        f.EndStringBuilderAppend();
-                        f.AppendLine();
-                        f.PushError("failureMsg.ToString()");
+                        f.AppendLine(
+                            "var sb = CreateErrorMessageBuilder(\"服务提供失败\", $\"{errorMessage}\", $\"{implType.Name}\", $\"{waiter.RequestorType}\", $\"{waiter.ScopeChain}\", $\"{waiter.DependencyChain}\");"
+                        );
+                        f.PushError("sb.ToString()");
                     }
                     f.EndBlock();
                     f.AppendLine("else");
@@ -161,21 +192,10 @@ internal static class ScopeInterfaceGenerator
                         }
                         f.CatchBlock("ex");
                         {
-                            f.BeginStringBuilderAppend("callbackErrorMsg", true);
-                            {
-                                f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
-                                f.StringBuilderAppendLine("  服务类型: {implType.Name}");
-                                f.StringBuilderAppendLine("  请求者类型: {waiter.RequestorType}");
-                                f.StringBuilderAppendLine(
-                                    $"  当前 Scope: {validatedType.Symbol.Name}"
-                                );
-                                f.StringBuilderAppendLine("  Scope 传递链: {waiter.ScopeChain}");
-                                f.StringBuilderAppendLine("  依赖链条: {waiter.DependencyChain}");
-                                f.StringBuilderAppendLine("  异常: {ex.Message}");
-                            }
-                            f.EndStringBuilderAppend();
-                            f.AppendLine();
-                            f.PushError("callbackErrorMsg.ToString()");
+                            f.AppendLine(
+                                "var sb = CreateErrorMessageBuilder(\"执行依赖注入回调时出现了异常\", $\"{ex.Message}\", $\"{implType.Name}\", $\"{waiter.RequestorType}\", $\"{waiter.ScopeChain}\", $\"{waiter.DependencyChain}\");"
+                            );
+                            f.PushError("sb.ToString()");
                         }
                         f.EndTryCatch();
                     }
@@ -184,6 +204,7 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
             }
             f.EndBlock();
+            f.AppendLine();
         }
         f.EndBlock();
     }
@@ -202,13 +223,13 @@ internal static class ScopeInterfaceGenerator
         f.AppendTypeConstraints("where T : class");
         f.BeginBlock();
         {
+            f.AppendLine("var type = typeof(T);");
+            f.AppendLine();
+
             f.AppendLine("// 构建 Scope 传递链");
             f.AppendLine(
                 $"var currentScopeChain = scopeChain is null ? \"{validatedType.Symbol.Name}\" : scopeChain + \" -> {validatedType.Symbol.Name}\";"
             );
-
-            f.AppendLine("var type = typeof(T);");
-            f.AppendLine();
 
             f.AppendLine("// 构建依赖链条");
             f.AppendLine(
@@ -234,20 +255,10 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
                 f.AppendLine();
 
-                f.BeginStringBuilderAppend("errorMessage", true);
-                {
-                    f.StringBuilderAppendLine(
-                        "[GodotSharpDI] 直到根 Scope 都无法找到服务类型: {type.Name}"
-                    );
-                    f.StringBuilderAppendLine("  请求者类型: {requestorType}");
-                    f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                    f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
-                    f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
-                }
-                f.EndStringBuilderAppend();
-                f.AppendLine();
-
-                f.PushError("errorMessage.ToString()");
+                f.AppendLine(
+                    "var sb = CreateErrorMessageBuilder($\"无法找到服务 {type.Name}\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型\", \"unknown\", \"none\", \"none\", \"none\");"
+                );
+                f.PushError("sb.ToString()");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -268,19 +279,10 @@ internal static class ScopeInterfaceGenerator
                     }
                     f.CatchBlock("ex");
                     {
-                        f.BeginStringBuilderAppend("errorMessage", true);
-                        {
-                            f.StringBuilderAppendLine("[GodotSharpDI] 依赖注入回调执行失败");
-                            f.StringBuilderAppendLine("  服务类型: {type.Name}");
-                            f.StringBuilderAppendLine("  请求者类型: {requestorType}");
-                            f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                            f.StringBuilderAppendLine("  Scope 传递链: {currentScopeChain}");
-                            f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
-                            f.StringBuilderAppendLine("  异常: {ex.Message}");
-                        }
-                        f.EndStringBuilderAppend();
-                        f.AppendLine();
-                        f.PushError("errorMessage.ToString()");
+                        f.AppendLine(
+                            "var sb = CreateErrorMessageBuilder(\"执行依赖注入回调时出现了异常\", $\"{ex.Message}\", $\"{implType.Name}\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
+                        );
+                        f.PushError("sb.ToString()");
                     }
                     f.EndTryCatch();
                     f.AppendLine("break;");
@@ -292,18 +294,21 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine("// 报告之前的失败信息");
-                    f.BeginStringBuilderAppend("errorMessage", true);
+                    f.AppendLine(
+                        "var sb = CreateErrorMessageBuilder($\"先前创建服务 {type.Name} 时失败\", $\"{cacheEntry.FailureReason}\", $\"{implType.Name}\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
+                    );
+                    f.AppendLine("sb.AppendLine(\"  服务创建时已有的依赖链条:\");");
+                    f.AppendLine(
+                        "for (var i = 0; i < cacheEntry.FailureDependencyChains.Count; i++)"
+                    );
+                    f.BeginBlock();
                     {
-                        f.StringBuilderAppendLine("[GodotSharpDI] 服务创建曾失败: {type.Name}");
-                        f.StringBuilderAppendLine("  当前请求链: {currentDependencyChain}");
-                        f.StringBuilderAppendLine(
-                            "  首次失败链: {cacheEntry.FailureDependencyChain}"
+                        f.AppendLine(
+                            "sb.AppendLine($\"    [{i + 1}] {cacheEntry.FailureDependencyChains[i]}\");"
                         );
-                        f.StringBuilderAppendLine("  失败原因: {cacheEntry.FailureReason}");
                     }
-                    f.EndStringBuilderAppend();
-                    f.AppendLine();
-                    f.PushError("errorMessage.ToString()");
+                    f.EndBlock();
+                    f.PushError("sb.ToString()");
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -433,6 +438,7 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
             }
             f.EndBlock();
+            f.AppendLine();
         }
         f.EndBlock();
     }
