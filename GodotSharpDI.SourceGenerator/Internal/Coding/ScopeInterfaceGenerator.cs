@@ -77,13 +77,12 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("cacheEntry.FailureReason = errorMessage;");
                 f.AppendLine();
 
-                f.AppendLine("// 使用等待者的依赖链（如果有），否则使用服务类型名");
                 f.AppendLine(
                     "if (_waiters.TryGetValue(implType, out var waiterList) && waiterList.Count > 0)"
                 );
                 f.BeginBlock();
                 {
-                    f.AppendLine("// 使用第一个等待者的完整依赖链");
+                    f.AppendLine("// 使用第一个等待者的完整依赖链（首次失败链）");
                     f.AppendLine(
                         "cacheEntry.FailureDependencyChain = waiterList[0].DependencyChain;"
                     );
@@ -228,7 +227,7 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        "parent.ResolveDependency(onResolved, requestorType, currentScopeChain, currentDependencyChain);"
+                        "parent.ResolveDependency(onResolved, requestorType, currentScopeChain, dependencyChain);"
                     );
                     f.AppendLine("return;");
                 }
@@ -423,7 +422,7 @@ internal static class ScopeInterfaceGenerator
                                 f.EndBlock();
                             }
                             f.EndBlock(",");
-                            f.AppendLine("dependencyChain ?? requestorType");
+                            f.AppendLine("currentDependencyChain");
                         }
                         f.EndLevel();
                         f.AppendLine(");");
