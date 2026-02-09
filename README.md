@@ -1760,7 +1760,7 @@ partial class GameManager
 
 ### 3. Features
 
-- [ ] Implement dependency callback waiting timing and timeout handling
+- [x] Implement dependency callback waiting timing and timeout handling
 - [ ] Support asynchronous operations (using CallDeferred)
 
 ### 4. Diagnostics
