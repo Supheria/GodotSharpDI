@@ -8,18 +8,17 @@ namespace GodotSharpDI.SourceGenerator.Shared;
 internal static class NamingHelper
 {
     /// <summary>
-    /// 将成员名转换为失败回调方法名
+    /// 将成员名转换为大写驼峰格式
     /// 规则：
     /// 1. 忽略前导下划线
     /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
-    /// 3. 添加 "On" 前缀和 "InjectionFailed" 后缀
     /// </summary>
     /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
-    /// <returns>失败回调方法名，如 "OnMyFieldInjectionFailed"</returns>
-    public static string GetFailureCallbackMethodName(string memberName)
+    /// <returns>大写驼峰格式的名称，如 "MyField", "MyService", "MyProperty"</returns>
+    public static string ToPascalCase(string memberName)
     {
         if (string.IsNullOrEmpty(memberName))
-            return "OnInjectionFailed";
+            return string.Empty;
 
         // 去除前导下划线
         int startIndex = 0;
@@ -29,9 +28,9 @@ internal static class NamingHelper
         }
 
         if (startIndex >= memberName.Length)
-            return "OnInjectionFailed";
+            return string.Empty;
 
-        var sb = new StringBuilder("On");
+        var sb = new StringBuilder();
 
         // 转换为大写驼峰格式，去除下划线
         bool capitalizeNext = true; // 第一个字符大写
@@ -55,7 +54,42 @@ internal static class NamingHelper
             }
         }
 
-        sb.Append("InjectionFailed");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 将成员名转换为失败回调方法名
+    /// 规则：
+    /// 1. 忽略前导下划线
+    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
+    /// 3. 添加 "On" 前缀和 "InjectionFailed" 后缀
+    /// </summary>
+    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
+    /// <returns>失败回调方法名，如 "OnMyFieldInjectionFailed"</returns>
+    public static string GetFailureCallbackMethodName(string memberName)
+    {
+        var pascalCase = ToPascalCase(memberName);
+        if (string.IsNullOrEmpty(pascalCase))
+            return "OnInjectionFailed";
+
+        return $"On{pascalCase}InjectionFailed";
+    }
+
+    /// <summary>
+    /// 将成员名转换为注入准备标识字段名
+    /// 规则：
+    /// 1. 忽略前导下划线
+    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
+    /// 3. 添加 "Is" 前缀和 "InjectionReady" 后缀
+    /// </summary>
+    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
+    /// <returns>注入准备标识字段名，如 "IsMyFieldInjectionReady"</returns>
+    public static string GetInjectionReadyFieldName(string memberName)
+    {
+        var pascalCase = ToPascalCase(memberName);
+        if (string.IsNullOrEmpty(pascalCase))
+            return "IsInjectionReady";
+
+        return $"Is{pascalCase}InjectionReady";
     }
 }

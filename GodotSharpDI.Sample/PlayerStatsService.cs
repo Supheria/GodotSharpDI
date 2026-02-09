@@ -23,7 +23,7 @@ public partial class PlayerStatsService : IPlayerStats
 
     public PlayerStatsService(GameManager gameManager)
     {
-        throw new Exception();
+        // throw new Exception();
     }
 }
 

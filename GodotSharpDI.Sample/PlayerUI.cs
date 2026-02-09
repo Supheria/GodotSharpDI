@@ -25,9 +25,16 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
         GD.Print("PlayerUI is ready before services ready");
     }
 
-    void IDependenciesResolved.OnDependenciesResolved()
+    void IDependenciesResolved.OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        GD.Print("PlayerUI updated after services ready");
+        if (isAllDependenciesReady)
+        {
+            GD.Print("PlayerUI updated after dependencies ready");
+        }
+        else
+        {
+            GD.Print("PlayerUI updated after some dependencies failed");
+        }
     }
 
     public override partial void _Notification(int what);

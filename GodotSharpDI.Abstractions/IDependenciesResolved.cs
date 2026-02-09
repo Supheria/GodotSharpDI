@@ -2,5 +2,5 @@
 
 public interface IDependenciesResolved
 {
-    void OnDependenciesResolved();
+    void OnDependenciesResolved(bool isAllDependenciesReady);
 }

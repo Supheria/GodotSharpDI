@@ -98,6 +98,7 @@
 | GDI_U002 | GDI.User  | Error    | Manual access to generated field not allowed                             |
 | GDI_U003 | GDI.User  | Error    | Manual access to generated property not allowed                          |
 | GDI_U004 | GDI.User  | Error    | Missing implementation of injection failure callback for [Inject] member |
+| GDI_U005 | GDI.User  | Error    | Manual assign injection ready field is not allowed                       |
 
 ## Design Decisions
 

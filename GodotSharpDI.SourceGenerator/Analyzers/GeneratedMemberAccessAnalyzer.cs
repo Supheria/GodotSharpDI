@@ -53,7 +53,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         "_services",
         "_waiters",
         "_disposableSingletons",
-        // User IServicesReady 生成的字段
+        // User IDependenciesResolved 生成的字段
         "_unresolvedDependencies"
     );
 
@@ -72,7 +72,8 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         ImmutableArray.Create(
             DiagnosticDescriptors.ManualCallGeneratedMethod,
             DiagnosticDescriptors.ManualAccessGeneratedField,
-            DiagnosticDescriptors.ManualAccessGeneratedProperty
+            DiagnosticDescriptors.ManualAccessGeneratedProperty,
+            DiagnosticDescriptors.ManualSetInjectionReadyField
         );
 
     public override void Initialize(AnalysisContext context)
@@ -87,6 +88,10 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
             SyntaxKind.SimpleMemberAccessExpression
         );
         context.RegisterSyntaxNodeAction(AnalyzeIdentifierName, SyntaxKind.IdentifierName);
+        context.RegisterSyntaxNodeAction(
+            AnalyzeAssignment,
+            SyntaxKind.SimpleAssignmentExpression
+        );
     }
 
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
@@ -185,6 +190,56 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         }
 
         AnalyzeMemberSymbol(context, symbolInfo.Symbol, identifier.GetLocation(), accessedOn);
+    }
+
+    private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
+    {
+        var assignment = (AssignmentExpressionSyntax)context.Node;
+
+        // 检查是否在生成的代码区域中
+        if (IsInGeneratedCodeRegion(assignment))
+            return;
+
+        // 获取赋值左侧的符号
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(
+            assignment.Left,
+            context.CancellationToken
+        );
+        if (symbolInfo.Symbol is not IFieldSymbol fieldSymbol)
+            return;
+
+        // 检查字段名是否匹配 IsXxxInjectionReady 模式
+        if (!IsInjectionReadyFieldName(fieldSymbol.Name))
+            return;
+
+        // 检查字段是否真的是生成的字段
+        if (!IsGeneratedField(fieldSymbol))
+            return;
+
+        // 获取访问表达式
+        string accessedOn = "this";
+        if (assignment.Left is MemberAccessExpressionSyntax memberAccess)
+        {
+            accessedOn = memberAccess.Expression.ToString();
+        }
+
+        // 报告诊断
+        var diagnostic = Diagnostic.Create(
+            DiagnosticDescriptors.ManualSetInjectionReadyField,
+            assignment.GetLocation(),
+            fieldSymbol.Name,
+            accessedOn
+        );
+
+        context.ReportDiagnostic(diagnostic);
+    }
+
+    /// <summary>
+    /// 检查字段名是否匹配 IsXxxInjectionReady 模式
+    /// </summary>
+    private static bool IsInjectionReadyFieldName(string fieldName)
+    {
+        return fieldName.StartsWith("Is") && fieldName.EndsWith("InjectionReady");
     }
 
     private static void AnalyzeMemberSymbol(

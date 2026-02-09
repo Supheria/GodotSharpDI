@@ -21,23 +21,6 @@ internal static class UserGenerator
     }
 
     /// <summary>
-    /// 生成失败回调 partial 方法声明
-    /// </summary>
-    private static void GenerateFailureCallbackDeclarations(
-        CodeFormatter f,
-        MemberInfo[] membersWithCallback
-    )
-    {
-        foreach (var member in membersWithCallback)
-        {
-            var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
-            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>");
-            f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
-            f.AppendLine();
-        }
-    }
-
-    /// <summary>
     /// 生成 User 特定代码（ResolveUserDependencies）
     /// </summary>
     public static void GenerateUserSpecific(SourceProductionContext context, TypeNode node)
@@ -49,6 +32,13 @@ internal static class UserGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
+            // 如果有 Inject 成员，生成注入准备标识符字段
+            if (injectMembers.Length > 0)
+            {
+                GenerateInjectionReadyFields(f, injectMembers);
+                f.AppendLine();
+            }
+
             // 如果有带 FailureCallback 的成员，生成 partial 方法声明
             var membersWithCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
             if (membersWithCallback.Length > 0)
@@ -70,6 +60,31 @@ internal static class UserGenerator
         f.EndClassDeclaration();
 
         context.AddSource($"{fileName}.DI.User.g.cs", f.ToString());
+    }
+
+    private static void GenerateInjectionReadyFields(CodeFormatter f, MemberInfo[] injectMembers)
+    {
+        // IsXxxInjectionReady
+        foreach (var member in injectMembers)
+        {
+            var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
+            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 是否成功注入依赖的标识符</summary>");
+            f.AppendLine($"private bool {fieldName} = false;");
+        }
+    }
+
+    private static void GenerateFailureCallbackDeclarations(
+        CodeFormatter f,
+        MemberInfo[] membersWithCallback
+    )
+    {
+        // OnXxxInjectionFailed
+        foreach (var member in membersWithCallback)
+        {
+            var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
+            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>");
+            f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
+        }
     }
 
     private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembersList)
@@ -98,8 +113,34 @@ internal static class UserGenerator
             f.AppendLine("if (_unresolvedDependencies.Count == 0)");
             f.BeginBlock();
             {
+                f.AppendRaw("var isAllDependenciesReady = ", true);
+                if (injectMembersList.Length == 0)
+                {
+                    f.AppendRaw("true;");
+                }
+                else
+                {
+                    f.BeginLevel();
+                    {
+                        for (int i = 0; i < injectMembersList.Length; i++)
+                        {
+                            f.AppendLine();
+                            var fieldName = NamingHelper.GetInjectionReadyFieldName(
+                                injectMembersList[i].Symbol.Name
+                            );
+                            f.AppendRaw(
+                                i > 0 ? $"&& {fieldName} == true" : $"{fieldName} == true",
+                                true
+                            );
+                        }
+                        f.AppendRaw(";");
+                    }
+                    f.EndLevel();
+                }
+                f.AppendLine();
+
                 f.AppendLine(
-                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved();"
+                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved(isAllDependenciesReady);"
                 );
             }
             f.EndBlock();
@@ -134,6 +175,8 @@ internal static class UserGenerator
             {
                 var memberTypeName = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
+                var injectionReadyFieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
+
                 f.AppendLine($"scope.ResolveDependency<{memberTypeName}>(");
                 f.BeginLevel();
                 {
@@ -143,6 +186,7 @@ internal static class UserGenerator
                         f.BeginTryCatch();
                         {
                             f.AppendLine($"{memberName} = dependency;");
+                            f.AppendLine($"{injectionReadyFieldName} = true;");
                         }
                         f.CatchBlock("ex");
                         {
