@@ -51,8 +51,8 @@
         <value>Scope '{0}' 必须继承自 Godot.Node</value>
     </data>
 
-    <data name="C_ServiceReadyNeedUser" xml:space="preserve">
-        <value>类型 '{0}' 实现了 IServicesReady 但未标记 [User]</value>
+    <data name="C_IDependenciesResolvedNeedUser" xml:space="preserve">
+        <value>类型 '{0}' 实现了 IDependenciesResolved 但未标记 [User]</value>
     </data>
 
     <data name="C_ScopeMissingModules" xml:space="preserve">
@@ -64,7 +64,7 @@
     </data>
 
     <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
-        <value>服务 '{0}' 不能继承自 Godot.Node，且必须是非抽象、非静态的类类型</value>
+        <value>服务 '{0}' 必须是非抽象、非静态的 class 类型</value>
     </data>
 
     <data name="C_ServiceExposedTypeShouldBeInterface" xml:space="preserve">
@@ -240,27 +240,56 @@
     </data>
 
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有服务暴露此类型。当前作用域中可用的类型: {2}</value>
+        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有服务暴露此类型</value>
     </data>
 
     <!-- ============================================================ -->
     <!-- E — 内部错误诊断 -->
     <!-- ============================================================ -->
+    <!-- ========== 新增诊断 (E001-E101) ========== -->
 
-    <data name="E_RequestCancellation" xml:space="preserve">
-        <value>生成器收到取消请求: {0}</value>
+    <data name="E_GeneratorInitializationFailed" xml:space="preserve">
+        <value>源生成器初始化失败: {0}</value>
     </data>
 
-    <data name="E_GeneratorInternalError" xml:space="preserve">
-        <value>源生成器内部错误: {0}</value>
+    <data name="E_ClassAnalysisFailed" xml:space="preserve">
+        <value>分析类 '{0}' 失败: {1}</value>
     </data>
 
-    <data name="E_UnknownTypeRole" xml:space="preserve">
-        <value>未知的 DI 类型角色</value>
+    <data name="E_SymbolCacheUnavailable" xml:space="preserve">
+        <value>类 '{0}' 的符号缓存不可用。代码生成可能不完整</value>
     </data>
 
-    <data name="E_ScopeLosesAttributeUnexpectedly" xml:space="preserve">
-        <value>Scope '{0}' 意外丢失 [Modules] 或 [AutoModules]</value>
+    <data name="E_ClassValidationFailed" xml:space="preserve">
+        <value>验证类 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_GraphBuildFailed" xml:space="preserve">
+        <value>构建依赖图失败: {0}</value>
+    </data>
+
+    <data name="E_GraphBuildPhaseFailed" xml:space="preserve">
+        <value>依赖图构建阶段 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_ServiceProviderRegistrationFailed" xml:space="preserve">
+        <value>为 '{0}' 注册服务提供者失败: {1}</value>
+    </data>
+
+    <data name="E_NodeBuildFailed" xml:space="preserve">
+        <value>为 '{1}' 构建 {0} 节点失败: {2}</value>
+    </data>
+
+    <data name="E_GraphValidationFailed" xml:space="preserve">
+        <value>依赖图验证在阶段 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_CodeGenerationFailed" xml:space="preserve">
+        <value>为 {0} '{1}' 生成代码失败: {2}</value>
+    </data>
+
+    <data name="E_SourceOutputFailed" xml:space="preserve">
+        <value>输出生成的源代码失败: {0}</value>
     </data>
 
     <!-- ============================================================ -->
@@ -279,6 +308,48 @@
         <value>不要手动访问生成的属性 '{0}'（在 '{1}' 上）。此属性由 DI 框架管理，不应由用户代码直接访问</value>
     </data>
 
+    <data name="U_MissingInjectionFailureCallbackImplementation" xml:space="preserve">
+        <value>成员 '{0}' 标记了 [Inject(FailureCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入失败</value>
+    </data>
+
+    <data name="U_ManualSetInjectionReadyField" xml:space="preserve">
+        <value>不要手动设置注入准备字段 '{0}'（在 '{1}' 上）。此字段由 DI 框架管理，会在依赖成功注入时自动设置</value>
+    </data>
+    
+    <data name="M_SingletonMemberIsStatic" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 不能是静态的</value>
+    </data>
+    <data name="C_ServiceCannotBeNode" xml:space="preserve">
+        <value>服务 '{0}' 不能继承自 Godot.Node</value>
+    </data>
+    <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
+        <value>服务不能是泛型类型 ‘{0}’。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>服务 '{0}' 不能暴露泛型类型 '{1}'。泛型类型无法实例化，也不能作为稳定的服务标识。</value>
+    </data>
+    <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 不能暴露泛型类型 '{1}'。泛型类型无法实例化，也不能作为稳定的服务标识。</value>
+    </data>
+    <data name="M_SingletonMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
+        <value>构造函数参数 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- 代码修复消息 -->
     <!-- ============================================================ -->
@@ -286,7 +357,8 @@
     <data name="CodeFix_Notification" xml:space="preserve">
         <value>添加 _Notification 方法声明</value>
     </data>
-    <data name="M_SingletonMemberIsStatic" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 不能是静态的</value>
+
+    <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
+        <value>实现 {0} 方法</value>
     </data>
 </root>

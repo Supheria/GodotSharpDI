@@ -9,5 +9,5 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 internal sealed record TypeNode(
     ValidatedTypeInfo ValidatedTypeInfo,
     ImmutableArray<DependencyEdge> Dependencies,
-    ImmutableArray<ITypeSymbol> ProvidedServices
+    ImmutableArray<INamedTypeSymbol> ProvidedServices
 );

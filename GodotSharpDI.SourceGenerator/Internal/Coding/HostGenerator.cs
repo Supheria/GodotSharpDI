@@ -32,43 +32,59 @@ internal static class HostGenerator
 
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            GenerateProvideHostServices(f, singletonMembers);
+            GenerateProvideHostServices(f, node.ValidatedTypeInfo, singletonMembers);
             f.AppendLine();
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Host.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Host.g.cs", f.ToString());
     }
 
     /// <summary>
     /// 生成 ProvideHostServices 方法
     /// </summary>
-    private static void GenerateProvideHostServices(CodeFormatter f, MemberInfo[] singletonMembers)
+    private static void GenerateProvideHostServices(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType,
+        MemberInfo[] singletonMembers
+    )
     {
-        // ProvideHostServices
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void ProvideHostServices()");
         f.BeginBlock();
         {
             f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null) return;");
+            f.AppendLine("if (scope is null)");
+            f.BeginBlock();
+            {
+                f.PushError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.AppendLine("return;");
+            }
+            f.EndBlock();
             f.AppendLine();
 
             foreach (var member in singletonMembers)
             {
-                foreach (var exposedType in member.ExposedTypes)
+                var memberName = member.Symbol.Name;
+                var memberType = member.MemberType.ToFullyQualifiedName();
+
+                // 只调用一次 ProvideService（使用成员类型）
+                f.BeginTryCatch();
                 {
-                    f.BeginTryCatch();
-                    {
-                        f.AppendLine(
-                            $"scope.ProvideService<{exposedType.ToFullyQualifiedName()}>({member.Symbol.Name});"
-                        );
-                    }
-                    f.EndTryCatch();
+                    f.AppendLine($"scope.ProvideService<{memberType}>({memberName});");
                 }
+                f.CatchBlock("ex");
+                {
+                    f.AppendLine(
+                        $"var errorMessage = $\"Host '{validatedType.Symbol.Name}' 无法提供服务。 成员 '{memberName}' 异常: {{ex.Message}}\";"
+                    );
+                    f.AppendLine($"scope.ProvideService<{memberType}>(null, errorMessage);");
+                }
+                f.EndTryCatch();
             }
+            f.AppendLine();
         }
         f.EndBlock();
     }

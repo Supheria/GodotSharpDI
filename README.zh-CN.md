@@ -52,6 +52,7 @@
   - [使用服务工厂](#使用服务工厂)
 - [诊断代码](#诊断代码)
 - [许可证](#许可证)
+- [附录：需要显式声明_Notification方法](#附录：需要显式声明_Notification方法)
 - [Todo List](#todo-list)
 
 ---
@@ -72,64 +73,6 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 <PackageReference Include="GodotSharpDI" Version="x.x.x" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包** ：生成的代码依赖 Godot.Node 和 Godot.GD 。
-
-⚠️ **重要：需要显式声明 _Notification 方法**
-
-> **从 1.0.0-rc.1 版本开始**，所有 Host、User 和 Scope 类型**必须**在节点绑定的 C# 脚本中显式定义 `_Notification` 方法：
->
-> ```csharp
-> public override partial void _Notification(int what);
-> ```
->
-> ### 为什么要这样做？
->
-> - 在 Godot 中将 C# 脚本附加到节点时，引擎会在节点和该特定脚本文件之间创建绑定
-> - Godot 的脚本绑定机制只扫描附加的脚本文件以查找虚方法重写
-> - 源代码生成的文件（*.g.cs）通过 `partial` 编译到同一个类中，但 Godot 不会扫描这些文件来查找生命周期方法
-> - 因此，像 `_Notification` 这样的生命周期钩子必须在节点脚本中声明为 `partial` 方法
->
-> ### IDE 支持
->
-> IDE（Visual Studio、Rider）会提供自动修复：
->
-> 1. 如果忘记添加此方法，会产生 **GDI_C080** 错误
-> 2. 在错误上按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
-> 3. 选择“添加 _Notification 方法声明”以自动生成正确的声明
->
-> ### 示例：
->
-> ```csharp
-> // GameManager.cs（附加到节点）
-> [Host]
-> public partial class GameManager : Node
-> {
->     // 必需：Godot 需要看到这个声明
->     public override partial void _Notification(int what);
->     
->     [Singleton(typeof(IGameState))]
->     private IGameState Self => this;
-> }
-> 
-> // 生成的文件：GameManager.DI.g.cs（不被 Godot 扫描）
-> partial class GameManager
-> {
->     // 框架提供实现
->     public override partial void _Notification(int what)
->     {
->         base._Notification(what);
->         switch ((long)what)
->         {
->             case NotificationEnterTree:
->                 AttachToScope();
->                 break;
->             case NotificationExitTree:
->                 UnattachToScope();
->                 break;
->         }
->     }
-> }
-> ```
->
 
 ---
 
@@ -221,15 +164,22 @@ public partial class GameManager : Node, IGameState
 
 ```csharp
 [User]
-public partial class PlayerUI : Control, IServicesReady
+public partial class PlayerUI : Control, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
     [Inject] private IGameState _gameState;
     
-    // 所有依赖注入完成后调用
-    public void OnServicesReady()
+    // 所有依赖解析完成后调用
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        UpdateUI();
+        if (isAllDependenciesReady)
+        {
+            UpdateUI();
+        }
+        else
+        {
+            GD.Print("部分依赖注入失败");
+        }
     }
     
     // 需要集成 Godot 生命周期
@@ -451,15 +401,18 @@ User 是依赖消费者，通过字段或属性注入接收服务依赖。
 
 ```csharp
 [User]
-public partial class PlayerController : CharacterBody3D, IServicesReady
+public partial class PlayerController : CharacterBody3D, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
     [Inject] private ICombatSystem _combat;
     
-    // 当所有依赖注入完成后自动调用
-    public void OnServicesReady()
+    // 当所有依赖解析完成后自动调用
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        GD.Print("所有服务已就绪，可以开始游戏逻辑");
+        if (isAllDependenciesReady)
+        {
+            GD.Print("所有服务已就绪，可以开始游戏逻辑");
+        }
     }
     
     // 需要集成 Godot 生命周期
@@ -470,42 +423,108 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 > User 会在进入场景树时自动触发注入，无需手动操作。
 >
 
-#### IServicesReady 接口
+#### IDependenciesResolved 接口
 
-User 类型可以实现 `IServicesReady` 接口，`OnServicesReady()` 在所有 `[Inject]` 成员解析完成后被立即调用。
+User 类型可以实现 `IDependenciesResolved` 接口，`OnDependenciesResolved(bool isAllDependenciesReady)` 在所有 `[Inject]` 成员解析完成后被立即调用。
+
 ```csharp
-public interface IServicesReady
+public interface IDependenciesResolved
 {
-    void OnServicesReady();
+    void OnDependenciesResolved(bool isAllDependenciesReady);
 }
 ```
 
-> ⚠️ **`OnServicesReady()` 始终在 `_Ready()` 之后被调用**，因为 User 在 NotificationReady 处开始依赖解析。
+**参数说明**：
+- `isAllDependenciesReady`：如果为 `true`，表示所有依赖都成功注入；如果为 `false`，表示至少有一个依赖注入失败。
+
+> ⚠️ **`OnDependenciesResolved()` 始终在 `_Ready()` 之后被调用**，因为 User 在 `NotificationReady` 处开始依赖解析。
 
 **示例**：
 
 ```csharp
 [User]
-public partial class UIManager : Control, IServicesReady
+public partial class UIManager : Control, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
     [Inject] private IGameState _gameState;
     
-    public void OnServicesReady()
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        // 所有依赖已就绪，可以安全地访问它们
-        _stats.OnHealthChanged += UpdateHealthBar;
-        _gameState.OnStateChanged += UpdateGameState;
-        
-        // 初始 UI 更新
-        UpdateHealthBar(_stats.Health);
-        UpdateGameState(_gameState.CurrentState);
+        if (isAllDependenciesReady)
+        {
+            // 所有依赖已就绪，可以安全地访问它们
+            _stats.OnHealthChanged += UpdateHealthBar;
+            _gameState.OnStateChanged += UpdateGameState;
+            
+            // 初始 UI 更新
+            UpdateHealthBar(_stats.Health);
+            UpdateGameState(_gameState.CurrentState);
+        }
+        else
+        {
+            GD.PrintErr("部分依赖注入失败，请检查服务配置");
+        }
     }
     
     // 需要集成 Godot 生命周期
     public override partial void _Notification(int what);
 }
 ```
+
+#### 依赖注入失败回调
+
+从 **v1.0.0-rc.3** 版本开始，可以为单个注入成员设置失败回调，以更精细地处理依赖注入失败的情况。
+
+**使用方式**：
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IDependenciesResolved
+{
+    // 普通注入
+    [Inject]
+    private IPlayerStats PlayerStats { get; set; }
+    
+    // 启用失败回调的注入
+    [Inject(FailureCallback = true)]
+    private IGameManager GameManager { get; set; }
+    
+    // 所有依赖解析完成后调用
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("所有依赖注入成功");
+        }
+        else
+        {
+            GD.Print("部分依赖注入失败");
+        }
+    }
+    
+    // 为 GameManager 生成的失败回调（partial 方法）
+    partial void OnGameManagerInjectionFailed(string error)
+    {
+        GD.PrintErr($"GameManager 注入失败: {error}");
+        // 可以在这里实现降级逻辑或显示错误提示
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+**特性参数**：
+- `FailureCallback`：设置为 `true` 时，将为该成员生成 `OnXxxInjectionFailed(string error)` 失败回调方法。
+
+**生成的代码**：
+
+对于每个标记了 `[Inject(FailureCallback = true)]` 的成员，源生成器会：
+1. 生成一个 `IsXxxInjectionReady` 布尔字段，用于检查该依赖是否已成功注入
+2. 生成一个 `partial void OnXxxInjectionFailed(string error)` 方法声明，并且需要在用户代码中实现它
+
+> ⚠️ **`IsXxxInjectionReady`只有在 `_Ready()` 之后才可能是 true**，因为 User 在 `NotificationReady` 处开始依赖解析。
+
+> ⚠️ **`OnXxxInjectionFailed(string error)` 始终在 `_Ready()` 之后、 `OnDependenciesResolved()` 之前被调用。**
 
 ---
 
@@ -686,7 +705,7 @@ scope.ResolveDependency<T>(callback) ← 每个 [Inject] 成员
  ↓
 等待服务就绪或立即回调
  ↓
-OnServicesReady() ← 所有依赖注入完成（如果实现 IServicesReady）
+OnDependenciesResolved(isAllDependenciesReady) ← 所有依赖解析完成（如果实现 IDependenciesResolved）
 ```
 
 #### Host 的服务注册时序
@@ -723,7 +742,7 @@ scope.ProvideService<T>(this.Member) ← 每个 [Singleton] 成员
 - 立即对所有 `[Inject]` 成员发起依赖解析
 - 如果服务尚未注册,则加入等待队列
 - 在服务注册或 Scope Ready 时被回调注入
-- 所有依赖注入完成后触发 `OnServicesReady()`
+- 所有依赖解析完成后触发 `OnDependenciesResolved(isAllDependenciesReady)`
 
 **结论**
 
@@ -874,21 +893,10 @@ class B : IB { public B(IA a) {} }
 | 约束项 | 要求 | 原因 |
 |--------|------|------|
 | 类型 | 必须是 class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制,与 DI 容器冲突 |
+| 继承 | 不能是 Node | Node 生命周期由 Godot 控制，与 DI 容器冲突 |
 | 修饰符 | 不能是 abstract 或 static | 需要实例化 |
-| 泛型 | 不能是开放泛型 | 需要具体类型来实例化 |
+| 泛型 | 不能是泛型 | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
 | 声明 | 必须是 partial | 源生成器需要扩展类 |
-
-**类型约束**
-
-| 类型 | 是否允许 | 说明 |
-|------|----------|------|
-| 非Node class | ✅ | **推荐** |
-| Host / Host + User | ❌ | 应该通过成员提供服务 |
-| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
-| User | ❌ | 无静态约束，无法保证生命周期 |
-| Scope | ❌ | 容器不能作为服务 |
-| 其他类型 | ❌ | 不支持 |
 
 **暴露类型约束**
 
@@ -898,6 +906,7 @@ class B : IB { public B(IA a) {} }
 | 已继承的 class | ⚠️        | 允许但不推荐 |
 | 未实现的 interface | ❌ | 无意义 |
 | 未继承的 class | ❌ | 无意义 |
+| 泛型 | ❌ | 泛型类型无法实例化或作为稳定的服务标识 |
 
 **构造函数约束**
 
@@ -916,6 +925,7 @@ class B : IB { public B(IA a) {} }
 | 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
 | User | ❌ | 无静态约束，无法保证生命周期 |
 | Scope | ❌ | 容器不能作为服务 |
+| 泛型 | ❌ | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
 | 其他类型 | ❌ | 不支持 |
 
 ---
@@ -924,12 +934,13 @@ class B : IB { public B(IA a) {} }
 
 **基本约束**
 
-| 约束项        | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
+| 约束项        | 要求                                                         | 原因                                                         |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 类型          | 必须是 class                                                 | 需要实例化                                                   |
+| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                                     |
+| 泛型          | 不能是泛型                                                   | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
+| 声明          | 必须是 partial                                               | 源生成器需要扩展类                                           |
+| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法                 |
 
 **Host Singleton 成员类型约束**
 
@@ -941,6 +952,7 @@ class B : IB { public B(IA a) {} }
 | 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
 | User | ❌ | 无静态约束，无法保证生命周期 |
 | Scope | ❌ | 不允许嵌套容器 |
+| 泛型 | ❌ | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
 | 其他类型 | ❌ | 不支持 |
 
 **Host Singleton 成员暴露类型约束**
@@ -948,9 +960,10 @@ class B : IB { public B(IA a) {} }
 | 类型 | 是否允许 | 说明 |
 |------|----------|------|
 | 已实现的 interface | ✅ | **推荐** |
-| 已继承的 class非Node class | ⚠️        | 允许但不推荐 |
+| 已继承 class | ⚠️        | 允许但不推荐 |
 | 未实现的 interface | ❌ | 无意义 |
 | 未继承的 class | ❌ | 无意义 |
+| 泛型 | ❌ | 泛型类型无法实例化或作为稳定的服务标识 |
 
 ---
 
@@ -962,6 +975,7 @@ class B : IB { public B(IA a) {} }
 | ------------- | ------------------------------------------------------------ | -------------------------------------------- |
 | 类型          | 必须是 class                                                 | 需要实例化                                   |
 | 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
+| 泛型 | 不能是泛型 | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
 | 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
 | _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
 
@@ -975,6 +989,7 @@ class B : IB { public B(IA a) {} }
 | 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
 | User | ❌ | 无静态约束，无法保证生命周期 |
 | Scope | ❌ | 容器不能作为服务 |
+| 泛型 | ❌ | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
 | 其他类型 | ❌ | 不支持 |
 
 ---
@@ -986,6 +1001,7 @@ class B : IB { public B(IA a) {} }
 | 类型          | 必须是 class                                                 | 需要实例化                                   |
 | 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
 | 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
+| 泛型 | 不能是泛型 | 泛型类型无法实例化或作为稳定的服务标识，请使用具体类继承泛型类作为服务的实现类型 |
 | Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
 | 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
 | _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
@@ -1055,7 +1071,10 @@ public sealed class UserAttribute : Attribute { }
 namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
-public sealed class InjectAttribute : Attribute { }
+public sealed class InjectAttribute : Attribute 
+{
+    public bool FailureCallback { get; set; }
+}
 ```
 
 **使用规则**：
@@ -1063,6 +1082,18 @@ public sealed class InjectAttribute : Attribute { }
 * 只能用于 User 或 Host+User 类型
 * 成员必须可写（字段不能是 readonly，属性必须有 setter）
 * 不能是 static
+
+**属性**：
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `FailureCallback` | bool | false | 启用后，将为该成员生成失败回调方法 `OnXxxInjectionFailed(string error)` |
+
+**生成的成员**（v1.0.0-rc.3+）：
+
+对于每个 `[Inject]` 成员，源生成器会生成：
+- `IsXxxInjectionReady`：布尔字段，指示该依赖是否已成功注入
+- `OnXxxInjectionFailed(string error)`：失败回调方法（仅当 `FailureCallback = true` 时生成）
 
 #### [InjectConstructor]
 
@@ -1130,16 +1161,16 @@ public interface IScope
 
 > ⚠️ 重要提示：这些方法由框架管理，不应手动调用。框架会在 User、Host 和 Service 代码中生成适当的调用。
 
-#### IServicesReady
+#### IDependenciesResolved
 
-服务就绪通知接口。
+依赖解析通知接口。
 
 ```csharp
 namespace GodotSharpDI.Abstractions;
 
-public interface IServicesReady
+public interface IDependenciesResolved
 {
-    void OnServicesReady();
+    void OnDependenciesResolved(bool isAllDependenciesReady);
 }
 ```
 
@@ -1148,6 +1179,9 @@ public interface IServicesReady
 * 只能由 User 或 Host+User 类型实现
 * 在所有 [Inject] 成员解析完成后立即调用
 * 适用于依赖注入服务的初始化逻辑
+* `isAllDependenciesReady` 参数指示是否所有依赖都成功注入
+
+> **注意**：从 v1.0.0-rc.3 版本开始，`IServicesReady` 已重命名为 `IDependenciesResolved`，方法签名也有变化。
 
 ---
 
@@ -1248,7 +1282,7 @@ void IScope.ResolveDependency<T>(Action<T> onResolved);
 
 2. User Ready
    └→ 解析依赖 ⭐
-   └→ OnServicesReady() ⭐
+   └→ OnDependenciesResolved(isAllDependenciesReady) ⭐
 
 3. Scope Ready
    └→ 创建所有 Scope Service ⭐
@@ -1451,7 +1485,7 @@ public partial class Player : Node
 
 ```csharp
 [Host, User]
-public partial class GameManager : Node, IGameState, IServicesReady
+public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
     // Host 部分: 暴露服务
     [Singleton(typeof(IGameState))]
@@ -1461,10 +1495,13 @@ public partial class GameManager : Node, IGameState, IServicesReady
     [Inject] private IConfig _config;
     [Inject] private ISaveSystem _saveSystem;
     
-    public void OnServicesReady()
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        // 依赖已就绪,可以初始化
-        LoadLastSave();
+        if (isAllDependenciesReady)
+        {
+            // 依赖已就绪,可以初始化
+            LoadLastSave();
+        }
     }
     
     // 需要集成 Godot 生命周期
@@ -1667,6 +1704,64 @@ public class Projectile : IDisposable
 
 MIT License
 
+## 附录：需要显式声明_Notification方法
+
+**从 1.0.0-rc.1 版本开始**，所有 Host、User 和 Scope 类型**必须**在节点绑定的 C# 脚本中显式定义 `_Notification` 方法：
+
+```csharp
+public override partial void _Notification(int what);
+```
+
+### 为什么要这样做？
+
+- 在 Godot 中将 C# 脚本附加到节点时，引擎会在节点和该特定脚本文件之间创建绑定
+- Godot 的脚本绑定机制只扫描附加的脚本文件以查找虚方法重写
+- 源代码生成的文件（*.g.cs）通过 `partial` 编译到同一个类中，但 Godot 不会扫描这些文件来查找生命周期方法
+- 因此，像 `_Notification` 这样的生命周期钩子必须在节点脚本中声明为 `partial` 方法
+
+### IDE 支持
+
+IDE（Visual Studio、Rider）会提供自动修复：
+
+1. 如果忘记添加此方法，会产生 **GDI_C080** 错误
+2. 在错误上按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
+3. 选择“添加 _Notification 方法声明”以自动生成正确的声明
+
+### 示例：
+
+```csharp
+// GameManager.cs（附加到节点）
+[Host]
+public partial class GameManager : Node
+{
+    // 必需：Godot 需要看到这个声明
+    public override partial void _Notification(int what);
+
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+}
+
+// 生成的文件：GameManager.DI.g.cs（不被 Godot 扫描）
+partial class GameManager
+{
+    // 框架提供实现
+    public override partial void _Notification(int what)
+    {
+        base._Notification(what);
+        switch ((long)what)
+        {
+            case NotificationEnterTree:
+                AttachToScope();
+                break;
+            case NotificationExitTree:
+                UnattachToScope();
+                break;
+        }
+    }
+}
+```
+
+
 ## Todo List
 
 ### 1. 文档与示例
@@ -1678,13 +1773,14 @@ MIT License
 ### 2. 测试
 
 - [ ] 添加运行时集成测试
+- [ ] 添加生成器、分析器、代码修复器的集成测试
 
 ### 3. 功能
 
-- [ ] 实现依赖回调的等待计时和超时处理
+- [x] 实现依赖回调的等待计时和超时处理
 - [ ] 支持异步（使用 CallDeferred）
 
 ### 4. 诊断
 
-- [ ] 诊断生成器内部错误（GDI_E）
+- [x] 诊断生成器内部错误（GDI_E）
 

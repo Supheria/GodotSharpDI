@@ -139,12 +139,26 @@ internal sealed class ConstructorProcessor
         var location = param.Locations.FirstOrDefault() ?? _raw.Location;
         var paramType = param.Type;
 
-        // 必须是接口或有效类
-        if (!paramType.IsValidInterfaceOrConcreteClass())
+        // 必须是接口或具体类
+        if (!paramType.IsInterfaceOrConcreteClass())
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.InjectCtorParamTypeInvalid,
+                    location,
+                    param.Name,
+                    paramType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是泛型类型
+        if (paramType is INamedTypeSymbol namedType && namedType.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectCtorParamTypeCannotBeGeneric,
                     location,
                     param.Name,
                     paramType.ToDisplayString()

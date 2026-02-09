@@ -10,7 +10,7 @@ internal sealed record ValidatedTypeInfo(
     INamedTypeSymbol Symbol,
     Location Location,
     TypeRole Role,
-    bool ImplementsIServicesReady,
+    bool ImplementsIDependenciesResolved,
     bool IsNode,
     ImmutableArray<MemberInfo> Members,
     ConstructorInfo? Constructor,

@@ -69,6 +69,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Host cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_HostCannotBeGenericType {
+            get {
+                return ResourceManager.GetString("C_HostCannotBeGenericType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Host &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string C_HostInvalidAttribute {
@@ -83,6 +92,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string C_HostMustBeNode {
             get {
                 return ResourceManager.GetString("C_HostMustBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IDependenciesResolved but is not marked with [User].
+        /// </summary>
+        internal static string C_IDependenciesResolvedNeedUser {
+            get {
+                return ResourceManager.GetString("C_IDependenciesResolvedNeedUser", resourceCulture);
             }
         }
         
@@ -114,6 +132,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Scope cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_ScopeCannotBeGenericType {
+            get {
+                return ResourceManager.GetString("C_ScopeCannotBeGenericType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Scope &apos;{0}&apos; cannot use [{1}].
         /// </summary>
         internal static string C_ScopeInvalidAttribute {
@@ -141,6 +168,24 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node..
+        /// </summary>
+        internal static string C_ServiceCannotBeNode {
+            get {
+                return ResourceManager.GetString("C_ServiceCannotBeNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot expose generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers..
+        /// </summary>
+        internal static string C_ServiceExposedTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("C_ServiceExposedTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Service &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
         /// </summary>
         internal static string C_ServiceExposedTypeNotImplemented {
@@ -159,20 +204,29 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IServicesReady but is not marked with [User].
+        ///   Looks up a localized string similar to Service cannot be generic type ‘{0}’. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
         /// </summary>
-        internal static string C_ServiceReadyNeedUser {
+        internal static string C_ServiceTypeCannotBeGeneric {
             get {
-                return ResourceManager.GetString("C_ServiceReadyNeedUser", resourceCulture);
+                return ResourceManager.GetString("C_ServiceTypeCannotBeGeneric", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node, and must be non-abstract, non-static class type.
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; must be a non-abstract, non-static class type.
         /// </summary>
         internal static string C_ServiceTypeIsInvalid {
             get {
                 return ResourceManager.GetString("C_ServiceTypeIsInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string C_UserCannotBeGenericType {
+            get {
+                return ResourceManager.GetString("C_UserCannotBeGenericType", resourceCulture);
             }
         }
         
@@ -195,6 +249,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Implement {0} method.
+        /// </summary>
+        internal static string CodeFix_InjectionFailureCallback {
+            get {
+                return ResourceManager.GetString("CodeFix_InjectionFailureCallback", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Add _Notification method declaration.
         /// </summary>
         internal static string CodeFix_Notification {
@@ -213,7 +276,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type. Available types in current scope: {2}.
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type.
         /// </summary>
         internal static string D_InjectMemberTypeIsNotExposed {
             get {
@@ -267,38 +330,101 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Internal error in source generator: {0}.
+        ///   Looks up a localized string similar to Failed to analyze class &apos;{0}&apos;: {1}.
         /// </summary>
-        internal static string E_GeneratorInternalError {
+        internal static string E_ClassAnalysisFailed {
             get {
-                return ResourceManager.GetString("E_GeneratorInternalError", resourceCulture);
+                return ResourceManager.GetString("E_ClassAnalysisFailed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Generator receives cancellation request: {0}.
+        ///   Looks up a localized string similar to Failed to validate class &apos;{0}&apos;: {1}.
         /// </summary>
-        internal static string E_RequestCancellation {
+        internal static string E_ClassValidationFailed {
             get {
-                return ResourceManager.GetString("E_RequestCancellation", resourceCulture);
+                return ResourceManager.GetString("E_ClassValidationFailed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Unexpectedly loses [Modules] or [AutoModules].
+        ///   Looks up a localized string similar to Failed to generate code for {0} &apos;{1}&apos;: {2}.
         /// </summary>
-        internal static string E_ScopeLosesAttributeUnexpectedly {
+        internal static string E_CodeGenerationFailed {
             get {
-                return ResourceManager.GetString("E_ScopeLosesAttributeUnexpectedly", resourceCulture);
+                return ResourceManager.GetString("E_CodeGenerationFailed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Unknown DI Type Role.
+        ///   Looks up a localized string similar to Source generator failed to initialize: {0}.
         /// </summary>
-        internal static string E_UnknownTypeRole {
+        internal static string E_GeneratorInitializationFailed {
             get {
-                return ResourceManager.GetString("E_UnknownTypeRole", resourceCulture);
+                return ResourceManager.GetString("E_GeneratorInitializationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to build dependency graph: {0}.
+        /// </summary>
+        internal static string E_GraphBuildFailed {
+            get {
+                return ResourceManager.GetString("E_GraphBuildFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed during graph build phase &apos;{0}&apos;: {1}.
+        /// </summary>
+        internal static string E_GraphBuildPhaseFailed {
+            get {
+                return ResourceManager.GetString("E_GraphBuildPhaseFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to validate dependency graph at phase &apos;{0}&apos;: {1}.
+        /// </summary>
+        internal static string E_GraphValidationFailed {
+            get {
+                return ResourceManager.GetString("E_GraphValidationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to build {0} node for &apos;{1}&apos;: {2}.
+        /// </summary>
+        internal static string E_NodeBuildFailed {
+            get {
+                return ResourceManager.GetString("E_NodeBuildFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to register service provider for &apos;{0}&apos;: {1}.
+        /// </summary>
+        internal static string E_ServiceProviderRegistrationFailed {
+            get {
+                return ResourceManager.GetString("E_ServiceProviderRegistrationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to output generated source code: {0}.
+        /// </summary>
+        internal static string E_SourceOutputFailed {
+            get {
+                return ResourceManager.GetString("E_SourceOutputFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Symbol cache unavailable for class &apos;{0}&apos;. Code generation may be incomplete.
+        /// </summary>
+        internal static string E_SymbolCacheUnavailable {
+            get {
+                return ResourceManager.GetString("E_SymbolCacheUnavailable", resourceCulture);
             }
         }
         
@@ -357,6 +483,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string M_InjectMemberTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_InjectMemberTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static).
         /// </summary>
         internal static string M_InjectMemberTypeIsInvalid {
@@ -398,6 +533,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_MemberHasSingletonButNotInHost {
             get {
                 return ResourceManager.GetString("M_MemberHasSingletonButNotInHost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot expose generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers..
+        /// </summary>
+        internal static string M_SingletonMemberExposedTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberExposedTypeCannotBeGeneric", resourceCulture);
             }
         }
         
@@ -470,6 +614,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_SingletonMemberIsUserType {
             get {
                 return ResourceManager.GetString("M_SingletonMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string M_SingletonMemberTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_SingletonMemberTypeCannotBeGeneric", resourceCulture);
             }
         }
         
@@ -564,6 +717,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; cannot be a generic type &apos;{1}&apos; . Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string S_InjectCtorParamTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("S_InjectCtorParamTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; has type &apos;{1}&apos; which is a concrete class. Consider using an interface instead for better testability.
         /// </summary>
         internal static string S_InjectCtorParamTypeShouldBeInterface {
@@ -605,6 +767,24 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string U_ManualCallGeneratedMethod {
             get {
                 return ResourceManager.GetString("U_ManualCallGeneratedMethod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Do not manually set injection ready field &apos;{0}&apos; on &apos;{1}&apos;. This field is managed by the DI framework and will be set automatically when the dependency is successfully injected.
+        /// </summary>
+        internal static string U_ManualSetInjectionReadyField {
+            get {
+                return ResourceManager.GetString("U_ManualSetInjectionReadyField", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Member &apos;{0}&apos; is marked with [Inject(FailureCallback = true)] but the required callback method &apos;{1}&apos; is not implemented. Please implement this partial method to handle injection failures.
+        /// </summary>
+        internal static string U_MissingInjectionFailureCallbackImplementation {
+            get {
+                return ResourceManager.GetString("U_MissingInjectionFailureCallbackImplementation", resourceCulture);
             }
         }
     }

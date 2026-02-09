@@ -166,15 +166,28 @@ internal sealed class MemberProcessor
             return null;
 
         // 验证 Inject 成员
+        bool hasFailureCallback = false;
         if (hasInject)
         {
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
+            // 读取 FailureCallback 属性
+            var injectAttr = member.GetAttribute(_symbols.InjectAttribute);
+            foreach (var namedArg in injectAttr!.NamedArguments)
+            {
+                if (
+                    namedArg.Key == "FailureCallback"
+                    && namedArg.Value.Value is bool failureCallbackValue
+                )
+                {
+                    hasFailureCallback = failureCallbackValue;
+                    break;
+                }
+            }
         }
 
+        // 验证 Singleton 成员
         var exposedTypes = ImmutableArray<INamedTypeSymbol>.Empty;
-
-        // 验证 Inject 成员
         if (hasSingleton)
         {
             if (!ValidateSingletonMemberType(memberType, member, location))
@@ -188,14 +201,15 @@ internal sealed class MemberProcessor
             Location: location,
             Kind: kind,
             MemberType: memberType,
-            ExposedTypes: exposedTypes
+            ExposedTypes: exposedTypes,
+            HasFailureCallback: hasFailureCallback
         );
     }
 
     private bool ValidateInjectMemberType(ITypeSymbol memberType, ISymbol member, Location location)
     {
-        // 必须是接口或有效类
-        if (!memberType.IsValidInterfaceOrConcreteClass())
+        // 必须是接口或具体类
+        if (!memberType.IsInterfaceOrConcreteClass())
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
@@ -208,7 +222,21 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 可以是 Host 类型吗，但不推荐并产生警告
+        // 不能是泛型类型
+        if (member is INamedTypeSymbol namedType && namedType.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectMemberTypeCannotBeGeneric,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 可以是 Host 类型，但不推荐并产生警告
         if (_symbols.IsHostType(memberType))
         {
             _diagnostics.Add(
@@ -286,12 +314,26 @@ internal sealed class MemberProcessor
         Location location
     )
     {
-        // 必须是接口或有效类
-        if (!memberType.IsValidInterfaceOrConcreteClass())
+        // 必须是接口或具体类
+        if (!memberType.IsInterfaceOrConcreteClass())
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.SingletonMemberTypeIsInvalid,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
+        // 不能是泛型类型
+        if (memberType is INamedTypeSymbol namedType && namedType.IsGenericType)
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.SingletonMemberTypeCannotBeGeneric,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -387,6 +429,19 @@ internal sealed class MemberProcessor
     {
         foreach (var exposedType in exposedTypes)
         {
+            // 不能是泛型类型
+            if (exposedType.IsGenericType)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.SingletonMemberExposedTypeCannotBeGeneric,
+                        location,
+                        member.Name,
+                        exposedType.ToDisplayString()
+                    )
+                );
+            }
+
             // 可以是非接口，但不推荐并产生警告
             if (exposedType.TypeKind != TypeKind.Interface)
             {

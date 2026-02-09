@@ -13,55 +13,93 @@ internal static class ServiceGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        var type = node.ValidatedTypeInfo;
-
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(type, out var className);
+        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            if (type.Constructor == null || type.Constructor.Parameters.IsEmpty)
+            if (
+                node.ValidatedTypeInfo.Constructor == null
+                || node.ValidatedTypeInfo.Constructor.Parameters.IsEmpty
+            )
             {
-                GenerateParameterlessFactory(f, className);
+                GenerateParameterlessFactory(f, node.ValidatedTypeInfo);
             }
             else
             {
-                GenerateParameterizedFactory(f, className, type.Constructor);
+                GenerateParameterizedFactory(
+                    f,
+                    node.ValidatedTypeInfo,
+                    node.ValidatedTypeInfo.Constructor
+                );
             }
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Service.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Service.g.cs", f.ToString());
     }
 
-    private static void GenerateParameterlessFactory(CodeFormatter f, string className)
+    private static void GenerateParameterlessFactory(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType
+    )
     {
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"public static void CreateService({GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated)"
+            $"public static void CreateService("
+                + $"{GlobalNames.IScope} scope, "
+                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
+                + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
-            f.AppendLine($"var instance = new {className}();");
-            f.AppendLine("onCreated.Invoke(instance, scope);");
+            f.BeginTryCatch();
+            {
+                f.AppendLine(
+                    $"var instance = new {validatedType.Symbol.ToFullyQualifiedName()}();"
+                );
+                f.AppendLine();
+
+                f.AppendLine("// 提供服务实例");
+                f.AppendLine(
+                    $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(instance);"
+                );
+                f.AppendLine();
+
+                f.AppendLine("onCreated.Invoke(instance);");
+            }
+            f.CatchBlock("ex");
+            {
+                f.AppendLine(
+                    $"var errorMessage = $\"单例服务 '{validatedType.Symbol.Name}' 实例化失败。异常: {{ex.Message}}\";"
+                );
+                f.AppendLine(
+                    $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(null, errorMessage);"
+                );
+            }
+            f.EndTryCatch();
         }
         f.EndBlock();
     }
 
     private static void GenerateParameterizedFactory(
         CodeFormatter f,
-        string className,
+        ValidatedTypeInfo validatedType,
         ConstructorInfo ctor
     )
     {
         // CreateService
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"public static void CreateService({GlobalNames.IScope} scope, {GlobalNames.Action}<{GlobalNames.Object}, {GlobalNames.IScope}> onCreated)"
+            $"public static void CreateService("
+                + $"{GlobalNames.IScope} scope, "
+                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
+                + $"{GlobalNames.String}? dependencyChain = null)"
         );
         f.BeginBlock();
         {
             f.AppendLine($"var remaining = {ctor.Parameters.Length};");
+            f.AppendLine("var hasFailed = false;");
             f.AppendLine();
 
             // 声明参数变量
@@ -76,40 +114,91 @@ internal static class ServiceGenerator
             for (int i = 0; i < ctor.Parameters.Length; i++)
             {
                 var param = ctor.Parameters[i];
-                f.AppendLine(
-                    $"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(dependency =>"
-                );
-                f.BeginBlock();
+                var paramName = param.Symbol.Name;
+
+                f.AppendLine($"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(");
+                f.BeginLevel();
                 {
-                    f.AppendLine($"p{i} = dependency;");
-                    f.BeginTryCatch();
+                    f.AppendLine("(dependency) =>");
+                    f.BeginBlock();
                     {
-                        f.AppendLine("TryCreate();");
+                        f.BeginTryCatch();
+                        {
+                            f.AppendLine($"p{i} = dependency;");
+                            f.AppendLine("TryCreate();");
+                        }
+                        f.CatchBlock("ex");
+                        {
+                            f.AppendLine(
+                                $"var errorMessage = $\"单例服务 '{validatedType.Symbol.Name}' 无法提供服务。 参数 ‘{paramName}’ 异常: {{ex.Message}}\";"
+                            );
+                            f.AppendLine("TryCreate(errorMessage);");
+                        }
+                        f.EndTryCatch();
                     }
-                    f.EndTryCatch();
+                    f.EndBlock(",");
+                    f.AppendLine("TryCreate,");
+                    f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\",");
+                    f.AppendLine("dependencyChain: dependencyChain");
                 }
-                f.EndBlock(");");
+                f.EndLevel();
+                f.AppendLine(");");
             }
 
             f.AppendLine();
             f.AppendLine("return;");
             f.AppendLine();
 
-            // TryCreate 本地函数
-            f.AppendLine("void TryCreate()");
+            // TryCreate
+            f.AppendLine($"void TryCreate({GlobalNames.String}? errorMessage = null)");
             f.BeginBlock();
             {
+                f.AppendLine("if (hasFailed) return;");
+                f.AppendLine("if (errorMessage is not null)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("hasFailed = true;");
+                    f.AppendLine(
+                        $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(null, errorMessage);"
+                    );
+                    f.AppendLine("return;");
+                }
+                f.EndBlock();
                 f.AppendLine("if (--remaining == 0)");
                 f.BeginBlock();
                 {
-                    var paramNames = new List<string>();
-                    for (int i = 0; i < ctor.Parameters.Length; i++)
+                    f.BeginTryCatch();
                     {
-                        paramNames.Add($"p{i}!");
+                        var paramNames = new List<string>();
+                        for (int i = 0; i < ctor.Parameters.Length; i++)
+                        {
+                            paramNames.Add($"p{i}!");
+                        }
+                        var paramList = string.Join(", ", paramNames);
+                        f.AppendLine(
+                            $"var instance = new {validatedType.Symbol.ToFullyQualifiedName()}({paramList});"
+                        );
+                        f.AppendLine();
+
+                        // 提供服务实例（使用实现类型作为键）
+                        f.AppendLine("// 提供服务实例");
+                        f.AppendLine(
+                            $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(instance);"
+                        );
+                        f.AppendLine();
+
+                        f.AppendLine("onCreated.Invoke(instance);");
                     }
-                    var paramList = string.Join(", ", paramNames);
-                    f.AppendLine($"var instance = new {className}({paramList});");
-                    f.AppendLine("onCreated.Invoke(instance, scope);");
+                    f.CatchBlock("ex");
+                    {
+                        f.AppendLine(
+                            $"errorMessage = $\"单例服务 '{validatedType.Symbol.Name}' 实例化失败。异常: {{ex.Message}}\";"
+                        );
+                        f.AppendLine(
+                            $"scope.ProvideService<{validatedType.Symbol.ToFullyQualifiedName()}>(null, errorMessage);"
+                        );
+                    }
+                    f.EndTryCatch();
                 }
                 f.EndBlock();
             }

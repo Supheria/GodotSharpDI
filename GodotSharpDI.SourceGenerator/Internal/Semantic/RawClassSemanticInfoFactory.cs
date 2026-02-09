@@ -30,7 +30,7 @@ internal static class RawClassSemanticInfoFactory
         var hasModules = symbol.HasAttribute(symbols.ModulesAttribute);
 
         var implementsIScope = symbols.ImplementsIScope(symbol);
-        var implementsIServicesReady = symbols.ImplementsIServicesReady(symbol);
+        var implementsIDependenciesResolved = symbols.ImplementsIDependenciesResolved(symbol);
         var isNode = symbols.IsNode(symbol);
         var isPartial = syntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
@@ -53,7 +53,7 @@ internal static class RawClassSemanticInfoFactory
             HasUserAttribute: hasUser,
             HasModulesAttribute: hasModules,
             ImplementsIScope: implementsIScope,
-            ImplementsIServicesReady: implementsIServicesReady,
+            ImplementsIDependenciesResolved: implementsIDependenciesResolved,
             IsNode: isNode,
             IsPartial: isPartial,
             Members: members,

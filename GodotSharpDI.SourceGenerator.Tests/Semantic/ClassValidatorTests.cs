@@ -121,7 +121,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C060" // ServiceCannotBeNode
+            d => d.Id == "GDI_C061" // ServiceCannotBeNode
         );
     }
 
@@ -256,9 +256,9 @@ using GodotSharpDI.Abstractions;
 namespace Test
 {
     [Singleton]
-    public partial class MyService : IServicesReady
+    public partial class MyService : IDependenciesResolved
     {
-        public void OnServicesReady() { }
+        public void OnServicesReady(string isAllDependencyResolved) { }
     }
 }
 ";

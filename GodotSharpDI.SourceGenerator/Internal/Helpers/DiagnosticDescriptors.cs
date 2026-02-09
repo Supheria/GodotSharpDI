@@ -145,9 +145,24 @@ internal static class DiagnosticDescriptors
         Resources.C_ScopeMustBeNode
     );
 
-    public static readonly DiagnosticDescriptor ServiceReadyNeedUser = Class(
+    public static readonly DiagnosticDescriptor HostCannotBeGenericType = Class(
+        "023",
+        Resources.C_HostCannotBeGenericType
+    );
+
+    public static readonly DiagnosticDescriptor UserCannotBeGenericType = Class(
+        "024",
+        Resources.C_UserCannotBeGenericType
+    );
+
+    public static readonly DiagnosticDescriptor ScopeCannotBeGenericType = Class(
+        "025",
+        Resources.C_ScopeCannotBeGenericType
+    );
+
+    public static readonly DiagnosticDescriptor IDependenciesResolvedNeedUser = Class(
         "030",
-        Resources.C_ServiceReadyNeedUser
+        Resources.C_IDependenciesResolvedNeedUser
     );
 
     public static readonly DiagnosticDescriptor ScopeMissingModules = Class(
@@ -165,6 +180,16 @@ internal static class DiagnosticDescriptors
         Resources.C_ServiceTypeIsInvalid
     );
 
+    public static readonly DiagnosticDescriptor ServiceCannotBeNode = Class(
+        "061",
+        Resources.C_ServiceCannotBeNode
+    );
+
+    public static readonly DiagnosticDescriptor ServiceTypeCannotBeGeneric = Class(
+        "062",
+        Resources.C_ServiceTypeCannotBeGeneric
+    );
+
     public static readonly DiagnosticDescriptor ServiceExposedTypeShouldBeInterface = Class(
         "070",
         Resources.C_ServiceExposedTypeShouldBeInterface,
@@ -174,6 +199,11 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ServiceExposedTypeNotImplemented = Class(
         "071",
         Resources.C_ServiceExposedTypeNotImplemented
+    );
+
+    public static readonly DiagnosticDescriptor ServiceExposedTypeCannotBeGeneric = Class(
+        "072",
+        Resources.C_ServiceExposedTypeCannotBeGeneric
     );
 
     public static readonly DiagnosticDescriptor MissingNotificationMethod = Class(
@@ -251,6 +281,11 @@ internal static class DiagnosticDescriptors
         Resources.M_InjectMemberTypeShouldBeInterface
     );
 
+    public static readonly DiagnosticDescriptor InjectMemberTypeCannotBeGeneric = Member(
+        "047",
+        Resources.M_InjectMemberTypeCannotBeGeneric
+    );
+
     public static readonly DiagnosticDescriptor SingletonMemberIsStatic = Member(
         "050",
         Resources.M_SingletonMemberIsStatic
@@ -287,17 +322,27 @@ internal static class DiagnosticDescriptors
         Resources.M_SingletonMemberIsRegularNode
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeNotImplemented = Member(
+    public static readonly DiagnosticDescriptor SingletonMemberTypeCannotBeGeneric = Member(
         "057",
+        Resources.M_SingletonMemberTypeCannotBeGeneric
+    );
+
+    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeNotImplemented = Member(
+        "060",
         Resources.M_SingletonMemberExposedTypeNotImplemented
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberExposedTypeShouldBeInterface =
         Member(
-            "058",
+            "061",
             Resources.M_SingletonMemberExposedTypeShouldBeInterface,
             DiagnosticSeverity.Warning
         );
+
+    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeCannotBeGeneric = Member(
+        "062",
+        Resources.M_SingletonMemberExposedTypeCannotBeGeneric
+    );
 
     public static readonly DiagnosticDescriptor HostMissingSingletonMember = Member(
         "070",
@@ -337,7 +382,8 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InjectCtorParamIsHostType = Constructor(
         "021",
-        Resources.S_InjectCtorParamIsHostType
+        Resources.S_InjectCtorParamIsHostType,
+        DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor InjectCtorParamIsUserType = Constructor(
@@ -359,6 +405,11 @@ internal static class DiagnosticDescriptors
         "025",
         Resources.S_InjectCtorParamTypeShouldBeInterface,
         DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor InjectCtorParamTypeCannotBeGeneric = Constructor(
+        "026",
+        Resources.S_InjectCtorParamTypeCannotBeGeneric
     );
 
     // ============================================================
@@ -403,24 +454,65 @@ internal static class DiagnosticDescriptors
     // E — InternalError
     // ============================================================
 
-    public static readonly DiagnosticDescriptor RequestCancellation = InternalError(
-        "900",
-        Resources.E_RequestCancellation
+    public static readonly DiagnosticDescriptor GeneratorInitializationFailed = InternalError(
+        "001",
+        Resources.E_GeneratorInitializationFailed
     );
 
-    public static readonly DiagnosticDescriptor GeneratorInternalError = InternalError(
-        "910",
-        Resources.E_GeneratorInternalError
+    public static readonly DiagnosticDescriptor ClassAnalysisFailed = InternalError(
+        "010",
+        Resources.E_ClassAnalysisFailed,
+        DiagnosticSeverity.Warning
     );
 
-    public static readonly DiagnosticDescriptor UnknownTypeRole = InternalError(
-        "920",
-        Resources.E_UnknownTypeRole
+    public static readonly DiagnosticDescriptor SymbolCacheUnavailable = InternalError(
+        "011",
+        Resources.E_SymbolCacheUnavailable,
+        DiagnosticSeverity.Warning
     );
 
-    public static readonly DiagnosticDescriptor ScopeLosesAttributeUnexpectedly = InternalError(
-        "930",
-        Resources.E_ScopeLosesAttributeUnexpectedly
+    public static readonly DiagnosticDescriptor ClassValidationFailed = InternalError(
+        "012",
+        Resources.E_ClassValidationFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor GraphBuildFailed = InternalError(
+        "020",
+        Resources.E_GraphBuildFailed
+    );
+
+    public static readonly DiagnosticDescriptor GraphBuildPhaseFailed = InternalError(
+        "021",
+        Resources.E_GraphBuildPhaseFailed
+    );
+
+    public static readonly DiagnosticDescriptor ServiceProviderRegistrationFailed = InternalError(
+        "030",
+        Resources.E_ServiceProviderRegistrationFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor NodeBuildFailed = InternalError(
+        "040",
+        Resources.E_NodeBuildFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor GraphValidationFailed = InternalError(
+        "050",
+        Resources.E_GraphValidationFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor CodeGenerationFailed = InternalError(
+        "100",
+        Resources.E_CodeGenerationFailed
+    );
+
+    public static readonly DiagnosticDescriptor SourceOutputFailed = InternalError(
+        "101",
+        Resources.E_SourceOutputFailed
     );
 
     // ============================================================
@@ -440,5 +532,13 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ManualAccessGeneratedProperty = UserBehavior(
         "003",
         Resources.U_ManualAccessGeneratedProperty
+    );
+
+    public static readonly DiagnosticDescriptor MissingInjectionFailureCallbackImplementation =
+        UserBehavior("004", Resources.U_MissingInjectionFailureCallbackImplementation);
+
+    public static readonly DiagnosticDescriptor ManualSetInjectionReadyField = UserBehavior(
+        "005",
+        Resources.U_ManualSetInjectionReadyField
     );
 }

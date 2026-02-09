@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
@@ -10,6 +11,7 @@ namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
 /// 分析器：检测对框架生成的成员（方法、字段、属性）的手动访问
+/// 增强版：添加异常处理，防止分析器崩溃
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
@@ -53,7 +55,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         "_services",
         "_waiters",
         "_disposableSingletons",
-        // User IServicesReady 生成的字段
+        // User IDependenciesResolved 生成的字段
         "_unresolvedDependencies"
     );
 
@@ -72,7 +74,8 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         ImmutableArray.Create(
             DiagnosticDescriptors.ManualCallGeneratedMethod,
             DiagnosticDescriptors.ManualAccessGeneratedField,
-            DiagnosticDescriptors.ManualAccessGeneratedProperty
+            DiagnosticDescriptors.ManualAccessGeneratedProperty,
+            DiagnosticDescriptors.ManualSetInjectionReadyField
         );
 
     public override void Initialize(AnalysisContext context)
@@ -80,13 +83,48 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        // 注册语法节点分析
-        context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+        // 注册语法节点分析 - 每个都添加异常保护
         context.RegisterSyntaxNodeAction(
-            AnalyzeMemberAccess,
+            ctx => SafeAnalyze(ctx, AnalyzeInvocation),
+            SyntaxKind.InvocationExpression
+        );
+        context.RegisterSyntaxNodeAction(
+            ctx => SafeAnalyze(ctx, AnalyzeMemberAccess),
             SyntaxKind.SimpleMemberAccessExpression
         );
-        context.RegisterSyntaxNodeAction(AnalyzeIdentifierName, SyntaxKind.IdentifierName);
+        context.RegisterSyntaxNodeAction(
+            ctx => SafeAnalyze(ctx, AnalyzeIdentifierName),
+            SyntaxKind.IdentifierName
+        );
+        context.RegisterSyntaxNodeAction(
+            ctx => SafeAnalyze(ctx, AnalyzeAssignment),
+            SyntaxKind.SimpleAssignmentExpression
+        );
+    }
+
+    /// <summary>
+    /// 安全包装器：捕获分析过程中的异常，避免分析器崩溃
+    /// </summary>
+    private static void SafeAnalyze(
+        SyntaxNodeAnalysisContext context,
+        Action<SyntaxNodeAnalysisContext> analyze
+    )
+    {
+        try
+        {
+            analyze(context);
+        }
+        catch (OperationCanceledException)
+        {
+            // 取消操作是正常的，不需要报告
+            throw;
+        }
+        catch (Exception)
+        {
+            // 分析器不应该崩溃
+            // 静默忽略错误，因为分析器失败不应该阻止编译
+            // 如果需要调试，可以在这里添加日志
+        }
     }
 
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
@@ -153,7 +191,6 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         var identifier = (IdentifierNameSyntax)context.Node;
 
         // 如果是成员访问表达式的右侧（Name 部分），跳过（由 AnalyzeMemberAccess 处理）
-        // 例如：obj.Property 中的 Property
         if (
             identifier.Parent is MemberAccessExpressionSyntax memberAccess
             && memberAccess.Name == identifier
@@ -177,14 +214,59 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         string accessedOn = "this";
 
         // 如果标识符是成员访问表达式的左侧（Expression 部分）
-        // 例如：ServiceTypes.Count 中的 ServiceTypes
         if (identifier.Parent is MemberAccessExpressionSyntax ma && ma.Expression == identifier)
         {
-            // 这种情况下，accessedOn 保持为 "this"，因为 ServiceTypes 是当前类的成员
             accessedOn = "this";
         }
 
         AnalyzeMemberSymbol(context, symbolInfo.Symbol, identifier.GetLocation(), accessedOn);
+    }
+
+    private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
+    {
+        var assignment = (AssignmentExpressionSyntax)context.Node;
+
+        // 检查是否在生成的代码区域中
+        if (IsInGeneratedCodeRegion(assignment))
+            return;
+
+        // 获取赋值左侧的符号
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(
+            assignment.Left,
+            context.CancellationToken
+        );
+        if (symbolInfo.Symbol is not IFieldSymbol fieldSymbol)
+            return;
+
+        // 检查字段名是否匹配 IsXxxInjectionReady 模式
+        if (!IsInjectionReadyFieldName(fieldSymbol.Name))
+            return;
+
+        // 检查字段是否真的是生成的字段
+        if (!IsGeneratedField(fieldSymbol))
+            return;
+
+        // 获取访问表达式
+        string accessedOn = "this";
+        if (assignment.Left is MemberAccessExpressionSyntax memberAccess)
+        {
+            accessedOn = memberAccess.Expression.ToString();
+        }
+
+        // 报告诊断
+        var diagnostic = Diagnostic.Create(
+            DiagnosticDescriptors.ManualSetInjectionReadyField,
+            assignment.GetLocation(),
+            fieldSymbol.Name,
+            accessedOn
+        );
+
+        context.ReportDiagnostic(diagnostic);
+    }
+
+    private static bool IsInjectionReadyFieldName(string fieldName)
+    {
+        return fieldName.StartsWith("Is") && fieldName.EndsWith("InjectionReady");
     }
 
     private static void AnalyzeMemberSymbol(
@@ -207,7 +289,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
             if (!ForbiddenFieldNames.Contains(fieldSymbol.Name))
                 return;
 
-            // 检查字段是否真的是生成的字段（通过检查其语法）
+            // 检查字段是否真的是生成的字段
             if (!IsGeneratedField(fieldSymbol))
                 return;
 
@@ -233,239 +315,265 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
 
         // 报告诊断
         var diagnostic = Diagnostic.Create(descriptor, location, memberName, accessedOn);
-
         context.ReportDiagnostic(diagnostic);
     }
 
-    /// <summary>
-    /// 判断字段是否是生成的字段
-    /// </summary>
     private static bool IsGeneratedField(IFieldSymbol fieldSymbol)
     {
-        // 方法1: 检查字段定义位置
-        var fieldLocation = fieldSymbol.Locations.FirstOrDefault();
-        if (fieldLocation != null && IsGeneratedFile(fieldLocation))
+        try
         {
-            return true;
-        }
-
-        // 方法2: 检查字段的声明语法
-        // 生成的字段通常有特定的模式，例如私有、特定类型等
-        foreach (var declaringSyntax in fieldSymbol.DeclaringSyntaxReferences)
-        {
-            var syntax = declaringSyntax.GetSyntax();
-
-            // 检查是否在 partial class 的另一部分中
-            if (syntax is VariableDeclaratorSyntax declarator)
-            {
-                var fieldDecl = declarator.Parent?.Parent as FieldDeclarationSyntax;
-                if (fieldDecl != null)
-                {
-                    // 检查是否在生成的 partial class 中
-                    var classDecl = fieldDecl.Parent as ClassDeclarationSyntax;
-                    if (classDecl != null && IsGeneratedPartialClass(classDecl))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 判断 partial class 声明是否是生成的
-    /// </summary>
-    private static bool IsGeneratedPartialClass(ClassDeclarationSyntax classDecl)
-    {
-        // 检查是否在生成的文件中
-        if (classDecl.SyntaxTree?.FilePath != null)
-        {
-            var filePath = classDecl.SyntaxTree.FilePath;
-            if (
-                filePath.Contains(".DI.g.cs")
-                || (filePath.Contains(".DI.") && filePath.EndsWith(".g.cs"))
-            )
+            // 方法1: 检查字段定义位置
+            var fieldLocation = fieldSymbol.Locations.FirstOrDefault();
+            if (fieldLocation != null && IsGeneratedFile(fieldLocation))
             {
                 return true;
             }
-        }
 
-        // 检查是否有 GeneratedCode 属性
-        if (
-            classDecl.AttributeLists.Any(attrList =>
-                attrList.Attributes.Any(attr => attr.Name.ToString().Contains("GeneratedCode"))
-            )
-        )
-        {
-            return true;
-        }
-
-        // 检查是否只有字段声明，没有其他成员（这是生成的 partial class 的典型特征）
-        var members = classDecl.Members;
-        if (members.Count > 0 && members.All(m => m is FieldDeclarationSyntax))
-        {
-            // 进一步检查：生成的字段通常都是私有的
-            var allFieldsPrivate = members
-                .OfType<FieldDeclarationSyntax>()
-                .All(f => f.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword)));
-
-            if (allFieldsPrivate)
+            // 方法2: 检查字段的声明语法
+            foreach (var declaringSyntax in fieldSymbol.DeclaringSyntaxReferences)
             {
-                return true;
-            }
-        }
+                var syntax = declaringSyntax.GetSyntax();
 
-        return false;
-    }
-
-    /// <summary>
-    /// 判断语法节点是否在生成的代码区域中
-    /// </summary>
-    private static bool IsInGeneratedCodeRegion(SyntaxNode node)
-    {
-        // 检查节点所在的文件
-        if (IsGeneratedFile(node.GetLocation()))
-        {
-            return true;
-        }
-
-        // 检查节点是否在生成的 partial class 内部
-        var containingClass = node.Ancestors().OfType<ClassDeclarationSyntax>().FirstOrDefault();
-        if (containingClass != null && IsGeneratedPartialClass(containingClass))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// 判断方法调用是否指向生成的方法
-    /// </summary>
-    private static bool IsGeneratedMethodCall(
-        IMethodSymbol methodSymbol,
-        SemanticModel semanticModel
-    )
-    {
-        // 情况1: 直接调用生成的私有方法
-        var methodLocation = methodSymbol.Locations.FirstOrDefault();
-        if (methodLocation != null && IsGeneratedFile(methodLocation))
-        {
-            return true;
-        }
-
-        // 情况2: 检查方法声明是否在生成的 partial class 中
-        foreach (var declaringSyntax in methodSymbol.DeclaringSyntaxReferences)
-        {
-            var syntax = declaringSyntax.GetSyntax();
-            if (syntax is MethodDeclarationSyntax methodDecl)
-            {
-                var classDecl = methodDecl.Parent as ClassDeclarationSyntax;
-                if (classDecl != null && IsGeneratedPartialClass(classDecl))
+                if (syntax is VariableDeclaratorSyntax declarator)
                 {
-                    return true;
-                }
-            }
-        }
-
-        // 情况3: 通过接口调用生成的实现方法
-        if (methodSymbol.ContainingType != null)
-        {
-            var containingType = methodSymbol.ContainingType;
-
-            // 如果是接口方法，查找实现该接口的类型
-            if (containingType.TypeKind == TypeKind.Interface)
-            {
-                // 对于接口方法，我们需要检查是否是 IScope 的方法
-                if (IsIScopeMethod(containingType, methodSymbol.Name))
-                {
-                    // 禁止所有对 IScope 方法的显式调用
-                    return true;
-                }
-            }
-            else
-            {
-                // 如果是类方法，检查该类是否实现了 IScope
-                if (ImplementsIScope(containingType))
-                {
-                    // 检查该方法是否是显式接口实现
-                    if (IsExplicitInterfaceImplementation(methodSymbol))
+                    var fieldDecl = declarator.Parent?.Parent as FieldDeclarationSyntax;
+                    if (fieldDecl != null)
                     {
-                        return true;
-                    }
-
-                    // 检查是否在生成的文件中定义
-                    var implementations = containingType.FindImplementationForInterfaceMember(
-                        methodSymbol
-                    );
-                    if (implementations != null)
-                    {
-                        var implLocation = implementations.Locations.FirstOrDefault();
-                        if (implLocation != null && IsGeneratedFile(implLocation))
+                        var classDecl = fieldDecl.Parent as ClassDeclarationSyntax;
+                        if (classDecl != null && IsGeneratedPartialClass(classDecl))
                         {
                             return true;
                         }
                     }
                 }
             }
-        }
 
-        return false;
+            return false;
+        }
+        catch
+        {
+            // 如果检查失败，保守处理：不报告诊断
+            return false;
+        }
     }
 
-    /// <summary>
-    /// 判断类型是否实现了 IScope 接口
-    /// </summary>
+    private static bool IsGeneratedPartialClass(ClassDeclarationSyntax classDecl)
+    {
+        try
+        {
+            // 检查是否在生成的文件中
+            if (classDecl.SyntaxTree?.FilePath != null)
+            {
+                var filePath = classDecl.SyntaxTree.FilePath;
+                if (
+                    filePath.Contains(".DI.g.cs")
+                    || (filePath.Contains(".DI.") && filePath.EndsWith(".g.cs"))
+                )
+                {
+                    return true;
+                }
+            }
+
+            // 检查是否有 GeneratedCode 属性
+            if (
+                classDecl.AttributeLists.Any(attrList =>
+                    attrList.Attributes.Any(attr => attr.Name.ToString().Contains("GeneratedCode"))
+                )
+            )
+            {
+                return true;
+            }
+
+            // 检查是否只有字段声明
+            var members = classDecl.Members;
+            if (members.Count > 0 && members.All(m => m is FieldDeclarationSyntax))
+            {
+                var allFieldsPrivate = members
+                    .OfType<FieldDeclarationSyntax>()
+                    .All(f => f.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword)));
+
+                if (allFieldsPrivate)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsInGeneratedCodeRegion(SyntaxNode node)
+    {
+        try
+        {
+            if (IsGeneratedFile(node.GetLocation()))
+            {
+                return true;
+            }
+
+            var containingClass = node.Ancestors()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault();
+            if (containingClass != null && IsGeneratedPartialClass(containingClass))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsGeneratedMethodCall(
+        IMethodSymbol methodSymbol,
+        SemanticModel semanticModel
+    )
+    {
+        try
+        {
+            // 情况1: 直接调用生成的私有方法
+            var methodLocation = methodSymbol.Locations.FirstOrDefault();
+            if (methodLocation != null && IsGeneratedFile(methodLocation))
+            {
+                return true;
+            }
+
+            // 情况2: 检查方法声明是否在生成的 partial class 中
+            foreach (var declaringSyntax in methodSymbol.DeclaringSyntaxReferences)
+            {
+                var syntax = declaringSyntax.GetSyntax();
+                if (syntax is MethodDeclarationSyntax methodDecl)
+                {
+                    var classDecl = methodDecl.Parent as ClassDeclarationSyntax;
+                    if (classDecl != null && IsGeneratedPartialClass(classDecl))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // 情况3: 通过接口调用生成的实现方法
+            if (methodSymbol.ContainingType != null)
+            {
+                var containingType = methodSymbol.ContainingType;
+
+                if (containingType.TypeKind == TypeKind.Interface)
+                {
+                    if (IsIScopeMethod(containingType, methodSymbol.Name))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    if (ImplementsIScope(containingType))
+                    {
+                        if (IsExplicitInterfaceImplementation(methodSymbol))
+                        {
+                            return true;
+                        }
+
+                        var implementations = containingType.FindImplementationForInterfaceMember(
+                            methodSymbol
+                        );
+                        if (implementations != null)
+                        {
+                            var implLocation = implementations.Locations.FirstOrDefault();
+                            if (implLocation != null && IsGeneratedFile(implLocation))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static bool ImplementsIScope(ITypeSymbol type)
     {
-        return type.AllInterfaces.Any(i => i.ToDisplayString() == IScopeFullName);
+        try
+        {
+            return type.AllInterfaces.Any(i => i.ToDisplayString() == IScopeFullName);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    /// <summary>
-    /// 判断方法是否是 IScope 接口的方法
-    /// </summary>
     private static bool IsIScopeMethod(ITypeSymbol interfaceType, string methodName)
     {
-        if (interfaceType.ToDisplayString() != IScopeFullName)
-            return false;
+        try
+        {
+            if (interfaceType.ToDisplayString() != IScopeFullName)
+                return false;
 
-        return methodName == "ResolveDependency"
-            || methodName == "RegisterService"
-            || methodName == "UnregisterService";
+            return methodName == "ResolveDependency"
+                || methodName == "RegisterService"
+                || methodName == "UnregisterService";
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    /// <summary>
-    /// 判断方法是否是显式接口实现
-    /// </summary>
     private static bool IsExplicitInterfaceImplementation(IMethodSymbol method)
     {
-        return method.ExplicitInterfaceImplementations.Length > 0;
+        try
+        {
+            return method.ExplicitInterfaceImplementations.Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    /// <summary>
-    /// 判断位置是否在生成的文件中
-    /// </summary>
     private static bool IsGeneratedFile(Location location)
     {
-        var filePath = location.SourceTree?.FilePath;
-        if (string.IsNullOrEmpty(filePath))
-            return false;
+        try
+        {
+            var filePath = location.SourceTree?.FilePath;
+            if (string.IsNullOrEmpty(filePath))
+                return false;
 
-        return filePath.Contains(".DI.g.cs")
-            || filePath.Contains(".DI.") && filePath.EndsWith(".g.cs");
+            return filePath.Contains(".DI.g.cs")
+                || filePath.Contains(".DI.") && filePath.EndsWith(".g.cs");
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    /// <summary>
-    /// 获取方法调用的对象表达式
-    /// </summary>
     private static string GetCalledOnExpression(InvocationExpressionSyntax invocation)
     {
-        return invocation.Expression switch
+        try
         {
-            MemberAccessExpressionSyntax memberAccess => memberAccess.Expression.ToString(),
-            _ => "this",
-        };
+            return invocation.Expression switch
+            {
+                MemberAccessExpressionSyntax memberAccess => memberAccess.Expression.ToString(),
+                _ => "this",
+            };
+        }
+        catch
+        {
+            return "this";
+        }
     }
 }

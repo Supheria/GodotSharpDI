@@ -4,7 +4,7 @@ using GodotSharpDI.Abstractions;
 namespace GodotSharpDI.Sample;
 
 [User]
-public sealed partial class PlayerUI : Control, IServicesReady
+public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
     [Inject]
     private IPlayerStats PlayerStats
@@ -12,8 +12,8 @@ public sealed partial class PlayerUI : Control, IServicesReady
         set => GD.Print("PlayerUI inject Player Stats");
     }
 
-    [Inject]
-    private GameManager GameState
+    [Inject(FailureCallback = true)]
+    private GameManager gameState
     {
         set => GD.Print("PlayerUI inject Game State");
     }
@@ -25,10 +25,22 @@ public sealed partial class PlayerUI : Control, IServicesReady
         GD.Print("PlayerUI is ready before services ready");
     }
 
-    void IServicesReady.OnServicesReady()
+    void IDependenciesResolved.OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        GD.Print("PlayerUI updated after services ready");
+        if (isAllDependenciesReady)
+        {
+            GD.Print("PlayerUI updated after dependencies ready");
+        }
+        else
+        {
+            GD.Print("PlayerUI updated after some dependencies failed");
+        }
     }
 
     public override partial void _Notification(int what);
+
+    partial void OnGameStateInjectionFailed(string error)
+    {
+        GD.Print("PlayerUI inject Game State Injection Failed");
+    }
 }

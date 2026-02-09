@@ -15,7 +15,7 @@ internal sealed class CachedSymbols
     public INamedTypeSymbol? InjectConstructorAttribute { get; }
     public INamedTypeSymbol? ModulesAttribute { get; }
     public INamedTypeSymbol? IScope { get; }
-    public INamedTypeSymbol? IServicesReady { get; }
+    public INamedTypeSymbol? IDependenciesResolved { get; }
     public INamedTypeSymbol? GodotNode { get; }
     public INamedTypeSymbol? IDisposable { get; }
 
@@ -29,8 +29,10 @@ internal sealed class CachedSymbols
             TypeNamesFull.InjectConstructorAttribute
         );
         ModulesAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ModulesAttribute);
-        IScope = compilation.GetTypeByMetadataName(TypeNamesFull.ScopeInterface);
-        IServicesReady = compilation.GetTypeByMetadataName(TypeNamesFull.ServicesReadyInterface);
+        IScope = compilation.GetTypeByMetadataName(TypeNamesFull.IScope);
+        IDependenciesResolved = compilation.GetTypeByMetadataName(
+            TypeNamesFull.IDependenciesResolved
+        );
         GodotNode = compilation.GetTypeByMetadataName(TypeNamesFull.GodotNode);
         IDisposable = compilation.GetTypeByMetadataName("System.IDisposable");
     }
@@ -52,12 +54,12 @@ internal sealed class CachedSymbols
         return type.ImplementsInterface(IScope);
     }
 
-    public bool ImplementsIServicesReady(ITypeSymbol type)
+    public bool ImplementsIDependenciesResolved(ITypeSymbol type)
     {
-        if (IServicesReady is null)
+        if (IDependenciesResolved is null)
             return false;
         // 使用 SymbolExtensions 的 ImplementsInterface 方法
-        return type.ImplementsInterface(IServicesReady);
+        return type.ImplementsInterface(IDependenciesResolved);
     }
 
     public bool IsHostType(ITypeSymbol type)

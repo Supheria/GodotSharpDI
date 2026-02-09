@@ -8,6 +8,12 @@ public static class GlobalNames
     public const string IDisposable = "global::System.IDisposable";
     public const string Object = "global::System.Object";
     public const string Type = "global::System.Type";
+    public const string DateTime = "global::System.DateTime";
+    public const string TimeSpan = "global::System.TimeSpan";
+    public const string String = "global::System.String";
+    public const string Long = "global::System.Int64";
+    public const string Bool = "global::System.Boolean";
+    public const string StringSplitOptions = "global::System.StringSplitOptions";
 
     // System.Collections.Generic
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
@@ -19,8 +25,9 @@ public static class GlobalNames
 
     // Godot
     public const string GodotGD = "global::Godot.GD";
+    public const string GodotTimer = "global::Godot.Timer";
 
     // GodotSharp.DI.Shared
     public const string IScope = "global::GodotSharpDI.Abstractions.IScope";
-    public const string IServicesReady = "global::GodotSharpDI.Abstractions.IServicesReady";
+    public const string IDependenciesResolved = "global::GodotSharpDI.Abstractions.IDependenciesResolved";
 }

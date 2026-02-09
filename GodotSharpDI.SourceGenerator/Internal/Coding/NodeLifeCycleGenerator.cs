@@ -18,13 +18,13 @@ internal static class NodeLifeCycleGenerator
     {
         var f = new CodeFormatter();
 
-        f.BeginClassDeclaration(validatedTypeInfo, out var className);
+        f.BeginClassDeclaration(validatedTypeInfo, out var fileName);
         {
             GenerateNodeDICode(f, validatedTypeInfo);
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{className}.DI.Lifecycle.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Lifecycle.g.cs", f.ToString());
     }
 
     private static void GenerateNodeDICode(CodeFormatter f, ValidatedTypeInfo validatedType)
@@ -74,10 +74,6 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("parent = parent.GetParent();");
             }
             f.EndBlock();
-
-            f.AppendLine(
-                $"{GlobalNames.GodotGD}.PushError(\"{validatedType.Symbol.Name} Nearest parent scope node not found\");"
-            );
             f.AppendLine("return null;");
         }
         f.EndBlock();
@@ -93,19 +89,6 @@ internal static class NodeLifeCycleGenerator
             f.AppendLine("switch ((long)what)");
             f.BeginBlock();
             {
-                // NotificationPostinitialize
-                f.AppendLine("case NotificationPostinitialize:");
-                f.BeginBlock();
-                {
-                    switch (validatedType.Role)
-                    {
-                        case TypeRole.Scope:
-                            f.AppendLine("InstantiateScopeSingletons();");
-                            break;
-                    }
-                    f.AppendLine("break;");
-                }
-                f.EndBlock();
                 // NotificationEnterTree
                 f.AppendLine("case NotificationEnterTree:");
                 f.BeginBlock();
@@ -131,8 +114,7 @@ internal static class NodeLifeCycleGenerator
                             f.AppendLine("ResolveUserDependencies();");
                             break;
                         case TypeRole.Scope:
-                            f.AppendLine("InstantiateScopeSingletons();");
-                            f.AppendLine("CheckWaitList();");
+                            f.AppendLine("StartDependencyMonitoring();");
                             break;
                     }
                     f.AppendLine("break;");
@@ -154,6 +136,8 @@ internal static class NodeLifeCycleGenerator
                     {
                         case TypeRole.Scope:
                             f.AppendLine("DisposeScopeSingletons();");
+                            f.AppendLine("StopDependencyMonitoring();");
+                            f.AppendLine("ReportUnresolvedDependencies();");
                             break;
                     }
                     f.AppendLine("break;");

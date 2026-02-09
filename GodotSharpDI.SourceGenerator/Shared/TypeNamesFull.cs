@@ -10,8 +10,8 @@ public static class TypeNamesFull
     public const string HostAttribute = "GodotSharpDI.Abstractions.HostAttribute";
     public const string UserAttribute = "GodotSharpDI.Abstractions.UserAttribute";
 
-    public const string ScopeInterface = "GodotSharpDI.Abstractions.IScope";
-    public const string ServicesReadyInterface = "GodotSharpDI.Abstractions.IServicesReady";
+    public const string IScope = "GodotSharpDI.Abstractions.IScope";
+    public const string IDependenciesResolved = "GodotSharpDI.Abstractions.IDependenciesResolved";
 
     public const string GodotNode = "Godot.Node";
 }

@@ -14,7 +14,7 @@ internal sealed record RawClassSemanticInfo(
     bool HasUserAttribute,
     bool HasModulesAttribute,
     bool ImplementsIScope,
-    bool ImplementsIServicesReady,
+    bool ImplementsIDependenciesResolved,
     bool IsNode,
     bool IsPartial,
     ImmutableArray<ISymbol> Members,

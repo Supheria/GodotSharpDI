@@ -470,7 +470,7 @@ namespace Test
         // Assert
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_M058" && d.Severity == DiagnosticSeverity.Warning // ExposedTypeShouldBeInterface (Warning)
+            d => d.Id == "GDI_M061" && d.Severity == DiagnosticSeverity.Warning // ExposedTypeShouldBeInterface (Warning)
         );
     }
 

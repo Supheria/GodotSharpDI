@@ -5,6 +5,7 @@ public static class ShortNames
     public const string Singleton = "Singleton";
     public const string Host = "Host";
     public const string User = "User";
+    public const string GodotSharpDI = "GodotSharpDI";
 
     //
     // Modules arguments
