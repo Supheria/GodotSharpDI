@@ -102,12 +102,14 @@ internal static class GeneratorHelper
     public static void BeginDebugRegion(this CodeFormatter f)
     {
         f.AppendLine("#if DEBUG");
-        f.BeginBlock();
+        f.BeginLevel();
+        f.AppendLine();
     }
 
     public static void EndDebugRegion(this CodeFormatter f)
     {
-        f.EndBlock();
+        f.AppendLine();
+        f.EndLevel();
         f.AppendLine("#endif");
     }
 

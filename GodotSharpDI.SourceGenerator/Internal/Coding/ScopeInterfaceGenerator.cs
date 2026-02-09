@@ -26,45 +26,13 @@ internal static class ScopeInterfaceGenerator
 
     private static void Generate(CodeFormatter f, ScopeNode node)
     {
-        GenerateCreateErrorMessageBuilder(f, node.ValidatedTypeInfo);
+        GenerateHelperMethods(f, node.ValidatedTypeInfo);
         f.AppendLine();
 
         GenerateProvideService(f);
         f.AppendLine();
 
         GenerateResolveDependency(f, node.ValidatedTypeInfo);
-    }
-
-    private static void GenerateCreateErrorMessageBuilder(
-        CodeFormatter f,
-        ValidatedTypeInfo validatedType
-    )
-    {
-        f.AppendLine(
-            $"private static {GlobalNames.StringBuilder} CreateErrorMessageBuilder("
-                + $"{GlobalNames.String} title, "
-                + $"{GlobalNames.String} reason, "
-                + $"{GlobalNames.String} serviceImplType, "
-                + $"{GlobalNames.String} requestorType, "
-                + $"{GlobalNames.String} scopeChain, "
-                + $"{GlobalNames.String} dependencyChain)"
-        );
-        f.BeginBlock();
-        {
-            f.BeginStringBuilderAppend("sb", true);
-            {
-                f.StringBuilderAppendLine("[GodotSharpDI] {title}");
-                f.StringBuilderAppendLine("  原因: {reason}");
-                f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                f.StringBuilderAppendLine("  服务的实现类型: {serviceImplType}");
-                f.StringBuilderAppendLine("  请求者类型: {requestorType}");
-                f.StringBuilderAppendLine("  当前 Scope 传递链: {scopeChain}");
-                f.StringBuilderAppendLine("  当前依赖链条: {dependencyChain}");
-            }
-            f.EndStringBuilderAppend();
-            f.AppendLine("return sb;");
-        }
-        f.EndBlock();
     }
 
     private static void GenerateProvideService(CodeFormatter f)
@@ -97,7 +65,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine();
 
                 f.AppendLine(
-                    "var sb = CreateErrorMessageBuilder($\"无法提供服务\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型：{implType.Name}\", $\"{implType.Name}\", \"none\", \"none\", \"none\");"
+                    "var sb = CreateErrorMessageBuilder($\"无法提供服务\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型：{implType.Name}\", $\"{implType.Name}\", \"N/A\", \"N/A\", \"N/A\");"
                 );
                 f.PushError("sb.ToString()");
                 f.AppendLine();
@@ -238,7 +206,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine();
 
             f.AppendLine(
-                "if (!ServiceImplementationMap.TryGetValue(type, out var implType) || !ServiceCache.TryGetValue(implType, out var cacheEntry) )",
+                "if (!ServiceImplementationMap.TryGetValue(type, out var implType) || !ServiceCache.TryGetValue(implType, out var cacheEntry))",
                 "检查是否是已包含的服务类型"
             );
             f.BeginBlock();
@@ -256,7 +224,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine();
 
                 f.AppendLine(
-                    "var sb = CreateErrorMessageBuilder($\"无法找到服务 {type.Name}\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型\", \"unknown\", \"none\", \"none\", \"none\");"
+                    "var sb = CreateErrorMessageBuilder($\"无法找到服务 {type.Name}\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型\", \"N/A\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
                 );
                 f.PushError("sb.ToString()");
                 f.AppendLine("return;");
@@ -317,59 +285,47 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("case ServiceState.Creating:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("// 服务正在创建中");
-                    f.AppendLine("// 检查是否是真正的循环依赖（依赖链中包含当前类型超过一次）");
-                    f.AppendLine("// 为避免误判，将链条两端补齐分隔符，并检查当前类型是否出现多次");
-                    f.AppendLine("var chain = \" -> \" + currentDependencyChain + \" -> \";");
-                    f.AppendLine("var marker = \" -> \" + type.Name + \" -> \";");
-                    f.AppendLine(
-                        "var firstIndex = chain.IndexOf(marker, global::System.StringComparison.Ordinal);"
-                    );
-                    f.AppendLine(
-                        "var lastIndex = chain.LastIndexOf(marker, global::System.StringComparison.Ordinal);"
-                    );
-                    f.AppendLine("var isCircular = firstIndex != lastIndex;");
-                    f.AppendLine();
-                    f.AppendLine("if (isCircular)");
-                    f.BeginBlock();
+                    f.BeginDebugRegion();
                     {
-                        f.AppendLine("// 真正的循环依赖");
-                        f.BeginStringBuilderAppend("errorMessage", true);
-                        {
-                            f.StringBuilderAppendLine("[GodotSharpDI] 检测到运行时循环依赖");
-                            f.StringBuilderAppendLine("  依赖链条: {currentDependencyChain}");
-                        }
-                        f.EndStringBuilderAppend();
-                        f.AppendLine();
-                        f.PushError("errorMessage.ToString()");
-                    }
-                    f.EndBlock();
-                    f.AppendLine("else");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine("// 不是循环依赖，服务正在异步创建中，加入等待队列");
-                        f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
+                        f.AppendLine("// [DEBUG ONLY] 防御性检查：编译期应该已经捕获所有循环依赖");
+                        f.AppendLine("// 如果这里触发，说明编译期分析可能有bug，请报告");
+                        f.AppendLine(
+                            "if (HasCircularDependency(currentDependencyChain, type.Name))"
+                        );
                         f.BeginBlock();
                         {
                             f.AppendLine(
-                                $"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();"
+                                "var sb = CreateErrorMessageBuilder($\"运行时检测到循环依赖（编译期应该已阻止）\", $\"这表明编译期分析可能有问题，请报告此bug\", $\"{implType.Name}\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
                             );
-                            f.AppendLine("_waiters[implType] = waiterList;");
+                            f.PushError("sb.ToString()");
+                            f.AppendLine("break;");
                         }
                         f.EndBlock();
-                        f.AppendLine();
-                        f.AppendLine("waiterList.Add(new DependencyWaitInfo");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
-                            f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
-                            f.AppendLine("RequestorType = requestorType,");
-                            f.AppendLine("ScopeChain = currentScopeChain,");
-                            f.AppendLine("DependencyChain = currentDependencyChain,");
-                        }
-                        f.EndBlock(");");
+                    }
+                    f.EndDebugRegion();
+                    f.AppendLine();
+
+                    f.AppendLine("// 不是循环依赖，服务正在异步创建中，加入等待队列");
+                    f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine($"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();");
+                        f.AppendLine("_waiters[implType] = waiterList;");
                     }
                     f.EndBlock();
+                    f.AppendLine();
+                    f.AppendLine("waiterList.Add(new DependencyWaitInfo");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
+                        f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
+                        f.AppendLine("RequestorType = requestorType,");
+                        f.AppendLine("ScopeChain = currentScopeChain,");
+                        f.AppendLine("DependencyChain = currentDependencyChain,");
+                    }
+                    f.EndBlock(");");
+                    f.AppendLine();
+
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -438,8 +394,70 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
             }
             f.EndBlock();
-            f.AppendLine();
         }
         f.EndBlock();
+    }
+
+    /// <summary>
+    /// 生成辅助方法（在生成的 Scope 类中）
+    /// </summary>
+    private static void GenerateHelperMethods(CodeFormatter f, ValidatedTypeInfo validatedType)
+    {
+        // CreateErrorMessageBuilder 辅助方法
+        f.AppendHiddenMethodCommentAndAttribute();
+        f.AppendLine(
+            $"private static {GlobalNames.StringBuilder} CreateErrorMessageBuilder("
+                + $"{GlobalNames.String} title, "
+                + $"{GlobalNames.String} reason, "
+                + $"{GlobalNames.String} serviceImplType, "
+                + $"{GlobalNames.String} requestorType, "
+                + $"{GlobalNames.String} scopeChain, "
+                + $"{GlobalNames.String} dependencyChain)"
+        );
+        f.BeginBlock();
+        {
+            f.BeginStringBuilderAppend("sb", true);
+            {
+                f.StringBuilderAppendLine("[GodotSharpDI] {title}");
+                f.StringBuilderAppendLine("  原因: {reason}");
+                f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
+                f.StringBuilderAppendLine("  服务的实现类型: {serviceImplType}");
+                f.StringBuilderAppendLine("  请求者类型: {requestorType}");
+                f.StringBuilderAppendLine("  当前 Scope 传递链: {scopeChain}");
+                f.StringBuilderAppendLine("  当前依赖链条: {dependencyChain}");
+            }
+            f.EndStringBuilderAppend();
+            f.AppendLine("return sb;");
+        }
+        f.EndBlock();
+
+        // HasCircularDependency 辅助方法 (仅 DEBUG 模式)
+        f.BeginDebugRegion();
+        {
+            f.AppendHiddenMethodCommentAndAttribute("检测运行时是否有意外的依赖循环（仅开发模式）");
+            f.AppendLine(
+                $"private static {GlobalNames.Bool} HasCircularDependency("
+                    + $"{GlobalNames.String} dependencyChain, "
+                    + $"{GlobalNames.String} newType)"
+            );
+            f.BeginBlock();
+            {
+                f.AppendLine("if (string.IsNullOrEmpty(dependencyChain))");
+                f.BeginBlock();
+                {
+                    f.AppendLine("return false;");
+                }
+                f.EndBlock();
+                f.AppendLine();
+
+                f.AppendLine(
+                    $"var parts = dependencyChain.Split(new[] {{ \" -> \" }}, {GlobalNames.StringSplitOptions}.None);"
+                );
+                f.AppendLine($"var seen = new {GlobalNames.HashSet}<{GlobalNames.String}>(parts);");
+                f.AppendLine("return !seen.Add(newType);");
+            }
+            f.EndBlock();
+        }
+        f.EndDebugRegion();
     }
 }

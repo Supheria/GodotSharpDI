@@ -12,6 +12,8 @@ public static class GlobalNames
     public const string TimeSpan = "global::System.TimeSpan";
     public const string String = "global::System.String";
     public const string Long = "global::System.Int64";
+    public const string Bool = "global::System.Boolean";
+    public const string StringSplitOptions = "global::System.StringSplitOptions";
 
     // System.Collections.Generic
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
