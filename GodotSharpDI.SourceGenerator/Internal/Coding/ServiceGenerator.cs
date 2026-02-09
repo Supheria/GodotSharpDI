@@ -119,7 +119,7 @@ internal static class ServiceGenerator
                 f.AppendLine($"scope.ResolveDependency<{param.Type.ToFullyQualifiedName()}>(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("dependency =>");
+                    f.AppendLine("(dependency) =>");
                     f.BeginBlock();
                     {
                         f.BeginTryCatch();
@@ -137,6 +137,7 @@ internal static class ServiceGenerator
                         f.EndTryCatch();
                     }
                     f.EndBlock(",");
+                    f.AppendLine("TryCreate,");
                     f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\",");
                     f.AppendLine("dependencyChain: dependencyChain");
                 }

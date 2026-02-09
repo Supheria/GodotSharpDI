@@ -154,7 +154,7 @@ internal static class ScopeInterfaceGenerator
                     f.AppendLine("if (instance is null)");
                     f.BeginBlock();
                     {
-                        f.AppendLine("// 失败场景：通知等待者服务提供失败");
+                        f.AppendLine("// 失败场景");
                         f.AppendLine("var sb = CreateErrorMessageBuilder(");
                         f.BeginLevel();
                         {
@@ -168,6 +168,32 @@ internal static class ScopeInterfaceGenerator
                         f.EndLevel();
                         f.AppendLine(");");
                         f.PushError("sb.ToString()");
+                        f.AppendLine();
+
+                        f.AppendLine("// 调用等待者的失败回调");
+                        f.BeginTryCatch();
+                        {
+                            f.AppendLine(
+                                "waiter.FailureCallback.Invoke($\"依赖注入请求失败：服务 {implType.Name} 提供失败\");"
+                            );
+                        }
+                        f.CatchBlock("ex");
+                        {
+                            f.AppendLine("sb = CreateErrorMessageBuilder(");
+                            f.BeginLevel();
+                            {
+                                f.AppendLine("title: \"执行依赖注入失败回调时出现了异常\",");
+                                f.AppendLine("reason: $\"{ex.Message}\",");
+                                f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                                f.AppendLine("requestorType: $\"{waiter.RequestorType}\",");
+                                f.AppendLine("scopeChain: $\"{waiter.ScopeChain}\",");
+                                f.AppendLine("dependencyChain: $\"{waiter.DependencyChain}\"");
+                            }
+                            f.EndLevel();
+                            f.AppendLine(");");
+                            f.PushError("sb.ToString()");
+                        }
+                        f.EndTryCatch();
                     }
                     f.EndBlock();
                     f.AppendLine("else");
@@ -210,13 +236,16 @@ internal static class ScopeInterfaceGenerator
     {
         // ResolveDependency
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine(
-            $"void {GlobalNames.IScope}.ResolveDependency<T>("
-                + $"{GlobalNames.Action}<T> onResolved, "
-                + $"{GlobalNames.String} requestorType, "
-                + $"{GlobalNames.String}? scopeChain, "
-                + $"{GlobalNames.String}? dependencyChain)"
-        );
+        f.BeginLevel();
+        {
+            f.AppendLine($"void {GlobalNames.IScope}.ResolveDependency<T>(");
+            f.AppendLine($"{GlobalNames.Action}<T> onResolved,");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.String}> onFailed,");
+            f.AppendLine($"{GlobalNames.String} requestorType, ");
+            f.AppendLine($"{GlobalNames.String}? scopeChain, ");
+            f.AppendLine($"{GlobalNames.String}? dependencyChain)");
+        }
+        f.EndLevel();
         f.AppendTypeConstraints("where T : class");
         f.BeginBlock();
         {
@@ -245,7 +274,7 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        "parent.ResolveDependency(onResolved, requestorType, currentScopeChain, dependencyChain);"
+                        "parent.ResolveDependency(onResolved, onFailed, requestorType, currentScopeChain, dependencyChain);"
                     );
                     f.AppendLine("return;");
                 }
@@ -265,6 +294,32 @@ internal static class ScopeInterfaceGenerator
                 f.EndLevel();
                 f.AppendLine(");");
                 f.PushError("sb.ToString()");
+                f.AppendLine();
+
+                f.AppendLine("// 调用失败回调");
+                f.BeginTryCatch();
+                {
+                    f.AppendLine(
+                        "onFailed.Invoke($\"依赖注入请求失败：无法找到服务 {type.Name}\");"
+                    );
+                }
+                f.CatchBlock("ex");
+                {
+                    f.AppendLine("sb = CreateErrorMessageBuilder(");
+                    f.BeginLevel();
+                    {
+                        f.AppendLine("title: \"执行依赖注入失败回调时出现了异常\",");
+                        f.AppendLine("reason: $\"{ex.Message}\",");
+                        f.AppendLine("serviceImplType: \"N/A\",");
+                        f.AppendLine("requestorType: requestorType,");
+                        f.AppendLine("scopeChain: currentScopeChain,");
+                        f.AppendLine("dependencyChain: currentDependencyChain");
+                    }
+                    f.EndLevel();
+                    f.AppendLine(");");
+                    f.PushError("sb.ToString()");
+                }
+                f.EndTryCatch();
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -333,6 +388,32 @@ internal static class ScopeInterfaceGenerator
                     }
                     f.EndBlock();
                     f.PushError("sb.ToString()");
+                    f.AppendLine();
+
+                    f.AppendLine("// 直接调用失败回调");
+                    f.BeginTryCatch();
+                    {
+                        f.AppendLine(
+                            "onFailed.Invoke($\"依赖注入请求失败：先前创建服务 {type.Name} 时失败\");"
+                        );
+                    }
+                    f.CatchBlock("ex");
+                    {
+                        f.AppendLine("sb = CreateErrorMessageBuilder(");
+                        f.BeginLevel();
+                        {
+                            f.AppendLine("title: \"执行依赖注入失败回调时出现了异常\",");
+                            f.AppendLine("reason: $\"{ex.Message}\",");
+                            f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                            f.AppendLine("requestorType: requestorType,");
+                            f.AppendLine("scopeChain: currentScopeChain,");
+                            f.AppendLine("dependencyChain: currentDependencyChain");
+                        }
+                        f.EndLevel();
+                        f.AppendLine(");");
+                        f.PushError("sb.ToString()");
+                    }
+                    f.EndTryCatch();
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -374,7 +455,7 @@ internal static class ScopeInterfaceGenerator
                     f.EndDebugRegion();
                     f.AppendLine();
 
-                    f.AppendLine("// 不是循环依赖，服务正在异步创建中，加入等待队列");
+                    f.AppendLine("// 服务正在异步创建中，加入等待队列");
                     f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
                     f.BeginBlock();
                     {
@@ -383,18 +464,18 @@ internal static class ScopeInterfaceGenerator
                     }
                     f.EndBlock();
                     f.AppendLine();
-                    f.AppendLine("waiterList.Add(new DependencyWaitInfo");
-                    f.BeginBlock();
+                    f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
+                    f.BeginLevel();
                     {
-                        f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
-                        f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
-                        f.AppendLine("RequestorType = requestorType,");
-                        f.AppendLine("ScopeChain = currentScopeChain,");
-                        f.AppendLine("DependencyChain = currentDependencyChain,");
+                        f.AppendLine("Callback: obj => onResolved.Invoke((T)obj),");
+                        f.AppendLine("FailureCallback: onFailed,");
+                        f.AppendLine($"RequestTicks: {GlobalNames.DateTime}.Now.Ticks,");
+                        f.AppendLine("RequestorType: requestorType,");
+                        f.AppendLine("ScopeChain: currentScopeChain,");
+                        f.AppendLine("DependencyChain: currentDependencyChain)");
                     }
-                    f.EndBlock(");");
-                    f.AppendLine();
-
+                    f.EndLevel();
+                    f.AppendLine(");");
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -413,16 +494,19 @@ internal static class ScopeInterfaceGenerator
                     f.EndBlock();
                     f.AppendLine();
 
-                    f.AppendLine("waiterList.Add(new DependencyWaitInfo");
-                    f.BeginBlock();
+                    f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
+                    f.BeginLevel();
                     {
-                        f.AppendLine("Callback = obj => onResolved.Invoke((T)obj),");
-                        f.AppendLine($"RequestTicks = {GlobalNames.DateTime}.Now.Ticks,");
-                        f.AppendLine("RequestorType = requestorType,");
-                        f.AppendLine("ScopeChain = currentScopeChain,");
-                        f.AppendLine("DependencyChain = currentDependencyChain,");
+                        f.AppendLine("Callback: obj => onResolved.Invoke((T)obj),");
+                        f.AppendLine("FailureCallback: onFailed,");
+                        f.AppendLine($"RequestTicks: {GlobalNames.DateTime}.Now.Ticks,");
+                        f.AppendLine("RequestorType: requestorType,");
+                        f.AppendLine("ScopeChain: currentScopeChain,");
+                        f.AppendLine("DependencyChain: currentDependencyChain)");
                     }
-                    f.EndBlock(");");
+                    f.EndLevel();
+                    f.AppendLine(");");
+                    f.AppendLine();
 
                     f.AppendLine("// 检查是否有工厂（Scope 创建的单例服务）");
                     f.AppendLine(

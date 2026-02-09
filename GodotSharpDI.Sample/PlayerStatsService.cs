@@ -9,6 +9,12 @@ public interface IPlayerStats
     int Mana { get; set; }
 }
 
+public interface IPlayerStats2
+{
+    int Health { get; set; }
+    int Mana { get; set; }
+}
+
 [Singleton(typeof(IPlayerStats))]
 public partial class PlayerStatsService : IPlayerStats
 {
@@ -21,8 +27,8 @@ public partial class PlayerStatsService : IPlayerStats
     }
 }
 
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService2 : IPlayerStats
+[Singleton(typeof(IPlayerStats2))]
+public partial class PlayerStatsService2 : IPlayerStats2
 {
     public int Health { get; set; } = 100;
     public int Mana { get; set; } = 50;

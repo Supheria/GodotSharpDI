@@ -72,9 +72,9 @@ internal static class ScopeGenerator
         f.EndBlock();
         f.AppendLine();
 
-        // ServiceCacheEntry 结构体
+        // ServiceCacheEntry 类
         f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private class ServiceCacheEntry");
+        f.AppendLine("private sealed class ServiceCacheEntry");
         f.BeginBlock();
         {
             f.AppendLine("public ServiceState State = ServiceState.NotCreated;");
@@ -87,18 +87,20 @@ internal static class ScopeGenerator
         f.EndBlock();
         f.AppendLine();
 
-        // DependencyWaitInfo 结构体
+        // DependencyWaitInfo 记录
         f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private struct DependencyWaitInfo");
-        f.BeginBlock();
+        f.AppendLine("private sealed record DependencyWaitInfo(");
+        f.BeginLevel();
         {
-            f.AppendLine($"public {GlobalNames.Action}<{GlobalNames.Object}> Callback;");
-            f.AppendLine($"public {GlobalNames.Long} RequestTicks;");
-            f.AppendLine($"public {GlobalNames.String} RequestorType;");
-            f.AppendLine($"public {GlobalNames.String} ScopeChain;");
-            f.AppendLine($"public {GlobalNames.String} DependencyChain;");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}> Callback,");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.String}> FailureCallback,");
+            f.AppendLine($"{GlobalNames.Long} RequestTicks,");
+            f.AppendLine($"{GlobalNames.String} RequestorType,");
+            f.AppendLine($"{GlobalNames.String} ScopeChain,");
+            f.AppendLine($"{GlobalNames.String} DependencyChain");
         }
-        f.EndBlock();
+        f.EndLevel();
+        f.AppendLine(");");
     }
 
     private static void GenerateDelegates(CodeFormatter f)

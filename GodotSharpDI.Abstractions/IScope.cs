@@ -9,6 +9,7 @@ public interface IScope
 
     void ResolveDependency<T>(
         Action<T> onResolved,
+        Action<string> onFailed,
         string requestorType,
         string? scopeChain = null,
         string? dependencyChain = null

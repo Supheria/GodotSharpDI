@@ -53,6 +53,10 @@ internal static class UserGenerator
     {
         // _unresolvedDependencies
         f.AppendHiddenMemberCommentAndAttribute();
+        f.AppendLine($"private {GlobalNames.Bool} _hasDependencyFailure = false;");
+        f.AppendLine();
+
+        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
         );
@@ -68,11 +72,17 @@ internal static class UserGenerator
 
         // OnDependencyResolved
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void OnDependencyResolved<T>()");
+        f.AppendLine($"private void OnDependencyResolved<T>({GlobalNames.Bool} success = true)");
         f.BeginBlock();
         {
+            f.AppendLine("if (!success)");
+            f.BeginBlock();
+            {
+                f.AppendLine("_hasDependencyFailure = true;");
+            }
+            f.EndBlock();
             f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-            f.AppendLine("if (_unresolvedDependencies.Count == 0)");
+            f.AppendLine("if (_unresolvedDependencies.Count == 0 && !_hasDependencyFailure)");
             f.BeginBlock();
             {
                 f.AppendLine($"(({GlobalNames.IServicesReady})this).OnServicesReady();");
@@ -112,7 +122,7 @@ internal static class UserGenerator
                 f.AppendLine($"scope.ResolveDependency<{memberTypeName}>(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("dependency =>");
+                    f.AppendLine("(dependency) =>");
                     f.BeginBlock();
                     {
                         f.BeginTryCatch();
@@ -129,6 +139,15 @@ internal static class UserGenerator
                         if (validatedType.ImplementsIServicesReady)
                         {
                             f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
+                        }
+                    }
+                    f.EndBlock(",");
+                    f.AppendLine("(errorMessage) =>");
+                    f.BeginBlock();
+                    {
+                        if (validatedType.ImplementsIServicesReady)
+                        {
+                            f.AppendLine($"OnDependencyResolved<{memberTypeName}>(false);");
                         }
                     }
                     f.EndBlock(",");
