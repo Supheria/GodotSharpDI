@@ -221,7 +221,7 @@ internal sealed class ClassValidator
             Symbol: _raw.Symbol,
             Location: _raw.Location,
             Role: role,
-            ImplementsIServicesReady: _raw.ImplementsIServicesReady,
+            ImplementsIDependenciesResolved: _raw.ImplementsIDependenciesResolved,
             IsNode: _raw.IsNode,
             Members: members,
             Constructor: constructor,

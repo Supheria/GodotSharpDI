@@ -4,7 +4,7 @@ using GodotSharpDI.Abstractions;
 namespace GodotSharpDI.Sample;
 
 [User]
-public sealed partial class PlayerUI : Control, IServicesReady
+public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
     [Inject]
     private IPlayerStats PlayerStats
@@ -25,7 +25,7 @@ public sealed partial class PlayerUI : Control, IServicesReady
         GD.Print("PlayerUI is ready before services ready");
     }
 
-    void IServicesReady.OnServicesReady()
+    void IDependenciesResolved.OnDependenciesResolved()
     {
         GD.Print("PlayerUI updated after services ready");
     }

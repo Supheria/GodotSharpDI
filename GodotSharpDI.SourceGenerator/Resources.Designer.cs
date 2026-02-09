@@ -96,6 +96,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IDependenciesResolved but is not marked with [User].
+        /// </summary>
+        internal static string C_IDependenciesResolvedNeedUser {
+            get {
+                return ResourceManager.GetString("C_IDependenciesResolvedNeedUser", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Type &apos;{0}&apos; has incorrect _Notification method signature. Expected: &apos;public override partial void _Notification(int what);&apos;.
         /// </summary>
         internal static string C_InvalidNotificationMethodSignature {
@@ -191,15 +200,6 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string C_ServiceExposedTypeShouldBeInterface {
             get {
                 return ResourceManager.GetString("C_ServiceExposedTypeShouldBeInterface", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IServicesReady but is not marked with [User].
-        /// </summary>
-        internal static string C_ServiceReadyNeedUser {
-            get {
-                return ResourceManager.GetString("C_ServiceReadyNeedUser", resourceCulture);
             }
         }
         

@@ -28,17 +28,10 @@ internal static class UserGenerator
         MemberInfo[] membersWithCallback
     )
     {
-        f.AppendLine("// ============================================================");
-        f.AppendLine("// 依赖注入失败回调方法声明");
-        f.AppendLine("// ============================================================");
-        f.AppendLine();
-
         foreach (var member in membersWithCallback)
         {
             var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
-            f.AppendLine(
-                $"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>"
-            );
+            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>");
             f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
             f.AppendLine();
         }
@@ -56,20 +49,16 @@ internal static class UserGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            var implementsIServicesReady = node.ValidatedTypeInfo.ImplementsIServicesReady;
-
             // 如果有带 FailureCallback 的成员，生成 partial 方法声明
-            var membersWithCallback = injectMembers
-                .Where(m => m.HasFailureCallback)
-                .ToArray();
+            var membersWithCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
             if (membersWithCallback.Length > 0)
             {
                 GenerateFailureCallbackDeclarations(f, membersWithCallback);
                 f.AppendLine();
             }
 
-            // 如果实现了 IServicesReady，生成依赖跟踪代码
-            if (implementsIServicesReady && injectMembers.Length > 0)
+            // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
+            if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved && injectMembers.Length > 0)
             {
                 GenerateDependencyTracking(f, injectMembers);
                 f.AppendLine();
@@ -87,10 +76,6 @@ internal static class UserGenerator
     {
         // _unresolvedDependencies
         f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine($"private {GlobalNames.Bool} _hasDependencyFailure = false;");
-        f.AppendLine();
-
-        f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
         );
@@ -106,20 +91,16 @@ internal static class UserGenerator
 
         // OnDependencyResolved
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine($"private void OnDependencyResolved<T>({GlobalNames.Bool} success = true)");
+        f.AppendLine("private void OnDependencyResolved<T>()");
         f.BeginBlock();
         {
-            f.AppendLine("if (!success)");
-            f.BeginBlock();
-            {
-                f.AppendLine("_hasDependencyFailure = true;");
-            }
-            f.EndBlock();
             f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-            f.AppendLine("if (_unresolvedDependencies.Count == 0 && !_hasDependencyFailure)");
+            f.AppendLine("if (_unresolvedDependencies.Count == 0)");
             f.BeginBlock();
             {
-                f.AppendLine($"(({GlobalNames.IServicesReady})this).OnServicesReady();");
+                f.AppendLine(
+                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved();"
+                );
             }
             f.EndBlock();
         }
@@ -170,7 +151,7 @@ internal static class UserGenerator
                             );
                         }
                         f.EndTryCatch();
-                        if (validatedType.ImplementsIServicesReady)
+                        if (validatedType.ImplementsIDependenciesResolved)
                         {
                             f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
                         }
@@ -179,9 +160,9 @@ internal static class UserGenerator
                     f.AppendLine("(errorMessage) =>");
                     f.BeginBlock();
                     {
-                        if (validatedType.ImplementsIServicesReady)
+                        if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            f.AppendLine($"OnDependencyResolved<{memberTypeName}>(false);");
+                            f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
                         }
                         // 如果有失败回调，调用它
                         if (member.HasFailureCallback)

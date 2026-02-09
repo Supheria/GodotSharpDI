@@ -29,5 +29,5 @@ public static class GlobalNames
 
     // GodotSharp.DI.Shared
     public const string IScope = "global::GodotSharpDI.Abstractions.IScope";
-    public const string IServicesReady = "global::GodotSharpDI.Abstractions.IServicesReady";
+    public const string IDependenciesResolved = "global::GodotSharpDI.Abstractions.IDependenciesResolved";
 }
