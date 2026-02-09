@@ -492,4 +492,7 @@ internal static class DiagnosticDescriptors
         "003",
         Resources.U_ManualAccessGeneratedProperty
     );
+
+    public static readonly DiagnosticDescriptor MissingInjectionFailureCallbackImplementation =
+        UserBehavior("004", Resources.U_MissingInjectionFailureCallbackImplementation);
 }

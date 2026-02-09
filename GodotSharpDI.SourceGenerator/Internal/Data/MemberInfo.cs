@@ -11,7 +11,8 @@ internal sealed record MemberInfo(
     Location Location,
     MemberKind Kind,
     INamedTypeSymbol MemberType,
-    ImmutableArray<INamedTypeSymbol> ExposedTypes
+    ImmutableArray<INamedTypeSymbol> ExposedTypes,
+    bool HasFailureCallback
 )
 {
     public bool IsInjectMember { get; } =

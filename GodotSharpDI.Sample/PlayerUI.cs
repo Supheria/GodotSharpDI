@@ -12,8 +12,8 @@ public sealed partial class PlayerUI : Control, IServicesReady
         set => GD.Print("PlayerUI inject Player Stats");
     }
 
-    [Inject]
-    private GameManager GameState
+    [Inject(FailureCallback = true)]
+    private GameManager gameState
     {
         set => GD.Print("PlayerUI inject Game State");
     }
@@ -31,4 +31,9 @@ public sealed partial class PlayerUI : Control, IServicesReady
     }
 
     public override partial void _Notification(int what);
+
+    partial void OnGameStateInjectionFailed(string error)
+    {
+        GD.Print("PlayerUI inject Game State Injection Failed");
+    }
 }

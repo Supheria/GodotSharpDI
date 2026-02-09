@@ -166,15 +166,28 @@ internal sealed class MemberProcessor
             return null;
 
         // 验证 Inject 成员
+        bool hasFailureCallback = false;
         if (hasInject)
         {
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
+            // 读取 FailureCallback 属性
+            var injectAttr = member.GetAttribute(_symbols.InjectAttribute);
+            foreach (var namedArg in injectAttr!.NamedArguments)
+            {
+                if (
+                    namedArg.Key == "FailureCallback"
+                    && namedArg.Value.Value is bool failureCallbackValue
+                )
+                {
+                    hasFailureCallback = failureCallbackValue;
+                    break;
+                }
+            }
         }
 
+        // 验证 Singleton 成员
         var exposedTypes = ImmutableArray<INamedTypeSymbol>.Empty;
-
-        // 验证 Inject 成员
         if (hasSingleton)
         {
             if (!ValidateSingletonMemberType(memberType, member, location))
@@ -188,7 +201,8 @@ internal sealed class MemberProcessor
             Location: location,
             Kind: kind,
             MemberType: memberType,
-            ExposedTypes: exposedTypes
+            ExposedTypes: exposedTypes,
+            HasFailureCallback: hasFailureCallback
         );
     }
 

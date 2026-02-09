@@ -283,12 +283,20 @@
         <value>Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code</value>
     </data>
 
+    <data name="U_MissingInjectionFailureCallbackImplementation" xml:space="preserve">
+        <value>Member '{0}' is marked with [Inject(FailureCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle injection failures</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- Code Fix Messages -->
     <!-- ============================================================ -->
 
     <data name="CodeFix_Notification" xml:space="preserve">
         <value>Add _Notification method declaration</value>
+    </data>
+
+    <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
+        <value>Implement {0} method</value>
     </data>
     <data name="C_ServiceCannotBeNode" xml:space="preserve">
         <value>Service '{0}' cannot inherit from Godot.Node.</value>

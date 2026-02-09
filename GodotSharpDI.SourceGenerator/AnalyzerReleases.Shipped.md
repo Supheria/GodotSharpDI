@@ -97,6 +97,7 @@
 | GDI_U001 | GDI.User            | Error    | Manual call to generated method not allowed     |
 | GDI_U002 | GDI.User            | Error    | Manual access to generated field not allowed    |
 | GDI_U003 | GDI.User            | Error    | Manual access to generated property not allowed |
+| GDI_U004 | GDI.User            | Error    | Manual access to generated property not allowed |
 
 ## Design Decisions
 

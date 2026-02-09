@@ -21,6 +21,30 @@ internal static class UserGenerator
     }
 
     /// <summary>
+    /// 生成失败回调 partial 方法声明
+    /// </summary>
+    private static void GenerateFailureCallbackDeclarations(
+        CodeFormatter f,
+        MemberInfo[] membersWithCallback
+    )
+    {
+        f.AppendLine("// ============================================================");
+        f.AppendLine("// 依赖注入失败回调方法声明");
+        f.AppendLine("// ============================================================");
+        f.AppendLine();
+
+        foreach (var member in membersWithCallback)
+        {
+            var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
+            f.AppendLine(
+                $"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>"
+            );
+            f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
+            f.AppendLine();
+        }
+    }
+
+    /// <summary>
     /// 生成 User 特定代码（ResolveUserDependencies）
     /// </summary>
     public static void GenerateUserSpecific(SourceProductionContext context, TypeNode node)
@@ -33,6 +57,16 @@ internal static class UserGenerator
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
             var implementsIServicesReady = node.ValidatedTypeInfo.ImplementsIServicesReady;
+
+            // 如果有带 FailureCallback 的成员，生成 partial 方法声明
+            var membersWithCallback = injectMembers
+                .Where(m => m.HasFailureCallback)
+                .ToArray();
+            if (membersWithCallback.Length > 0)
+            {
+                GenerateFailureCallbackDeclarations(f, membersWithCallback);
+                f.AppendLine();
+            }
 
             // 如果实现了 IServicesReady，生成依赖跟踪代码
             if (implementsIServicesReady && injectMembers.Length > 0)
@@ -148,6 +182,14 @@ internal static class UserGenerator
                         if (validatedType.ImplementsIServicesReady)
                         {
                             f.AppendLine($"OnDependencyResolved<{memberTypeName}>(false);");
+                        }
+                        // 如果有失败回调，调用它
+                        if (member.HasFailureCallback)
+                        {
+                            var callbackMethodName = NamingHelper.GetFailureCallbackMethodName(
+                                member.Symbol.Name
+                            );
+                            f.AppendLine($"{callbackMethodName}(errorMessage);");
                         }
                     }
                     f.EndBlock(",");
