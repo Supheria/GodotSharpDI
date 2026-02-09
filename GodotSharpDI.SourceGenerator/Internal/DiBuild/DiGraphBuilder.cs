@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -7,6 +7,10 @@ using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
+/// <summary>
+/// 依赖图构建器 - 主入口（重构版）
+/// 职责：协调各个构建器，组装最终的依赖图
+/// </summary>
 internal static class DiGraphBuilder
 {
     public static DiGraphBuildResult Build(
@@ -16,517 +20,247 @@ internal static class DiGraphBuilder
     {
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
-        var validTypes = classResults
-            .Where(r => r.TypeInfo != null)
-            .Select(r => r.TypeInfo!)
-            .ToImmutableArray();
+        try
+        {
+            // 1. 提取有效类型
+            var validTypes = classResults
+                .Where(r => r.TypeInfo != null)
+                .Select(r => r.TypeInfo!)
+                .ToImmutableArray();
 
-        if (validTypes.IsEmpty)
-            return DiGraphBuildResult.Empty;
+            if (validTypes.IsEmpty)
+                return DiGraphBuildResult.Empty;
 
-        // 按角色分类
-        var services = validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray();
-        var hosts = validTypes.Where(t => t.Role == TypeRole.Host).ToImmutableArray();
-        var users = validTypes.Where(t => t.Role == TypeRole.User).ToImmutableArray();
-        var hostAndUsers = validTypes.Where(t => t.Role == TypeRole.HostAndUser).ToImmutableArray();
-        var scopes = validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray();
+            // 2. 按角色分类
+            var typesByRole = ClassifyTypesByRole(validTypes, diagnostics);
+            if (typesByRole == null)
+                return new DiGraphBuildResult(null, diagnostics.ToImmutable());
 
-        // 构建服务提供映射（带冲突检测）
-        var (serviceProviders, providerDiags) = BuildServiceProviderMap(
-            services,
-            hosts,
-            hostAndUsers,
-            symbols
-        );
-        diagnostics.AddRange(providerDiags);
+            // 3. 构建服务提供者映射
+            var serviceProviders = ServiceProviderMapBuilder.Build(
+                typesByRole.Services,
+                typesByRole.Hosts,
+                typesByRole.HostAndUsers,
+                symbols,
+                diagnostics
+            );
 
-        // 构建节点
-        var (serviceNodes, serviceDiags) = BuildServiceNodes(services, serviceProviders, symbols);
-        diagnostics.AddRange(serviceDiags);
+            // 4. 构建各类节点
+            var nodes = BuildAllNodes(typesByRole, serviceProviders, symbols, diagnostics);
 
-        var (hostNodes, hostDiags) = BuildHostNodes(hosts);
-        diagnostics.AddRange(hostDiags);
+            // 5. 验证依赖关系
+            GraphValidator.ValidateHostServices(
+                typesByRole.Hosts,
+                typesByRole.HostAndUsers,
+                serviceProviders,
+                diagnostics
+            );
 
-        var (userNodes, userDiags) = BuildUserNodes(users);
-        diagnostics.AddRange(userDiags);
+            var allUserNodes = nodes.UserNodes.Concat(nodes.HostAndUserNodes).ToImmutableArray();
+            GraphValidator.ValidateDependencyGraph(
+                nodes.ServiceNodes,
+                allUserNodes,
+                serviceProviders,
+                symbols,
+                diagnostics
+            );
 
-        var (hostAndUserNodes, hostAndUserDiags) = BuildHostAndUserNodes(hostAndUsers);
-        diagnostics.AddRange(hostAndUserDiags);
+            // 6. 构建节点映射
+            var nodeMaps = BuildNodeMaps(nodes, diagnostics);
 
-        var (scopeNodes, scopeDiags) = BuildScopeNodes(scopes, serviceProviders, symbols);
-        diagnostics.AddRange(scopeDiags);
+            // 7. 组装最终图
+            try
+            {
+                var graph = new DiGraph(
+                    ServiceNodes: nodes.ServiceNodes,
+                    HostNodes: nodes.HostNodes,
+                    UserNodes: nodes.UserNodes,
+                    HostAndUserNodes: nodes.HostAndUserNodes,
+                    ScopeNodes: nodes.ScopeNodes,
+                    ServiceNodeMap: nodeMaps.ServiceNodeMap,
+                    HostNodeMap: nodeMaps.HostNodeMap,
+                    HostAndUserNodeMap: nodeMaps.HostAndUserNodeMap
+                );
 
-        // 验证 Host 服务引用
-        var hostServiceDiags = ValidateHostServices(hosts, hostAndUsers, serviceProviders);
-        diagnostics.AddRange(hostServiceDiags);
+                return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
+            }
+            catch (Exception ex)
+            {
+                diagnostics.Add(
+                    DiagnosticBuilder.CreateAtNone(
+                        DiagnosticDescriptors.GraphBuildPhaseFailed,
+                        "CreateDiGraph",
+                        ex.Message
+                    )
+                );
+                return new DiGraphBuildResult(null, diagnostics.ToImmutable());
+            }
+        }
+        catch (Exception ex)
+        {
+            // 顶层异常捕获
+            diagnostics.Add(
+                DiagnosticBuilder.CreateAtNone(DiagnosticDescriptors.GraphBuildFailed, ex.Message)
+            );
+            return new DiGraphBuildResult(null, diagnostics.ToImmutable());
+        }
+    }
 
-        // 依赖图验证（包含所有 User 类型）
-        var allUserNodes = userNodes.Concat(hostAndUserNodes).ToImmutableArray();
-        var graphDiags = ValidateDependencyGraph(
-            serviceNodes,
-            allUserNodes,
+    /// <summary>
+    /// 按角色分类类型
+    /// </summary>
+    private static TypesByRole? ClassifyTypesByRole(
+        ImmutableArray<ValidatedTypeInfo> validTypes,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        try
+        {
+            return new TypesByRole(
+                Services: validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray(),
+                Hosts: validTypes.Where(t => t.Role == TypeRole.Host).ToImmutableArray(),
+                Users: validTypes.Where(t => t.Role == TypeRole.User).ToImmutableArray(),
+                HostAndUsers: validTypes
+                    .Where(t => t.Role == TypeRole.HostAndUser)
+                    .ToImmutableArray(),
+                Scopes: validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray()
+            );
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add(
+                DiagnosticBuilder.CreateAtNone(
+                    DiagnosticDescriptors.GraphBuildPhaseFailed,
+                    "ClassifyByRole",
+                    ex.Message
+                )
+            );
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 构建所有类型的节点
+    /// </summary>
+    private static AllNodes BuildAllNodes(
+        TypesByRole types,
+        ServiceProviderMap serviceProviders,
+        CachedSymbols symbols,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        var serviceNodes = NodeBuilders.BuildServiceNodes(
+            types.Services,
             serviceProviders,
-            symbols
+            symbols,
+            diagnostics
         );
-        diagnostics.AddRange(graphDiags);
 
-        // 构建Service节点映射
-        var serviceNodeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
-            SymbolEqualityComparer.Default
+        var hostNodes = NodeBuilders.BuildHostNodes(types.Hosts, diagnostics);
+
+        var userNodes = NodeBuilders.BuildUserNodes(types.Users, diagnostics);
+
+        var hostAndUserNodes = NodeBuilders.BuildHostAndUserNodes(types.HostAndUsers, diagnostics);
+
+        var scopeNodes = NodeBuilders.BuildScopeNodes(
+            types.Scopes,
+            serviceProviders,
+            symbols,
+            diagnostics
         );
-        foreach (var node in serviceNodes)
-        {
-            serviceNodeMapBuilder[node.ValidatedTypeInfo.Symbol] = node;
-        }
 
-        // 构建Host节点映射
-        var hostNodeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
-            SymbolEqualityComparer.Default
-        );
-        foreach (var node in hostNodes)
-        {
-            hostNodeMapBuilder[node.ValidatedTypeInfo.Symbol] = node;
-        }
-
-        // 构建HostAndUser节点映射
-        var hostAndUserNodeMapBuilder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
-            SymbolEqualityComparer.Default
-        );
-        foreach (var node in hostAndUserNodes)
-        {
-            hostAndUserNodeMapBuilder[node.ValidatedTypeInfo.Symbol] = node;
-        }
-
-        var graph = new DiGraph(
+        return new AllNodes(
             ServiceNodes: serviceNodes,
             HostNodes: hostNodes,
             UserNodes: userNodes,
             HostAndUserNodes: hostAndUserNodes,
-            ScopeNodes: scopeNodes,
-            ServiceNodeMap: serviceNodeMapBuilder.ToImmutable(),
-            HostNodeMap: hostNodeMapBuilder.ToImmutable(),
-            HostAndUserNodeMap: hostAndUserNodeMapBuilder.ToImmutable()
+            ScopeNodes: scopeNodes
         );
-
-        return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
     }
 
-    private static (
-        Dictionary<ITypeSymbol, ValidatedTypeInfo>,
-        ImmutableArray<Diagnostic>
-    ) BuildServiceProviderMap(
-        ImmutableArray<ValidatedTypeInfo> services,
-        ImmutableArray<ValidatedTypeInfo> hosts,
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
-        CachedSymbols symbols
+    /// <summary>
+    /// 构建节点映射字典
+    /// </summary>
+    private static NodeMaps BuildNodeMaps(
+        AllNodes nodes,
+        ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-        var map = new Dictionary<ITypeSymbol, ValidatedTypeInfo>(SymbolEqualityComparer.Default);
-        var conflictTracker = new Dictionary<ITypeSymbol, List<string>>(
-            SymbolEqualityComparer.Default
+        var serviceNodeMap = BuildNodeMap(nodes.ServiceNodes, "BuildServiceNodeMap", diagnostics);
+
+        var hostNodeMap = BuildNodeMap(nodes.HostNodes, "BuildHostNodeMap", diagnostics);
+
+        var hostAndUserNodeMap = BuildNodeMap(
+            nodes.HostAndUserNodes,
+            "BuildHostAndUserNodeMap",
+            diagnostics
         );
 
-        void AddProvider(
-            ITypeSymbol exposedType,
-            ValidatedTypeInfo provider,
-            string providerDescription
-        )
+        return new NodeMaps(
+            ServiceNodeMap: serviceNodeMap,
+            HostNodeMap: hostNodeMap,
+            HostAndUserNodeMap: hostAndUserNodeMap
+        );
+    }
+
+    /// <summary>
+    /// 构建单个节点映射
+    /// </summary>
+    private static ImmutableDictionary<ITypeSymbol, TypeNode> BuildNodeMap(
+        ImmutableArray<TypeNode> nodes,
+        string phase,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        try
         {
-            if (!map.TryGetValue(exposedType, out var existing))
+            var builder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
+                SymbolEqualityComparer.Default
+            );
+
+            foreach (var node in nodes)
             {
-                map[exposedType] = provider;
-                return;
+                builder[node.ValidatedTypeInfo.Symbol] = node;
             }
 
-            if (!conflictTracker.TryGetValue(exposedType, out var conflicts))
-            {
-                conflicts = new List<string> { existing.Symbol.ToDisplayString() };
-                conflictTracker[exposedType] = conflicts;
-            }
-            conflicts.Add(providerDescription);
+            return builder.ToImmutable();
         }
-
-        // Service 提供的服务
-        foreach (var service in services)
+        catch (Exception ex)
         {
-            var exposedTypes = GetServiceExposedTypes(service, symbols);
-            foreach (var exposedType in exposedTypes)
-            {
-                AddProvider(exposedType, service, service.Symbol.ToDisplayString());
-            }
-        }
-
-        // Host 提供的服务
-        foreach (var host in hosts.Concat(hostAndUsers))
-        {
-            foreach (var member in host.Members)
-            {
-                if (member.IsSingletonMember)
-                {
-                    foreach (var exposedType in member.ExposedTypes)
-                    {
-                        var providerDesc = $"{host.Symbol.ToDisplayString()}.{member.Symbol.Name}";
-                        AddProvider(exposedType, host, providerDesc);
-                    }
-                }
-            }
-        }
-
-        // 报告所有冲突
-        foreach (var conflict in conflictTracker)
-        {
-            var providers = string.Join(", ", conflict.Value);
             diagnostics.Add(
                 DiagnosticBuilder.CreateAtNone(
-                    DiagnosticDescriptors.ServiceTypeConflict,
-                    conflict.Key.ToDisplayString(),
-                    providers
+                    DiagnosticDescriptors.GraphBuildPhaseFailed,
+                    phase,
+                    ex.Message
                 )
             );
+            return ImmutableDictionary<ITypeSymbol, TypeNode>.Empty;
         }
-
-        return (map, diagnostics.ToImmutable());
     }
 
-    private static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
-        ValidatedTypeInfo service,
-        CachedSymbols symbols
-    )
-    {
-        var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+    // ============================================================
+    // 内部数据结构 - 用于组织构建过程
+    // ============================================================
 
-        var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
+    private record TypesByRole(
+        ImmutableArray<ValidatedTypeInfo> Services,
+        ImmutableArray<ValidatedTypeInfo> Hosts,
+        ImmutableArray<ValidatedTypeInfo> Users,
+        ImmutableArray<ValidatedTypeInfo> HostAndUsers,
+        ImmutableArray<ValidatedTypeInfo> Scopes
+    );
 
-        if (attr != null)
-        {
-            foreach (var arg in attr.ConstructorArguments)
-            {
-                if (arg.Kind == TypedConstantKind.Array)
-                {
-                    foreach (var item in arg.Values)
-                    {
-                        if (item.Value is INamedTypeSymbol type)
-                            builder.Add(type);
-                    }
-                }
-            }
-        }
+    private record AllNodes(
+        ImmutableArray<TypeNode> ServiceNodes,
+        ImmutableArray<TypeNode> HostNodes,
+        ImmutableArray<TypeNode> UserNodes,
+        ImmutableArray<TypeNode> HostAndUserNodes,
+        ImmutableArray<ScopeNode> ScopeNodes
+    );
 
-        if (builder.Count == 0)
-        {
-            builder.Add(service.Symbol);
-        }
-
-        return builder.ToImmutable();
-    }
-
-    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildServiceNodes(
-        ImmutableArray<ValidatedTypeInfo> services,
-        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders,
-        CachedSymbols symbols
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        foreach (var service in services)
-        {
-            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-            if (service.Constructor != null)
-            {
-                foreach (var param in service.Constructor.Parameters)
-                {
-                    dependencies.Add(
-                        new DependencyEdge(
-                            TargetType: param.Type,
-                            Location: param.Location,
-                            Source: DependencySource.Constructor
-                        )
-                    );
-                }
-            }
-
-            var providedServices = GetServiceExposedTypes(service, symbols);
-
-            nodes.Add(
-                new TypeNode(
-                    ValidatedTypeInfo: service,
-                    Dependencies: dependencies.ToImmutable(),
-                    ProvidedServices: providedServices
-                )
-            );
-        }
-
-        return (nodes.ToImmutable(), diagnostics.ToImmutable());
-    }
-
-    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostNodes(
-        ImmutableArray<ValidatedTypeInfo> hosts
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        foreach (var host in hosts)
-        {
-            var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-
-            foreach (var member in host.Members)
-            {
-                if (member.IsSingletonMember)
-                {
-                    providedServices.AddRange(member.ExposedTypes);
-                }
-            }
-
-            nodes.Add(
-                new TypeNode(
-                    ValidatedTypeInfo: host,
-                    Dependencies: ImmutableArray<DependencyEdge>.Empty,
-                    ProvidedServices: providedServices.ToImmutable()
-                )
-            );
-        }
-
-        return (nodes.ToImmutable(), diagnostics.ToImmutable());
-    }
-
-    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildUserNodes(
-        ImmutableArray<ValidatedTypeInfo> users
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        foreach (var user in users)
-        {
-            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-            foreach (var member in user.Members)
-            {
-                if (member.IsInjectMember)
-                {
-                    dependencies.Add(
-                        new DependencyEdge(
-                            TargetType: member.MemberType,
-                            Location: member.Location,
-                            Source: DependencySource.InjectMember
-                        )
-                    );
-                }
-            }
-
-            nodes.Add(
-                new TypeNode(
-                    ValidatedTypeInfo: user,
-                    Dependencies: dependencies.ToImmutable(),
-                    ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty
-                )
-            );
-        }
-
-        return (nodes.ToImmutable(), diagnostics.ToImmutable());
-    }
-
-    private static (ImmutableArray<TypeNode>, ImmutableArray<Diagnostic>) BuildHostAndUserNodes(
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        foreach (var hostAndUser in hostAndUsers)
-        {
-            var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-            var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-            foreach (var member in hostAndUser.Members)
-            {
-                if (member.IsSingletonMember)
-                {
-                    providedServices.AddRange(member.ExposedTypes);
-                }
-                if (member.IsInjectMember)
-                {
-                    dependencies.Add(
-                        new DependencyEdge(
-                            TargetType: member.MemberType,
-                            Location: member.Location,
-                            Source: DependencySource.InjectMember
-                        )
-                    );
-                }
-            }
-
-            nodes.Add(
-                new TypeNode(
-                    ValidatedTypeInfo: hostAndUser,
-                    Dependencies: dependencies.ToImmutable(),
-                    ProvidedServices: providedServices.ToImmutable()
-                )
-            );
-        }
-
-        return (nodes.ToImmutable(), diagnostics.ToImmutable());
-    }
-
-    private static (ImmutableArray<ScopeNode>, ImmutableArray<Diagnostic>) BuildScopeNodes(
-        ImmutableArray<ValidatedTypeInfo> scopes,
-        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders,
-        CachedSymbols symbols
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<ScopeNode>();
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        foreach (var scope in scopes)
-        {
-            if (scope.ModulesInfo == null)
-                continue;
-
-            var services = scope.ModulesInfo.Services;
-            var hosts = scope.ModulesInfo.Hosts;
-
-            // 验证 Services
-            foreach (var type in services)
-            {
-                var hasLifetime = type.HasAttribute(symbols.SingletonAttribute);
-
-                if (!hasLifetime)
-                {
-                    diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ScopeModulesServiceMustBeService,
-                            scope.Location,
-                            scope.Symbol.Name,
-                            type.ToDisplayString()
-                        )
-                    );
-                }
-            }
-
-            // 验证 Hosts
-            foreach (var type in hosts)
-            {
-                var isHost = type.HasAttribute(symbols.HostAttribute);
-
-                if (!isHost)
-                {
-                    diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ScopeModulesHostMustBeHost,
-                            scope.Location,
-                            scope.Symbol.Name,
-                            type.ToDisplayString()
-                        )
-                    );
-                }
-            }
-
-            if (services.IsEmpty && hosts.IsEmpty)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeModulesEmpty,
-                        scope.Location,
-                        scope.Symbol.Name
-                    )
-                );
-            }
-
-            nodes.Add(
-                new ScopeNode(
-                    ValidatedTypeInfo: scope,
-                    InstantiateServices: services,
-                    ExpectHosts: hosts
-                )
-            );
-        }
-
-        return (nodes.ToImmutable(), diagnostics.ToImmutable());
-    }
-
-    private static ImmutableArray<Diagnostic> ValidateHostServices(
-        ImmutableArray<ValidatedTypeInfo> hosts,
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
-        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders
-    )
-    {
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-        return diagnostics.ToImmutable();
-    }
-
-    private static ImmutableArray<Diagnostic> ValidateDependencyGraph(
-        ImmutableArray<TypeNode> serviceNodes,
-        ImmutableArray<TypeNode> allUserNodes,
-        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders,
-        CachedSymbols symbols
-    )
-    {
-        var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-
-        var serviceImplToNode = new Dictionary<ITypeSymbol, TypeNode>(
-            SymbolEqualityComparer.Default
-        );
-        foreach (var node in serviceNodes)
-        {
-            serviceImplToNode[node.ValidatedTypeInfo.Symbol] = node;
-        }
-
-        // 检查循环依赖（使用优化的 Tarjan 算法）
-        var circularDependencyDetector = new CircularDependencyDetector(
-            serviceImplToNode,
-            serviceProviders
-        );
-        var circularDiagnostics = circularDependencyDetector.DetectCircularDependencies();
-        diagnostics.AddRange(circularDiagnostics);
-
-        // 检查 Service 构造函数参数
-        foreach (var node in serviceNodes)
-        {
-            if (node.ValidatedTypeInfo.Constructor != null)
-            {
-                foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
-                {
-                    if (!serviceProviders.ContainsKey(param.Type))
-                    {
-                        diagnostics.Add(
-                            DiagnosticBuilder.Create(
-                                DiagnosticDescriptors.ServiceConstructorParameterInvalid,
-                                param.Location,
-                                node.ValidatedTypeInfo.Symbol.Name,
-                                param.Type.ToDisplayString()
-                            )
-                        );
-                    }
-                }
-            }
-        }
-
-        // 检查所有 User（包括 HostAndUser）的 Inject 成员
-        foreach (var node in allUserNodes)
-        {
-            foreach (var dep in node.Dependencies)
-            {
-                if (dep.Source == DependencySource.InjectMember)
-                {
-                    if (!serviceProviders.ContainsKey(dep.TargetType))
-                    {
-                        diagnostics.Add(
-                            DiagnosticBuilder.Create(
-                                DiagnosticDescriptors.InjectMemberTypeIsNotExposed,
-                                dep.Location,
-                                node.ValidatedTypeInfo.Symbol.Name,
-                                dep.TargetType.ToDisplayString()
-                            )
-                        );
-                    }
-                }
-            }
-        }
-
-        return diagnostics.ToImmutable();
-    }
+    private record NodeMaps(
+        ImmutableDictionary<ITypeSymbol, TypeNode> ServiceNodeMap,
+        ImmutableDictionary<ITypeSymbol, TypeNode> HostNodeMap,
+        ImmutableDictionary<ITypeSymbol, TypeNode> HostAndUserNodeMap
+    );
 }

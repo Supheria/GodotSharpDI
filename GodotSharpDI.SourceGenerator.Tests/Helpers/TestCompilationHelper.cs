@@ -213,9 +213,9 @@ namespace GodotSharpDI.Abstractions
         void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
     }
 
-    public interface IServicesReady
+    public interface IDependenciesResolved
     {
-        void OnServicesReady();
+        void OnDependenciesResolved(string isAllDependencyResolved);
     }
 }
 

@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Coding;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -15,25 +16,90 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 1. 语法筛选
+        try
+        {
+            InitializeInternal(context);
+        }
+        catch (Exception ex)
+        {
+            // 如果初始化阶段发生严重错误，报告诊断
+            context.RegisterSourceOutput(
+                context.CompilationProvider,
+                (spc, _) =>
+                {
+                    spc.ReportDiagnostic(
+                        DiagnosticBuilder.CreateAtNone(
+                            DiagnosticDescriptors.GeneratorInitializationFailed,
+                            ex.ToString()
+                        )
+                    );
+                }
+            );
+        }
+    }
+
+    private static void InitializeInternal(IncrementalGeneratorInitializationContext context)
+    {
+        // 1. 语法筛选（增强容错）
         var candidateClasses = context.SyntaxProvider.CreateSyntaxProvider(
-            static (node, _) => node is ClassDeclarationSyntax c && c.AttributeLists.Count > 0,
+            static (node, _) =>
+            {
+                try
+                {
+                    return node is ClassDeclarationSyntax c && c.AttributeLists.Count > 0;
+                }
+                catch
+                {
+                    // 如果语法分析出错，跳过该节点
+                    return false;
+                }
+            },
             static (ctx, _) => (ClassDeclarationSyntax)ctx.Node
         );
 
-        // 2. CachedSymbols（全局一次，提前创建）
+        // 2. CachedSymbols（全局一次，提前创建，带异常保护）
         var symbolsProvider = context.CompilationProvider.Select(
-            static (c, _) => new CachedSymbols(c)
+            static (c, _) =>
+            {
+                try
+                {
+                    return new CachedSymbols(c);
+                }
+                catch
+                {
+                    // 如果符号缓存创建失败，返回null
+                    // 后续处理会检测并报告
+                    return null;
+                }
+            }
         );
 
-        // 3. Raw 构建（类级增量）+ Raw 诊断
+        // 3. Raw 构建（类级增量）+ Raw 诊断（增强异常处理）
         var rawClassInfoResults = candidateClasses
             .Combine(context.CompilationProvider)
             .Select(
                 static (pair, _) =>
                 {
-                    var (syntax, compilation) = pair;
-                    return RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, syntax);
+                    try
+                    {
+                        var (syntax, compilation) = pair;
+                        return RawClassSemanticInfoFactory.CreateWithDiagnostics(
+                            compilation,
+                            syntax
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        // 捕获单个类处理的异常
+                        var className = pair.Item1.Identifier.Text;
+                        var diagnostic = DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.ClassAnalysisFailed,
+                            pair.Item1.Identifier.GetLocation(),
+                            className,
+                            ex.Message
+                        );
+                        return (Info: null, Diagnostics: ImmutableArray.Create(diagnostic));
+                    }
                 }
             );
 
@@ -52,14 +118,46 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
             static (spc, diag) => spc.ReportDiagnostic(diag)
         );
 
-        // 4. 类级验证（类级增量）
+        // 4. 类级验证（类级增量，增强异常处理）
         var classValidationResults = validRawInfos
             .Combine(symbolsProvider)
             .Select(
                 static (pair, _) =>
                 {
-                    var (raw, symbols) = pair;
-                    return ClassPipeline.ValidateAndClassify(raw, symbols);
+                    try
+                    {
+                        var (raw, symbols) = pair;
+
+                        // 检查symbols是否有效
+                        if (symbols == null)
+                        {
+                            var diagnostic = DiagnosticBuilder.Create(
+                                DiagnosticDescriptors.SymbolCacheUnavailable,
+                                raw.Location,
+                                raw.Symbol.Name
+                            );
+                            return new ClassValidationResult(
+                                TypeInfo: null,
+                                Diagnostics: ImmutableArray.Create(diagnostic)
+                            );
+                        }
+
+                        return ClassPipeline.ValidateAndClassify(raw, symbols);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 捕获验证过程的异常
+                        var diagnostic = DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.ClassValidationFailed,
+                            pair.Item1.Location,
+                            pair.Item1.Symbol.Name,
+                            ex.Message
+                        );
+                        return new ClassValidationResult(
+                            TypeInfo: null,
+                            Diagnostics: ImmutableArray.Create(diagnostic)
+                        );
+                    }
                 }
             );
 
@@ -124,49 +222,95 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
             );
 
-        // 5.3 构建依赖图（只在所有类型信息变化时重新构建）
+        // 5.3 构建依赖图（只在所有类型信息变化时重新构建，增强异常处理）
         var graphResult = allTypesProvider
             .Combine(symbolsProvider)
             .Select(
                 static (pair, _) =>
                 {
-                    var (types, symbols) = pair;
-
-                    // 如果没有任何类型，返回空结果
-                    if (
-                        types.Services.IsEmpty
-                        && types.Hosts.IsEmpty
-                        && types.Users.IsEmpty
-                        && types.HostAndUsers.IsEmpty
-                        && types.Scopes.IsEmpty
-                    )
+                    try
                     {
-                        return DiGraphBuildResult.Empty;
+                        var (types, symbols) = pair;
+
+                        // 检查symbols是否有效
+                        if (symbols == null)
+                        {
+                            var diagnostic = DiagnosticBuilder.CreateAtNone(
+                                DiagnosticDescriptors.GraphBuildFailed,
+                                "Symbol cache unavailable"
+                            );
+                            return new DiGraphBuildResult(
+                                Graph: null,
+                                Diagnostics: ImmutableArray.Create(diagnostic)
+                            );
+                        }
+
+                        // 如果没有任何类型，返回空结果
+                        if (
+                            types.Services.IsEmpty
+                            && types.Hosts.IsEmpty
+                            && types.Users.IsEmpty
+                            && types.HostAndUsers.IsEmpty
+                            && types.Scopes.IsEmpty
+                        )
+                        {
+                            return DiGraphBuildResult.Empty;
+                        }
+
+                        // 合并所有类型
+                        var allClasses = types
+                            .Services.Concat(types.Hosts)
+                            .Concat(types.Users)
+                            .Concat(types.HostAndUsers)
+                            .Concat(types.Scopes)
+                            .Select(t => new ClassValidationResult(
+                                t,
+                                ImmutableArray<Diagnostic>.Empty
+                            ))
+                            .ToImmutableArray();
+
+                        return DiGraphBuilder.Build(allClasses, symbols);
                     }
-
-                    // 合并所有类型
-                    var allClasses = types
-                        .Services.Concat(types.Hosts)
-                        .Concat(types.Users)
-                        .Concat(types.HostAndUsers)
-                        .Concat(types.Scopes)
-                        .Select(t => new ClassValidationResult(t, ImmutableArray<Diagnostic>.Empty))
-                        .ToImmutableArray();
-
-                    return DiGraphBuilder.Build(allClasses, symbols);
+                    catch (Exception ex)
+                    {
+                        // 捕获图构建的异常
+                        var diagnostic = DiagnosticBuilder.CreateAtNone(
+                            DiagnosticDescriptors.GraphBuildFailed,
+                            ex.Message
+                        );
+                        return new DiGraphBuildResult(
+                            Graph: null,
+                            Diagnostics: ImmutableArray.Create(diagnostic)
+                        );
+                    }
                 }
             );
 
-        // 6. 图级诊断 + 源码输出
+        // 6. 图级诊断 + 源码输出（增强异常处理）
         context.RegisterSourceOutput(
             graphResult,
             static (spc, result) =>
             {
-                foreach (var d in result.Diagnostics)
-                    spc.ReportDiagnostic(d);
+                try
+                {
+                    // 报告诊断
+                    foreach (var d in result.Diagnostics)
+                        spc.ReportDiagnostic(d);
 
-                if (result.Graph is not null)
-                    SourceEmitter.GenerateAll(spc, result.Graph);
+                    // 生成源码
+                    if (result.Graph is not null)
+                        SourceEmitter.GenerateAll(spc, result.Graph);
+                }
+                catch (Exception ex)
+                {
+                    // 捕获源码输出阶段的异常
+                    spc.ReportDiagnostic(
+                        DiagnosticBuilder.CreateAtNone(
+                            DiagnosticDescriptors.SourceOutputFailed,
+                            ex.Message
+                        )
+                    );
+                }
             }
         );
     }

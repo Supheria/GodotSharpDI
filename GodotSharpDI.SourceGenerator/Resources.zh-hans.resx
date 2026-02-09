@@ -246,21 +246,50 @@
     <!-- ============================================================ -->
     <!-- E — 内部错误诊断 -->
     <!-- ============================================================ -->
+    <!-- ========== 新增诊断 (E001-E101) ========== -->
 
-    <data name="E_RequestCancellation" xml:space="preserve">
-        <value>生成器收到取消请求: {0}</value>
+    <data name="E_GeneratorInitializationFailed" xml:space="preserve">
+        <value>源生成器初始化失败: {0}</value>
     </data>
 
-    <data name="E_GeneratorInternalError" xml:space="preserve">
-        <value>源生成器内部错误: {0}</value>
+    <data name="E_ClassAnalysisFailed" xml:space="preserve">
+        <value>分析类 '{0}' 失败: {1}</value>
     </data>
 
-    <data name="E_UnknownTypeRole" xml:space="preserve">
-        <value>未知的 DI 类型角色</value>
+    <data name="E_SymbolCacheUnavailable" xml:space="preserve">
+        <value>类 '{0}' 的符号缓存不可用。代码生成可能不完整</value>
     </data>
 
-    <data name="E_ScopeLosesAttributeUnexpectedly" xml:space="preserve">
-        <value>Scope '{0}' 意外丢失 [Modules] 或 [AutoModules]</value>
+    <data name="E_ClassValidationFailed" xml:space="preserve">
+        <value>验证类 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_GraphBuildFailed" xml:space="preserve">
+        <value>构建依赖图失败: {0}</value>
+    </data>
+
+    <data name="E_GraphBuildPhaseFailed" xml:space="preserve">
+        <value>依赖图构建阶段 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_ServiceProviderRegistrationFailed" xml:space="preserve">
+        <value>为 '{0}' 注册服务提供者失败: {1}</value>
+    </data>
+
+    <data name="E_NodeBuildFailed" xml:space="preserve">
+        <value>为 '{1}' 构建 {0} 节点失败: {2}</value>
+    </data>
+
+    <data name="E_GraphValidationFailed" xml:space="preserve">
+        <value>依赖图验证在阶段 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_CodeGenerationFailed" xml:space="preserve">
+        <value>为 {0} '{1}' 生成代码失败: {2}</value>
+    </data>
+
+    <data name="E_SourceOutputFailed" xml:space="preserve">
+        <value>输出生成的源代码失败: {0}</value>
     </data>
 
     <!-- ============================================================ -->

@@ -330,38 +330,101 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Internal error in source generator: {0}.
+        ///   Looks up a localized string similar to Failed to analyze class &apos;{0}&apos;: {1}.
         /// </summary>
-        internal static string E_GeneratorInternalError {
+        internal static string E_ClassAnalysisFailed {
             get {
-                return ResourceManager.GetString("E_GeneratorInternalError", resourceCulture);
+                return ResourceManager.GetString("E_ClassAnalysisFailed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Generator receives cancellation request: {0}.
+        ///   Looks up a localized string similar to Failed to validate class &apos;{0}&apos;: {1}.
         /// </summary>
-        internal static string E_RequestCancellation {
+        internal static string E_ClassValidationFailed {
             get {
-                return ResourceManager.GetString("E_RequestCancellation", resourceCulture);
+                return ResourceManager.GetString("E_ClassValidationFailed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Unexpectedly loses [Modules] or [AutoModules].
+        ///   Looks up a localized string similar to Failed to generate code for {0} &apos;{1}&apos;: {2}.
         /// </summary>
-        internal static string E_ScopeLosesAttributeUnexpectedly {
+        internal static string E_CodeGenerationFailed {
             get {
-                return ResourceManager.GetString("E_ScopeLosesAttributeUnexpectedly", resourceCulture);
+                return ResourceManager.GetString("E_CodeGenerationFailed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Unknown DI Type Role.
+        ///   Looks up a localized string similar to Source generator failed to initialize: {0}.
         /// </summary>
-        internal static string E_UnknownTypeRole {
+        internal static string E_GeneratorInitializationFailed {
             get {
-                return ResourceManager.GetString("E_UnknownTypeRole", resourceCulture);
+                return ResourceManager.GetString("E_GeneratorInitializationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to build dependency graph: {0}.
+        /// </summary>
+        internal static string E_GraphBuildFailed {
+            get {
+                return ResourceManager.GetString("E_GraphBuildFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed during graph build phase &apos;{0}&apos;: {1}.
+        /// </summary>
+        internal static string E_GraphBuildPhaseFailed {
+            get {
+                return ResourceManager.GetString("E_GraphBuildPhaseFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to validate dependency graph at phase &apos;{0}&apos;: {1}.
+        /// </summary>
+        internal static string E_GraphValidationFailed {
+            get {
+                return ResourceManager.GetString("E_GraphValidationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to build {0} node for &apos;{1}&apos;: {2}.
+        /// </summary>
+        internal static string E_NodeBuildFailed {
+            get {
+                return ResourceManager.GetString("E_NodeBuildFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to register service provider for &apos;{0}&apos;: {1}.
+        /// </summary>
+        internal static string E_ServiceProviderRegistrationFailed {
+            get {
+                return ResourceManager.GetString("E_ServiceProviderRegistrationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to output generated source code: {0}.
+        /// </summary>
+        internal static string E_SourceOutputFailed {
+            get {
+                return ResourceManager.GetString("E_SourceOutputFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Symbol cache unavailable for class &apos;{0}&apos;. Code generation may be incomplete.
+        /// </summary>
+        internal static string E_SymbolCacheUnavailable {
+            get {
+                return ResourceManager.GetString("E_SymbolCacheUnavailable", resourceCulture);
             }
         }
         

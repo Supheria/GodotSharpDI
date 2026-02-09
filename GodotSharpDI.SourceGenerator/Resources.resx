@@ -250,21 +250,48 @@
     <!-- ============================================================ -->
     <!-- E — Internal Error Diagnostics -->
     <!-- ============================================================ -->
-
-    <data name="E_RequestCancellation" xml:space="preserve">
-        <value>Generator receives cancellation request: {0}</value>
+    <data name="E_GeneratorInitializationFailed" xml:space="preserve">
+        <value>Source generator failed to initialize: {0}</value>
     </data>
 
-    <data name="E_GeneratorInternalError" xml:space="preserve">
-        <value>Internal error in source generator: {0}</value>
+    <data name="E_ClassAnalysisFailed" xml:space="preserve">
+        <value>Failed to analyze class '{0}': {1}</value>
     </data>
 
-    <data name="E_UnknownTypeRole" xml:space="preserve">
-        <value>Unknown DI Type Role</value>
+    <data name="E_SymbolCacheUnavailable" xml:space="preserve">
+        <value>Symbol cache unavailable for class '{0}'. Code generation may be incomplete</value>
     </data>
 
-    <data name="E_ScopeLosesAttributeUnexpectedly" xml:space="preserve">
-        <value>Scope '{0}' Unexpectedly loses [Modules] or [AutoModules]</value>
+    <data name="E_ClassValidationFailed" xml:space="preserve">
+        <value>Failed to validate class '{0}': {1}</value>
+    </data>
+
+    <data name="E_GraphBuildFailed" xml:space="preserve">
+        <value>Failed to build dependency graph: {0}</value>
+    </data>
+
+    <data name="E_GraphBuildPhaseFailed" xml:space="preserve">
+        <value>Failed during graph build phase '{0}': {1}</value>
+    </data>
+
+    <data name="E_ServiceProviderRegistrationFailed" xml:space="preserve">
+        <value>Failed to register service provider for '{0}': {1}</value>
+    </data>
+
+    <data name="E_NodeBuildFailed" xml:space="preserve">
+        <value>Failed to build {0} node for '{1}': {2}</value>
+    </data>
+
+    <data name="E_GraphValidationFailed" xml:space="preserve">
+        <value>Failed to validate dependency graph at phase '{0}': {1}</value>
+    </data>
+
+    <data name="E_CodeGenerationFailed" xml:space="preserve">
+        <value>Failed to generate code for {0} '{1}': {2}</value>
+    </data>
+
+    <data name="E_SourceOutputFailed" xml:space="preserve">
+        <value>Failed to output generated source code: {0}</value>
     </data>
 
     <!-- ============================================================ -->

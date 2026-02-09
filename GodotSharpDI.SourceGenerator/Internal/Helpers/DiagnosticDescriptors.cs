@@ -454,24 +454,65 @@ internal static class DiagnosticDescriptors
     // E — InternalError
     // ============================================================
 
-    public static readonly DiagnosticDescriptor RequestCancellation = InternalError(
-        "900",
-        Resources.E_RequestCancellation
+    public static readonly DiagnosticDescriptor GeneratorInitializationFailed = InternalError(
+        "001",
+        Resources.E_GeneratorInitializationFailed
     );
 
-    public static readonly DiagnosticDescriptor GeneratorInternalError = InternalError(
-        "910",
-        Resources.E_GeneratorInternalError
+    public static readonly DiagnosticDescriptor ClassAnalysisFailed = InternalError(
+        "010",
+        Resources.E_ClassAnalysisFailed,
+        DiagnosticSeverity.Warning
     );
 
-    public static readonly DiagnosticDescriptor UnknownTypeRole = InternalError(
-        "920",
-        Resources.E_UnknownTypeRole
+    public static readonly DiagnosticDescriptor SymbolCacheUnavailable = InternalError(
+        "011",
+        Resources.E_SymbolCacheUnavailable,
+        DiagnosticSeverity.Warning
     );
 
-    public static readonly DiagnosticDescriptor ScopeLosesAttributeUnexpectedly = InternalError(
-        "930",
-        Resources.E_ScopeLosesAttributeUnexpectedly
+    public static readonly DiagnosticDescriptor ClassValidationFailed = InternalError(
+        "012",
+        Resources.E_ClassValidationFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor GraphBuildFailed = InternalError(
+        "020",
+        Resources.E_GraphBuildFailed
+    );
+
+    public static readonly DiagnosticDescriptor GraphBuildPhaseFailed = InternalError(
+        "021",
+        Resources.E_GraphBuildPhaseFailed
+    );
+
+    public static readonly DiagnosticDescriptor ServiceProviderRegistrationFailed = InternalError(
+        "030",
+        Resources.E_ServiceProviderRegistrationFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor NodeBuildFailed = InternalError(
+        "040",
+        Resources.E_NodeBuildFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor GraphValidationFailed = InternalError(
+        "050",
+        Resources.E_GraphValidationFailed,
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor CodeGenerationFailed = InternalError(
+        "100",
+        Resources.E_CodeGenerationFailed
+    );
+
+    public static readonly DiagnosticDescriptor SourceOutputFailed = InternalError(
+        "101",
+        Resources.E_SourceOutputFailed
     );
 
     // ============================================================

@@ -20,7 +20,7 @@ public sealed partial class GameManager : Node, IGameState
         get
         {
             GD.Print("GameManager self provided");
-            throw new Exception();
+            // throw new Exception();
             return this;
         }
     }

@@ -256,9 +256,9 @@ using GodotSharpDI.Abstractions;
 namespace Test
 {
     [Singleton]
-    public partial class MyService : IServicesReady
+    public partial class MyService : IDependenciesResolved
     {
-        public void OnServicesReady() { }
+        public void OnServicesReady(string isAllDependencyResolved) { }
     }
 }
 ";
