@@ -52,6 +52,7 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Using Service Factories](#using-service-factories)
 - [Diagnostic Codes](#diagnostic-codes)
 - [License](#license)
+- [Appendix: _Notification method explicitly definition requirement](#Appendix:-_Notification method-explicitly-definition-requirement)
 - [Todo List](#todo-list)
 
 ---
@@ -72,65 +73,6 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 <PackageReference Include="GodotSharpDI" Version="x.x.x" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
-
-
-⚠️ **Important: _Notification method explicitly definition requirement**
-
-> **Starting from version 1.0.0-rc.1**, all Host, User, and Scope types **must** explicitly define the `_Notification` method in C# script file attached to the node:
->
-> ```csharp
-> public override partial void _Notification(int what);
-> ```
->
-> ### Why is this required?
->
-> - When you attach a C# script to a node in Godot, the engine creates a binding between the node and that specific script file
-> - Godot's script binding mechanism scans only the attached script file for virtual method overrides
-> - Source-generated files (*.g.cs) are compiled into the same class via `partial`, but Godot doesn't scan these files for lifecycle methods
-> - Therefore, lifecycle hooks like `_Notification` must be declared in the user's source file as a `partial` method
->
-> ### IDE Support
->
-> IDE (Visual Studio, Rider) will provide automatic fixes:
->
-> 1. If you forget to add this method, you'll see a **GDI_C080** error
-> 2. Press `Ctrl+.` (VS) or `Alt+Enter` (Rider) on the error
-> 3. Select "Add _Notification method declaration" to auto-generate the correct declaration
->
-> ### Example:
->
-> ```csharp
-> // Your source file: GameManager.cs (attached to node)
-> [Host]
-> public partial class GameManager : Node
-> {
->     // Required: Godot needs to see this declaration
->     public override partial void _Notification(int what);
->     
->     [Singleton(typeof(IGameState))]
->     private IGameState Self => this;
-> }
-> 
-> // Generated file: GameManager.DI.g.cs (not scanned by Godot)
-> partial class GameManager
-> {
->     // Framework provides the implementation
->     public override partial void _Notification(int what)
->     {
->         base._Notification(what);
->         switch ((long)what)
->         {
->             case NotificationEnterTree:
->                 AttachToScope();
->                 break;
->             case NotificationExitTree:
->                 UnattachToScope();
->                 break;
->         }
->     }
-> }
-> ```
->
 
 ---
 
@@ -222,15 +164,22 @@ public partial class GameManager : Node, IGameState
 
 ```csharp
 [User]
-public partial class PlayerUI : Control, IServicesReady
+public partial class PlayerUI : Control, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
     [Inject] private IGameState _gameState;
     
-    // Called after all dependencies are injected
-    public void OnServicesReady()
+    // Called after all dependencies are resolved
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        UpdateUI();
+        if (isAllDependenciesReady)
+        {
+            UpdateUI();
+        }
+        else
+        {
+            GD.Print("Some dependencies failed to inject");
+        }
     }
     
     // Required for Godot lifecycle integration
@@ -452,15 +401,18 @@ User is the dependency consumer, receiving service dependencies through field or
 
 ```csharp
 [User]
-public partial class PlayerController : CharacterBody3D, IServicesReady
+public partial class PlayerController : CharacterBody3D, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
     [Inject] private ICombatSystem _combat;
     
-    // Automatically called when all dependencies are injected
-    public void OnServicesReady()
+    // Automatically called when all dependencies are resolved
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        GD.Print("All services are ready, can start game logic");
+        if (isAllDependenciesReady)
+        {
+            GD.Print("All services are ready, can start game logic");
+        }
     }
     
     // Required for Godot lifecycle integration
@@ -471,43 +423,108 @@ public partial class PlayerController : CharacterBody3D, IServicesReady
 > Users automatically trigger injection when entering the scene tree, no manual operation required.
 >
 
-#### IServicesReady Interface
+#### IDependenciesResolved Interface
 
-User types can implement the `IServicesReady` interface, `OnServicesReady()` is called immediately after all `[Inject]` members are resolved.
+User types can implement the `IDependenciesResolved` interface, `OnDependenciesResolved(bool isAllDependenciesReady)` is called immediately after all `[Inject]` members are resolved.
 
 ```csharp
-public interface IServicesReady
+public interface IDependenciesResolved
 {
-    void OnServicesReady();
+    void OnDependenciesResolved(bool isAllDependenciesReady);
 }
 ```
 
-> ⚠️ **`OnServicesReady()` is always called after `_Ready()`**, because User starts dependency resolution at NotificationReady.
+**Parameter**:
+- `isAllDependenciesReady`: If `true`, all dependencies were successfully injected; if `false`, at least one dependency injection failed.
+
+> ⚠️ **`OnDependenciesResolved()` is always called after `_Ready()`**, because User starts dependency resolution at `NotificationReady`.
 
 **Example**:
 
 ```csharp
 [User]
-public partial class UIManager : Control, IServicesReady
+public partial class UIManager : Control, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
     [Inject] private IGameState _gameState;
     
-    public void OnServicesReady()
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        // All dependencies are ready, can safely access them
-        _stats.OnHealthChanged += UpdateHealthBar;
-        _gameState.OnStateChanged += UpdateGameState;
-        
-        // Initial UI update
-        UpdateHealthBar(_stats.Health);
-        UpdateGameState(_gameState.CurrentState);
+        if (isAllDependenciesReady)
+        {
+            // All dependencies are ready, can safely access them
+            _stats.OnHealthChanged += UpdateHealthBar;
+            _gameState.OnStateChanged += UpdateGameState;
+            
+            // Initial UI update
+            UpdateHealthBar(_stats.Health);
+            UpdateGameState(_gameState.CurrentState);
+        }
+        else
+        {
+            GD.PrintErr("Some dependencies failed to inject, please check service configuration");
+        }
     }
     
     // Required for Godot lifecycle integration
     public override partial void _Notification(int what);
 }
 ```
+
+#### Injection Failure Callbacks
+
+Starting from **v1.0.0-rc.3**, you can set failure callbacks for individual inject members to handle injection failures more granularly.
+
+**Usage**:
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IDependenciesResolved
+{
+    // Normal injection
+    [Inject]
+    private IPlayerStats PlayerStats { get; set; }
+    
+    // Injection with failure callback enabled
+    [Inject(FailureCallback = true)]
+    private IGameManager GameManager { get; set; }
+    
+    // Called after all dependencies are resolved
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("All dependencies injected successfully");
+        }
+        else
+        {
+            GD.Print("Some dependencies failed to inject");
+        }
+    }
+    
+    // Generated failure callback for GameManager (partial method)
+    partial void OnGameManagerInjectionFailed(string error)
+    {
+        GD.PrintErr($"GameManager injection failed: {error}");
+        // You can implement fallback logic here or show error UI
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+**Attribute Property**:
+- `FailureCallback`: When set to `true`, generates an `OnXxxInjectionFailed(string error)` failure callback method for this member.
+
+**Generated Code**:
+
+For each member marked with `[Inject(FailureCallback = true)]`, the source generator will:
+1. Generate an `IsXxxInjectionReady` boolean field to check if the dependency was successfully injected
+2. Generate a `partial void OnXxxInjectionFailed(string error)` method declaration that you need to implement in your user code
+
+⚠️ **`IsXxxInjectionReady` could be true only after `_Ready()`**, because User starts dependency resolution at `NotificationReady`.
+
+⚠️ **`OnXxxInjectionFailed(string error)` is always called after `_Ready()` and before `OnDependenciesResolved()`**.
 
 ---
 
@@ -694,7 +711,7 @@ scope.ResolveDependency<T>(callback) ← For each [Inject] member
  ↓
 Wait for service ready or immediate callback
  ↓
-OnServicesReady() ← All dependencies injected (if implements IServicesReady)
+OnDependenciesResolved(isAllDependenciesReady) ← All dependencies resolved (if implements IDependenciesResolved)
 ```
 
 #### Host Service Registration Timeline
@@ -731,7 +748,7 @@ In GodotSharpDI, a type can be marked as both `[Host, User]`, meaning it both pr
 - Immediately initiates dependency resolution for all `[Inject]` members
 - If a service is not yet registered, joins the waiting queue
 - Gets injected via callback when the service is registered or when Scope is Ready
-- Triggers `OnServicesReady()` after all dependencies are injected
+- Triggers `OnDependenciesResolved(isAllDependenciesReady)` after all dependencies are resolved
 
 **Conclusion**
 
@@ -1053,7 +1070,10 @@ Marks a field or property for dependency injection.
 namespace GodotSharpDI.Abstractions;
 
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-public class InjectAttribute : Attribute { }
+public class InjectAttribute : Attribute 
+{
+    public bool FailureCallback { get; set; }
+}
 ```
 
 **Usage Rules**:
@@ -1061,6 +1081,18 @@ public class InjectAttribute : Attribute { }
 - Can only be used on User or Host+User types
 - Member must be writable (field non-readonly, property must have setter)
 - Cannot be static
+
+**Properties**:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `FailureCallback` | bool | false | When enabled, generates a failure callback method `OnXxxInjectionFailed(string error)` for this member |
+
+**Generated Members** (v1.0.0-rc.3+):
+
+For each `[Inject]` member, the source generator generates:
+- `IsXxxInjectionReady`: Boolean field indicating whether the dependency was successfully injected
+- `OnXxxInjectionFailed(string error)`: Failure callback method (only generated when `FailureCallback = true`)
 
 #### [InjectConstructor]
 
@@ -1128,16 +1160,16 @@ public interface IScope
 
 > ⚠️ **Important**: These methods are managed by the framework and should not be called manually. Framework generates appropriate calls in User, Host, and Service code.
 
-#### IServicesReady
+#### IDependenciesResolved
 
-Notification interface for when all dependencies are ready.
+Notification interface for when all dependencies are resolved.
 
 ```csharp
 namespace GodotSharpDI.Abstractions;
 
-public interface IServicesReady
+public interface IDependenciesResolved
 {
-    void OnServicesReady();
+    void OnDependenciesResolved(bool isAllDependenciesReady);
 }
 ```
 
@@ -1146,6 +1178,9 @@ public interface IServicesReady
 - Can only be implemented by User or Host+User types
 - Called immediately after all [Inject] members are resolved
 - Suitable for initialization logic that depends on injected services
+- The `isAllDependenciesReady` parameter indicates whether all dependencies were successfully injected
+
+> **Note**: Starting from v1.0.0-rc.3, `IServicesReady` has been renamed to `IDependenciesResolved` with an updated method signature.
 
 ---
 
@@ -1241,7 +1276,7 @@ void IScope.ResolveDependency<T>(Action<T> onResolved);
    └→ Provide Host Service ⭐
 2. User Ready
    └→ Resolve dependencies ⭐
-   └→ OnServicesReady() ⭐
+   └→ OnDependenciesResolved(isAllDependenciesReady) ⭐
 3. Scope Ready
    └→ Create all Scope Services ⭐
    └→ Check if waiting queue is empty ⭐
@@ -1434,7 +1469,7 @@ A Node can be both Host and User simultaneously:
 
 ```csharp
 [Host, User]
-public partial class GameManager : Node, IGameState, IServicesReady
+public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
     // Host part: expose service
     [Singleton(typeof(IGameState))]
@@ -1444,10 +1479,13 @@ public partial class GameManager : Node, IGameState, IServicesReady
     [Inject] private IConfig _config;
     [Inject] private ISaveSystem _saveSystem;
     
-    public void OnServicesReady()
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        // Dependencies are ready, can initialize
-        LoadLastSave();
+        if (isAllDependenciesReady)
+        {
+            // Dependencies are ready, can initialize
+            LoadLastSave();
+        }
     }
     
     // Required for Godot lifecycle integration
@@ -1649,6 +1687,63 @@ The framework provides comprehensive compile-time error checking. For a complete
 ## License
 
 MIT License
+
+## Appendix: _Notification method explicitly definition requirement
+
+**Starting from version 1.0.0-rc.1**, all Host, User, and Scope types **must** explicitly define the `_Notification` method in C# script file attached to the node:
+
+```csharp
+public override partial void _Notification(int what);
+```
+
+### Why is this required?
+
+- When you attach a C# script to a node in Godot, the engine creates a binding between the node and that specific script file
+- Godot's script binding mechanism scans only the attached script file for virtual method overrides
+- Source-generated files (*.g.cs) are compiled into the same class via `partial`, but Godot doesn't scan these files for lifecycle methods
+- Therefore, lifecycle hooks like `_Notification` must be declared in the user's source file as a `partial` method
+
+### IDE Support
+
+IDE (Visual Studio, Rider) will provide automatic fixes:
+
+1. If you forget to add this method, you'll see a **GDI_C080** error
+2. Press `Ctrl+.` (VS) or `Alt+Enter` (Rider) on the error
+3. Select "Add _Notification method declaration" to auto-generate the correct declaration
+
+### Example:
+
+```csharp
+// Your source file: GameManager.cs (attached to node)
+[Host]
+public partial class GameManager : Node
+{
+    // Required: Godot needs to see this declaration
+    public override partial void _Notification(int what);
+
+    [Singleton(typeof(IGameState))]
+    private IGameState Self => this;
+}
+
+// Generated file: GameManager.DI.g.cs (not scanned by Godot)
+partial class GameManager
+{
+    // Framework provides the implementation
+    public override partial void _Notification(int what)
+    {
+        base._Notification(what);
+        switch ((long)what)
+        {
+            case NotificationEnterTree:
+                AttachToScope();
+                break;
+            case NotificationExitTree:
+                UnattachToScope();
+                break;
+        }
+    }
+}
+```
 
 ## Todo List
 
