@@ -708,20 +708,20 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Member &apos;{0}&apos; is marked with [Inject(FailureCallback = true)] but the required callback method &apos;{1}&apos; is not implemented. Please implement this partial method to handle injection failures.
-        /// </summary>
-        internal static string U_MissingInjectionFailureCallbackImplementation {
-            get {
-                return ResourceManager.GetString("U_MissingInjectionFailureCallbackImplementation", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Do not manually set injection ready field &apos;{0}&apos; on &apos;{1}&apos;. This field is managed by the DI framework and will be set automatically when the dependency is successfully injected.
         /// </summary>
         internal static string U_ManualSetInjectionReadyField {
             get {
                 return ResourceManager.GetString("U_ManualSetInjectionReadyField", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Member &apos;{0}&apos; is marked with [Inject(FailureCallback = true)] but the required callback method &apos;{1}&apos; is not implemented. Please implement this partial method to handle injection failures.
+        /// </summary>
+        internal static string U_MissingInjectionFailureCallbackImplementation {
+            get {
+                return ResourceManager.GetString("U_MissingInjectionFailureCallbackImplementation", resourceCulture);
             }
         }
     }
