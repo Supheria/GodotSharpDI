@@ -1781,5 +1781,5 @@ partial class GameManager
 
 ### 4. 诊断
 
-- [ ] 诊断生成器内部错误（GDI_E）
+- [x] 诊断生成器内部错误（GDI_E）
 

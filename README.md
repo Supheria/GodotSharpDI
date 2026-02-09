@@ -1764,4 +1764,4 @@ partial class GameManager
 
 ### 4. Diagnostics
 
-- [ ] Diagnose generator internal errors (GDI_E)
+- [x] Diagnose generator internal errors (GDI_E)

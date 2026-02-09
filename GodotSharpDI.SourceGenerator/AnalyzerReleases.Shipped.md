@@ -83,12 +83,20 @@
 
 ### Internal Error Diagnostics (E_)
 
-| Rule ID  | Category      | Severity | Notes                                      |
-|----------|---------------|----------|--------------------------------------------|
-| GDI_E900 | GDI.Generator | Error    | Generator cancellation requested           |
-| GDI_E910 | GDI.Generator | Error    | Internal generator error                   |
-| GDI_E920 | GDI.Generator | Error    | Unknown DI type role                       |
-| GDI_E930 | GDI.Generator | Error    | Scope unexpectedly loses Modules attribute |
+| Rule ID  | Category      | Severity | Notes                                  |
+|----------|---------------|----------|----------------------------------------|
+| GDI_E001 | GDI.Generator | Error    | Source generator initialization failed |
+| GDI_E010 | GDI.Generator | Warning  | Class analysis failed                  |
+| GDI_E011 | GDI.Generator | Warning  | Symbol cache unavailable for class     |
+| GDI_E012 | GDI.Generator | Warning  | Class validation failed                |
+| GDI_E020 | GDI.Generator | Error    | Dependency graph build failed          |
+| GDI_E021 | GDI.Generator | Error    | Graph build phase failed               |
+| GDI_E030 | GDI.Generator | Warning  | Service provider registration failed   |
+| GDI_E040 | GDI.Generator | Warning  | Node build failed                      |
+| GDI_E050 | GDI.Generator | Warning  | Dependency graph validation failed     |
+| GDI_E100 | GDI.Generator | Error    | Code generation failed                 |
+| GDI_E101 | GDI.Generator | Error    | Source output failed                   |
+
 
 ### User Behavior Diagnostics (U_)
 

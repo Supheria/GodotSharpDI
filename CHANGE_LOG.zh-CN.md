@@ -257,71 +257,120 @@
 > - 更清晰的文件组织结构
 >
 > ---
+>>
+> ## 内部错误处理与健壮性
 >
+> ### 🛡️ 全面的异常处理
+>
+> **RC.3 新增**：源生成器、分析器和代码修复提供器现在具有健壮的异常处理机制以确保稳定性。
+>
+> **改进内容**：
+>
+> #### 源生成器
+> - **分层异常处理**：代码生成的每个阶段都有独立的错误处理
+> - **详细诊断**：新增内部错误诊断（GDI_E001-E101）提供清晰的错误消息
+> - **优雅降级**：一个类的失败不会阻止其他类的生成
+> - **用户友好消息**：错误信息解释了失败原因和修复方法
+>
+> **新增错误代码**：
+> - `GDI_E001`: 生成器初始化失败
+> - `GDI_E010`: 类分析失败
+> - `GDI_E011`: 符号缓存不可用
+> - `GDI_E012`: 类验证失败
+> - `GDI_E020`: 依赖图构建失败
+> - `GDI_E021`: 图构建阶段失败
+> - `GDI_E030`: 服务提供者注册失败
+> - `GDI_E040`: 节点构建失败
+> - `GDI_E050`: 依赖图验证失败
+> - `GDI_E100`: 代码生成失败
+> - `GDI_E101`: 源码输出失败
+>
+> #### 分析器
+> - **静默失败**：分析器异常不再导致编译崩溃
+> - **受保护的分析**：每个语法节点都独立分析并带有异常保护
+> - **取消支持**：正确处理 `OperationCanceledException`
+> - **保守策略**：如有疑问，跳过报告而非崩溃
+>
+> **受影响的分析器**：
+> - `GeneratedMemberAccessAnalyzer`: 检测对生成成员的手动访问
+> - `InjectionFailureCallbackAnalyzer`: 检测缺失的失败回调实现
+>
+> #### 代码修复提供器
+> - **稳定的 IDE 体验**：代码修复失败不再导致快速修复菜单崩溃
+> - **后备机制**：当复杂生成失败时使用简化的代码生成
+> - **安全解析**：字符串提取和方法生成受边缘情况保护
+> - **返回原文档**：修复失败时返回未修改的原始文档
+>
+> **受影响的提供器**：
+> - `NotificationMethodCodeFixProvider`: 添加缺失的 `_Notification` 方法
+> - `InjectionFailureCallbackCodeFixProvider`: 实现缺失的失败回调
+>
+> ---
+> 
 > ## 迁移指南
->
+> 
 > ### 必须修改的内容
 >
 > 1. **更新接口实现**：
->
+> 
 > ``` csharp
-> // 将此代码
+>// 将此代码
 > public partial class MyClass : Node, IServicesReady
 > {
 >     public void OnServicesReady() { }
 > }
 > 
-> // 替换为
+>// 替换为
 > public partial class MyClass : Node, IDependenciesResolved
-> {
+>{
 >     public void OnDependenciesResolved(bool isAllDependenciesReady)
->     {
+>    {
 >         if (isAllDependenciesReady)
->         {
+>        {
 >             // 初始化逻辑
 >         }
 >     }
 > }
 > ```
->
+> 
 > 2. **检查泛型类型**：
->  - 移除所有 Service、Host、User、Scope 类上的泛型参数
+> - 移除所有 Service、Host、User、Scope 类上的泛型参数
 >  - 如有需要，创建具体包装类
->
+> 
 > 3. **可选：添加失败回调**：
->
+> 
 >   ```csharp
-> [Inject(FailureCallback = true)]
+>[Inject(FailureCallback = true)]
 > private IOptionalService Service { get; set; }
 > 
 > partial void OnServiceInjectionFailed(string error)
-> {
+>{
 >     // 处理失败
-> }
+>}
 >   ```
 >
 > ---
->
+> 
 > ## 总结
->
+> 
 > v1.0.0-rc.3 带来了显著的错误处理与诊断增强：
->
+> 
 > ✅ **新功能**：
->
+> 
 > - 注入失败回调，提供更细粒度的错误处理
 > - 注入就绪指示器，支持运行时检查依赖状态
 > - 完整依赖链展示，诊断更清晰
->
+> 
 > ⚠️ **破坏性变更**：
->
+> 
 > - `IServicesReady` → `IDependenciesResolved`
 > - DI 角色不再允许泛型类型
->
+> 
 > 🚀 **性能优化**：
->
-> - 静态服务工厂集合
+> 
+>- 静态服务工厂集合
 > - 循环依赖检测仅在 DEBUG 中运行
->
+> 
 > 
 >
 > 在进一步完善并修整项目整体的代码后，下个版本就是 1.0 正式版！🎉
