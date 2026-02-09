@@ -20,3 +20,10 @@ public partial class PlayerStatsService : IPlayerStats
         throw new Exception();
     }
 }
+
+[Singleton(typeof(IPlayerStats))]
+public partial class PlayerStatsService2 : IPlayerStats
+{
+    public int Health { get; set; } = 100;
+    public int Mana { get; set; } = 50;
+}

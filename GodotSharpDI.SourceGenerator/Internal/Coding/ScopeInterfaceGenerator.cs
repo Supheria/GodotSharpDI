@@ -64,9 +64,20 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
                 f.AppendLine();
 
-                f.AppendLine(
-                    "var sb = CreateErrorMessageBuilder($\"无法提供服务\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型：{implType.Name}\", $\"{implType.Name}\", \"N/A\", \"N/A\", \"N/A\");"
-                );
+                f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                f.BeginLevel();
+                {
+                    f.AppendLine("title: \"无法提供服务\",");
+                    f.AppendLine(
+                        "reason: $\"直到场景树的根节点都没有 Scope 包含服务的实现类型：{implType.Name}\","
+                    );
+                    f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                    f.AppendLine("requestorType: \"N/A\",");
+                    f.AppendLine("scopeChain: \"N/A\",");
+                    f.AppendLine("dependencyChain: \"N/A\"");
+                }
+                f.EndLevel();
+                f.AppendLine(");");
                 f.PushError("sb.ToString()");
                 f.AppendLine();
 
@@ -144,9 +155,18 @@ internal static class ScopeInterfaceGenerator
                     f.BeginBlock();
                     {
                         f.AppendLine("// 失败场景：通知等待者服务提供失败");
-                        f.AppendLine(
-                            "var sb = CreateErrorMessageBuilder(\"服务提供失败\", $\"{errorMessage}\", $\"{implType.Name}\", $\"{waiter.RequestorType}\", $\"{waiter.ScopeChain}\", $\"{waiter.DependencyChain}\");"
-                        );
+                        f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                        f.BeginLevel();
+                        {
+                            f.AppendLine("title: \"服务提供失败\",");
+                            f.AppendLine("reason: $\"{errorMessage}\",");
+                            f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                            f.AppendLine("requestorType: $\"{waiter.RequestorType}\",");
+                            f.AppendLine("scopeChain: $\"{waiter.ScopeChain}\",");
+                            f.AppendLine("dependencyChain: $\"{waiter.DependencyChain}\"");
+                        }
+                        f.EndLevel();
+                        f.AppendLine(");");
                         f.PushError("sb.ToString()");
                     }
                     f.EndBlock();
@@ -160,9 +180,18 @@ internal static class ScopeInterfaceGenerator
                         }
                         f.CatchBlock("ex");
                         {
-                            f.AppendLine(
-                                "var sb = CreateErrorMessageBuilder(\"执行依赖注入回调时出现了异常\", $\"{ex.Message}\", $\"{implType.Name}\", $\"{waiter.RequestorType}\", $\"{waiter.ScopeChain}\", $\"{waiter.DependencyChain}\");"
-                            );
+                            f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                            f.BeginLevel();
+                            {
+                                f.AppendLine("title: \"执行依赖注入回调时出现了异常\",");
+                                f.AppendLine("reason: $\"{ex.Message}\",");
+                                f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                                f.AppendLine("requestorType: $\"{waiter.RequestorType}\",");
+                                f.AppendLine("scopeChain: $\"{waiter.ScopeChain}\",");
+                                f.AppendLine("dependencyChain: $\"{waiter.DependencyChain}\"");
+                            }
+                            f.EndLevel();
+                            f.AppendLine(");");
                             f.PushError("sb.ToString()");
                         }
                         f.EndTryCatch();
@@ -223,9 +252,18 @@ internal static class ScopeInterfaceGenerator
                 f.EndBlock();
                 f.AppendLine();
 
-                f.AppendLine(
-                    "var sb = CreateErrorMessageBuilder($\"无法找到服务 {type.Name}\", $\"直到场景树的根节点都没有 Scope 包含服务的实现类型\", \"N/A\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
-                );
+                f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                f.BeginLevel();
+                {
+                    f.AppendLine("title: $\"无法找到服务 {type.Name}\",");
+                    f.AppendLine("reason: \"直到场景树的根节点都没有 Scope 包含服务的实现类型\",");
+                    f.AppendLine("serviceImplType: \"N/A\",");
+                    f.AppendLine("requestorType: requestorType,");
+                    f.AppendLine("scopeChain: currentScopeChain,");
+                    f.AppendLine("dependencyChain: currentDependencyChain");
+                }
+                f.EndLevel();
+                f.AppendLine(");");
                 f.PushError("sb.ToString()");
                 f.AppendLine("return;");
             }
@@ -247,9 +285,18 @@ internal static class ScopeInterfaceGenerator
                     }
                     f.CatchBlock("ex");
                     {
-                        f.AppendLine(
-                            "var sb = CreateErrorMessageBuilder(\"执行依赖注入回调时出现了异常\", $\"{ex.Message}\", $\"{implType.Name}\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
-                        );
+                        f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                        f.BeginLevel();
+                        {
+                            f.AppendLine("title: \"执行依赖注入回调时出现了异常\",");
+                            f.AppendLine("reason: $\"{ex.Message}\",");
+                            f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                            f.AppendLine("requestorType: requestorType,");
+                            f.AppendLine("scopeChain: currentScopeChain,");
+                            f.AppendLine("dependencyChain: currentDependencyChain");
+                        }
+                        f.EndLevel();
+                        f.AppendLine(");");
                         f.PushError("sb.ToString()");
                     }
                     f.EndTryCatch();
@@ -262,9 +309,18 @@ internal static class ScopeInterfaceGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine("// 报告之前的失败信息");
-                    f.AppendLine(
-                        "var sb = CreateErrorMessageBuilder($\"先前创建服务 {type.Name} 时失败\", $\"{cacheEntry.FailureReason}\", $\"{implType.Name}\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
-                    );
+                    f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                    f.BeginLevel();
+                    {
+                        f.AppendLine("title: $\"先前创建服务 {type.Name} 时失败\",");
+                        f.AppendLine("reason: $\"{cacheEntry.FailureReason}\",");
+                        f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                        f.AppendLine("requestorType: requestorType,");
+                        f.AppendLine("scopeChain: currentScopeChain,");
+                        f.AppendLine("dependencyChain: currentDependencyChain");
+                    }
+                    f.EndLevel();
+                    f.AppendLine(");");
                     f.AppendLine("sb.AppendLine(\"  服务创建时已有的依赖链条:\");");
                     f.AppendLine(
                         "for (var i = 0; i < cacheEntry.FailureDependencyChains.Count; i++)"
@@ -294,9 +350,22 @@ internal static class ScopeInterfaceGenerator
                         );
                         f.BeginBlock();
                         {
-                            f.AppendLine(
-                                "var sb = CreateErrorMessageBuilder($\"运行时检测到循环依赖（编译期应该已阻止）\", $\"这表明编译期分析可能有问题，请报告此bug\", $\"{implType.Name}\", $\"{requestorType}\", $\"{currentScopeChain}\", $\"{currentDependencyChain}\");"
-                            );
+                            f.AppendLine("var sb = CreateErrorMessageBuilder(");
+                            f.BeginLevel();
+                            {
+                                f.AppendLine(
+                                    "title: \"[DEBUG] 运行时检测到循环依赖（编译期应该已阻止）\","
+                                );
+                                f.AppendLine(
+                                    "reason: \"这表明编译期分析可能有问题，请报告此bug\","
+                                );
+                                f.AppendLine("serviceImplType: $\"{implType.Name}\",");
+                                f.AppendLine("requestorType: requestorType,");
+                                f.AppendLine("scopeChain: currentScopeChain,");
+                                f.AppendLine("dependencyChain: currentDependencyChain");
+                            }
+                            f.EndLevel();
+                            f.AppendLine(");");
                             f.PushError("sb.ToString()");
                             f.AppendLine("break;");
                         }

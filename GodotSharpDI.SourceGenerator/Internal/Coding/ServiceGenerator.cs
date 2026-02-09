@@ -138,7 +138,6 @@ internal static class ServiceGenerator
                     }
                     f.EndBlock(",");
                     f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\",");
-                    f.AppendLine("scopeChain: null,");
                     f.AppendLine("dependencyChain: dependencyChain");
                 }
                 f.EndLevel();
