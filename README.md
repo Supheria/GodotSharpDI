@@ -1756,6 +1756,7 @@ partial class GameManager
 ### 2. Testing
 
 - [ ] Add runtime integration tests
+- [ ] Add generator, analyzer, code fixer integration tests
 
 ### 3. Features
 
