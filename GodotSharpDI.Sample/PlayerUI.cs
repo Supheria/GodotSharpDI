@@ -4,6 +4,17 @@ using GodotSharpDI.Abstractions;
 namespace GodotSharpDI.Sample;
 
 [User]
+public sealed partial class PlayerUI2 : Control, IDependenciesResolved
+{
+    public override partial void _Notification(int what);
+
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        throw new System.NotImplementedException();
+    }
+}
+
+[User]
 public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
     // [Inject]
@@ -39,7 +50,7 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
             GD.Print("PlayerUI updated after some dependencies failed");
         }
 
-        if (IsPlayerStatsInjectionReady)
+        if (IsAllDependenciesReady)
         {
             var a = _playerStats.Health;
         }

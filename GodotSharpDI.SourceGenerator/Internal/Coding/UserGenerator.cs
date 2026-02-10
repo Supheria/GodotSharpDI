@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Text;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
@@ -47,6 +48,9 @@ internal static class UserGenerator
                 f.AppendLine();
             }
 
+            GenerateIsAllDependenciesReadyProperty(f, injectMembers);
+            f.AppendLine();
+
             // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
             if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved && injectMembers.Length > 0)
             {
@@ -62,7 +66,10 @@ internal static class UserGenerator
         context.AddSource($"{fileName}.DI.User.g.cs", f.ToString());
     }
 
-    private static void GenerateInjectionReadyProperties(CodeFormatter f, MemberInfo[] injectMembers)
+    private static void GenerateInjectionReadyProperties(
+        CodeFormatter f,
+        MemberInfo[] injectMembers
+    )
     {
         // IsXxxInjectionReady
         foreach (var member in injectMembers)
@@ -72,25 +79,69 @@ internal static class UserGenerator
                 $"/// <summary>成员 {member.Symbol.Name} 是否成功注入依赖的标识符</summary>"
             );
             f.AppendLine($"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]");
-            f.AppendLine($"private bool {fieldName} {{ get; set; }} = false;");
+            f.AppendLine($"private {GlobalNames.Bool} {fieldName} {{ get; set; }} = false;");
+            f.AppendLine();
         }
     }
 
     private static void GenerateFailureCallbackDeclarations(
         CodeFormatter f,
-        MemberInfo[] membersWithCallback
+        MemberInfo[] injectMembers
     )
     {
         // OnXxxInjectionFailed
-        foreach (var member in membersWithCallback)
+        foreach (var member in injectMembers)
         {
             var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
             f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>");
             f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
+            f.AppendLine();
         }
     }
 
-    private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembersList)
+    private static void GenerateIsAllDependenciesReadyProperty(
+        CodeFormatter f,
+        MemberInfo[] injectMembers
+    )
+    {
+        if (injectMembers.Length == 0)
+        {
+            f.AppendLine($"private {GlobalNames.Bool} IsAllDependenciesReady => true;");
+            return;
+        }
+
+        var fAttribute = f.CreateFromCurrentLevel();
+        var fValue = f.CreateFromCurrentLevel();
+        fValue.BeginLevel();
+        {
+            for (int i = 0; i < injectMembers.Length; i++)
+            {
+                var member = injectMembers[i];
+                fAttribute.AppendLine(
+                    $"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]"
+                );
+                var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
+                if (i > 0)
+                {
+                    fValue.AppendLine();
+                    fValue.AppendRaw($"&& {fieldName} == true", true);
+                }
+                else
+                {
+                    fValue.AppendRaw($"{fieldName} == true", true);
+                }
+            }
+            fValue.AppendRaw(";");
+        }
+        fValue.EndLevel();
+        f.AppendLine("/// <summary>所有 Inject 成员是否都成功注入依赖的标识符</summary>");
+        f.AppendRaw(fAttribute.ToString());
+        f.AppendLine($"private {GlobalNames.Bool} IsAllDependenciesReady =>");
+        f.AppendRaw(fValue.ToString());
+        f.AppendLine();
+    }
+
+    private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembers)
     {
         // _unresolvedDependencies
         f.AppendHiddenMemberCommentAndAttribute();
@@ -99,7 +150,7 @@ internal static class UserGenerator
         );
         f.BeginBlock();
         {
-            foreach (var member in injectMembersList)
+            foreach (var member in injectMembers)
             {
                 f.AppendLine($"typeof({member.MemberType.ToFullyQualifiedName()}),");
             }
@@ -116,34 +167,8 @@ internal static class UserGenerator
             f.AppendLine("if (_unresolvedDependencies.Count == 0)");
             f.BeginBlock();
             {
-                f.AppendRaw("var isAllDependenciesReady = ", true);
-                if (injectMembersList.Length == 0)
-                {
-                    f.AppendRaw("true;");
-                }
-                else
-                {
-                    f.BeginLevel();
-                    {
-                        for (int i = 0; i < injectMembersList.Length; i++)
-                        {
-                            f.AppendLine();
-                            var fieldName = NamingHelper.GetInjectionReadyFieldName(
-                                injectMembersList[i].Symbol.Name
-                            );
-                            f.AppendRaw(
-                                i > 0 ? $"&& {fieldName} == true" : $"{fieldName} == true",
-                                true
-                            );
-                        }
-                        f.AppendRaw(";");
-                    }
-                    f.EndLevel();
-                }
-                f.AppendLine();
-
                 f.AppendLine(
-                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved(isAllDependenciesReady);"
+                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved(IsAllDependenciesReady);"
                 );
             }
             f.EndBlock();

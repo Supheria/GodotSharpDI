@@ -8,6 +8,11 @@ internal sealed class CodeFormatter
     private readonly StringBuilder _sb = new();
     private int _level;
 
+    public CodeFormatter CreateFromCurrentLevel()
+    {
+        return new CodeFormatter { _level = _level };
+    }
+
     private void Indent()
     {
         _sb.Append(' ', _level * 4);
