@@ -90,41 +90,6 @@ namespace Test
     }
 
     [Fact]
-    public void HostAndUserNodeMap_ContainsAllHostAndUserNodes()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-using Godot;
-
-namespace Test
-{
-    [Host, User]
-    public partial class HostAndUserA : Node { }
-
-    [Host, User]
-    public partial class HostAndUserB : Node { }
-}
-";
-        var graph = BuildGraph(source).Graph;
-
-        // Assert
-        Assert.NotNull(graph);
-        Assert.Equal(2, graph.HostAndUserNodes.Length);
-        Assert.Equal(2, graph.HostAndUserNodeMap.Count);
-
-        foreach (var node in graph.HostAndUserNodes)
-        {
-            Assert.True(
-                graph.HostAndUserNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mappedNode),
-                $"HostAndUserNodeMap should contain {node.ValidatedTypeInfo.Symbol.Name}"
-            );
-            Assert.Same(node, mappedNode);
-        }
-    }
-
-    [Fact]
     public void UserNodes_NotInSpecializedMaps()
     {
         // Arrange
@@ -150,7 +115,6 @@ namespace Test
         // User节点不应该在索引中
         Assert.False(graph.ServiceNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
         Assert.False(graph.HostNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
-        Assert.False(graph.HostAndUserNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
     }
 
     [Fact]
@@ -172,9 +136,6 @@ namespace Test
 
     [User]
     public partial class UserC : Node { }
-
-    [Host, User]
-    public partial class HostAndUserD : Node { }
 }
 ";
         var graph = BuildGraph(source).Graph;
@@ -183,10 +144,7 @@ namespace Test
         Assert.NotNull(graph);
 
         var totalNodes =
-            graph.ServiceNodes.Length
-            + graph.HostNodes.Length
-            + graph.UserNodes.Length
-            + graph.HostAndUserNodes.Length;
+            graph.ServiceNodes.Length + graph.HostNodes.Length + graph.UserNodes.Length;
 
         Assert.Equal(4, totalNodes);
     }

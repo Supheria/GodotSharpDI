@@ -39,7 +39,7 @@ internal static class ServiceProviderMapBuilder
             var map = new ServiceProviderMap();
             var conflictTracker = new ConflictTracker();
 
-            // 注册 Service 提供的服务
+            // 注册 Service 和 Provider 提供的服务
             RegisterServicesFromServices(services, symbols, map, conflictTracker, diagnostics);
 
             // 注册 Host 和 HostAndUser 提供的服务
@@ -64,7 +64,7 @@ internal static class ServiceProviderMapBuilder
     }
 
     /// <summary>
-    /// 从 Service 类型注册服务
+    /// 从 Service 和 Provider 类型注册服务
     /// </summary>
     private static void RegisterServicesFromServices(
         ImmutableArray<ValidatedTypeInfo> services,
@@ -78,16 +78,28 @@ internal static class ServiceProviderMapBuilder
         {
             try
             {
-                var exposedTypes = GetServiceExposedTypes(service, symbols);
-                foreach (var exposedType in exposedTypes)
+                // 判断是 Provider 还是 Service
+                bool isProvider = service.Role == TypeRole.Provider;
+
+                if (isProvider)
                 {
-                    AddProvider(
-                        exposedType,
-                        service,
-                        service.Symbol.ToDisplayString(),
-                        map,
-                        conflictTracker
-                    );
+                    // Provider: 从成员收集服务
+                    RegisterProviderServices(service, map, conflictTracker);
+                }
+                else
+                {
+                    // Service: 从类本身收集服务
+                    var exposedTypes = GetServiceExposedTypes(service, symbols);
+                    foreach (var exposedType in exposedTypes)
+                    {
+                        AddProvider(
+                            exposedType,
+                            service,
+                            service.Symbol.ToDisplayString(),
+                            map,
+                            conflictTracker
+                        );
+                    }
                 }
             }
             catch (Exception ex)
@@ -100,6 +112,29 @@ internal static class ServiceProviderMapBuilder
                         ex.Message
                     )
                 );
+            }
+        }
+    }
+
+    /// <summary>
+    /// 从 Provider 的成员注册服务
+    /// </summary>
+    private static void RegisterProviderServices(
+        ValidatedTypeInfo provider,
+        ServiceProviderMap map,
+        ConflictTracker conflictTracker
+    )
+    {
+        foreach (var member in provider.Members)
+        {
+            // Provider 的服务通过 Provides 或 Singleton 成员暴露
+            if (member.IsProvidesMember || member.IsSingletonMember)
+            {
+                foreach (var exposedType in member.ExposedTypes)
+                {
+                    var providerDesc = $"{provider.Symbol.ToDisplayString()}.{member.Symbol.Name}";
+                    AddProvider(exposedType, provider, providerDesc, map, conflictTracker);
+                }
             }
         }
     }
@@ -120,7 +155,7 @@ internal static class ServiceProviderMapBuilder
             {
                 foreach (var member in host.Members)
                 {
-                    if (member.IsSingletonMember)
+                    if (member.IsSingletonMember || member.IsProvidesMember)
                     {
                         foreach (var exposedType in member.ExposedTypes)
                         {

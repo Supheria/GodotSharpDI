@@ -11,9 +11,9 @@ internal sealed class CachedSymbols
     // 新增特性
     public INamedTypeSymbol? ProviderAttribute { get; }
     public INamedTypeSymbol? ProvidesAttribute { get; }
-    
+
     // 现有特性
-    public INamedTypeSymbol? SingletonAttribute { get; }
+    public INamedTypeSymbol? SingletonAttribute { get; } // TODO: Remove in rc.2
     public INamedTypeSymbol? HostAttribute { get; }
     public INamedTypeSymbol? UserAttribute { get; }
     public INamedTypeSymbol? InjectAttribute { get; }
@@ -29,7 +29,7 @@ internal sealed class CachedSymbols
         // 新增特性
         ProviderAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ProviderAttribute);
         ProvidesAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ProvidesAttribute);
-        
+
         // 现有特性
         SingletonAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.SingletonAttribute);
         HostAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.HostAttribute);
@@ -88,7 +88,7 @@ internal sealed class CachedSymbols
     {
         return type.HasAttribute(SingletonAttribute);
     }
-    
+
     public bool IsProviderType(ITypeSymbol type)
     {
         // 使用 SymbolExtensions 的 HasAttribute 方法

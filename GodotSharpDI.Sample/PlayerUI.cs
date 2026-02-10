@@ -17,20 +17,23 @@ public sealed partial class PlayerUI2 : Control, IDependenciesResolved
 [User]
 public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
-    [Inject]
-    private IPlayerStats<int> PlayerStats
-    {
-        set => GD.Print("PlayerUI inject Player Stats");
-    }
+    // [Inject]
+    // private IPlayerStats<int> PlayerStats
+    // {
+    //     set => GD.Print("PlayerUI inject Player Stats");
+    // }
 
     // [Inject]
     // private IPlayerStats<int>? _playerStats;
 
-    [Inject(FailureCallback = true)]
+    [Inject]
     private GameManager gameState
     {
         set => GD.Print("PlayerUI inject Game State");
     }
+
+    // [Inject]
+    // private IPlayerStats PlayerStats;
 
     public override void _Ready()
     {
@@ -58,8 +61,8 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
 
     public override partial void _Notification(int what);
 
-    partial void OnGameStateInjectionFailed(string error)
-    {
-        GD.Print("PlayerUI inject Game State Injection Failed");
-    }
+    // partial void OnGameStateInjectionFailed(string error)
+    // {
+    //     GD.Print("PlayerUI inject Game State Injection Failed");
+    // }
 }

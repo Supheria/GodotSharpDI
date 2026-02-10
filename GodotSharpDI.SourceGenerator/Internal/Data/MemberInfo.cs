@@ -22,7 +22,7 @@ internal sealed record MemberInfo(
     public bool IsInjectMember { get; } =
         Kind == MemberKind.InjectField || Kind == MemberKind.InjectProperty;
     public bool IsSingletonMember { get; } =
-        Kind == MemberKind.SingletonField || Kind == MemberKind.SingletonProperty;
+        Kind == MemberKind.SingletonField || Kind == MemberKind.SingletonProperty; // TODO: remove in rc.2
     public bool IsProvidesMember { get; } =
         Kind == MemberKind.ProvidesProperty || Kind == MemberKind.ProvidesMethod;
 

@@ -306,14 +306,7 @@ internal sealed class MemberProcessor
             if (providesAttr != null)
             {
                 // 提取 ServiceType
-                if (providesAttr.ConstructorArguments.Length > 0)
-                {
-                    var serviceTypeArg = providesAttr.ConstructorArguments[0];
-                    if (serviceTypeArg.Value is INamedTypeSymbol serviceType)
-                    {
-                        exposedTypes = ImmutableArray.Create(serviceType);
-                    }
-                }
+                exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
 
                 // 提取 WaitFor
                 foreach (var namedArg in providesAttr.NamedArguments)

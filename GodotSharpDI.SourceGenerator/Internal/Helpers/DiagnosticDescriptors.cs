@@ -278,7 +278,8 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InjectMemberTypeShouldBeInterface = Member(
         "046",
-        Resources.M_InjectMemberTypeShouldBeInterface
+        Resources.M_InjectMemberTypeShouldBeInterface,
+        DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor InjectMemberTypeCannotBeGeneric = Member(

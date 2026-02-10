@@ -37,7 +37,7 @@ internal static class NodeBuilders
                     DiagnosticBuilder.Create(
                         DiagnosticDescriptors.NodeBuildFailed,
                         service.Location,
-                        "Service",
+                        service.Role == TypeRole.Provider ? "Provider" : "Service",
                         service.Symbol.Name,
                         ex.Message
                     )
@@ -117,40 +117,6 @@ internal static class NodeBuilders
     }
 
     /// <summary>
-    /// 构建 HostAndUser 节点
-    /// </summary>
-    public static ImmutableArray<TypeNode> BuildHostAndUserNodes(
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-
-        foreach (var hostAndUser in hostAndUsers)
-        {
-            try
-            {
-                var node = BuildHostAndUserNode(hostAndUser);
-                nodes.Add(node);
-            }
-            catch (Exception ex)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.NodeBuildFailed,
-                        hostAndUser.Location,
-                        "HostAndUser",
-                        hostAndUser.Symbol.Name,
-                        ex.Message
-                    )
-                );
-            }
-        }
-
-        return nodes.ToImmutable();
-    }
-
-    /// <summary>
     /// 构建 Scope 节点
     /// </summary>
     public static ImmutableArray<ScopeNode> BuildScopeNodes(
@@ -212,6 +178,21 @@ internal static class NodeBuilders
             }
         }
 
+        // 收集 Inject 成员依赖（Provider 可能有）
+        foreach (var member in service.Members)
+        {
+            if (member.IsInjectMember)
+            {
+                dependencies.Add(
+                    new DependencyEdge(
+                        TargetType: member.MemberType,
+                        Location: member.Location,
+                        Source: DependencySource.InjectMember
+                    )
+                );
+            }
+        }
+
         // 获取暴露的服务类型
         var providedServices = GetServiceExposedTypes(service, symbols);
 
@@ -229,7 +210,7 @@ internal static class NodeBuilders
         // 收集 Host 提供的服务
         foreach (var member in host.Members)
         {
-            if (member.IsSingletonMember)
+            if (member.IsSingletonMember || member.IsProvidesMember)
             {
                 providedServices.AddRange(member.ExposedTypes);
             }
@@ -265,37 +246,6 @@ internal static class NodeBuilders
             ValidatedTypeInfo: user,
             Dependencies: dependencies.ToImmutable(),
             ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty
-        );
-    }
-
-    private static TypeNode BuildHostAndUserNode(ValidatedTypeInfo hostAndUser)
-    {
-        var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-        var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-        // 同时收集提供的服务和依赖
-        foreach (var member in hostAndUser.Members)
-        {
-            if (member.IsSingletonMember)
-            {
-                providedServices.AddRange(member.ExposedTypes);
-            }
-            if (member.IsInjectMember)
-            {
-                dependencies.Add(
-                    new DependencyEdge(
-                        TargetType: member.MemberType,
-                        Location: member.Location,
-                        Source: DependencySource.InjectMember
-                    )
-                );
-            }
-        }
-
-        return new TypeNode(
-            ValidatedTypeInfo: hostAndUser,
-            Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: providedServices.ToImmutable()
         );
     }
 
@@ -340,6 +290,9 @@ internal static class NodeBuilders
     // 辅助方法
     // ============================================================
 
+    /// <summary>
+    /// 获取 Service 或 Provider 暴露的服务类型
+    /// </summary>
     private static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
         ValidatedTypeInfo service,
         CachedSymbols symbols
@@ -347,35 +300,55 @@ internal static class NodeBuilders
     {
         var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
 
-        try
-        {
-            var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
+        // 判断是 Provider 还是 Service
+        bool isProvider = service.Role == TypeRole.Provider;
 
-            if (attr != null)
+        if (isProvider)
+        {
+            // Provider: 从成员收集暴露的服务类型
+            foreach (var member in service.Members)
             {
-                foreach (var arg in attr.ConstructorArguments)
+                if (member.IsProvidesMember || member.IsSingletonMember)
                 {
-                    if (arg.Kind == TypedConstantKind.Array)
+                    builder.AddRange(member.ExposedTypes);
+                }
+            }
+        }
+        else
+        {
+            // Service: 从类本身的 Singleton 特性收集
+            try
+            {
+                var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
+
+                if (attr != null)
+                {
+                    foreach (var arg in attr.ConstructorArguments)
                     {
-                        foreach (var item in arg.Values)
+                        if (arg.Kind == TypedConstantKind.Array)
                         {
-                            if (item.Value is INamedTypeSymbol type)
-                                builder.Add(type);
+                            foreach (var item in arg.Values)
+                            {
+                                if (item.Value is INamedTypeSymbol type)
+                                    builder.Add(type);
+                            }
                         }
                     }
                 }
-            }
 
-            if (builder.Count == 0)
-            {
-                builder.Add(service.Symbol);
+                // 如果没有显式指定暴露类型，默认暴露自身
+                if (builder.Count == 0)
+                {
+                    builder.Add(service.Symbol);
+                }
             }
-        }
-        catch
-        {
-            if (builder.Count == 0)
+            catch
             {
-                builder.Add(service.Symbol);
+                // 如果获取失败，至少返回服务本身的类型
+                if (builder.Count == 0)
+                {
+                    builder.Add(service.Symbol);
+                }
             }
         }
 
@@ -391,9 +364,11 @@ internal static class NodeBuilders
     {
         foreach (var type in services)
         {
-            var hasLifetime = type.HasAttribute(symbols.SingletonAttribute);
+            // 检查是否是 Service 或 Provider
+            var isService = type.HasAttribute(symbols.SingletonAttribute);
+            var isProvider = type.HasAttribute(symbols.ProviderAttribute);
 
-            if (!hasLifetime)
+            if (!isService && !isProvider)
             {
                 diagnostics.Add(
                     DiagnosticBuilder.Create(

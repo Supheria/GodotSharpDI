@@ -11,16 +11,13 @@ public interface IGameState
     public GameState CurrentState { get; set; }
 }
 
-[Host, User]
+[Host]
 public sealed partial class GameManager : Node, IGameState
 {
-    [Inject]
-    private IPlayerStats<int> PlayerStats
-    {
-        set => GD.Print("PlayerUI inject Player Stats");
-    }
+    // [Inject]
+    // private PlayerStatsService PlayerStats;
 
-    [Provides(WaitFor = nameof(PlayerStats))]
+    [Singleton(typeof(GameManager))]
     private GameManager Self
     {
         get
