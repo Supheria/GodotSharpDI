@@ -35,7 +35,7 @@ internal static class UserGenerator
             // 如果有 Inject 成员，生成注入准备标识符字段
             if (injectMembers.Length > 0)
             {
-                GenerateInjectionReadyFields(f, injectMembers);
+                GenerateInjectionReadyProperties(f, injectMembers);
                 f.AppendLine();
             }
 
@@ -62,14 +62,17 @@ internal static class UserGenerator
         context.AddSource($"{fileName}.DI.User.g.cs", f.ToString());
     }
 
-    private static void GenerateInjectionReadyFields(CodeFormatter f, MemberInfo[] injectMembers)
+    private static void GenerateInjectionReadyProperties(CodeFormatter f, MemberInfo[] injectMembers)
     {
         // IsXxxInjectionReady
         foreach (var member in injectMembers)
         {
             var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
-            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 是否成功注入依赖的标识符</summary>");
-            f.AppendLine($"private bool {fieldName} = false;");
+            f.AppendLine(
+                $"/// <summary>成员 {member.Symbol.Name} 是否成功注入依赖的标识符</summary>"
+            );
+            f.AppendLine($"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]");
+            f.AppendLine($"private bool {fieldName} {{ get; set; }} = false;");
         }
     }
 

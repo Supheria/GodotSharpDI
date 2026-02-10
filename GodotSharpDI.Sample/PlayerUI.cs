@@ -6,11 +6,14 @@ namespace GodotSharpDI.Sample;
 [User]
 public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
+    // [Inject]
+    // private IPlayerStats PlayerStats
+    // {
+    //     set => GD.Print("PlayerUI inject Player Stats");
+    // }
+
     [Inject]
-    private IPlayerStats PlayerStats
-    {
-        set => GD.Print("PlayerUI inject Player Stats");
-    }
+    private IPlayerStats? _playerStats;
 
     [Inject(FailureCallback = true)]
     private GameManager gameState
@@ -34,6 +37,11 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
         else
         {
             GD.Print("PlayerUI updated after some dependencies failed");
+        }
+
+        if (IsPlayerStatsInjectionReady)
+        {
+            var a = _playerStats.Health;
         }
     }
 
