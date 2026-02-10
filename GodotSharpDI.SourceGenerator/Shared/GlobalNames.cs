@@ -14,6 +14,9 @@ public static class GlobalNames
     public const string Long = "global::System.Int64";
     public const string Bool = "global::System.Boolean";
     public const string StringSplitOptions = "global::System.StringSplitOptions";
+    
+    // System.Threading.Tasks
+    public const string Task = "global::System.Threading.Tasks.Task";
 
     // System.Collections.Generic
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
@@ -30,6 +33,7 @@ public static class GlobalNames
     // Godot
     public const string GodotGD = "global::Godot.GD";
     public const string GodotTimer = "global::Godot.Timer";
+    public const string GodotCallable = "global::Godot.Callable";
 
     // GodotSharp.DI.Shared
     public const string IScope = "global::GodotSharpDI.Abstractions.IScope";

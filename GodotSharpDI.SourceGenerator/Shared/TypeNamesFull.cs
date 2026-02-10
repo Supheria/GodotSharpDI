@@ -2,6 +2,11 @@
 
 public static class TypeNamesFull
 {
+    // 新增特性
+    public const string ProviderAttribute = "GodotSharpDI.Abstractions.ProviderAttribute";
+    public const string ProvidesAttribute = "GodotSharpDI.Abstractions.ProvidesAttribute";
+    
+    // 现有特性（保持向后兼容）
     public const string InjectAttribute = "GodotSharpDI.Abstractions.InjectAttribute";
     public const string InjectConstructorAttribute =
         "GodotSharpDI.Abstractions.InjectConstructorAttribute";
