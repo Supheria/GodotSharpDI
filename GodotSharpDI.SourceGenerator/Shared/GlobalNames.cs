@@ -23,11 +23,16 @@ public static class GlobalNames
     // System.Text
     public const string StringBuilder = "global::System.Text.StringBuilder";
 
+    // System.Diagnostics.CodeAnalysis
+    public const string MemberNotNullWhen =
+        "global::System.Diagnostics.CodeAnalysis.MemberNotNullWhen";
+
     // Godot
     public const string GodotGD = "global::Godot.GD";
     public const string GodotTimer = "global::Godot.Timer";
 
     // GodotSharp.DI.Shared
     public const string IScope = "global::GodotSharpDI.Abstractions.IScope";
-    public const string IDependenciesResolved = "global::GodotSharpDI.Abstractions.IDependenciesResolved";
+    public const string IDependenciesResolved =
+        "global::GodotSharpDI.Abstractions.IDependenciesResolved";
 }

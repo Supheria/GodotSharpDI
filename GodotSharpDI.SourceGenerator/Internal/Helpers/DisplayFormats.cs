@@ -14,7 +14,6 @@ internal static class DisplayFormats
             | SymbolDisplayGenericsOptions.IncludeVariance,
         // 不使用别名（int → System.Int32）
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
-            | SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
     );
 
     private static readonly SymbolDisplayFormat ClassName = new(

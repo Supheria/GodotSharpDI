@@ -3,7 +3,7 @@ using GodotSharpDI.Abstractions;
 
 namespace GodotSharpDI.Sample;
 
-public interface IPlayerStats
+public interface IPlayerStats<T>
 {
     int Health { get; set; }
     int Mana { get; set; }
@@ -15,8 +15,8 @@ public interface IPlayerStats2
     int Mana { get; set; }
 }
 
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
+[Singleton(typeof(IPlayerStats<int>))]
+public partial class PlayerStatsService : IPlayerStats<int>
 {
     public int Health { get; set; } = 100;
     public int Mana { get; set; } = 50;

@@ -171,4 +171,18 @@ internal static class SymbolExtensions
     {
         return symbol.DeclaredAccessibility == Accessibility.Internal;
     }
+
+    /// <summary>
+    /// 检查类型是否是开放泛型（Unbound Generic Type）
+    /// 开放泛型：包含未绑定的类型参数，如 List&lt;T&gt;
+    /// 封闭泛型：所有类型参数都已绑定，如 List&lt;int&gt;
+    /// </summary>
+    public static bool IsUnboundGenericType(this INamedTypeSymbol type)
+    {
+        if (!type.IsGenericType)
+            return false;
+
+        // 检查类型参数中是否有未绑定的类型参数
+        return type.TypeArguments.Any(arg => arg.Kind == SymbolKind.TypeParameter);
+    }
 }

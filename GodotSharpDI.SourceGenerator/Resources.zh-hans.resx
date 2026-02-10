@@ -323,22 +323,22 @@
         <value>服务 '{0}' 不能继承自 Godot.Node</value>
     </data>
     <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
-        <value>服务不能是泛型类型 ‘{0}’。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+        <value>服务不能是开放泛型类型 '{0}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。请定义一个具体类</value>
     </data>
     <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>服务 '{0}' 不能暴露泛型类型 '{1}'。泛型类型无法实例化，也不能作为稳定的服务标识。</value>
+        <value>服务 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
     </data>
     <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 不能暴露泛型类型 '{1}'。泛型类型无法实例化，也不能作为稳定的服务标识。</value>
+        <value>[Singleton] 成员 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
     </data>
     <data name="M_SingletonMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+        <value>[Singleton] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
     </data>
     <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+        <value>[Inject] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
     </data>
     <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
-        <value>构造函数参数 '{0}' 不能是泛型类型 '{1}' 。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+        <value>构造函数参数 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
     </data>
     <data name="C_HostCannotBeGenericType" xml:space="preserve">
         <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>

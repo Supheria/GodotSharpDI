@@ -4,13 +4,27 @@ using GodotSharpDI.Abstractions;
 namespace GodotSharpDI.Sample;
 
 [User]
+public sealed partial class PlayerUI2 : Control, IDependenciesResolved
+{
+    public override partial void _Notification(int what);
+
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        throw new System.NotImplementedException();
+    }
+}
+
+[User]
 public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
     [Inject]
-    private IPlayerStats PlayerStats
+    private IPlayerStats<int> PlayerStats
     {
         set => GD.Print("PlayerUI inject Player Stats");
     }
+
+    // [Inject]
+    // private IPlayerStats<int>? _playerStats;
 
     [Inject(FailureCallback = true)]
     private GameManager gameState
@@ -34,6 +48,11 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
         else
         {
             GD.Print("PlayerUI updated after some dependencies failed");
+        }
+
+        if (IsAllDependenciesReady)
+        {
+            // var a = PlayerStats.Health;
         }
     }
 
