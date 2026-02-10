@@ -356,6 +356,23 @@ internal static class DiagnosticDescriptors
         DiagnosticSeverity.Warning
     );
 
+    // WaitFor 相关诊断
+    public static readonly DiagnosticDescriptor WaitForFieldNotFound = Member(
+        "080",
+        "WaitFor 引用的字段 '{0}' 在成员 '{1}' 中不存在"
+    );
+
+    public static readonly DiagnosticDescriptor WaitForFieldNotInjected = Member(
+        "081",
+        "WaitFor 引用的字段 '{0}' 没有 [Inject] 特性，可能导致运行时错误",
+        DiagnosticSeverity.Warning
+    );
+
+    public static readonly DiagnosticDescriptor WaitForCircularDependency = Member(
+        "082",
+        "成员 '{0}' 的 WaitFor 依赖存在循环引用"
+    );
+
     // ============================================================
     // S — Constructor-level
     // ============================================================

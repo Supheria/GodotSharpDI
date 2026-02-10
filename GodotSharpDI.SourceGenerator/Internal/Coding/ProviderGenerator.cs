@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -9,37 +9,26 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Host 代码生成器
+/// Provider 代码生成器
+/// 为 [Provider] 标记的非 Node 类型生成代码
 /// </summary>
-internal static class HostGenerator
+internal static class ProviderGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
-    {
-        // 生成 Node 生命周期
-        NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
-
-        // 生成 Host 特定代码
-        GenerateHostSpecific(context, node);
-    }
-
-    /// <summary>
-    /// 生成 Host 特定代码（ProvideHostServices）
-    /// </summary>
-    public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
         var validatedType = node.ValidatedTypeInfo;
 
         // 分离注入成员和提供成员
         var injectMembers = validatedType.Members.Where(m => m.IsInjectMember).ToImmutableArray();
         var provideMembers = validatedType
-            .Members.Where(m => m.IsSingletonMember || m.IsProvidesMember)
+            .Members.Where(m => m.IsProvidesMember || m.IsSingletonMember)
             .ToImmutableArray();
 
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
-            GenerateProvideHostServices(f, validatedType, injectMembers, provideMembers);
+            GenerateCreateProviderMethod(f, validatedType, injectMembers, provideMembers);
             f.AppendLine();
 
             // 生成异步提供方法
@@ -51,58 +40,82 @@ internal static class HostGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{fileName}.DI.Host.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Provider.g.cs", f.ToString());
     }
 
     /// <summary>
-    /// 生成 ProvideHostServices 方法
-    /// 使用统一的三阶段流程：
-    /// 1. 依赖注入 (DependencyInjectionPhase)
-    /// 2. WaitFor 等待 (WaitForPhase)
-    /// 3. 服务提供 (ServiceProvisionPhase)
+    /// 生成 CreateProvider 静态工厂方法
     /// </summary>
-    private static void GenerateProvideHostServices(
+    private static void GenerateCreateProviderMethod(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
         ImmutableArray<MemberInfo> injectMembers,
         ImmutableArray<MemberInfo> provideMembers
     )
     {
-        f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void ProvideHostServices()");
+        var typeName = validatedType.Symbol.ToFullyQualifiedName();
+
+        f.AppendHiddenMethodCommentAndAttribute(
+            $"创建 {validatedType.Symbol.Name} 的实例并提供服务"
+        );
+        f.AppendLine(
+            $"public static void CreateProvider("
+                + $"{GlobalNames.IScope} scope, "
+                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated)"
+        );
         f.BeginBlock();
         {
-            f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null)");
-            f.BeginBlock();
+            f.BeginTryCatch();
             {
-                f.PushError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
-                f.AppendLine("return;");
-            }
-            f.EndBlock();
-            f.AppendLine();
+                // 创建实例
+                f.AppendLine($"var instance = new {typeName}();");
+                f.AppendLine();
 
-            if (injectMembers.IsEmpty)
-            {
-                // 没有依赖注入，直接提供服务
-                GenerateDirectServiceProvision(f, provideMembers);
+                if (injectMembers.IsEmpty)
+                {
+                    // 没有依赖注入，直接提供服务
+                    GenerateServiceProvision(f, provideMembers, validatedType.Symbol.Name);
+                    f.AppendLine("onCreated.Invoke(instance);");
+                }
+                else
+                {
+                    // 有依赖注入，使用三阶段流程
+                    GenerateThreePhaseLifecycle(
+                        f,
+                        injectMembers,
+                        provideMembers,
+                        validatedType.Symbol.Name
+                    );
+                }
             }
-            else
+            f.CatchBlock("ex");
             {
-                // 有依赖注入，使用三阶段流程
-                GenerateThreePhaseLifecycle(
-                    f,
-                    injectMembers,
-                    provideMembers,
-                    validatedType.Symbol.Name
+                f.AppendLine(
+                    $"var errorMessage = $\"Provider '{validatedType.Symbol.Name}' 创建失败: {{ex.Message}}\";"
                 );
+
+                // 为所有提供的服务报告失败
+                foreach (var member in provideMembers)
+                {
+                    foreach (var exposedType in member.ExposedTypes)
+                    {
+                        var exposedTypeName = exposedType.ToFullyQualifiedName();
+                        f.AppendLine(
+                            $"scope.ProvideService<{exposedTypeName}>(null, errorMessage);"
+                        );
+                    }
+                }
             }
+            f.EndTryCatch();
         }
         f.EndBlock();
     }
 
     /// <summary>
-    /// 生成三阶段生命周期（有依赖注入的情况）
+    /// 生成三阶段生命周期
+    /// 阶段 1: 依赖注入
+    /// 阶段 2: WaitFor 等待（如果有）
+    /// 阶段 3: 服务提供
     /// </summary>
     private static void GenerateThreePhaseLifecycle(
         CodeFormatter f,
@@ -126,7 +139,7 @@ internal static class HostGenerator
                     {
                         // 阶段 2: WaitFor 等待
                         f.AppendLine();
-                        f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} (with WaitFor) ━━━");
+                        f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
                         WaitForPhase.Generate(
                             f,
                             member.WaitFor,
@@ -137,7 +150,7 @@ internal static class HostGenerator
                                     f,
                                     member,
                                     "scope",
-                                    "" // Host 成员直接访问，不需要前缀
+                                    "instance"
                                 );
                             }
                         );
@@ -147,24 +160,23 @@ internal static class HostGenerator
                         // 没有 WaitFor，直接提供服务（阶段 3）
                         f.AppendLine();
                         f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
-                        ServiceProvisionPhase.GenerateMemberProvide(
-                            f,
-                            member,
-                            "scope",
-                            "" // Host 成员直接访问，不需要前缀
-                        );
+                        ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
                     }
                 }
+
+                f.AppendLine();
+                f.AppendLine("onCreated.Invoke(instance);");
             }
         );
     }
 
     /// <summary>
-    /// 直接提供服务（无依赖注入的情况）
+    /// 生成服务提供代码（无依赖注入的情况）
     /// </summary>
-    private static void GenerateDirectServiceProvision(
+    private static void GenerateServiceProvision(
         CodeFormatter f,
-        ImmutableArray<MemberInfo> provideMembers
+        ImmutableArray<MemberInfo> provideMembers,
+        string typeName
     )
     {
         foreach (var member in provideMembers)
@@ -173,31 +185,13 @@ internal static class HostGenerator
 
             if (!string.IsNullOrEmpty(member.WaitFor))
             {
-                // 有 WaitFor 但没有 Inject - 使用 WaitFor 机制
-                WaitForPhase.Generate(
-                    f,
-                    member.WaitFor,
-                    onAllResolved: () =>
-                    {
-                        ServiceProvisionPhase.GenerateMemberProvide(
-                            f,
-                            member,
-                            "scope",
-                            "" // Host 成员直接访问
-                        );
-                    }
+                // 有 WaitFor 但没有 Inject - 警告但仍然生成
+                f.AppendLine(
+                    $"// 警告: WaitFor 指定了 '{member.WaitFor}' 但类型没有 [Inject] 字段"
                 );
             }
-            else
-            {
-                // 直接提供
-                ServiceProvisionPhase.GenerateMemberProvide(
-                    f,
-                    member,
-                    "scope",
-                    "" // Host 成员直接访问
-                );
-            }
+
+            ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
         }
     }
 }

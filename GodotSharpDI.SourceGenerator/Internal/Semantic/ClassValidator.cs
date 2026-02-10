@@ -84,6 +84,17 @@ internal sealed class ClassValidator
                     )
                 );
             }
+            if (_raw.HasProviderAttribute)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.ScopeInvalidAttribute,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        "Provider"
+                    )
+                );
+            }
             if (_raw.HasHostAttribute)
             {
                 _diagnostics.Add(
@@ -121,7 +132,36 @@ internal sealed class ClassValidator
             );
         }
 
-        // Service
+        // Provider（新架构）
+        if (_raw.HasProviderAttribute)
+        {
+            if (_raw.HasHostAttribute)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.HostInvalidAttribute,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        "Provider"
+                    )
+                );
+            }
+            if (_raw.HasUserAttribute)
+            {
+                _diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.UserInvalidAttribute,
+                        _raw.Location,
+                        _raw.Symbol.Name,
+                        "Provider"
+                    )
+                );
+            }
+
+            return TypeRole.Provider;
+        }
+
+        // Service（旧架构，保留兼容性）
         if (_raw.HasSingletonAttribute)
         {
             if (_raw.HasHostAttribute)

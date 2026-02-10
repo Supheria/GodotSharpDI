@@ -15,16 +15,28 @@ internal static class SourceEmitter
     /// </summary>
     public static void GenerateAll(SourceProductionContext context, DiGraph graph)
     {
-        // 生成 Service 工厂
+        // 生成 Service / Provider 工厂
         foreach (var node in graph.ServiceNodes)
         {
             try
             {
-                ServiceGenerator.Generate(context, node);
+                // 根据 TypeRole 决定使用哪个生成器
+                if (node.ValidatedTypeInfo.Role == TypeRole.Provider)
+                {
+                    // 新的 Provider 生成器
+                    ProviderGenerator.Generate(context, node);
+                }
+                else
+                {
+                    // 旧的 Service 生成器（向后兼容）
+                    ServiceGenerator.Generate(context, node);
+                }
             }
             catch (Exception ex)
             {
-                ReportCodeGenerationError(context, "Service", node.ValidatedTypeInfo, ex);
+                var nodeType =
+                    node.ValidatedTypeInfo.Role == TypeRole.Provider ? "Provider" : "Service";
+                ReportCodeGenerationError(context, nodeType, node.ValidatedTypeInfo, ex);
             }
         }
 

@@ -9,7 +9,8 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 internal sealed record RawClassSemanticInfo(
     INamedTypeSymbol Symbol,
     Location Location,
-    bool HasSingletonAttribute,
+    bool HasSingletonAttribute,    // 保留用于向后兼容
+    bool HasProviderAttribute,     // 新增：[Provider] 特性
     bool HasHostAttribute,
     bool HasUserAttribute,
     bool HasModulesAttribute,
