@@ -18,7 +18,6 @@ internal static class GraphValidator
     /// </summary>
     public static void ValidateHostServices(
         ImmutableArray<ValidatedTypeInfo> hosts,
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
         ServiceProviderMap serviceProviders,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )

@@ -25,8 +25,7 @@ internal static class DependencyInjectionPhase
         ImmutableArray<MemberInfo> injectMembers,
         string scopeField,
         string typeName,
-        Action onAllResolved
-    )
+        Action onAllResolved)
     {
         if (injectMembers.IsEmpty)
         {
@@ -34,20 +33,20 @@ internal static class DependencyInjectionPhase
             onAllResolved();
             return;
         }
-
+        
         f.AppendLine("// ━━━ 阶段 1: 依赖注入 ━━━");
         f.AppendLine($"var _remainingDeps = {injectMembers.Length};");
         f.AppendLine("var _depsFailed = false;");
         f.AppendLine();
-
+        
         foreach (var member in injectMembers)
         {
             GenerateFieldResolution(f, member, scopeField, typeName);
         }
-
+        
         f.AppendLine("return;");
         f.AppendLine();
-
+        
         // 生成回调方法
         f.AppendLine("void OnDependenciesResolved()");
         f.BeginBlock();
@@ -58,7 +57,7 @@ internal static class DependencyInjectionPhase
         }
         f.EndBlock();
     }
-
+    
     /// <summary>
     /// 为单个字段生成依赖解析代码
     /// </summary>
@@ -66,12 +65,11 @@ internal static class DependencyInjectionPhase
         CodeFormatter f,
         MemberInfo member,
         string scopeField,
-        string typeName
-    )
+        string typeName)
     {
         var memberName = member.Symbol.Name;
         var memberType = member.MemberType.ToFullyQualifiedName();
-
+        
         f.AppendLine($"// 解析依赖: {memberName}");
         f.AppendLine($"{scopeField}.ResolveDependency<{memberType}>(");
         f.BeginLevel();
@@ -89,18 +87,16 @@ internal static class DependencyInjectionPhase
                 f.EndBlock();
             }
             f.EndBlock(",");
-
+            
             // onFailed 回调
             f.AppendLine("(error) =>");
             f.BeginBlock();
             {
                 f.AppendLine("_depsFailed = true;");
-                f.AppendLine(
-                    $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\");"
-                );
+                f.AppendLine($"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\");");
             }
             f.EndBlock(",");
-
+            
             // requestorType
             f.AppendLine($"requestorType: \"{typeName}\"");
         }

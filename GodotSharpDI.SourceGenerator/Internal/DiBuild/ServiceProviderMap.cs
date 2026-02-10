@@ -30,7 +30,6 @@ internal static class ServiceProviderMapBuilder
     public static ServiceProviderMap Build(
         ImmutableArray<ValidatedTypeInfo> services,
         ImmutableArray<ValidatedTypeInfo> hosts,
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
@@ -44,12 +43,7 @@ internal static class ServiceProviderMapBuilder
             RegisterServicesFromServices(services, symbols, map, conflictTracker, diagnostics);
 
             // 注册 Host 和 HostAndUser 提供的服务
-            RegisterServicesFromHosts(
-                hosts.Concat(hostAndUsers),
-                map,
-                conflictTracker,
-                diagnostics
-            );
+            RegisterServicesFromHosts(hosts, map, conflictTracker, diagnostics);
 
             // 报告所有冲突
             ReportConflicts(conflictTracker, diagnostics);

@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Immutable;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Shared;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
@@ -14,28 +14,26 @@ internal static class WaitForPhase
     /// 生成 WaitFor 等待代码
     /// </summary>
     /// <param name="f">代码格式化器</param>
-    /// <param name="waitForSpec">WaitFor 规范字符串（逗号分隔的字段名）</param>
+    /// <param name="waitForDeps">WaitFor 依赖数组</param>
     /// <param name="onAllResolved">所有依赖就绪后的回调</param>
     public static void Generate(
         CodeFormatter f,
-        string? waitForSpec,
+        ImmutableArray<string> waitForDeps,
         Action onAllResolved)
     {
-        var dependencies = WaitForParser.Parse(waitForSpec);
-        
-        if (dependencies.IsEmpty)
+        if (waitForDeps.IsEmpty)
         {
             // 没有 WaitFor，直接调用回调
             onAllResolved();
             return;
         }
         
-        f.AppendLine($"// 等待 WaitFor 依赖: {waitForSpec}");
+        f.AppendLine($"// 等待 WaitFor 依赖: {string.Join(", ", waitForDeps)}");
         f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
         f.BeginBlock();
         {
             // 检查所有 WaitFor 字段不为 null
-            foreach (var dep in dependencies)
+            foreach (var dep in waitForDeps)
             {
                 f.AppendLine($"if ({dep} == null)");
                 f.BeginBlock();

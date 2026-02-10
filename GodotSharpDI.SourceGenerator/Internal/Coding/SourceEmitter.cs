@@ -34,8 +34,7 @@ internal static class SourceEmitter
             }
             catch (Exception ex)
             {
-                var nodeType =
-                    node.ValidatedTypeInfo.Role == TypeRole.Provider ? "Provider" : "Service";
+                var nodeType = node.ValidatedTypeInfo.Role == TypeRole.Provider ? "Provider" : "Service";
                 ReportCodeGenerationError(context, nodeType, node.ValidatedTypeInfo, ex);
             }
         }
@@ -66,19 +65,6 @@ internal static class SourceEmitter
             }
         }
 
-        // 生成 HostAndUser 代码
-        foreach (var node in graph.HostAndUserNodes)
-        {
-            try
-            {
-                HostAndUserGenerator.Generate(context, node);
-            }
-            catch (Exception ex)
-            {
-                ReportCodeGenerationError(context, "HostAndUser", node.ValidatedTypeInfo, ex);
-            }
-        }
-
         // 生成 Scope 代码
         foreach (var node in graph.ScopeNodes)
         {
@@ -100,8 +86,7 @@ internal static class SourceEmitter
         SourceProductionContext context,
         string nodeType,
         ValidatedTypeInfo typeInfo,
-        Exception exception
-    )
+        Exception exception)
     {
         context.ReportDiagnostic(
             DiagnosticBuilder.Create(

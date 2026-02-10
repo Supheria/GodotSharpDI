@@ -122,7 +122,7 @@ internal static class HostGenerator
                 // 依赖注入完成后，处理每个提供的成员
                 foreach (var member in provideMembers)
                 {
-                    if (!string.IsNullOrEmpty(member.WaitFor))
+                    if (member.HasWaitFor)
                     {
                         // 阶段 2: WaitFor 等待
                         f.AppendLine();
@@ -171,7 +171,7 @@ internal static class HostGenerator
         {
             f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
 
-            if (!string.IsNullOrEmpty(member.WaitFor))
+            if (member.HasWaitFor)
             {
                 // 有 WaitFor 但没有 Inject - 使用 WaitFor 机制
                 WaitForPhase.Generate(

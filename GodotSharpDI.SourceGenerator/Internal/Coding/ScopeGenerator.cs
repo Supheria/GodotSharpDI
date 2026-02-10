@@ -182,10 +182,7 @@ internal static class ScopeGenerator
         // 从 Hosts 的 Host 中收集
         foreach (var hostType in node.ExpectHosts)
         {
-            if (
-                graph.HostNodeMap.TryGetValue(hostType, out var hostNode)
-                || graph.HostAndUserNodeMap.TryGetValue(hostType, out hostNode)
-            )
+            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
             {
                 implTypes.Add(hostType);
 

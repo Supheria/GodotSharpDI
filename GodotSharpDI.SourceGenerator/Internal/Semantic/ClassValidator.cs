@@ -190,10 +190,19 @@ internal sealed class ClassValidator
             return TypeRole.Service;
         }
 
-        // Host + User
+        // Host 和 User 不应该同时使用
         if (_raw.HasHostAttribute && _raw.HasUserAttribute)
         {
-            return TypeRole.HostAndUser;
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.HostInvalidAttribute,
+                    _raw.Location,
+                    _raw.Symbol.Name,
+                    "User (Host 和 User 不应同时使用)"
+                )
+            );
+            // 优先作为 Host 处理
+            return TypeRole.Host;
         }
 
         // Host only

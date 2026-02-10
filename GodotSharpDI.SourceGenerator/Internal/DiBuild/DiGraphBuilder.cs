@@ -40,7 +40,6 @@ internal static class DiGraphBuilder
             var serviceProviders = ServiceProviderMapBuilder.Build(
                 typesByRole.Services,
                 typesByRole.Hosts,
-                typesByRole.HostAndUsers,
                 symbols,
                 diagnostics
             );
@@ -49,17 +48,11 @@ internal static class DiGraphBuilder
             var nodes = BuildAllNodes(typesByRole, serviceProviders, symbols, diagnostics);
 
             // 5. 验证依赖关系
-            GraphValidator.ValidateHostServices(
-                typesByRole.Hosts,
-                typesByRole.HostAndUsers,
-                serviceProviders,
-                diagnostics
-            );
+            GraphValidator.ValidateHostServices(typesByRole.Hosts, serviceProviders, diagnostics);
 
-            var allUserNodes = nodes.UserNodes.Concat(nodes.HostAndUserNodes).ToImmutableArray();
             GraphValidator.ValidateDependencyGraph(
                 nodes.ServiceNodes,
-                allUserNodes,
+                nodes.UserNodes,
                 serviceProviders,
                 symbols,
                 diagnostics
@@ -75,11 +68,9 @@ internal static class DiGraphBuilder
                     ServiceNodes: nodes.ServiceNodes,
                     HostNodes: nodes.HostNodes,
                     UserNodes: nodes.UserNodes,
-                    HostAndUserNodes: nodes.HostAndUserNodes,
                     ScopeNodes: nodes.ScopeNodes,
                     ServiceNodeMap: nodeMaps.ServiceNodeMap,
-                    HostNodeMap: nodeMaps.HostNodeMap,
-                    HostAndUserNodeMap: nodeMaps.HostAndUserNodeMap
+                    HostNodeMap: nodeMaps.HostNodeMap
                 );
 
                 return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
@@ -117,12 +108,11 @@ internal static class DiGraphBuilder
         try
         {
             return new TypesByRole(
-                Services: validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray(),
+                Services: validTypes
+                    .Where(t => t.Role == TypeRole.Service || t.Role == TypeRole.Provider)
+                    .ToImmutableArray(),
                 Hosts: validTypes.Where(t => t.Role == TypeRole.Host).ToImmutableArray(),
                 Users: validTypes.Where(t => t.Role == TypeRole.User).ToImmutableArray(),
-                HostAndUsers: validTypes
-                    .Where(t => t.Role == TypeRole.HostAndUser)
-                    .ToImmutableArray(),
                 Scopes: validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray()
             );
         }
@@ -160,8 +150,6 @@ internal static class DiGraphBuilder
 
         var userNodes = NodeBuilders.BuildUserNodes(types.Users, diagnostics);
 
-        var hostAndUserNodes = NodeBuilders.BuildHostAndUserNodes(types.HostAndUsers, diagnostics);
-
         var scopeNodes = NodeBuilders.BuildScopeNodes(
             types.Scopes,
             serviceProviders,
@@ -173,7 +161,6 @@ internal static class DiGraphBuilder
             ServiceNodes: serviceNodes,
             HostNodes: hostNodes,
             UserNodes: userNodes,
-            HostAndUserNodes: hostAndUserNodes,
             ScopeNodes: scopeNodes
         );
     }
@@ -190,17 +177,7 @@ internal static class DiGraphBuilder
 
         var hostNodeMap = BuildNodeMap(nodes.HostNodes, "BuildHostNodeMap", diagnostics);
 
-        var hostAndUserNodeMap = BuildNodeMap(
-            nodes.HostAndUserNodes,
-            "BuildHostAndUserNodeMap",
-            diagnostics
-        );
-
-        return new NodeMaps(
-            ServiceNodeMap: serviceNodeMap,
-            HostNodeMap: hostNodeMap,
-            HostAndUserNodeMap: hostAndUserNodeMap
-        );
+        return new NodeMaps(ServiceNodeMap: serviceNodeMap, HostNodeMap: hostNodeMap);
     }
 
     /// <summary>
@@ -246,7 +223,6 @@ internal static class DiGraphBuilder
         ImmutableArray<ValidatedTypeInfo> Services,
         ImmutableArray<ValidatedTypeInfo> Hosts,
         ImmutableArray<ValidatedTypeInfo> Users,
-        ImmutableArray<ValidatedTypeInfo> HostAndUsers,
         ImmutableArray<ValidatedTypeInfo> Scopes
     );
 
@@ -254,13 +230,11 @@ internal static class DiGraphBuilder
         ImmutableArray<TypeNode> ServiceNodes,
         ImmutableArray<TypeNode> HostNodes,
         ImmutableArray<TypeNode> UserNodes,
-        ImmutableArray<TypeNode> HostAndUserNodes,
         ImmutableArray<ScopeNode> ScopeNodes
     );
 
     private record NodeMaps(
         ImmutableDictionary<ITypeSymbol, TypeNode> ServiceNodeMap,
-        ImmutableDictionary<ITypeSymbol, TypeNode> HostNodeMap,
-        ImmutableDictionary<ITypeSymbol, TypeNode> HostAndUserNodeMap
+        ImmutableDictionary<ITypeSymbol, TypeNode> HostNodeMap
     );
 }

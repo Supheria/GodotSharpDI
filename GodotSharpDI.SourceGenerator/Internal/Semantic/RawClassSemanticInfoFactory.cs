@@ -36,14 +36,7 @@ internal static class RawClassSemanticInfoFactory
         var isPartial = syntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
         // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
-        if (
-            !hasProvider
-            && !hasSingleton
-            && !hasHost
-            && !hasUser
-            && !hasModules
-            && !implementsIScope
-        )
+        if (!hasProvider && !hasSingleton && !hasHost && !hasUser && !hasModules && !implementsIScope)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
         var members = symbol

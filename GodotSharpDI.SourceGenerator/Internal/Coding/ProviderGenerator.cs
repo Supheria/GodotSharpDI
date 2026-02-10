@@ -135,7 +135,7 @@ internal static class ProviderGenerator
                 // 依赖注入完成后，处理每个提供的成员
                 foreach (var member in provideMembers)
                 {
-                    if (!string.IsNullOrEmpty(member.WaitFor))
+                    if (member.HasWaitFor)
                     {
                         // 阶段 2: WaitFor 等待
                         f.AppendLine();
@@ -183,12 +183,10 @@ internal static class ProviderGenerator
         {
             f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
 
-            if (!string.IsNullOrEmpty(member.WaitFor))
+            if (member.HasWaitFor)
             {
                 // 有 WaitFor 但没有 Inject - 警告但仍然生成
-                f.AppendLine(
-                    $"// 警告: WaitFor 指定了 '{member.WaitFor}' 但类型没有 [Inject] 字段"
-                );
+                f.AppendLine($"// 警告: WaitFor 指定了依赖但类型没有 [Inject] 字段");
             }
 
             ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
