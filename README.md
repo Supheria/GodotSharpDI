@@ -898,7 +898,7 @@ Final rule:
 | Type | Must be class | Needs instantiation |
 | Inheritance | Cannot be Node | Node lifecycle is controlled by Godot, conflicts with DI container |
 | Modifiers | Cannot be abstract or static | Needs instantiation |
-| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | Unbound generics not allowed | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
 | Declaration | Must be partial | Source generator needs to extend the class |
 
 **Exposed Type Constraints**
@@ -909,7 +909,7 @@ Final rule:
 | Inherited class | ⚠️ | Allowed but not recommended |
 | Unimplemented interface | ❌ | Meaningless |
 | Non-inherited class | ❌ | Meaningless |
-| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers |
+| Generics | ❌ Unbound generics | Unbound generic types (e.g., IList<T>) cannot be used as stable service identifiers. Closed generic types (e.g., IList<int>) are allowed |
 
 **Constructor Constraints**
 
@@ -928,7 +928,7 @@ Final rule:
 | Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
 | User | ❌ | No static constraints, cannot guarantee lifecycle |
 | Scope | ❌ | Container cannot be a service |
-| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | ❌ Unbound generics | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
 | Other types | ❌ | Not supported |
 
 ---
@@ -941,7 +941,7 @@ Final rule:
 | ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Type          | Must be class                                                | Needs instantiation                                          |
 | Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | Unbound generics not allowed | Unbound generic types (e.g., Node<T>) cannot be used. Closed generic types (e.g., Node<int>) are allowed |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
@@ -955,7 +955,7 @@ Final rule:
 | Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
 | User | ❌ | No static constraints, cannot guarantee lifecycle |
 | Scope | ❌ | Container nesting not allowed |
-| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | ❌ Unbound generics | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
 | Other types | ❌ | Not supported |
 
 **Host Singleton Member Exposed Type Constraints**
@@ -966,7 +966,7 @@ Final rule:
 | Inherited class | ⚠️ | Allowed but not recommended |
 | Unimplemented interface | ❌ | Meaningless |
 | Non-inherited class | ❌ | Meaningless |
-| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers |
+| Generics | ❌ Unbound generics | Unbound generic types (e.g., IList<T>) cannot be used as stable service identifiers. Closed generic types (e.g., IList<int>) are allowed |
 
 ---
 
@@ -978,7 +978,7 @@ Final rule:
 | ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Type          | Must be class                                                | Needs instantiation                                          |
 | Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | Unbound generics not allowed | Unbound generic types (e.g., Node<T>) cannot be used. Closed generic types (e.g., Node<int>) are allowed |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
 
@@ -992,7 +992,7 @@ Final rule:
 | Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
 | User | ❌ | No static constraints, cannot guarantee lifecycle |
 | Scope | ❌ | Container cannot be a service |
-| Generics | ❌ | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | ❌ Unbound generics | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
 | Other types | ❌ | Not supported |
 
 ---
@@ -1004,7 +1004,7 @@ Final rule:
 | Type          | Must be class                                                | Needs instantiation                                          |
 | Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
 | Interface     | Must implement IScope                                        | Provides service registration API                            |
-| Generics | Cannot be generic | Generic types cannot be instantiated or used as stable service identifiers. Please use a concrete class that inherits from the generic type as the service implementation |
+| Generics | Unbound generics not allowed | Unbound generic types (e.g., Node<T>) cannot be used. Closed generic types (e.g., Node<int>) are allowed |
 | Modules       | Must specify [Modules]                                       | Defines service composition                                  |
 | Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
 | _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |

@@ -111,8 +111,8 @@ internal sealed class RoleConstraintsProcessor
 
         foreach (var exposedType in exposedTypes)
         {
-            // 不能是泛型类型
-            if (exposedType.IsGenericType)
+            // 不能是开放泛型类型（封闭泛型是允许的，如 IList<int>）
+            if (exposedType.IsUnboundGenericType())
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(

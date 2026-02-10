@@ -17,14 +17,14 @@ public sealed partial class PlayerUI2 : Control, IDependenciesResolved
 [User]
 public sealed partial class PlayerUI : Control, IDependenciesResolved
 {
-    // [Inject]
-    // private IPlayerStats PlayerStats
-    // {
-    //     set => GD.Print("PlayerUI inject Player Stats");
-    // }
-
     [Inject]
-    private IPlayerStats? _playerStats;
+    private IPlayerStats<int> PlayerStats
+    {
+        set => GD.Print("PlayerUI inject Player Stats");
+    }
+
+    // [Inject]
+    // private IPlayerStats<int>? _playerStats;
 
     [Inject(FailureCallback = true)]
     private GameManager gameState
@@ -52,7 +52,7 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
 
         if (IsAllDependenciesReady)
         {
-            var a = _playerStats.Health;
+            // var a = PlayerStats.Health;
         }
     }
 

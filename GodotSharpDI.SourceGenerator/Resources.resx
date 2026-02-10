@@ -322,22 +322,22 @@
         <value>Service '{0}' cannot inherit from Godot.Node.</value>
     </data>
     <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
-        <value>Service cannot be generic type ‘{0}’. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+        <value>Service cannot be unbound generic type '{0}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
     </data>
     <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>Service '{0}' cannot expose generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers.</value>
+        <value>Service '{0}' cannot expose unbound generic type '{1}'. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed</value>
     </data>
     <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Singleton] member '{0}' cannot expose generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers.</value>
+        <value>[Singleton] member '{0}' cannot expose unbound generic type '{1}'. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed</value>
     </data>
     <data name="M_SingletonMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Singleton] member '{0}' cannot be generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+        <value>[Singleton] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
     </data>
     <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Inject] member '{0}' cannot be generic type '{1}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+        <value>[Inject] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
     </data>
     <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
-        <value>Constructor parameter '{0}' cannot be a generic type '{1}' . Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+        <value>Constructor parameter '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
     </data>
     <data name="C_HostCannotBeGenericType" xml:space="preserve">
         <value>Host cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>

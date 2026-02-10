@@ -153,8 +153,8 @@ internal sealed class ConstructorProcessor
             return false;
         }
 
-        // 不能是泛型类型
-        if (paramType is INamedTypeSymbol namedType && namedType.IsGenericType)
+        // 不能是开放泛型类型（封闭泛型是允许的，如 List<int>）
+        if (paramType is INamedTypeSymbol namedType && namedType.IsUnboundGenericType())
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(

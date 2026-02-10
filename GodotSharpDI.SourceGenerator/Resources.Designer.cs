@@ -177,7 +177,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot expose generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers..
+        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot expose unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed.
         /// </summary>
         internal static string C_ServiceExposedTypeCannotBeGeneric {
             get {
@@ -204,7 +204,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service cannot be generic type ‘{0}’. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        ///   Looks up a localized string similar to Service cannot be unbound generic type &apos;{0}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
         /// </summary>
         internal static string C_ServiceTypeCannotBeGeneric {
             get {
@@ -483,7 +483,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; cannot be unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
         /// </summary>
         internal static string M_InjectMemberTypeCannotBeGeneric {
             get {
@@ -537,7 +537,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot expose generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers..
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot expose unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed.
         /// </summary>
         internal static string M_SingletonMemberExposedTypeCannotBeGeneric {
             get {
@@ -618,7 +618,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be generic type &apos;{1}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
         /// </summary>
         internal static string M_SingletonMemberTypeCannotBeGeneric {
             get {
@@ -717,7 +717,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; cannot be a generic type &apos;{1}&apos; . Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
+        ///   Looks up a localized string similar to Constructor parameter &apos;{0}&apos; cannot be unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
         /// </summary>
         internal static string S_InjectCtorParamTypeCannotBeGeneric {
             get {
