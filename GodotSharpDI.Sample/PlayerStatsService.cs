@@ -25,6 +25,10 @@ public partial class PlayerStatsService3 : IPlayerStats<int>
 
     [Provide(ExposedTypes = [typeof(IPlayerStats<int>)], WaitFor = [nameof(gameState)])]
     public Task<PlayerStatsService3> Self => Task.Run(() => this);
+
+    public PlayerStatsService3(int a) { }
+
+    public PlayerStatsService3() { }
 }
 
 // [Singleton(typeof(IPlayerStats2))]

@@ -66,15 +66,6 @@
     <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
         <value>服务 '{0}' 必须是非抽象、非静态的 class 类型</value>
     </data>
-
-    <data name="C_ServiceExposedTypeShouldBeInterface" xml:space="preserve">
-        <value>服务 '{0}' 暴露类型 '{1}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
-    </data>
-
-    <data name="C_ServiceExposedTypeNotImplemented" xml:space="preserve">
-        <value>服务 '{0}' 有暴露类型 '{1}'，但未实现该类型</value>
-    </data>
-
     <data name="C_MissingNotificationMethod" xml:space="preserve">
         <value>类型 '{0}' 必须在附加到 Node 的脚本文件中定义 'public override partial void _Notification(int what);'。DI 框架需要此方法进行生命周期管理</value>
     </data>
@@ -282,9 +273,6 @@
     </data>
     <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
         <value>服务不能是开放泛型类型 '{0}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。请定义一个具体类</value>
-    </data>
-    <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>服务 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
     </data>
     <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
         <value>[Singleton] 成员 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>

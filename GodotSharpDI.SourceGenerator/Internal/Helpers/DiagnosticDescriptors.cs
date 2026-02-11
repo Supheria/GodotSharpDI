@@ -190,22 +190,6 @@ internal static class DiagnosticDescriptors
         Resources.C_ServiceTypeCannotBeGeneric
     );
 
-    public static readonly DiagnosticDescriptor ServiceExposedTypeShouldBeInterface = Class(
-        "070",
-        Resources.C_ServiceExposedTypeShouldBeInterface,
-        DiagnosticSeverity.Warning
-    );
-
-    public static readonly DiagnosticDescriptor ServiceExposedTypeNotImplemented = Class(
-        "071",
-        Resources.C_ServiceExposedTypeNotImplemented
-    );
-
-    public static readonly DiagnosticDescriptor ServiceExposedTypeCannotBeGeneric = Class(
-        "072",
-        Resources.C_ServiceExposedTypeCannotBeGeneric
-    );
-
     public static readonly DiagnosticDescriptor MissingNotificationMethod = Class(
         "080",
         Resources.C_MissingNotificationMethod

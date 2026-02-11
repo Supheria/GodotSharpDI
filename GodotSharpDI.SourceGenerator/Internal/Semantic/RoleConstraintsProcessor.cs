@@ -52,6 +52,8 @@ internal sealed class RoleConstraintsProcessor
                 break;
         }
 
+        // TODO: IDependenciesResolved 同样适用于 Service 和 Host
+
         // 验证 IDependenciesResolved
         if (
             _raw.ImplementsIDependenciesResolved
@@ -105,71 +107,6 @@ internal sealed class RoleConstraintsProcessor
                     _raw.Symbol.Name
                 )
             );
-        }
-
-        var exposedTypes = AttributeHelper.GetServiceExposedTypes(_raw.Symbol, _symbols);
-
-        foreach (var exposedType in exposedTypes)
-        {
-            // 不能是开放泛型类型（封闭泛型是允许的，如 IList<int>）
-            if (exposedType.IsUnboundGenericType())
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ServiceExposedTypeCannotBeGeneric,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        exposedType.ToDisplayString()
-                    )
-                );
-            }
-
-            // 检查暴露类型是否是接口（Warning）
-            if (exposedType.TypeKind != TypeKind.Interface)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ServiceExposedTypeShouldBeInterface,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        exposedType.ToDisplayString()
-                    )
-                );
-            }
-
-            // 检查是否实现了暴露的接口
-            if (exposedType.TypeKind == TypeKind.Interface)
-            {
-                if (!_raw.Symbol.ImplementsInterface(exposedType))
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ServiceExposedTypeNotImplemented,
-                            _raw.Location,
-                            _raw.Symbol.Name,
-                            exposedType.ToDisplayString()
-                        )
-                    );
-                }
-            }
-            // 检查是否是继承关系
-            else if (exposedType.TypeKind == TypeKind.Class)
-            {
-                if (
-                    !SymbolEqualityComparer.Default.Equals(_raw.Symbol, exposedType)
-                    && !_raw.Symbol.InheritsFrom(exposedType)
-                )
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ServiceExposedTypeNotImplemented,
-                            _raw.Location,
-                            _raw.Symbol.Name,
-                            exposedType.ToDisplayString()
-                        )
-                    );
-                }
-            }
         }
     }
 

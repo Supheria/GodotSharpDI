@@ -11,15 +11,13 @@ namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 internal static class AttributeHelper
 {
     /// <summary>
-    /// 获取成员暴露的服务类型
-    /// 支持 [Provide] 和 [Singleton] 特性
+    /// 获取 Provide 成员暴露的服务类型
     /// </summary>
     public static ImmutableArray<INamedTypeSymbol> GetMemberExposedTypes(
         ISymbol member,
         CachedSymbols symbols
     )
     {
-        // 优先尝试 Provide 特性（新架构）
         var provideAttr = member.GetAttribute(symbols.ProvideAttribute);
         var exposedTypes = GetTypesFromAttribute(provideAttr, ShortNames.ExposedTypes);
 
@@ -35,7 +33,7 @@ internal static class AttributeHelper
             {
                 memberType = property.Type;
             }
-            else if (member is IMethodSymbol method) // ← 修复：添加方法支持
+            else if (member is IMethodSymbol method)
             {
                 memberType = method.ReturnType;
             }
@@ -49,23 +47,7 @@ internal static class AttributeHelper
     }
 
     /// <summary>
-    /// 获取 Service 类型暴露的服务类型
-    /// </summary>
-    public static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
-        INamedTypeSymbol service,
-        CachedSymbols symbols
-    )
-    {
-        // Service 使用 Singleton 特性（旧架构，但仍然支持）
-        var singletonAttr = service.GetAttribute(symbols.SingletonAttribute);
-        var exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ExposedTypes);
-
-        // 如果没有指定服务类型，使用自身类型
-        return exposedTypes.IsEmpty ? ImmutableArray.Create(service) : exposedTypes;
-    }
-
-    /// <summary>
-    /// 从特性提取类型数组（用于 Singleton 等传统特性）
+    /// 从特性参数中提取类型数组
     /// </summary>
     public static ImmutableArray<INamedTypeSymbol> GetTypesFromAttribute(
         AttributeData? attr,
