@@ -16,15 +16,13 @@ internal sealed record MemberInfo(
     bool HasFailureCallback,
     ImmutableArray<string> WaitFor, // 新增：等待的依赖字段名称数组
     bool IsAsync = false, // 新增：是否是异步成员
-    bool UsesProvides = false // 新增：是否使用 Provides 特性（而非 Singleton）
+    bool UsesProvide = false // 新增：是否使用 Provide 特性（而非 Singleton）
 )
 {
     public bool IsInjectMember { get; } =
         Kind == MemberKind.InjectField || Kind == MemberKind.InjectProperty;
-    public bool IsSingletonMember { get; } =
-        Kind == MemberKind.SingletonField || Kind == MemberKind.SingletonProperty; // TODO: remove in rc.2
-    public bool IsProvidesMember { get; } =
-        Kind == MemberKind.ProvidesProperty || Kind == MemberKind.ProvidesMethod;
+    public bool IsProvideMember { get; } =
+        Kind == MemberKind.ProvideProperty || Kind == MemberKind.ProvideMethod;
 
     /// <summary>
     /// 获取此成员名称

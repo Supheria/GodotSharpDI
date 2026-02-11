@@ -1,7 +1,4 @@
-﻿// 文件: GodotSharpDI.SourceGenerator/Internal/Helpers/AttributeHelper.cs
-// 修复: 支持 ProvidesAttribute
-
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
@@ -15,23 +12,16 @@ internal static class AttributeHelper
 {
     /// <summary>
     /// 获取成员暴露的服务类型
-    /// 支持 [Provides] 和 [Singleton] 特性
+    /// 支持 [Provide] 和 [Singleton] 特性
     /// </summary>
     public static ImmutableArray<INamedTypeSymbol> GetMemberExposedTypes(
         ISymbol member,
         CachedSymbols symbols
     )
     {
-        // 优先尝试 Provides 特性（新架构）
-        var providesAttr = member.GetAttribute(symbols.ProvidesAttribute);
-        var exposedTypes = GetTypesFromAttribute(providesAttr, ShortNames.ExposedTypes);
-        if (exposedTypes.IsEmpty)
-        {
-            // TODO: Remove in rc.2
-            // 回退到 Singleton 特性（向后兼容）
-            var singletonAttr = member.GetAttribute(symbols.SingletonAttribute);
-            exposedTypes = GetTypesFromAttribute(singletonAttr, ShortNames.ExposedTypes);
-        }
+        // 优先尝试 Provide 特性（新架构）
+        var provideAttr = member.GetAttribute(symbols.ProvideAttribute);
+        var exposedTypes = GetTypesFromAttribute(provideAttr, ShortNames.ExposedTypes);
 
         // 如果没有指定服务类型，使用成员的类型
         if (exposedTypes.IsEmpty)

@@ -32,9 +32,7 @@ internal static class HostGenerator
 
         // 分离注入成员和提供成员
         var injectMembers = validatedType.Members.Where(m => m.IsInjectMember).ToImmutableArray();
-        var provideMembers = validatedType
-            .Members.Where(m => m.IsSingletonMember || m.IsProvidesMember)
-            .ToImmutableArray();
+        var provideMembers = validatedType.Members.Where(m => m.IsProvideMember).ToImmutableArray();
 
         var f = new CodeFormatter();
 

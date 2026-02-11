@@ -220,19 +220,19 @@ internal static class DiagnosticDescriptors
     // M — Member-level
     // ============================================================
 
-    public static readonly DiagnosticDescriptor MemberHasSingletonButNotInHost = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberNotInServiceOrHost = Member(
         "010",
-        Resources.M_MemberHasSingletonButNotInHost
+        Resources.M_ProvideMemberNotInServiceOrHost
     );
 
-    public static readonly DiagnosticDescriptor MemberHasInjectButNotInUser = Member(
+    public static readonly DiagnosticDescriptor InjectMemberNotInServiceHostOrUser = Member(
         "011",
-        Resources.M_MemberHasInjectButNotInUser
+        Resources.M_InjectMemberNotInServiceHostOrUser
     );
 
-    public static readonly DiagnosticDescriptor MemberConflictWithSingletonAndInject = Member(
+    public static readonly DiagnosticDescriptor MemberConflictWithProvideAndInject = Member(
         "012",
-        Resources.M_MemberConflictWithSingletonAndInject
+        Resources.M_MemberConflictWithProvideAndInject
     );
 
     public static readonly DiagnosticDescriptor InjectMemberNotAssignable = Member(
@@ -240,9 +240,19 @@ internal static class DiagnosticDescriptors
         Resources.M_InjectMemberNotAssignable
     );
 
-    public static readonly DiagnosticDescriptor SingletonPropertyNotAccessible = Member(
+    public static readonly DiagnosticDescriptor ProvidePropertyNotAccessible = Member(
         "030",
-        Resources.M_SingletonPropertyNotAccessible
+        Resources.M_ProvidePropertyNotAccessible
+    );
+
+    public static readonly DiagnosticDescriptor ProvideMethodReturnVoid = Member(
+        "031",
+        Resources.M_ProvideMethodReturnVoid
+    );
+
+    public static readonly DiagnosticDescriptor ProvideMethodNotParameterless = Member(
+        "032",
+        Resources.M_ProvideMethodNotParameterless
     );
 
     public static readonly DiagnosticDescriptor InjectMemberIsStatic = Member(
@@ -287,44 +297,41 @@ internal static class DiagnosticDescriptors
         Resources.M_InjectMemberTypeCannotBeGeneric
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberIsStatic = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberIsStatic = Member(
         "050",
-        Resources.M_SingletonMemberIsStatic
+        Resources.M_ProvideMemberIsStatic
     );
+
+    // TODO: change singleton member to provide member
 
     public static readonly DiagnosticDescriptor SingletonMemberTypeIsInvalid = Member(
         "051",
         Resources.M_SingletonMemberTypeIsInvalid
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberIsServiceType = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberIsServiceOrHostType = Member(
         "052",
-        Resources.M_SingletonMemberIsServiceType
-    );
-
-    public static readonly DiagnosticDescriptor SingletonMemberIsHostType = Member(
-        "053",
-        Resources.M_SingletonMemberIsHostType,
+        Resources.M_ProvideMemberIsServiceOrHostType,
         DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberIsUserType = Member(
-        "054",
+        "053",
         Resources.M_SingletonMemberIsUserType
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberIsScopeType = Member(
-        "055",
+        "054",
         Resources.M_SingletonMemberIsScopeType
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberIsRegularNode = Member(
-        "056",
+        "055",
         Resources.M_SingletonMemberIsRegularNode
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberTypeCannotBeGeneric = Member(
-        "057",
+        "056",
         Resources.M_SingletonMemberTypeCannotBeGeneric
     );
 
@@ -378,57 +385,8 @@ internal static class DiagnosticDescriptors
     // S — Constructor-level
     // ============================================================
 
-    public static readonly DiagnosticDescriptor NoNonStaticConstructor = Constructor(
-        "010",
-        Resources.S_NoNonStaticConstructor
-    );
-
-    public static readonly DiagnosticDescriptor AmbiguousConstructor = Constructor(
-        "011",
-        Resources.S_AmbiguousConstructor
-    );
-
-    public static readonly DiagnosticDescriptor InjectConstructorAttributeIsInvalid = Constructor(
-        "012",
-        Resources.S_InjectConstructorAttributeIsInvalid
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamTypeInvalid = Constructor(
-        "020",
-        Resources.S_InjectConstructorParameterTypeInvalid
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamIsHostType = Constructor(
-        "021",
-        Resources.S_InjectCtorParamIsHostType,
-        DiagnosticSeverity.Warning
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamIsUserType = Constructor(
-        "022",
-        Resources.S_InjectCtorParamIsUserType
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamIsScopeType = Constructor(
-        "023",
-        Resources.S_InjectCtorParamIsScopeType
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamIsRegularNode = Constructor(
-        "024",
-        Resources.S_InjectCtorParamIsRegularNode
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamTypeShouldBeInterface = Constructor(
-        "025",
-        Resources.S_InjectCtorParamTypeShouldBeInterface,
-        DiagnosticSeverity.Warning
-    );
-
-    public static readonly DiagnosticDescriptor InjectCtorParamTypeCannotBeGeneric = Constructor(
-        "026",
-        Resources.S_InjectCtorParamTypeCannotBeGeneric
-    );
+    public static readonly DiagnosticDescriptor ServiceHasNoPublicParameterlessConstructor =
+        Constructor("001", Resources.S_ServiceHasNoPublicParameterlessConstructor);
 
     // ============================================================
     // D — Dependency Graph

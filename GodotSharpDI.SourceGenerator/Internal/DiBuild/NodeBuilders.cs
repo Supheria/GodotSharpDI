@@ -37,7 +37,7 @@ internal static class NodeBuilders
                     DiagnosticBuilder.Create(
                         DiagnosticDescriptors.NodeBuildFailed,
                         service.Location,
-                        service.Role == TypeRole.Provider ? "Provider" : "Service",
+                        "Service",
                         service.Symbol.Name,
                         ex.Message
                     )
@@ -162,23 +162,9 @@ internal static class NodeBuilders
     private static TypeNode BuildServiceNode(ValidatedTypeInfo service, CachedSymbols symbols)
     {
         var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
+        var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
 
-        // 收集构造函数依赖
-        if (service.Constructor != null)
-        {
-            foreach (var param in service.Constructor.Parameters)
-            {
-                dependencies.Add(
-                    new DependencyEdge(
-                        TargetType: param.Type,
-                        Location: param.Location,
-                        Source: DependencySource.Constructor
-                    )
-                );
-            }
-        }
-
-        // 收集 Inject 成员依赖（Provider 可能有）
+        // 收集 Inject 成员依赖
         foreach (var member in service.Members)
         {
             if (member.IsInjectMember)
@@ -193,24 +179,46 @@ internal static class NodeBuilders
             }
         }
 
-        // 获取暴露的服务类型
-        var providedServices = GetServiceExposedTypes(service, symbols);
+        // 收集 Provides 成员提供的服务
+        foreach (var member in service.Members)
+        {
+            if (member.IsProvideMember)
+            {
+                providedServices.AddRange(member.ExposedTypes);
+            }
+        }
 
         return new TypeNode(
             ValidatedTypeInfo: service,
             Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: providedServices
+            ProvidedServices: providedServices.ToImmutable()
         );
     }
 
     private static TypeNode BuildHostNode(ValidatedTypeInfo host)
     {
+        var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
         var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
 
-        // 收集 Host 提供的服务
+        // 收集 Inject 成员依赖
         foreach (var member in host.Members)
         {
-            if (member.IsSingletonMember || member.IsProvidesMember)
+            if (member.IsInjectMember)
+            {
+                dependencies.Add(
+                    new DependencyEdge(
+                        TargetType: member.MemberType,
+                        Location: member.Location,
+                        Source: DependencySource.InjectMember
+                    )
+                );
+            }
+        }
+
+        // 收集 Provides 成员提供的服务
+        foreach (var member in host.Members)
+        {
+            if (member.IsProvideMember)
             {
                 providedServices.AddRange(member.ExposedTypes);
             }
@@ -218,7 +226,7 @@ internal static class NodeBuilders
 
         return new TypeNode(
             ValidatedTypeInfo: host,
-            Dependencies: ImmutableArray<DependencyEdge>.Empty,
+            Dependencies: dependencies.ToImmutable(),
             ProvidedServices: providedServices.ToImmutable()
         );
     }
@@ -290,71 +298,6 @@ internal static class NodeBuilders
     // 辅助方法
     // ============================================================
 
-    /// <summary>
-    /// 获取 Service 或 Provider 暴露的服务类型
-    /// </summary>
-    private static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
-        ValidatedTypeInfo service,
-        CachedSymbols symbols
-    )
-    {
-        var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-
-        // 判断是 Provider 还是 Service
-        bool isProvider = service.Role == TypeRole.Provider;
-
-        if (isProvider)
-        {
-            // Provider: 从成员收集暴露的服务类型
-            foreach (var member in service.Members)
-            {
-                if (member.IsProvidesMember || member.IsSingletonMember)
-                {
-                    builder.AddRange(member.ExposedTypes);
-                }
-            }
-        }
-        else
-        {
-            // Service: 从类本身的 Singleton 特性收集
-            try
-            {
-                var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
-
-                if (attr != null)
-                {
-                    foreach (var arg in attr.ConstructorArguments)
-                    {
-                        if (arg.Kind == TypedConstantKind.Array)
-                        {
-                            foreach (var item in arg.Values)
-                            {
-                                if (item.Value is INamedTypeSymbol type)
-                                    builder.Add(type);
-                            }
-                        }
-                    }
-                }
-
-                // 如果没有显式指定暴露类型，默认暴露自身
-                if (builder.Count == 0)
-                {
-                    builder.Add(service.Symbol);
-                }
-            }
-            catch
-            {
-                // 如果获取失败，至少返回服务本身的类型
-                if (builder.Count == 0)
-                {
-                    builder.Add(service.Symbol);
-                }
-            }
-        }
-
-        return builder.ToImmutable();
-    }
-
     private static void ValidateScopeServices(
         ValidatedTypeInfo scope,
         ImmutableArray<INamedTypeSymbol> services,
@@ -364,11 +307,10 @@ internal static class NodeBuilders
     {
         foreach (var type in services)
         {
-            // 检查是否是 Service 或 Provider
+            // 检查是否是 Service
             var isService = type.HasAttribute(symbols.SingletonAttribute);
-            var isProvider = type.HasAttribute(symbols.ProviderAttribute);
 
-            if (!isService && !isProvider)
+            if (!isService)
             {
                 diagnostics.Add(
                     DiagnosticBuilder.Create(

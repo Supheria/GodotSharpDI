@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -154,8 +155,9 @@ internal static class ServiceProvisionPhase
 
         return member.Kind switch
         {
-            MemberKind.SingletonProperty or MemberKind.ProvidesProperty => $"{prefix}{memberName}",
-            _ => $"{prefix}{memberName}()" // 方法调用
+            MemberKind.ProvideProperty => $"{prefix}{memberName}",
+            MemberKind.ProvideMethod => $"{prefix}{memberName}()",
+            _ => throw new ArgumentOutOfRangeException(),
         };
     }
 

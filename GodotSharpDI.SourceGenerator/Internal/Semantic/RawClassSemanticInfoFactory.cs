@@ -24,7 +24,6 @@ internal static class RawClassSemanticInfoFactory
         var symbols = new CachedSymbols(compilation);
 
         // 检查是否有相关特性
-        var hasProvider = symbol.HasAttribute(symbols.ProviderAttribute);
         var hasSingleton = symbol.HasAttribute(symbols.SingletonAttribute);
         var hasHost = symbol.HasAttribute(symbols.HostAttribute);
         var hasUser = symbol.HasAttribute(symbols.UserAttribute);
@@ -36,14 +35,7 @@ internal static class RawClassSemanticInfoFactory
         var isPartial = syntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
         // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
-        if (
-            !hasProvider
-            && !hasSingleton
-            && !hasHost
-            && !hasUser
-            && !hasModules
-            && !implementsIScope
-        )
+        if (!hasSingleton && !hasHost && !hasUser && !hasModules && !implementsIScope)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
         // 收集成员：字段、属性和普通方法
@@ -71,7 +63,6 @@ internal static class RawClassSemanticInfoFactory
             Symbol: symbol,
             Location: syntax.Identifier.GetLocation(),
             HasSingletonAttribute: hasSingleton,
-            HasProviderAttribute: hasProvider,
             HasHostAttribute: hasHost,
             HasUserAttribute: hasUser,
             HasModulesAttribute: hasModules,

@@ -15,7 +15,7 @@ public interface IGameState
 [Host]
 public sealed partial class GameManager : Node, IGameState
 {
-    [Provides(ExposedTypes = [typeof(IGameState)])]
+    [Provide(ExposedTypes = [typeof(IGameState)])]
     public async Task<GameManager> GetSelf()
     {
         return this;

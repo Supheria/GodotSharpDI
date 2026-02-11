@@ -67,74 +67,7 @@ internal sealed class CircularDependencyDetector
     /// </summary>
     private void StrongConnect(ITypeSymbol typeSymbol)
     {
-        // 初始化节点
-        _indices[typeSymbol] = _index;
-        _lowLinks[typeSymbol] = _index;
-        _index++;
-        _stack.Push(typeSymbol);
-        _onStack.Add(typeSymbol);
-
-        // 考虑所有依赖
-        if (_serviceImplToNode.TryGetValue(typeSymbol, out var node))
-        {
-            if (node.ValidatedTypeInfo.Constructor != null)
-            {
-                foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
-                {
-                    // 获取参数类型的提供者
-                    if (_serviceProviders.TryGetValue(param.Type, out var provider))
-                    {
-                        var dependencySymbol = provider.Symbol;
-
-                        if (!_indices.ContainsKey(dependencySymbol))
-                        {
-                            // 依赖未被访问，递归访问
-                            StrongConnect(dependencySymbol);
-                            _lowLinks[typeSymbol] = Math.Min(
-                                _lowLinks[typeSymbol],
-                                _lowLinks[dependencySymbol]
-                            );
-                        }
-                        else if (_onStack.Contains(dependencySymbol))
-                        {
-                            // 依赖在栈中，说明有环
-                            _lowLinks[typeSymbol] = Math.Min(
-                                _lowLinks[typeSymbol],
-                                _indices[dependencySymbol]
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
-        // 如果是强连通分量的根节点
-        if (_lowLinks[typeSymbol] == _indices[typeSymbol])
-        {
-            var component = new List<ITypeSymbol>();
-            ITypeSymbol w;
-            do
-            {
-                w = _stack.Pop();
-                _onStack.Remove(w);
-                component.Add(w);
-            } while (!SymbolEqualityComparer.Default.Equals(w, typeSymbol));
-
-            // 如果强连通分量大小 > 1，说明有循环
-            if (component.Count > 1)
-            {
-                _cycles.Add(new Cycle(component));
-            }
-            // 如果大小 = 1，检查是否有自环
-            else if (component.Count == 1)
-            {
-                var singleNode = component[0];
-                if (HasSelfLoop(singleNode))
-                {
-                    _cycles.Add(new Cycle(component));
-                }
-            }
-        }
+        // TODO: 需要重写（已经从构造函数的依赖模式转变为 WaitFor 模式）
     }
 
     /// <summary>
@@ -142,23 +75,7 @@ internal sealed class CircularDependencyDetector
     /// </summary>
     private bool HasSelfLoop(ITypeSymbol typeSymbol)
     {
-        if (!_serviceImplToNode.TryGetValue(typeSymbol, out var node))
-            return false;
-
-        if (node.ValidatedTypeInfo.Constructor == null)
-            return false;
-
-        foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
-        {
-            if (_serviceProviders.TryGetValue(param.Type, out var provider))
-            {
-                if (SymbolEqualityComparer.Default.Equals(provider.Symbol, typeSymbol))
-                {
-                    return true;
-                }
-            }
-        }
-
+        // TODO: 需要重写（已经从构造函数的依赖模式转变为 WaitFor 模式）
         return false;
     }
 
@@ -219,45 +136,8 @@ internal sealed class CircularDependencyDetector
     /// </summary>
     private List<ITypeSymbol> OrderCyclePath(List<ITypeSymbol> components)
     {
-        if (components.Count <= 2)
-            return components;
-
-        // 构建依赖关系图（只在循环组件内）
-        var componentSet = new HashSet<ITypeSymbol>(components, SymbolEqualityComparer.Default);
-        var graph = new Dictionary<ITypeSymbol, List<ITypeSymbol>>(SymbolEqualityComparer.Default);
-
-        foreach (var component in components)
-        {
-            graph[component] = new List<ITypeSymbol>();
-
-            if (_serviceImplToNode.TryGetValue(component, out var node))
-            {
-                if (node.ValidatedTypeInfo.Constructor != null)
-                {
-                    foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
-                    {
-                        if (_serviceProviders.TryGetValue(param.Type, out var provider))
-                        {
-                            if (componentSet.Contains(provider.Symbol))
-                            {
-                                graph[component].Add(provider.Symbol);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 从第一个有依赖的节点开始构建路径
-        var orderedPath = new List<ITypeSymbol>();
-        var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-
-        // 找到起始节点（优先选择有依赖的节点）
-        var start = components.FirstOrDefault(c => graph[c].Count > 0) ?? components[0];
-
-        BuildOrderedPath(start, graph, componentSet, visited, orderedPath);
-
-        return orderedPath.Count > 0 ? orderedPath : components;
+        // TODO: 需要重写（已经从构造函数的依赖模式转变为 WaitFor 模式）
+        return [];
     }
 
     /// <summary>

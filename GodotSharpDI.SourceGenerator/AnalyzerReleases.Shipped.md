@@ -27,47 +27,40 @@
 
 ### Member-level Diagnostics (M_)
 
-| Rule ID  | Category    | Severity | Notes                                                           |
-|----------|-------------|----------|-----------------------------------------------------------------|
-| GDI_M010 | GDI.Member  | Error    | [Singleton] on member requires [Host] on type                   |
-| GDI_M011 | GDI.Member  | Error    | [Inject] on member requires [User] on type                      |
-| GDI_M012 | GDI.Member  | Error    | [Singleton] and [Inject] cannot be on same member               |
-| GDI_M020 | GDI.Member  | Error    | [Inject] member must be writable                                |
-| GDI_M030 | GDI.Member  | Error    | [Singleton] property must have getter                           |
-| GDI_M040 | GDI.Member  | Error    | Injected member cannot be static                                |
-| GDI_M041 | GDI.Member  | Error    | Injected member type must be valid injectable type              |
-| GDI_M042 | GDI.Member  | Warning  | Inject member is Host type (allowed but not recommended)        |
-| GDI_M043 | GDI.Member  | Error    | Cannot inject User type                                         |
-| GDI_M044 | GDI.Member  | Error    | Cannot inject Scope type                                        |
-| GDI_M045 | GDI.Member  | Error    | Inject member cannot be regular Node                            |
-| GDI_M046 | GDI.Member  | Warning  | Inject member type should be interface (for better testability) |
-| GDI_M047 | GDI.Member  | Error    | Inject member cannot be generic type                            |
-| GDI_M050 | GDI.Member  | Error    | Singleton member cannot be static                               |
-| GDI_M051 | GDI.Member  | Error    | Singleton member type is invalid                                |
-| GDI_M052 | GDI.Member  | Error    | Host Singleton member cannot be Service type                    |
-| GDI_M053 | GDI.Member  | Warning  | Singleton member is Host type (Host can only expose itself)     |
-| GDI_M054 | GDI.Member  | Error    | Singleton member cannot be User type                            |
-| GDI_M055 | GDI.Member  | Error    | Singleton member cannot be Scope type / regular Node            |
-| GDI_M056 | GDI.Member  | Error    | Singleton member cannot be generic type                         |
-| GDI_M061 | GDI.Member  | Warning  | Singleton member exposed type should be interface               |
-| GDI_M062 | GDI.Member  | Warning  | Singleton member cannot expose generic type                     |
-| GDI_M070 | GDI.Member  | Warning  | Host has no member marked as [Singleton]                        |
-| GDI_M071 | GDI.Member  | Warning  | User has no member marked as [Inject]                           |
+| Rule ID  | Category    | Severity | Notes                                                                       |
+|----------|-------------|----------|-----------------------------------------------------------------------------|
+| GDI_M010 | GDI.Member  | Error    | [Provide] member must in Service or Host type                               |
+| GDI_M011 | GDI.Member  | Error    | [Inject] member must in Service, Host or User type                          |
+| GDI_M012 | GDI.Member  | Error    | [Provide] and [Inject] cannot be on same member                             |
+| GDI_M020 | GDI.Member  | Error    | [Inject] member must be writable                                            |
+| GDI_M030 | GDI.Member  | Error    | [Provide] property must have getter                                         |
+| GDI_M031 | GDI.Member  | Error    | [Provide] method cannot return void                                         |
+| GDI_M032 | GDI.Member  | Error    | [Provide] method must be parameterless                                      |
+| GDI_M040 | GDI.Member  | Error    | [Inject] member cannot be static                                            |
+| GDI_M041 | GDI.Member  | Error    | [Inject] member type must be valid injectable type                          |
+| GDI_M042 | GDI.Member  | Warning  | Inject member is Host type (allowed but not recommended)                    |
+| GDI_M043 | GDI.Member  | Error    | Cannot inject User type                                                     |
+| GDI_M044 | GDI.Member  | Error    | Cannot inject Scope type                                                    |
+| GDI_M045 | GDI.Member  | Error    | Inject member cannot be regular Node                                        |
+| GDI_M046 | GDI.Member  | Warning  | Inject member type should be interface (for better testability)             |
+| GDI_M047 | GDI.Member  | Error    | Inject member cannot be generic type                                        |
+| GDI_M050 | GDI.Member  | Error    | [Provide] member cannot be static                                           |
+| GDI_M051 | GDI.Member  | Error    | Singleton member type is invalid                                            |
+| GDI_M052 | GDI.Member  | Warning  | [Provide] member is Service or Host type (they can only expose themselvies) |
+| GDI_M053 | GDI.Member  | Error    | Singleton member cannot be User type                                        |
+| GDI_M054 | GDI.Member  | Error    | Singleton member cannot be Scope type                                       |
+| GDI_M055 | GDI.Member  | Error    | Singleton member cannot be regular Node                                     |
+| GDI_M056 | GDI.Member  | Error    | Singleton member cannot be generic type                                     |
+| GDI_M061 | GDI.Member  | Warning  | Singleton member exposed type should be interface                           |
+| GDI_M062 | GDI.Member  | Warning  | Singleton member cannot expose generic type                                 |
+| GDI_M070 | GDI.Member  | Warning  | Host has no member marked as [Singleton]                                    |
+| GDI_M071 | GDI.Member  | Warning  | User has no member marked as [Inject]                                       |
 
 ### Constructor-level Diagnostics (S_)
 
-| Rule ID  | Category        | Severity | Notes                                                                   |
-|----------|-----------------|----------|-------------------------------------------------------------------------|
-| GDI_S010 | GDI.Constructor | Error    | Service must define at least one non-static constructor                 |
-| GDI_S011 | GDI.Constructor | Error    | Multiple constructors require [InjectConstructor]                       |
-| GDI_S012 | GDI.Constructor | Error    | [InjectConstructor] is invalid on non-Service                           |
-| GDI_S020 | GDI.Constructor | Error    | Inject constructor parameter type invalid                               |
-| GDI_S021 | GDI.Constructor | Warning  | Constructor parameter is Host type (allowed but not recommended)        |
-| GDI_S022 | GDI.Constructor | Error    | Constructor parameter cannot be User type                               |
-| GDI_S023 | GDI.Constructor | Error    | Constructor parameter cannot be Scope type                              |
-| GDI_S024 | GDI.Constructor | Error    | Constructor parameter cannot be regular Node                            |
-| GDI_S025 | GDI.Constructor | Warning  | Constructor parameter type should be interface (for better testability) |
-| GDI_S026 | GDI.Constructor | Error    | Constructor parameter cannot be generic type                            |
+| Rule ID  | Category        | Severity | Notes                                              |
+|----------|-----------------|----------|----------------------------------------------------|
+| GDI_S001 | GDI.Constructor | Error    | Service must have public parameterless constructor |
 
 ### Dependency Graph Diagnostics (D_)
 
@@ -117,7 +110,7 @@
 **Rationale**:
 - Documentation stated "allowed but not recommended"
 - Some legitimate use cases exist (e.g., quick prototypes, specific scenarios)
-- Warning provides guidance without blocking compilation
+- Warning Provide guidance without blocking compilation
 - Users can suppress warning if they understand the trade-offs
 
 **Best Practice**: Inject interfaces exposed by Host instead of Host itself

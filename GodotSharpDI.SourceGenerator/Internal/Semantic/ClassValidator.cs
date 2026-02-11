@@ -44,12 +44,12 @@ internal sealed class ClassValidator
         var members = ProcessMembers(role);
 
         // 5. 处理构造函数
-        var constructor = ProcessConstructor(role);
+        ProcessConstructor(role);
 
         // 6. 处理 Modules
         var modulesInfo = ProcessModules();
 
-        return CreateSuccessResult(role, members, constructor, modulesInfo);
+        return CreateSuccessResult(role, members, modulesInfo);
     }
 
     private bool ValidatePartial()
@@ -81,17 +81,6 @@ internal sealed class ClassValidator
                         _raw.Location,
                         _raw.Symbol.Name,
                         ShortNames.Singleton
-                    )
-                );
-            }
-            if (_raw.HasProviderAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        "Provider"
                     )
                 );
             }
@@ -132,36 +121,7 @@ internal sealed class ClassValidator
             );
         }
 
-        // Provider（新架构）
-        if (_raw.HasProviderAttribute)
-        {
-            if (_raw.HasHostAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        "Provider"
-                    )
-                );
-            }
-            if (_raw.HasUserAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.UserInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        "Provider"
-                    )
-                );
-            }
-
-            return TypeRole.Provider;
-        }
-
-        // Service（旧架构，保留兼容性）
+        // Service
         if (_raw.HasSingletonAttribute)
         {
             if (_raw.HasHostAttribute)
@@ -226,15 +186,15 @@ internal sealed class ClassValidator
         processor.Process();
     }
 
+    private void ProcessConstructor(TypeRole role)
+    {
+        var processor = new ConstructorProcessor(_raw, role, _symbols, _diagnostics);
+        processor.Process();
+    }
+
     private ImmutableArray<MemberInfo> ProcessMembers(TypeRole role)
     {
         var processor = new MemberProcessor(_raw, role, _symbols, _diagnostics);
-        return processor.Process();
-    }
-
-    private ConstructorInfo? ProcessConstructor(TypeRole role)
-    {
-        var processor = new ConstructorProcessor(_raw, role, _symbols, _diagnostics);
         return processor.Process();
     }
 
@@ -262,7 +222,6 @@ internal sealed class ClassValidator
     private ClassValidationResult CreateSuccessResult(
         TypeRole role,
         ImmutableArray<MemberInfo> members,
-        ConstructorInfo? constructor,
         ModulesInfo? modulesInfo
     )
     {
@@ -273,7 +232,6 @@ internal sealed class ClassValidator
             ImplementsIDependenciesResolved: _raw.ImplementsIDependenciesResolved,
             IsNode: _raw.IsNode,
             Members: members,
-            Constructor: constructor,
             ModulesInfo: modulesInfo
         );
 

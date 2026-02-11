@@ -11,20 +11,20 @@ public interface IPlayerStats<T>
     int Mana { get; set; }
 }
 
-[Provider]
-public partial class PlayerStatsService2 : IPlayerStats<int>
+[Singleton]
+public partial class PlayerStatsService3 : IPlayerStats<int>
 {
     public int Health { get; set; } = 100;
     public int Mana { get; set; } = 50;
 
     [Inject]
-    private PlayerStatsService2 gameState
+    private PlayerStatsService3 gameState
     {
         set => GD.Print("PlayerStatsService inject Game State");
     }
 
-    [Provides(typeof(IPlayerStats<int>), WaitFor = [nameof(gameState)])]
-    public Task<PlayerStatsService2> Self => Task.Run(() => this);
+    [Provide(ExposedTypes = [typeof(IPlayerStats<int>)], WaitFor = [nameof(gameState)])]
+    public Task<PlayerStatsService3> Self => Task.Run(() => this);
 }
 
 // [Singleton(typeof(IPlayerStats2))]

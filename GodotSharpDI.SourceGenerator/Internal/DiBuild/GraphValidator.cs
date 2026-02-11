@@ -42,10 +42,7 @@ internal static class GraphValidator
             // 1. 检查循环依赖
             ValidateCircularDependencies(serviceNodes, serviceProviders, diagnostics);
 
-            // 2. 检查 Service 构造函数参数
-            ValidateServiceConstructors(serviceNodes, serviceProviders, diagnostics);
-
-            // 3. 检查 User 注入成员
+            // 2. 检查 User 注入成员
             ValidateUserInjections(allUserNodes, serviceProviders, diagnostics);
         }
         catch (Exception ex)
@@ -94,62 +91,7 @@ internal static class GraphValidator
         }
     }
 
-    /// <summary>
-    /// 验证 Service 构造函数参数
-    /// </summary>
-    private static void ValidateServiceConstructors(
-        ImmutableArray<TypeNode> serviceNodes,
-        ServiceProviderMap serviceProviders,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        foreach (var node in serviceNodes)
-        {
-            try
-            {
-                ValidateServiceConstructor(node, serviceProviders, diagnostics);
-            }
-            catch (Exception ex)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.CreateForSymbol(
-                        DiagnosticDescriptors.GraphValidationFailed,
-                        node.ValidatedTypeInfo.Symbol,
-                        "ServiceConstructorValidation",
-                        ex.Message
-                    )
-                );
-            }
-        }
-    }
-
-    /// <summary>
-    /// 验证单个 Service 的构造函数
-    /// </summary>
-    private static void ValidateServiceConstructor(
-        TypeNode node,
-        ServiceProviderMap serviceProviders,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        if (node.ValidatedTypeInfo.Constructor == null)
-            return;
-
-        foreach (var param in node.ValidatedTypeInfo.Constructor.Parameters)
-        {
-            if (!serviceProviders.ContainsKey(param.Type))
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ServiceConstructorParameterInvalid,
-                        param.Location,
-                        node.ValidatedTypeInfo.Symbol.Name,
-                        param.Type.ToDisplayString()
-                    )
-                );
-            }
-        }
-    }
+    // TODO: 还需要验证 Host 和 Service 的成员注入
 
     /// <summary>
     /// 验证 User 注入成员

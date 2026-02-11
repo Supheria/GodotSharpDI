@@ -108,9 +108,7 @@ internal static class DiGraphBuilder
         try
         {
             return new TypesByRole(
-                Services: validTypes
-                    .Where(t => t.Role == TypeRole.Service || t.Role == TypeRole.Provider)
-                    .ToImmutableArray(),
+                Services: validTypes.Where(t => t.Role == TypeRole.Service).ToImmutableArray(),
                 Hosts: validTypes.Where(t => t.Role == TypeRole.Host).ToImmutableArray(),
                 Users: validTypes.Where(t => t.Role == TypeRole.User).ToImmutableArray(),
                 Scopes: validTypes.Where(t => t.Role == TypeRole.Scope).ToImmutableArray()

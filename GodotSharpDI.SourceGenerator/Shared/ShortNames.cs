@@ -14,7 +14,13 @@ public static class ShortNames
     public const string Hosts = "Hosts";
 
     //
-    // SingletonAttribute arguments
+    // InjectAttribute arguments
+    //
+    public const string FailureCallback = "FailureCallback";
+
+    //
+    // ProvideAttribute arguments
     //
     public const string ExposedTypes = "ExposedTypes";
+    public const string WaitFor = "WaitFor";
 }

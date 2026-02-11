@@ -2,6 +2,7 @@
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
+using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Semantic;
@@ -36,21 +37,19 @@ internal sealed class MemberProcessor
         foreach (var member in _raw.Members)
         {
             var hasInject = member.HasAttribute(_symbols.InjectAttribute);
-            var hasSingleton = member.HasAttribute(_symbols.SingletonAttribute);
-            var hasProvides = member.HasAttribute(_symbols.ProvidesAttribute);
+            var hasProvide = member.HasAttribute(_symbols.ProvideAttribute);
 
-            if (!hasInject && !hasSingleton && !hasProvides)
+            if (!hasInject && !hasProvide)
                 continue;
 
             // 检查冲突的特性组合
-            if ((hasInject ? 1 : 0) + (hasSingleton ? 1 : 0) + (hasProvides ? 1 : 0) > 1)
+            if (hasInject && hasProvide)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.MemberConflictWithSingletonAndInject,
+                        DiagnosticDescriptors.MemberConflictWithProvideAndInject,
                         member.Locations.FirstOrDefault() ?? _raw.Location,
-                        member.Name,
-                        "[Inject]、[Singleton] 和 [Provides] 不能同时使用"
+                        member.Name
                     )
                 );
                 continue;
@@ -60,25 +59,12 @@ internal sealed class MemberProcessor
                 hasInject
                 && _role != TypeRole.User
                 && _role != TypeRole.Host
-                && _role != TypeRole.Provider
+                && _role != TypeRole.Service
             )
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.MemberHasInjectButNotInUser,
-                        member.Locations.FirstOrDefault() ?? _raw.Location,
-                        member.Name,
-                        "[Inject] 只能用于 User、Host 或 Provider 类型"
-                    )
-                );
-                continue;
-            }
-
-            if (hasSingleton && _role != TypeRole.Host)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.MemberHasSingletonButNotInHost,
+                        DiagnosticDescriptors.InjectMemberNotInServiceHostOrUser,
                         member.Locations.FirstOrDefault() ?? _raw.Location,
                         member.Name
                     )
@@ -86,20 +72,19 @@ internal sealed class MemberProcessor
                 continue;
             }
 
-            if (hasProvides && _role != TypeRole.Host && _role != TypeRole.Provider)
+            if (hasProvide && _role != TypeRole.Host && _role != TypeRole.Service)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.MemberHasSingletonButNotInHost,
+                        DiagnosticDescriptors.ProvideMemberNotInServiceOrHost,
                         member.Locations.FirstOrDefault() ?? _raw.Location,
-                        member.Name,
-                        "[Provides] 只能用于 Host 或 Provider 类型"
+                        member.Name
                     )
                 );
                 continue;
             }
 
-            var memberInfo = ProcessSingleMember(member, hasInject, hasSingleton, hasProvides);
+            var memberInfo = ProcessSingleMember(member, hasInject, hasProvide);
             if (memberInfo != null)
                 members.Add(memberInfo);
         }
@@ -113,12 +98,7 @@ internal sealed class MemberProcessor
         return members.ToImmutable();
     }
 
-    private MemberInfo? ProcessSingleMember(
-        ISymbol member,
-        bool hasInject,
-        bool hasSingleton,
-        bool hasProvides
-    )
+    private MemberInfo? ProcessSingleMember(ISymbol member, bool hasInject, bool hasProvide)
     {
         var location = member.Locations.FirstOrDefault() ?? Location.None;
 
@@ -136,11 +116,11 @@ internal sealed class MemberProcessor
                 );
                 return null;
             }
-            if (hasSingleton || hasProvides)
+            if (hasProvide)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonMemberIsStatic,
+                        DiagnosticDescriptors.ProvideMemberIsStatic,
                         location,
                         member.Name
                     )
@@ -157,7 +137,7 @@ internal sealed class MemberProcessor
         if (member is IFieldSymbol field && field.Type is INamedTypeSymbol)
         {
             memberType = (INamedTypeSymbol)field.Type;
-            kind = hasInject ? MemberKind.InjectField : MemberKind.SingletonField;
+            kind = MemberKind.InjectField;
         }
         else if (member is IPropertySymbol property && property.Type is INamedTypeSymbol)
         {
@@ -178,21 +158,20 @@ internal sealed class MemberProcessor
                 }
                 kind = MemberKind.InjectProperty;
             }
-            else if (hasProvides)
+            else if (hasProvide)
             {
                 if (property.GetMethod == null)
                 {
                     _diagnostics.Add(
                         DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.SingletonPropertyNotAccessible,
+                            DiagnosticDescriptors.ProvidePropertyNotAccessible,
                             location,
-                            member.Name,
-                            "[Provides] 属性必须有 getter"
+                            member.Name
                         )
                     );
                     return null;
                 }
-                kind = MemberKind.ProvidesProperty;
+                kind = MemberKind.ProvideProperty;
 
                 // 检查是否是 Task<T>
                 isAsync = _symbols.IsAsyncType(property.Type);
@@ -202,33 +181,17 @@ internal sealed class MemberProcessor
                     memberType = taskType.TypeArguments[0] as INamedTypeSymbol;
                 }
             }
-            else // hasSingleton
-            {
-                if (property.GetMethod == null)
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.SingletonPropertyNotAccessible,
-                            location,
-                            member.Name
-                        )
-                    );
-                    return null;
-                }
-                kind = MemberKind.SingletonProperty;
-            }
         }
-        else if (member is IMethodSymbol method && hasProvides)
+        else if (member is IMethodSymbol method && hasProvide)
         {
-            // [Provides] 可以用在方法上
+            // [Provide] 可以用在方法上
             if (method.ReturnsVoid)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonPropertyNotAccessible,
+                        DiagnosticDescriptors.ProvideMethodReturnVoid,
                         location,
-                        member.Name,
-                        "[Provides] 方法不能返回 void"
+                        member.Name
                     )
                 );
                 return null;
@@ -238,16 +201,15 @@ internal sealed class MemberProcessor
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonPropertyNotAccessible,
+                        DiagnosticDescriptors.ProvideMethodNotParameterless,
                         location,
-                        member.Name,
-                        "[Provides] 方法不能有参数"
+                        member.Name
                     )
                 );
                 return null;
             }
 
-            kind = MemberKind.ProvidesMethod;
+            kind = MemberKind.ProvideMethod;
             isAsync = _symbols.IsAsyncType(method.ReturnType);
 
             if (method.ReturnType is INamedTypeSymbol returnType)
@@ -271,11 +233,12 @@ internal sealed class MemberProcessor
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
             // 读取 FailureCallback 属性
+            // TODO: move this method into AttributeHelper
             var injectAttr = member.GetAttribute(_symbols.InjectAttribute);
             foreach (var namedArg in injectAttr!.NamedArguments)
             {
                 if (
-                    namedArg.Key == "FailureCallback"
+                    namedArg.Key == ShortNames.FailureCallback
                     && namedArg.Value.Value is bool failureCallbackValue
                 )
                 {
@@ -285,33 +248,30 @@ internal sealed class MemberProcessor
             }
         }
 
-        // 验证和提取 Singleton/Provides 成员
+        // 验证和提取 Provide 成员
         var exposedTypes = ImmutableArray<INamedTypeSymbol>.Empty;
         var waitFor = ImmutableArray<string>.Empty;
 
-        if (hasSingleton)
+        if (hasProvide)
         {
-            if (!ValidateSingletonMemberType(memberType, member, location))
-                return null;
-            exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
-            ValidateSingletonMemberExposedTypes(memberType, member, location, exposedTypes);
-        }
-        else if (hasProvides)
-        {
-            if (!ValidateSingletonMemberType(memberType, member, location))
+            if (!ValidateProvideMemberType(memberType, member, location))
                 return null;
 
-            // 从 Provides 特性提取信息
-            var providesAttr = member.GetAttribute(_symbols.ProvidesAttribute);
-            if (providesAttr != null)
+            // 从 Provide 特性提取信息
+            var provideAttr = member.GetAttribute(_symbols.ProvideAttribute);
+            if (provideAttr != null)
             {
                 // 提取 ServiceType
                 exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
 
                 // 提取 WaitFor
-                foreach (var namedArg in providesAttr.NamedArguments)
+                // TODO: move this method into AttributeHelper
+                foreach (var namedArg in provideAttr.NamedArguments)
                 {
-                    if (namedArg.Key == "WaitFor" && namedArg.Value.Kind == TypedConstantKind.Array)
+                    if (
+                        namedArg.Key == ShortNames.WaitFor
+                        && namedArg.Value.Kind == TypedConstantKind.Array
+                    )
                     {
                         var waitForList = ImmutableArray.CreateBuilder<string>();
                         foreach (var element in namedArg.Value.Values)
@@ -332,12 +292,6 @@ internal sealed class MemberProcessor
                 }
             }
 
-            if (exposedTypes.IsEmpty)
-            {
-                // 如果没有显式指定，使用成员类型
-                exposedTypes = ImmutableArray.Create(memberType);
-            }
-
             ValidateSingletonMemberExposedTypes(memberType, member, location, exposedTypes);
         }
 
@@ -350,7 +304,7 @@ internal sealed class MemberProcessor
             HasFailureCallback: hasFailureCallback,
             WaitFor: waitFor,
             IsAsync: isAsync,
-            UsesProvides: hasProvides
+            UsesProvide: hasProvide
         );
     }
 
@@ -456,7 +410,7 @@ internal sealed class MemberProcessor
         return true;
     }
 
-    private bool ValidateSingletonMemberType(
+    private bool ValidateProvideMemberType(
         ITypeSymbol memberType,
         ISymbol member,
         Location location
@@ -490,29 +444,15 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 不能是 Service 类型（Host 不应直接持有 Service 实例）
-        if (_symbols.IsServiceType(memberType))
+        // 检查 Service 或 Host 类型
+        if (_symbols.IsServiceType(memberType) || _symbols.IsHostType(memberType))
         {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.SingletonMemberIsServiceType,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
-        // 检查 Host 类型
-        if (_symbols.IsHostType(memberType))
-        {
-            // 不允许除自身类型之外的 Host 类型
+            // 不允许除自身类型之外的 Service 或 Host 类型
             if (!SymbolEqualityComparer.Default.Equals(memberType, _raw.Symbol))
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonMemberIsHostType,
+                        DiagnosticDescriptors.ProvideMemberIsServiceOrHostType,
                         location,
                         member.Name,
                         memberType.ToDisplayString()
@@ -644,10 +584,8 @@ internal sealed class MemberProcessor
     {
         if (_role == TypeRole.Host)
         {
-            // Host 需要至少有一个 Singleton 或 Provides 成员
-            var provideMembers = memberInfos
-                .Where(m => m.IsSingletonMember || m.IsProvidesMember)
-                .ToArray();
+            // Host 需要至少有一个 Provide 成员
+            var provideMembers = memberInfos.Where(m => m.IsProvideMember).ToArray();
             if (provideMembers.Length == 0)
             {
                 _diagnostics.Add(
@@ -660,14 +598,14 @@ internal sealed class MemberProcessor
             }
         }
 
-        if (_role == TypeRole.Provider)
+        if (_role == TypeRole.Service)
         {
-            // Provider 需要至少有一个 Provides 成员
-            var providesMembers = memberInfos.Where(m => m.IsProvidesMember).ToArray();
-            if (providesMembers.Length == 0)
+            // Service 需要至少有一个 Provide 成员
+            var provideMembers = memberInfos.Where(m => m.IsProvideMember).ToArray();
+            if (provideMembers.Length == 0)
             {
-                // 可以添加一个警告，但不强制要求
-                // Provider 可能只做依赖注入而不提供服务（虽然这不太常见）
+                // TODO:
+                // 可以添加一个警告，ServiceMissingSingletonMember
             }
         }
 
