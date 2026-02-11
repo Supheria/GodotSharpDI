@@ -178,7 +178,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
         // 5. 分阶段图构建
         // 5.1 按角色分类收集（减少全局 Collect）
         var serviceTypes = classValidationResults
-            .Where(static r => r.TypeInfo?.Role == TypeRole.Service)
+            .Where(static r => r.TypeInfo?.Role == TypeRole.Service || r.TypeInfo?.Role == TypeRole.Provider)
             .Select(static (r, _) => r.TypeInfo!)
             .Collect();
 

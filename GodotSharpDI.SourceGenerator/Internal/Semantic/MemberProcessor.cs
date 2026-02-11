@@ -311,25 +311,22 @@ internal sealed class MemberProcessor
                 // 提取 WaitFor
                 foreach (var namedArg in providesAttr.NamedArguments)
                 {
-                    if (namedArg.Key == "WaitFor" && namedArg.Value.Value != null)
+                    if (namedArg.Key == "WaitFor" && namedArg.Value.Kind == TypedConstantKind.Array)
                     {
-                        if (namedArg.Value.Kind == TypedConstantKind.Array)
+                        var waitForList = ImmutableArray.CreateBuilder<string>();
+                        foreach (var element in namedArg.Value.Values)
                         {
-                            var waitForList = ImmutableArray.CreateBuilder<string>();
-                            foreach (var element in namedArg.Value.Values)
+                            if (
+                                element.Value is string fieldName
+                                && !string.IsNullOrWhiteSpace(fieldName)
+                            )
                             {
-                                if (
-                                    element.Value is string fieldName
-                                    && !string.IsNullOrWhiteSpace(fieldName)
-                                )
-                                {
-                                    waitForList.Add(fieldName);
-                                }
+                                waitForList.Add(fieldName);
                             }
-                            if (waitForList.Count > 0)
-                            {
-                                waitFor = waitForList.ToImmutable();
-                            }
+                        }
+                        if (waitForList.Count > 0)
+                        {
+                            waitFor = waitForList.ToImmutable();
                         }
                     }
                 }

@@ -14,10 +14,10 @@ public interface IGameState
 [Host]
 public sealed partial class GameManager : Node, IGameState
 {
-    // [Inject]
-    // private PlayerStatsService PlayerStats;
+    [Inject]
+    private PlayerStatsService PlayerStats;
 
-    [Singleton(typeof(GameManager))]
+    [Provides(ExposedTypes = [typeof(GameManager)], WaitFor = [nameof(PlayerStats)])]
     private GameManager Self
     {
         get
