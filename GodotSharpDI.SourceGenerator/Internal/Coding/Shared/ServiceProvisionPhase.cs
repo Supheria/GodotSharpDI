@@ -80,13 +80,15 @@ internal static class ServiceProvisionPhase
     )
     {
         var exposedTypeName = exposedType.ToFullyQualifiedName();
-        var returnTypeName = member.MemberType.ToFullyQualifiedName(); // Task<T> 或实际类型
+        // member.MemberType 是 T（从 Task<T> 中提取的），需要构建完整的 Task<T> 类型
+        var innerTypeName = member.MemberType.ToFullyQualifiedName(); // T
+        var taskTypeName = $"{GlobalNames.Task}<{innerTypeName}>"; // Task<T>
         var methodName = $"ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}";
 
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
             $"private static async {GlobalNames.Task} {methodName}("
-                + $"{returnTypeName} task, "
+                + $"{taskTypeName} task, "
                 + $"{GlobalNames.IScope} scope)"
         );
         f.BeginBlock();

@@ -45,7 +45,10 @@ internal static class AttributeHelper
             {
                 memberType = property.Type;
             }
-
+            else if (member is IMethodSymbol method) // ← 修复：添加方法支持
+            {
+                memberType = method.ReturnType;
+            }
             if (memberType is INamedTypeSymbol namedType)
             {
                 return ImmutableArray.Create(namedType);

@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Provider 代码生成器
-/// 为 [Provider] 标记的非 Node 类型生成代码
+/// Provider 代码生成器（重构版本）
+/// 支持每个 Provides 成员独立的 WaitFor remaining 计数
 /// </summary>
 internal static class ProviderGenerator
 {
@@ -73,8 +73,13 @@ internal static class ProviderGenerator
 
                 if (injectMembers.IsEmpty)
                 {
-                    // 没有依赖注入，直接提供服务
-                    GenerateServiceProvision(f, provideMembers, validatedType.Symbol.Name);
+                    // 没有依赖注入，直接提供服务（可能有 WaitFor）
+                    GenerateServiceProvision(
+                        f,
+                        validatedType.Members,
+                        provideMembers,
+                        validatedType.Symbol.Name
+                    );
                     f.AppendLine("onCreated.Invoke(instance);");
                 }
                 else
@@ -82,6 +87,7 @@ internal static class ProviderGenerator
                     // 有依赖注入，使用三阶段流程
                     GenerateThreePhaseLifecycle(
                         f,
+                        validatedType.Members,
                         injectMembers,
                         provideMembers,
                         validatedType.Symbol.Name
@@ -113,12 +119,13 @@ internal static class ProviderGenerator
 
     /// <summary>
     /// 生成三阶段生命周期
-    /// 阶段 1: 依赖注入
-    /// 阶段 2: WaitFor 等待（如果有）
+    /// 阶段 1: 依赖注入 ([Inject] 字段)
+    /// 阶段 2: 每个 Provides 成员独立的 WaitFor 等待
     /// 阶段 3: 服务提供
     /// </summary>
     private static void GenerateThreePhaseLifecycle(
         CodeFormatter f,
+        ImmutableArray<MemberInfo> allMembers,
         ImmutableArray<MemberInfo> injectMembers,
         ImmutableArray<MemberInfo> provideMembers,
         string typeName
@@ -132,20 +139,27 @@ internal static class ProviderGenerator
             typeName,
             onAllResolved: () =>
             {
-                // 依赖注入完成后，处理每个提供的成员
+                f.AppendLine(
+                    "// ━━━ 阶段 2 & 3: 每个 Provides 成员独立处理 WaitFor 并提供服务 ━━━"
+                );
+                f.AppendLine();
+
+                // 依赖注入完成后，为每个 Provides 成员独立处理 WaitFor
                 foreach (var member in provideMembers)
                 {
+                    f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+
                     if (member.HasWaitFor)
                     {
-                        // 阶段 2: WaitFor 等待
-                        f.AppendLine();
-                        f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
-                        WaitForPhase.Generate(
+                        // 使用新的 WaitForPhase.GenerateForMember
+                        WaitForPhase.GenerateForMember(
                             f,
-                            member.WaitFor,
+                            member,
+                            allMembers,
+                            "scope",
                             onAllResolved: () =>
                             {
-                                // 阶段 3: 服务提供
+                                // WaitFor 依赖就绪后，提供服务
                                 ServiceProvisionPhase.GenerateMemberProvide(
                                     f,
                                     member,
@@ -157,14 +171,13 @@ internal static class ProviderGenerator
                     }
                     else
                     {
-                        // 没有 WaitFor，直接提供服务（阶段 3）
-                        f.AppendLine();
-                        f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+                        // 没有 WaitFor，直接提供服务
                         ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
                     }
+
+                    f.AppendLine();
                 }
 
-                f.AppendLine();
                 f.AppendLine("onCreated.Invoke(instance);");
             }
         );
@@ -175,6 +188,7 @@ internal static class ProviderGenerator
     /// </summary>
     private static void GenerateServiceProvision(
         CodeFormatter f,
+        ImmutableArray<MemberInfo> allMembers,
         ImmutableArray<MemberInfo> provideMembers,
         string typeName
     )
@@ -185,11 +199,25 @@ internal static class ProviderGenerator
 
             if (member.HasWaitFor)
             {
-                // 有 WaitFor 但没有 Inject - 警告但仍然生成
-                f.AppendLine($"// 警告: WaitFor 指定了依赖但类型没有 [Inject] 字段");
+                // 有 WaitFor 但没有 Inject - 仍然使用独立的 WaitFor 机制
+                WaitForPhase.GenerateForMember(
+                    f,
+                    member,
+                    allMembers,
+                    "scope",
+                    onAllResolved: () =>
+                    {
+                        ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
+                    }
+                );
+            }
+            else
+            {
+                // 没有 WaitFor，直接提供
+                ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
             }
 
-            ServiceProvisionPhase.GenerateMemberProvide(f, member, "scope", "instance");
+            f.AppendLine();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -14,21 +15,19 @@ public interface IGameState
 [Host]
 public sealed partial class GameManager : Node, IGameState
 {
-    [Inject]
-    private PlayerStatsService PlayerStats;
-
-    [Provides(ExposedTypes = [typeof(GameManager)], WaitFor = [nameof(PlayerStats)])]
-    private GameManager Self
+    [Provides(ExposedTypes = [typeof(IGameState)])]
+    public async Task<GameManager> GetSelf()
     {
-        get
-        {
-            GD.Print("GameManager self provided");
-            // throw new Exception();
-            return this;
-        }
+        return this;
     }
 
-    GameState IGameState.CurrentState { get; set; } = new();
+    [Inject]
+    private GameManager inj;
+
+    // [Provides(ExposedTypes = [typeof(IGameState)], WaitFor = [nameof(inj)])]
+    // public Task<GameManager> Self => Task.CompletedTask;
 
     public override partial void _Notification(int what);
+
+    public GameState CurrentState { get; set; }
 }

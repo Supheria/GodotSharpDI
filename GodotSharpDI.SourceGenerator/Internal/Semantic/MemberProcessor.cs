@@ -195,7 +195,7 @@ internal sealed class MemberProcessor
                 kind = MemberKind.ProvidesProperty;
 
                 // 检查是否是 Task<T>
-                isAsync = IsAsyncType(property.Type);
+                isAsync = _symbols.IsAsyncType(property.Type);
                 if (isAsync && property.Type is INamedTypeSymbol taskType && taskType.IsGenericType)
                 {
                     // Task<T> 的 T 就是实际类型
@@ -248,7 +248,7 @@ internal sealed class MemberProcessor
             }
 
             kind = MemberKind.ProvidesMethod;
-            isAsync = IsAsyncType(method.ReturnType);
+            isAsync = _symbols.IsAsyncType(method.ReturnType);
 
             if (method.ReturnType is INamedTypeSymbol returnType)
             {
@@ -352,18 +352,6 @@ internal sealed class MemberProcessor
             IsAsync: isAsync,
             UsesProvides: hasProvides
         );
-    }
-
-    /// <summary>
-    /// 检查类型是否是 Task 或 Task&lt;T&gt;
-    /// </summary>
-    private bool IsAsyncType(ITypeSymbol type)
-    {
-        if (type is not INamedTypeSymbol namedType)
-            return false;
-
-        var fullName = namedType.ToFullyQualifiedName();
-        return fullName.StartsWith("System.Threading.Tasks.Task");
     }
 
     private bool ValidateInjectMemberType(ITypeSymbol memberType, ISymbol member, Location location)

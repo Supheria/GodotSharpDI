@@ -9,7 +9,8 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Host 代码生成器
+/// Host 代码生成器（重构版本）
+/// 支持每个 Provides 成员独立的 WaitFor remaining 计数
 /// </summary>
 internal static class HostGenerator
 {
@@ -58,7 +59,7 @@ internal static class HostGenerator
     /// 生成 ProvideHostServices 方法
     /// 使用统一的三阶段流程：
     /// 1. 依赖注入 (DependencyInjectionPhase)
-    /// 2. WaitFor 等待 (WaitForPhase)
+    /// 2. 每个 Provides 成员独立的 WaitFor 等待 (WaitForPhase)
     /// 3. 服务提供 (ServiceProvisionPhase)
     /// </summary>
     private static void GenerateProvideHostServices(
@@ -84,14 +85,15 @@ internal static class HostGenerator
 
             if (injectMembers.IsEmpty)
             {
-                // 没有依赖注入，直接提供服务
-                GenerateDirectServiceProvision(f, provideMembers);
+                // 没有依赖注入，直接处理 Provides 成员（可能有 WaitFor）
+                GenerateDirectServiceProvision(f, validatedType.Members, provideMembers);
             }
             else
             {
                 // 有依赖注入，使用三阶段流程
                 GenerateThreePhaseLifecycle(
                     f,
+                    validatedType.Members,
                     injectMembers,
                     provideMembers,
                     validatedType.Symbol.Name
@@ -106,6 +108,7 @@ internal static class HostGenerator
     /// </summary>
     private static void GenerateThreePhaseLifecycle(
         CodeFormatter f,
+        ImmutableArray<MemberInfo> allMembers,
         ImmutableArray<MemberInfo> injectMembers,
         ImmutableArray<MemberInfo> provideMembers,
         string typeName
@@ -119,20 +122,27 @@ internal static class HostGenerator
             typeName,
             onAllResolved: () =>
             {
-                // 依赖注入完成后，处理每个提供的成员
+                f.AppendLine(
+                    "// ━━━ 阶段 2 & 3: 每个 Provides 成员独立处理 WaitFor 并提供服务 ━━━"
+                );
+                f.AppendLine();
+
+                // 依赖注入完成后，为每个 Provides 成员独立处理 WaitFor
                 foreach (var member in provideMembers)
                 {
+                    f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+
                     if (member.HasWaitFor)
                     {
-                        // 阶段 2: WaitFor 等待
-                        f.AppendLine();
-                        f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} (with WaitFor) ━━━");
-                        WaitForPhase.Generate(
+                        // 使用新的 WaitForPhase.GenerateForMember
+                        WaitForPhase.GenerateForMember(
                             f,
-                            member.WaitFor,
+                            member,
+                            allMembers,
+                            "scope",
                             onAllResolved: () =>
                             {
-                                // 阶段 3: 服务提供
+                                // WaitFor 依赖就绪后，提供服务
                                 ServiceProvisionPhase.GenerateMemberProvide(
                                     f,
                                     member,
@@ -144,9 +154,7 @@ internal static class HostGenerator
                     }
                     else
                     {
-                        // 没有 WaitFor，直接提供服务（阶段 3）
-                        f.AppendLine();
-                        f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+                        // 没有 WaitFor，直接提供服务
                         ServiceProvisionPhase.GenerateMemberProvide(
                             f,
                             member,
@@ -154,6 +162,8 @@ internal static class HostGenerator
                             "" // Host 成员直接访问，不需要前缀
                         );
                     }
+
+                    f.AppendLine();
                 }
             }
         );
@@ -164,6 +174,7 @@ internal static class HostGenerator
     /// </summary>
     private static void GenerateDirectServiceProvision(
         CodeFormatter f,
+        ImmutableArray<MemberInfo> allMembers,
         ImmutableArray<MemberInfo> provideMembers
     )
     {
@@ -173,10 +184,12 @@ internal static class HostGenerator
 
             if (member.HasWaitFor)
             {
-                // 有 WaitFor 但没有 Inject - 使用 WaitFor 机制
-                WaitForPhase.Generate(
+                // 有 WaitFor 但没有 Inject - 使用独立的 WaitFor 机制
+                WaitForPhase.GenerateForMember(
                     f,
-                    member.WaitFor,
+                    member,
+                    allMembers,
+                    "scope",
                     onAllResolved: () =>
                     {
                         ServiceProvisionPhase.GenerateMemberProvide(
@@ -198,6 +211,8 @@ internal static class HostGenerator
                     "" // Host 成员直接访问
                 );
             }
+
+            f.AppendLine();
         }
     }
 }

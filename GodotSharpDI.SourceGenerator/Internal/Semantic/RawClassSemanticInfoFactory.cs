@@ -36,12 +36,33 @@ internal static class RawClassSemanticInfoFactory
         var isPartial = syntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
         // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
-        if (!hasProvider && !hasSingleton && !hasHost && !hasUser && !hasModules && !implementsIScope)
+        if (
+            !hasProvider
+            && !hasSingleton
+            && !hasHost
+            && !hasUser
+            && !hasModules
+            && !implementsIScope
+        )
             return (null, ImmutableArray<Diagnostic>.Empty);
 
+        // 收集成员：字段、属性和普通方法
+        // 排除：构造函数、属性访问器（get/set）、编译器生成的方法
         var members = symbol
             .GetMembers()
-            .Where(m => m.Kind == SymbolKind.Field || m.Kind == SymbolKind.Property)
+            .Where(m =>
+            {
+                if (m.Kind == SymbolKind.Field || m.Kind == SymbolKind.Property)
+                    return true;
+
+                if (m.Kind == SymbolKind.Method && m is IMethodSymbol method)
+                {
+                    // 排除构造函数、属性访问器和编译器生成的特殊方法
+                    return method.MethodKind == MethodKind.Ordinary;
+                }
+
+                return false;
+            })
             .ToImmutableArray();
 
         var constructors = symbol.Constructors.Where(c => !c.IsStatic).ToImmutableArray();

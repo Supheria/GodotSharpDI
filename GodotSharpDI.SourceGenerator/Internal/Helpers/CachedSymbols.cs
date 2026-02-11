@@ -22,7 +22,13 @@ internal sealed class CachedSymbols
     public INamedTypeSymbol? IScope { get; }
     public INamedTypeSymbol? IDependenciesResolved { get; }
     public INamedTypeSymbol? GodotNode { get; }
+
+    // System
     public INamedTypeSymbol? IDisposable { get; }
+    public INamedTypeSymbol? Task { get; }
+    public INamedTypeSymbol? GenericTask { get; }
+    public INamedTypeSymbol? ValueTask { get; }
+    public INamedTypeSymbol? GenericValueTask { get; }
 
     public CachedSymbols(Compilation compilation)
     {
@@ -44,7 +50,13 @@ internal sealed class CachedSymbols
             TypeNamesFull.IDependenciesResolved
         );
         GodotNode = compilation.GetTypeByMetadataName(TypeNamesFull.GodotNode);
-        IDisposable = compilation.GetTypeByMetadataName("System.IDisposable");
+
+        // System
+        IDisposable = compilation.GetTypeByMetadataName(TypeNamesFull.IDisposable);
+        Task = compilation.GetTypeByMetadataName(TypeNamesFull.Task);
+        GenericTask = compilation.GetTypeByMetadataName(TypeNamesFull.GenericTask);
+        ValueTask = compilation.GetTypeByMetadataName(TypeNamesFull.ValueTask);
+        GenericValueTask = compilation.GetTypeByMetadataName(TypeNamesFull.GenericValueTask);
     }
 
     public bool IsNode(ITypeSymbol type)
@@ -93,5 +105,22 @@ internal sealed class CachedSymbols
     {
         // 使用 SymbolExtensions 的 HasAttribute 方法
         return type.HasAttribute(ProviderAttribute);
+    }
+
+    /// <summary>
+    /// 检查类型是否是 Task (ValueTask) 或 Task&lt;T&gt; (ValueTask&lt;T&gt;)
+    /// </summary>
+    public bool IsAsyncType(ITypeSymbol type)
+    {
+        if (type is not INamedTypeSymbol named)
+            return false;
+
+        // 比较原始定义（不受泛型参数影响）
+        var original = named.OriginalDefinition;
+
+        return SymbolEqualityComparer.Default.Equals(original, Task)
+            || SymbolEqualityComparer.Default.Equals(original, GenericTask)
+            || SymbolEqualityComparer.Default.Equals(original, ValueTask)
+            || SymbolEqualityComparer.Default.Equals(original, GenericValueTask);
     }
 }
