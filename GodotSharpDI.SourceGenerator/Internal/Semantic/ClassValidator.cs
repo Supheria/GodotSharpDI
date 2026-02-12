@@ -43,10 +43,7 @@ internal sealed class ClassValidator
         // 4. 处理成员
         var members = ProcessMembers(role);
 
-        // 5. 处理构造函数
-        ProcessConstructor(role);
-
-        // 6. 处理 Modules
+        // 5. 处理 Modules
         var modulesInfo = ProcessModules();
 
         return CreateSuccessResult(role, members, modulesInfo);
@@ -73,17 +70,6 @@ internal sealed class ClassValidator
         // Scope
         if (_raw.ImplementsIScope)
         {
-            if (_raw.HasSingletonAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        ShortNames.Singleton
-                    )
-                );
-            }
             if (_raw.HasHostAttribute)
             {
                 _diagnostics.Add(
@@ -119,35 +105,6 @@ internal sealed class ClassValidator
                     _raw.Symbol.Name
                 )
             );
-        }
-
-        // Service
-        if (_raw.HasSingletonAttribute)
-        {
-            if (_raw.HasHostAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        ShortNames.Singleton
-                    )
-                );
-            }
-            if (_raw.HasUserAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.UserInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        ShortNames.Singleton
-                    )
-                );
-            }
-
-            return TypeRole.Service;
         }
 
         // Host 和 User 不应该同时使用
@@ -186,12 +143,6 @@ internal sealed class ClassValidator
         processor.Process();
     }
 
-    private void ProcessConstructor(TypeRole role)
-    {
-        var processor = new ConstructorProcessor(_raw, role, _symbols, _diagnostics);
-        processor.Process();
-    }
-
     private ImmutableArray<MemberInfo> ProcessMembers(TypeRole role)
     {
         var processor = new MemberProcessor(_raw, role, _symbols, _diagnostics);
@@ -208,10 +159,10 @@ internal sealed class ClassValidator
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, _symbols.ModulesAttribute)
             );
-        var services = AttributeHelper.GetTypesFromAttribute(modulesAttr, ShortNames.Services);
+
         var hosts = AttributeHelper.GetTypesFromAttribute(modulesAttr, ShortNames.Hosts);
 
-        return new ModulesInfo(services, hosts);
+        return new ModulesInfo(hosts);
     }
 
     private ClassValidationResult CreateFailureResult()

@@ -7,7 +7,6 @@ using GodotSharpDI.SourceGenerator.Shared;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 生成依赖注入代码（Provider、Host 共享）
 /// 阶段 1: 注入 [Inject] 标记的字段
 /// </summary>
 internal static class DependencyInjectionPhase

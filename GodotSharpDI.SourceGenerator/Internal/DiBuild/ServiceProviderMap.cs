@@ -28,7 +28,6 @@ internal static class ServiceProviderMapBuilder
     /// 构建服务提供者映射
     /// </summary>
     public static ServiceProviderMap Build(
-        ImmutableArray<ValidatedTypeInfo> services,
         ImmutableArray<ValidatedTypeInfo> hosts,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics
@@ -39,10 +38,7 @@ internal static class ServiceProviderMapBuilder
             var map = new ServiceProviderMap();
             var conflictTracker = new ConflictTracker();
 
-            // 注册 Service 和 Provider 提供的服务
-            RegisterServicesFromServices(services, symbols, map, conflictTracker, diagnostics);
-
-            // 注册 Host 和 HostAndUser 提供的服务
+            // 注册 Host 提供的服务
             RegisterServicesFromHosts(hosts, map, conflictTracker, diagnostics);
 
             // 报告所有冲突
@@ -60,48 +56,6 @@ internal static class ServiceProviderMapBuilder
                 )
             );
             return new ServiceProviderMap();
-        }
-    }
-
-    /// <summary>
-    /// 从 Service 类型注册服务
-    /// </summary>
-    private static void RegisterServicesFromServices(
-        ImmutableArray<ValidatedTypeInfo> services,
-        CachedSymbols symbols,
-        ServiceProviderMap map,
-        ConflictTracker conflictTracker,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        foreach (var service in services)
-        {
-            try
-            {
-                foreach (var member in service.Members)
-                {
-                    if (member.IsProvideMember)
-                    {
-                        foreach (var exposedType in member.ExposedTypes)
-                        {
-                            var providerDesc =
-                                $"{service.Symbol.ToDisplayString()}.{member.Symbol.Name}";
-                            AddProvider(exposedType, service, providerDesc, map, conflictTracker);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ServiceProviderRegistrationFailed,
-                        service.Location,
-                        service.Symbol.Name,
-                        ex.Message
-                    )
-                );
-            }
         }
     }
 
@@ -180,53 +134,6 @@ internal static class ServiceProviderMapBuilder
                 ex
             );
         }
-    }
-
-    /// <summary>
-    /// 获取 Service 暴露的类型
-    /// </summary>
-    private static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
-        ValidatedTypeInfo service,
-        CachedSymbols symbols
-    )
-    {
-        var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-
-        try
-        {
-            var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
-
-            if (attr != null)
-            {
-                foreach (var arg in attr.ConstructorArguments)
-                {
-                    if (arg.Kind == TypedConstantKind.Array)
-                    {
-                        foreach (var item in arg.Values)
-                        {
-                            if (item.Value is INamedTypeSymbol type)
-                                builder.Add(type);
-                        }
-                    }
-                }
-            }
-
-            // 如果没有显式指定暴露类型，默认暴露自身
-            if (builder.Count == 0)
-            {
-                builder.Add(service.Symbol);
-            }
-        }
-        catch
-        {
-            // 如果获取失败，至少返回服务本身的类型
-            if (builder.Count == 0)
-            {
-                builder.Add(service.Symbol);
-            }
-        }
-
-        return builder.ToImmutable();
     }
 
     /// <summary>

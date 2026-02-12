@@ -9,12 +9,12 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
 /// 生成 WaitFor 依赖等待代码（重构版本）
-/// 每个 Provides 成员拥有独立的 _remaining 计数器
+/// 每个 Provide 成员拥有独立的 _remaining 计数器
 /// </summary>
 internal static class WaitForPhase
 {
     /// <summary>
-    /// 为单个 Provides 成员生成独立的 WaitFor 等待代码
+    /// 为单个 Provide 成员生成独立的 WaitFor 等待代码
     /// </summary>
     /// <param name="f">代码格式化器</param>
     /// <param name="provideMember">提供服务的成员信息</param>

@@ -6,7 +6,6 @@ public static class TypeNamesFull
     public const string InjectAttribute = "GodotSharpDI.Abstractions.InjectAttribute";
     public const string ProvideAttribute = "GodotSharpDI.Abstractions.ProvideAttribute";
     public const string ModulesAttribute = "GodotSharpDI.Abstractions.ModulesAttribute";
-    public const string SingletonAttribute = "GodotSharpDI.Abstractions.SingletonAttribute";
     public const string HostAttribute = "GodotSharpDI.Abstractions.HostAttribute";
     public const string UserAttribute = "GodotSharpDI.Abstractions.UserAttribute";
 

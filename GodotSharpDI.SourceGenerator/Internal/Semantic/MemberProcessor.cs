@@ -55,12 +55,7 @@ internal sealed class MemberProcessor
                 continue;
             }
 
-            if (
-                hasInject
-                && _role != TypeRole.User
-                && _role != TypeRole.Host
-                && _role != TypeRole.Service
-            )
+            if (hasInject && _role != TypeRole.User && _role != TypeRole.Host)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
@@ -72,7 +67,7 @@ internal sealed class MemberProcessor
                 continue;
             }
 
-            if (hasProvide && _role != TypeRole.Host && _role != TypeRole.Service)
+            if (hasProvide && _role != TypeRole.Host)
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
@@ -444,15 +439,15 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 检查 Service 或 Host 类型
-        if (_symbols.IsServiceType(memberType) || _symbols.IsHostType(memberType))
+        // 检查 Host 类型
+        if (_symbols.IsHostType(memberType))
         {
-            // 不允许除自身类型之外的 Service 或 Host 类型
+            // 不允许除自身类型之外的 Host 类型
             if (!SymbolEqualityComparer.Default.Equals(memberType, _raw.Symbol))
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ProvideMemberIsServiceOrHostType,
+                        DiagnosticDescriptors.ProvideMemberIsHostType,
                         location,
                         member.Name,
                         memberType.ToDisplayString()
@@ -595,17 +590,6 @@ internal sealed class MemberProcessor
                         _raw.Symbol.Name
                     )
                 );
-            }
-        }
-
-        if (_role == TypeRole.Service)
-        {
-            // Service 需要至少有一个 Provide 成员
-            var provideMembers = memberInfos.Where(m => m.IsProvideMember).ToArray();
-            if (provideMembers.Length == 0)
-            {
-                // TODO:
-                // 可以添加一个警告，ServiceMissingSingletonMember
             }
         }
 

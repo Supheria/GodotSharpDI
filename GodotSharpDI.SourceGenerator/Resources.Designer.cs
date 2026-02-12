@@ -528,11 +528,11 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a Service or Host type. Service or Host can only expose themselves through [Provide] members, not other Service or Host types.
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a Host type. Host can only expose itself through [Provide] members, not other Host types.
         /// </summary>
-        internal static string M_ProvideMemberIsServiceOrHostType {
+        internal static string M_ProvideMemberIsHostType {
             get {
-                return ResourceManager.GetString("M_ProvideMemberIsServiceOrHostType", resourceCulture);
+                return ResourceManager.GetString("M_ProvideMemberIsHostType", resourceCulture);
             }
         }
         

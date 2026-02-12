@@ -293,10 +293,9 @@ internal static class DiagnosticDescriptors
         Resources.M_SingletonMemberTypeIsInvalid
     );
 
-    public static readonly DiagnosticDescriptor ProvideMemberIsServiceOrHostType = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberIsHostType = Member(
         "052",
-        Resources.M_ProvideMemberIsServiceOrHostType,
-        DiagnosticSeverity.Warning
+        Resources.M_ProvideMemberIsHostType
     );
 
     public static readonly DiagnosticDescriptor SingletonMemberIsUserType = Member(

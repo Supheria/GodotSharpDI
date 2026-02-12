@@ -13,42 +13,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 internal static class NodeBuilders
 {
     /// <summary>
-    /// 构建 Service 节点
-    /// </summary>
-    public static ImmutableArray<TypeNode> BuildServiceNodes(
-        ImmutableArray<ValidatedTypeInfo> services,
-        ServiceProviderMap serviceProviders,
-        CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-
-        foreach (var service in services)
-        {
-            try
-            {
-                var node = BuildServiceNode(service, symbols);
-                nodes.Add(node);
-            }
-            catch (Exception ex)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.NodeBuildFailed,
-                        service.Location,
-                        "Service",
-                        service.Symbol.Name,
-                        ex.Message
-                    )
-                );
-            }
-        }
-
-        return nodes.ToImmutable();
-    }
-
-    /// <summary>
     /// 构建 Host 节点
     /// </summary>
     public static ImmutableArray<TypeNode> BuildHostNodes(
@@ -265,18 +229,13 @@ internal static class NodeBuilders
     {
         if (scope.ModulesInfo == null)
             return null;
-
-        var services = scope.ModulesInfo.Services;
         var hosts = scope.ModulesInfo.Hosts;
-
-        // 验证 Services
-        ValidateScopeServices(scope, services, symbols, diagnostics);
 
         // 验证 Hosts
         ValidateScopeHosts(scope, hosts, symbols, diagnostics);
 
         // 检查是否为空
-        if (services.IsEmpty && hosts.IsEmpty)
+        if (hosts.IsEmpty)
         {
             diagnostics.Add(
                 DiagnosticBuilder.Create(
@@ -287,42 +246,12 @@ internal static class NodeBuilders
             );
         }
 
-        return new ScopeNode(
-            ValidatedTypeInfo: scope,
-            InstantiateServices: services,
-            ExpectHosts: hosts
-        );
+        return new ScopeNode(ValidatedTypeInfo: scope, ExpectHosts: hosts);
     }
 
     // ============================================================
     // 辅助方法
     // ============================================================
-
-    private static void ValidateScopeServices(
-        ValidatedTypeInfo scope,
-        ImmutableArray<INamedTypeSymbol> services,
-        CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        foreach (var type in services)
-        {
-            // 检查是否是 Service
-            var isService = type.HasAttribute(symbols.SingletonAttribute);
-
-            if (!isService)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeModulesServiceMustBeService,
-                        scope.Location,
-                        scope.Symbol.Name,
-                        type.ToDisplayString()
-                    )
-                );
-            }
-        }
-    }
 
     private static void ValidateScopeHosts(
         ValidatedTypeInfo scope,

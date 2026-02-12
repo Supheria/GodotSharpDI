@@ -31,12 +31,7 @@ internal sealed class RoleConstraintsProcessor
     {
         switch (_role)
         {
-            case TypeRole.Service:
-                ValidateServiceConstraints();
-                break;
-
             case TypeRole.Host:
-            case TypeRole.HostAndUser:
                 ValidateHostConstraints();
                 ValidateNotificationMethod();
                 break;
@@ -52,57 +47,14 @@ internal sealed class RoleConstraintsProcessor
                 break;
         }
 
-        // TODO: IDependenciesResolved 同样适用于 Service 和 Host
+        // TODO: IDependenciesResolved 同样适用于 Host
 
         // 验证 IDependenciesResolved
-        if (
-            _raw.ImplementsIDependenciesResolved
-            && _role != TypeRole.User
-            && _role != TypeRole.HostAndUser
-        )
+        if (_raw.ImplementsIDependenciesResolved && _role != TypeRole.User)
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.IDependenciesResolvedNeedUser,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
-    }
-
-    private void ValidateServiceConstraints()
-    {
-        // 必须是实体类
-        if (!_raw.Symbol.IsConcreteClass())
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceTypeIsInvalid,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
-
-        // 不能是泛型类型
-        if (_raw.Symbol.IsGenericType)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceTypeCannotBeGeneric,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
-
-        // 不能是 Node
-        if (_symbols.IsNode(_raw.Symbol))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceCannotBeNode,
                     _raw.Location,
                     _raw.Symbol.Name
                 )

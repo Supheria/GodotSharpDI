@@ -3,7 +3,7 @@ using GodotSharpDI.Abstractions;
 
 namespace GodotSharpDI.Sample;
 
-[Modules(Services = [typeof(PlayerStatsService3)], Hosts = [typeof(GameManager)])]
+[Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
 public partial class GameScope : Node, IScope
 {
     public override partial void _Notification(int what);

@@ -125,8 +125,8 @@
     <data name="M_SingletonMemberTypeIsInvalid" xml:space="preserve">
         <value>[Singleton] 成员 '{0}' 的类型 '{1}' 不是有效类型。Singleton 成员类型必须是接口或具体类（非抽象、非静态）</value>
     </data>
-    <data name="M_ProvideMemberIsServiceOrHostType" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是服务或 Host 类型。服务或 Host 只能通过 [Provide] 成员暴露自身，不能暴露其他服务或 Host 类型</value>
+    <data name="M_ProvideMemberIsHostType" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是 Host 类型。Host 只能通过 [Provide] 成员暴露自身，不能暴露其他 Host 类型</value>
     </data>
 
     <data name="M_SingletonMemberIsUserType" xml:space="preserve">

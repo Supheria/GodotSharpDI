@@ -65,7 +65,6 @@ internal static class ScopeGenerator
         f.BeginBlock();
         {
             f.AppendLine("NotCreated,  // 未创建");
-            f.AppendLine("Creating,    // 创建中");
             f.AppendLine("Created,     // 已创建");
             f.AppendLine("Failed       // 创建失败");
         }
@@ -105,13 +104,7 @@ internal static class ScopeGenerator
 
     private static void GenerateDelegates(CodeFormatter f)
     {
-        // ServiceFactory 委托
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine(
-            $"private delegate void ServiceFactory({GlobalNames.IScope} scope, "
-                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
-                + $"{GlobalNames.String}? dependencyChain);"
-        );
+        // ServiceFactory 委托已移除 - Service 由 Scope 直接创建和管理
     }
 
     private static void GenerateStaticCollections(CodeFormatter f)
@@ -120,13 +113,6 @@ internal static class ScopeGenerator
         f.AppendHiddenMemberCommentAndAttribute("服务类型映射表：暴露类型 -> 实现类型");
         f.AppendLine(
             $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> ServiceImplementationMap = CreateServiceImplementationMap();"
-        );
-        f.AppendLine();
-
-        // ServiceFactories
-        f.AppendHiddenMemberCommentAndAttribute("单例服务创建工厂集合（使用实现类型作为键值）");
-        f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory> ServiceFactories = CreateServiceFactories();"
         );
     }
 
@@ -163,21 +149,6 @@ internal static class ScopeGenerator
             SymbolEqualityComparer.Default
         );
         var implTypes = new List<INamedTypeSymbol>();
-
-        // 从 Services 的服务中收集
-        foreach (var serviceType in node.InstantiateServices)
-        {
-            if (graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
-            {
-                implTypes.Add(serviceType);
-
-                // 添加所有暴露类型到实现类型的映射
-                foreach (var exposedType in serviceNode.ProvidedServices)
-                {
-                    serviceImplementationMap.Add(exposedType, serviceType);
-                }
-            }
-        }
 
         // 从 Hosts 的 Host 中收集
         foreach (var hostType in node.ExpectHosts)
@@ -239,35 +210,6 @@ internal static class ScopeGenerator
             f.AppendLine();
 
             f.AppendLine("return serviceImplementationMap;");
-        }
-        f.EndBlock();
-
-        // CreateServiceFactories
-        f.AppendHiddenMethodCommentAndAttribute("注册所有 Scope 约束的服务工厂（按需创建）");
-        f.AppendLine(
-            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory> CreateServiceFactories()"
-        );
-        f.BeginBlock();
-        {
-            f.AppendLine(
-                $"var serviceFactories = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory>();"
-            );
-            f.AppendLine();
-
-            foreach (var serviceType in node.InstantiateServices)
-            {
-                if (!graph.ServiceNodeMap.ContainsKey(serviceType))
-                {
-                    continue;
-                }
-
-                // 通过实现类型注册工厂
-                var implType = serviceType.ToFullyQualifiedName();
-                f.AppendLine($"serviceFactories[typeof({implType})] = {implType}.CreateService;");
-            }
-            f.AppendLine();
-
-            f.AppendLine("return serviceFactories;");
         }
         f.EndBlock();
     }

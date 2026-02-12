@@ -9,7 +9,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 internal sealed class CachedSymbols
 {
     // DI
-    public INamedTypeSymbol? SingletonAttribute { get; }
     public INamedTypeSymbol? HostAttribute { get; }
     public INamedTypeSymbol? UserAttribute { get; }
     public INamedTypeSymbol? InjectAttribute { get; }
@@ -27,7 +26,6 @@ internal sealed class CachedSymbols
     public CachedSymbols(Compilation compilation)
     {
         // DI
-        SingletonAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.SingletonAttribute);
         ProvideAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ProvideAttribute);
         HostAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.HostAttribute);
         UserAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.UserAttribute);
@@ -80,11 +78,6 @@ internal sealed class CachedSymbols
     {
         // 使用 SymbolExtensions 的 HasAttribute 方法
         return type.HasAttribute(UserAttribute);
-    }
-
-    public bool IsServiceType(ITypeSymbol type)
-    {
-        return type.HasAttribute(SingletonAttribute);
     }
 
     /// <summary>

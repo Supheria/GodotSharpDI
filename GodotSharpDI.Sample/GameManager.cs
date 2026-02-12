@@ -22,7 +22,13 @@ public sealed partial class GameManager : Node, IGameState
     }
 
     [Inject]
-    private GameManager inj;
+    private PlayerStatsCenter _playerStatsCenter;
+
+    [Provide(ExposedTypes = [typeof(PlayerStatsService3)])]
+    public PlayerStatsService3 GetPlayerStatsService3()
+    {
+        return new PlayerStatsService3(_playerStatsCenter);
+    }
 
     // [Provides(ExposedTypes = [typeof(IGameState)], WaitFor = [nameof(inj)])]
     // public Task<GameManager> Self => Task.CompletedTask;

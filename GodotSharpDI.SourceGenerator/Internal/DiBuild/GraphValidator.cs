@@ -30,7 +30,6 @@ internal static class GraphValidator
     /// 验证依赖图
     /// </summary>
     public static void ValidateDependencyGraph(
-        ImmutableArray<TypeNode> serviceNodes,
         ImmutableArray<TypeNode> allUserNodes,
         ServiceProviderMap serviceProviders,
         CachedSymbols symbols,
@@ -40,7 +39,7 @@ internal static class GraphValidator
         try
         {
             // 1. 检查循环依赖
-            ValidateCircularDependencies(serviceNodes, serviceProviders, diagnostics);
+            // TODO: 检测 Host Provide 成员的 WaitFor 循环依赖
 
             // 2. 检查 User 注入成员
             ValidateUserInjections(allUserNodes, serviceProviders, diagnostics);
@@ -61,37 +60,9 @@ internal static class GraphValidator
     // 私有验证方法
     // ============================================================
 
-    /// <summary>
-    /// 验证循环依赖
-    /// </summary>
-    private static void ValidateCircularDependencies(
-        ImmutableArray<TypeNode> serviceNodes,
-        ServiceProviderMap serviceProviders,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        try
-        {
-            var serviceImplToNode = BuildServiceNodeMap(serviceNodes);
+    // TODO: 还需要检测 Host Provide 成员的 WaitFor 循环依赖
 
-            var detector = new CircularDependencyDetector(serviceImplToNode, serviceProviders);
-            var circularDiagnostics = detector.DetectCircularDependencies();
-
-            diagnostics.AddRange(circularDiagnostics);
-        }
-        catch (Exception ex)
-        {
-            diagnostics.Add(
-                DiagnosticBuilder.CreateAtNone(
-                    DiagnosticDescriptors.GraphValidationFailed,
-                    "CircularDependencyDetection",
-                    ex.Message
-                )
-            );
-        }
-    }
-
-    // TODO: 还需要验证 Host 和 Service 的成员注入
+    // TODO: 还需要验证 Host 的成员注入
 
     /// <summary>
     /// 验证 User 注入成员

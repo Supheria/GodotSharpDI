@@ -9,8 +9,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 生成服务提供代码（Provider 和 Host 共享）
-/// 阶段 3: 提供 [Provides] 或 [Singleton] 标记的服务
+/// 阶段 3: 提供 [Provide] 标记的服务
 /// </summary>
 internal static class ServiceProvisionPhase
 {

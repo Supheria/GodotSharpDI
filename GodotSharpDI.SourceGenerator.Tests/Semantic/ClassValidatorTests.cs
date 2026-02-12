@@ -51,42 +51,6 @@ namespace Test
     }
 
     [Fact]
-    public void Validate_PartialSingletonClass_ReturnsValidTypeInfo()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    [Singleton]
-    public partial class MyService
-    {
-    }
-}
-";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var tree = compilation.SyntaxTrees.First();
-        var root = tree.GetRoot();
-        var classDecl = root.DescendantNodes()
-            .OfType<ClassDeclarationSyntax>()
-            .First(c => c.Identifier.Text == "MyService");
-
-        var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-        Assert.NotNull(raw.Info);
-
-        var symbols = new CachedSymbols(compilation);
-
-        // Act
-        var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
-
-        // Assert
-        Assert.NotNull(result.TypeInfo);
-        Assert.Equal(TypeRole.Service, result.TypeInfo.Role);
-    }
-
-    [Fact]
     public void Validate_ServiceInheritsFromNode_ReportsDiagnostic()
     {
         // Arrange
@@ -323,43 +287,5 @@ namespace Test
             result.Diagnostics,
             d => d.Id == "GDI_C040" // ScopeMissingModules
         );
-    }
-
-    [Fact]
-    public void Validate_HostAndUser_ReturnsCorrectRole()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-using Godot;
-
-namespace Test
-{
-    [Host]
-    [User]
-    public partial class MyNode : Node
-    {
-    }
-}
-";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var tree = compilation.SyntaxTrees.First();
-        var root = tree.GetRoot();
-        var classDecl = root.DescendantNodes()
-            .OfType<ClassDeclarationSyntax>()
-            .First(c => c.Identifier.Text == "MyNode");
-
-        var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-        Assert.NotNull(raw.Info);
-
-        var symbols = new CachedSymbols(compilation);
-
-        // Act
-        var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
-
-        // Assert
-        Assert.NotNull(result.TypeInfo);
-        Assert.Equal(TypeRole.HostAndUser, result.TypeInfo.Role);
     }
 }

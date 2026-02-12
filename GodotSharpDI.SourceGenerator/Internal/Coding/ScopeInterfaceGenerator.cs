@@ -358,6 +358,7 @@ internal static class ScopeInterfaceGenerator
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
+                f.AppendLine();
 
                 // Case: Failed
                 f.AppendLine("case ServiceState.Failed:");
@@ -417,68 +418,7 @@ internal static class ScopeInterfaceGenerator
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
-
-                // Case: Creating
-                f.AppendLine("case ServiceState.Creating:");
-                f.BeginBlock();
-                {
-                    f.BeginDebugRegion();
-                    {
-                        f.AppendLine("// [DEBUG ONLY] 防御性检查：编译期应该已经捕获所有循环依赖");
-                        f.AppendLine("// 如果这里触发，说明编译期分析可能有bug，请报告");
-                        f.AppendLine(
-                            "if (HasCircularDependency(currentDependencyChain, type.Name))"
-                        );
-                        f.BeginBlock();
-                        {
-                            f.AppendLine("var sb = CreateErrorMessageBuilder(");
-                            f.BeginLevel();
-                            {
-                                f.AppendLine(
-                                    "title: \"[DEBUG] 运行时检测到循环依赖（编译期应该已阻止）\","
-                                );
-                                f.AppendLine(
-                                    "reason: \"这表明编译期分析可能有问题，请报告此bug\","
-                                );
-                                f.AppendLine("serviceImplType: $\"{implType.Name}\",");
-                                f.AppendLine("requestorType: requestorType,");
-                                f.AppendLine("scopeChain: currentScopeChain,");
-                                f.AppendLine("dependencyChain: currentDependencyChain");
-                            }
-                            f.EndLevel();
-                            f.AppendLine(");");
-                            f.PushError("sb.ToString()");
-                            f.AppendLine("break;");
-                        }
-                        f.EndBlock();
-                    }
-                    f.EndDebugRegion();
-                    f.AppendLine();
-
-                    f.AppendLine("// 服务正在异步创建中，加入等待队列");
-                    f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine($"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();");
-                        f.AppendLine("_waiters[implType] = waiterList;");
-                    }
-                    f.EndBlock();
-                    f.AppendLine();
-                    f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
-                    f.BeginLevel();
-                    {
-                        f.AppendLine("Callback: obj => onResolved.Invoke((T)obj),");
-                        f.AppendLine("FailureCallback: onFailed,");
-                        f.AppendLine($"RequestTicks: {GlobalNames.DateTime}.Now.Ticks,");
-                        f.AppendLine("RequestorType: requestorType,");
-                        f.AppendLine("ScopeChain: currentScopeChain,");
-                        f.AppendLine("DependencyChain: currentDependencyChain)");
-                    }
-                    f.EndLevel();
-                    f.AppendLine(");");
-                    f.AppendLine("break;");
-                }
-                f.EndBlock();
+                f.AppendLine();
 
                 // Case: NotCreated
                 f.AppendLine("case ServiceState.NotCreated:");
@@ -508,40 +448,6 @@ internal static class ScopeInterfaceGenerator
                     f.AppendLine(");");
                     f.AppendLine();
 
-                    f.AppendLine("// 检查是否有工厂（Scope 创建的单例服务）");
-                    f.AppendLine(
-                        "if (ServiceFactories.TryGetValue(implType, out var factory) && cacheEntry.State == ServiceState.NotCreated)"
-                    );
-                    f.BeginBlock();
-                    {
-                        f.AppendLine("// 按需创建服务");
-                        f.AppendLine("cacheEntry.State = ServiceState.Creating;");
-                        f.AppendLine();
-
-                        f.AppendLine("// 调用工厂创建服务");
-                        f.AppendLine("factory(");
-                        f.BeginLevel();
-                        {
-                            f.AppendLine("this,");
-                            f.AppendLine("(instance) =>");
-                            f.BeginBlock();
-                            {
-                                f.AppendLine(
-                                    $"if (instance is {GlobalNames.IDisposable} disposable)"
-                                );
-                                f.BeginBlock();
-                                {
-                                    f.AppendLine("_disposableSingletons.Add(disposable);");
-                                }
-                                f.EndBlock();
-                            }
-                            f.EndBlock(",");
-                            f.AppendLine("currentDependencyChain");
-                        }
-                        f.EndLevel();
-                        f.AppendLine(");");
-                    }
-                    f.EndBlock();
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
@@ -583,34 +489,5 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("return sb;");
         }
         f.EndBlock();
-
-        // HasCircularDependency 辅助方法 (仅 DEBUG 模式)
-        f.BeginDebugRegion();
-        {
-            f.AppendHiddenMethodCommentAndAttribute("检测运行时是否有意外的依赖循环（仅开发模式）");
-            f.AppendLine(
-                $"private static {GlobalNames.Bool} HasCircularDependency("
-                    + $"{GlobalNames.String} dependencyChain, "
-                    + $"{GlobalNames.String} newType)"
-            );
-            f.BeginBlock();
-            {
-                f.AppendLine("if (string.IsNullOrEmpty(dependencyChain))");
-                f.BeginBlock();
-                {
-                    f.AppendLine("return false;");
-                }
-                f.EndBlock();
-                f.AppendLine();
-
-                f.AppendLine(
-                    $"var parts = dependencyChain.Split(new[] {{ \" -> \" }}, {GlobalNames.StringSplitOptions}.None);"
-                );
-                f.AppendLine($"var seen = new {GlobalNames.HashSet}<{GlobalNames.String}>(parts);");
-                f.AppendLine("return !seen.Add(newType);");
-            }
-            f.EndBlock();
-        }
-        f.EndDebugRegion();
     }
 }
