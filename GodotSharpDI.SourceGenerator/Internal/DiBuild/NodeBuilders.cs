@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -86,9 +87,9 @@ internal static class NodeBuilders
     /// </summary>
     public static ImmutableArray<ScopeNode> BuildScopeNodes(
         ImmutableArray<ValidatedTypeInfo> scopes,
-        ServiceProviderMap serviceProviders,
         CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
+        ImmutableArray<Diagnostic>.Builder diagnostics,
+        ServiceProviderMap serviceProviderMap
     )
     {
         var nodes = ImmutableArray.CreateBuilder<ScopeNode>();
@@ -97,7 +98,7 @@ internal static class NodeBuilders
         {
             try
             {
-                var node = BuildScopeNode(scope, symbols, diagnostics);
+                var node = BuildScopeNode(scope, symbols, diagnostics, serviceProviderMap);
                 if (node != null)
                 {
                     nodes.Add(node);
@@ -277,7 +278,8 @@ internal static class NodeBuilders
     private static ScopeNode? BuildScopeNode(
         ValidatedTypeInfo scope,
         CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
+        ImmutableArray<Diagnostic>.Builder diagnostics,
+        ServiceProviderMap serviceProviderMap
     )
     {
         if (scope.ModulesInfo == null)
@@ -286,6 +288,9 @@ internal static class NodeBuilders
 
         // 验证 Hosts
         ValidateScopeHosts(scope, hosts, symbols, diagnostics);
+
+        // 验证 Scope 内的服务类型冲突
+        ValidateScopeServiceConflicts(scope, hosts, serviceProviderMap, diagnostics);
 
         // 检查是否为空
         if (hosts.IsEmpty)
@@ -327,6 +332,125 @@ internal static class NodeBuilders
                         type.ToDisplayString()
                     )
                 );
+            }
+        }
+    }
+
+    /// <summary>
+    /// 验证 Scope 内的服务类型冲突
+    /// </summary>
+    private static void ValidateScopeServiceConflicts(
+        ValidatedTypeInfo scope,
+        ImmutableArray<INamedTypeSymbol> hosts,
+        ServiceProviderMap serviceProviderMap,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        var conflictTracker = new ServiceConflictTracker();
+
+        // 跟踪每个服务类型第一次出现的提供者
+        var serviceToFirstProvider = new Dictionary<ITypeSymbol, (ITypeSymbol Host, string Member)>(
+            SymbolEqualityComparer.Default
+        );
+
+        // 遍历 Scope 中的所有 Host
+        foreach (var hostType in hosts)
+        {
+            if (!serviceProviderMap.TryGetValue(hostType, out var hostNode))
+                continue;
+
+            // 检查每个 Host 提供的服务
+            foreach (var exposedType in hostNode.ProvidedServices)
+            {
+                var memberName = FindProviderMemberName(hostNode, exposedType);
+                var currentProviderDesc = $"{hostType.ToDisplayString()}.{memberName}";
+
+                if (!serviceToFirstProvider.TryGetValue(exposedType, out var firstProvider))
+                {
+                    // 第一次遇到这个服务类型，记录下来
+                    serviceToFirstProvider[exposedType] = (hostType, memberName);
+                }
+                else
+                {
+                    // 检测到冲突！这个服务类型之前已经被另一个 Host 提供过
+                    var firstProviderDesc =
+                        $"{firstProvider.Host.ToDisplayString()}.{firstProvider.Member}";
+                    conflictTracker.AddConflict(
+                        exposedType,
+                        firstProviderDesc,
+                        currentProviderDesc
+                    );
+                }
+            }
+        }
+
+        // 报告 Scope 级别的所有冲突
+        foreach (var (exposedType, providers) in conflictTracker.GetConflicts())
+        {
+            var providersText = string.Join(", ", providers);
+            diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.ScopeServiceTypeConflict, // GDI_D011
+                    scope.Location,
+                    scope.Symbol.Name,
+                    exposedType.ToDisplayString(),
+                    providersText
+                )
+            );
+        }
+    }
+
+    /// <summary>
+    /// 查找提供特定服务类型的成员名称
+    /// </summary>
+    private static string FindProviderMemberName(TypeNode hostNode, ITypeSymbol exposedType)
+    {
+        foreach (var member in hostNode.ValidatedTypeInfo.Members)
+        {
+            if (member.IsProvideMember)
+            {
+                foreach (var exposed in member.ExposedTypes)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(exposed, exposedType))
+                    {
+                        return member.Symbol.Name;
+                    }
+                }
+            }
+        }
+
+        return "<unknown>";
+    }
+
+    // ============================================================
+    // 冲突跟踪器 - 辅助类
+    // ============================================================
+
+    private sealed class ServiceConflictTracker
+    {
+        private readonly Dictionary<ITypeSymbol, List<string>> _conflicts = new(
+            SymbolEqualityComparer.Default
+        );
+
+        public void AddConflict(
+            ITypeSymbol exposedType,
+            string firstProvider,
+            string secondProvider
+        )
+        {
+            if (!_conflicts.TryGetValue(exposedType, out var providers))
+            {
+                providers = new List<string> { firstProvider };
+                _conflicts[exposedType] = providers;
+            }
+            providers.Add(secondProvider);
+        }
+
+        public IEnumerable<(ITypeSymbol ExposedType, List<string> Providers)> GetConflicts()
+        {
+            foreach (var kvp in _conflicts)
+            {
+                yield return (kvp.Key, kvp.Value);
             }
         }
     }

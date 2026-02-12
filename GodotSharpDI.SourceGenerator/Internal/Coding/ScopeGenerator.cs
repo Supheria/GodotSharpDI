@@ -153,14 +153,14 @@ internal static class ScopeGenerator
         // 从 Hosts 的 Host 中收集
         foreach (var hostType in node.ExpectHosts)
         {
-            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
+            if (graph.ServiceProviderMap.TryGetValue(hostType, out var hostNode))
             {
                 implTypes.Add(hostType);
 
                 // 添加 Host 或 HostAndUser 提供的所有服务类型
                 foreach (var exposedType in hostNode.ProvidedServices)
                 {
-                    serviceImplementationMap.Add(exposedType, hostType);
+                    serviceImplementationMap[exposedType] = hostType;
                 }
             }
         }

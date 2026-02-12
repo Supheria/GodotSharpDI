@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
@@ -10,5 +11,5 @@ internal sealed record DiGraph(
     ImmutableArray<TypeNode> HostNodes,
     ImmutableArray<TypeNode> UserNodes,
     ImmutableArray<ScopeNode> ScopeNodes,
-    ImmutableDictionary<ITypeSymbol, TypeNode> HostNodeMap
+    ServiceProviderMap ServiceProviderMap
 );

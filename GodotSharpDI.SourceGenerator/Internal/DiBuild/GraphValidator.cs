@@ -14,24 +14,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 internal static class GraphValidator
 {
     /// <summary>
-    /// 验证 Host 服务引用
-    /// </summary>
-    public static void ValidateHostServices(
-        ImmutableArray<ValidatedTypeInfo> hosts,
-        ServiceProviderMap serviceProviders,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        // 注意：实际的 Host 验证在 ValidateDependencyGraph 中进行
-        // 这里可以添加一些轻量级的预验证逻辑
-
-        // 预留给未来的额外验证逻辑：
-        // - 检查 Host 是否继承自 Node
-        // - 检查 Host 是否有必需的 _Notification 方法
-        // - 其他 Host 特定的验证
-    }
-
-    /// <summary>
     /// 验证依赖图
     /// </summary>
     public static void ValidateDependencyGraph(
@@ -45,7 +27,7 @@ internal static class GraphValidator
         try
         {
             // 1. 检测 Host 节点的循环依赖（包括 WaitFor 循环）
-            DetectCircularDependencies(allHostNodes, serviceProviders, diagnostics);
+            DetectCircularDependencies(allHostNodes, diagnostics);
 
             // 2. 验证 Host 的注入成员
             ValidateHostInjections(allHostNodes, serviceProviders, diagnostics);
@@ -74,7 +56,6 @@ internal static class GraphValidator
     /// </summary>
     private static void DetectCircularDependencies(
         ImmutableArray<TypeNode> hostNodes,
-        ServiceProviderMap serviceProviders,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {

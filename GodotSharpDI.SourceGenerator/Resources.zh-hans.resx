@@ -184,8 +184,8 @@
         <value>服务 '{0}' 的构造函数参数类型 '{1}' 不是服务</value>
     </data>
 
-    <data name="D_ServiceTypeConflict" xml:space="preserve">
-        <value>服务类型 '{0}' 由多个提供者注册: {1}。每个服务类型在 Scope 中必须只有一个提供者</value>
+    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
+        <value>在 Scope '{0}' 中，服务类型 '{1}' 由多个提供者注册： {2}。每个服务类型在 Scope 中必须只有一个提供者</value>
     </data>
 
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">

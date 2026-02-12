@@ -36,38 +36,24 @@ internal static class DiGraphBuilder
             if (typesByRole == null)
                 return new DiGraphBuildResult(null, diagnostics.ToImmutable());
 
-            // 3. 构建服务提供者映射
-            var serviceProviders = ServiceProviderMapBuilder.Build(
-                typesByRole.Hosts,
-                symbols,
-                diagnostics
-            );
-
-            // 4. 构建各类节点
-            var nodes = BuildAllNodes(typesByRole, serviceProviders, symbols, diagnostics);
-
-            // 5. 验证依赖关系
-            GraphValidator.ValidateHostServices(typesByRole.Hosts, serviceProviders, diagnostics);
-
+            // 3. 构建各类节点
+            var nodes = BuildAllNodes(typesByRole, symbols, diagnostics);
             GraphValidator.ValidateDependencyGraph(
                 nodes.HostNodes,
                 nodes.UserNodes,
-                serviceProviders,
+                nodes.ServiceProviderMap,
                 symbols,
                 diagnostics
             );
 
-            // 6. 构建节点映射
-            var hostNodeMap = BuildHostNodeMap(nodes, diagnostics);
-
-            // 7. 组装最终图
+            // 6. 组装最终图
             try
             {
                 var graph = new DiGraph(
                     HostNodes: nodes.HostNodes,
                     UserNodes: nodes.UserNodes,
                     ScopeNodes: nodes.ScopeNodes,
-                    HostNodeMap: hostNodeMap
+                    ServiceProviderMap: nodes.ServiceProviderMap
                 );
 
                 return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
@@ -128,7 +114,6 @@ internal static class DiGraphBuilder
     /// </summary>
     private static AllNodes BuildAllNodes(
         TypesByRole types,
-        ServiceProviderMap serviceProviders,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
@@ -137,14 +122,25 @@ internal static class DiGraphBuilder
 
         var userNodes = NodeBuilders.BuildUserNodes(types.Users, diagnostics);
 
+        var serviceProviderMap = new ServiceProviderMap();
+        foreach (var node in hostNodes)
+        {
+            serviceProviderMap[node.ValidatedTypeInfo.Symbol] = node;
+        }
+
         var scopeNodes = NodeBuilders.BuildScopeNodes(
             types.Scopes,
-            serviceProviders,
             symbols,
-            diagnostics
+            diagnostics,
+            serviceProviderMap
         );
 
-        return new AllNodes(HostNodes: hostNodes, UserNodes: userNodes, ScopeNodes: scopeNodes);
+        return new AllNodes(
+            HostNodes: hostNodes,
+            UserNodes: userNodes,
+            ScopeNodes: scopeNodes,
+            ServiceProviderMap: serviceProviderMap
+        );
     }
 
     /// <summary>
@@ -194,6 +190,7 @@ internal static class DiGraphBuilder
     private record AllNodes(
         ImmutableArray<TypeNode> HostNodes,
         ImmutableArray<TypeNode> UserNodes,
-        ImmutableArray<ScopeNode> ScopeNodes
+        ImmutableArray<ScopeNode> ScopeNodes,
+        ServiceProviderMap ServiceProviderMap
     );
 }

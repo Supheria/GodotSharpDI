@@ -399,9 +399,9 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ServiceConstructorParameterInvalid =
         DependencyGraph("020", Resources.D_ServiceConstructorParameterInvalid);
 
-    public static readonly DiagnosticDescriptor ServiceTypeConflict = DependencyGraph(
+    public static readonly DiagnosticDescriptor ScopeServiceTypeConflict = DependencyGraph(
         "040",
-        Resources.D_ServiceTypeConflict
+        Resources.D_ScopeServiceTypeConflict
     );
 
     public static readonly DiagnosticDescriptor InjectMemberTypeIsNotExposed = DependencyGraph(

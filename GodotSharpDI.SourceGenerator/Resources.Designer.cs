@@ -285,20 +285,20 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to In Scope &apos;{0}&apos;, Service type &apos;{1}&apos; is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope.
+        /// </summary>
+        internal static string D_ScopeServiceTypeConflict {
+            get {
+                return ResourceManager.GetString("D_ScopeServiceTypeConflict", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Service &apos;{0}&apos; has constructor parameter of type &apos;{1}&apos;, which is not a Service.
         /// </summary>
         internal static string D_ServiceConstructorParameterInvalid {
             get {
                 return ResourceManager.GetString("D_ServiceConstructorParameterInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service type &apos;{0}&apos; is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope.
-        /// </summary>
-        internal static string D_ServiceTypeConflict {
-            get {
-                return ResourceManager.GetString("D_ServiceTypeConflict", resourceCulture);
             }
         }
         

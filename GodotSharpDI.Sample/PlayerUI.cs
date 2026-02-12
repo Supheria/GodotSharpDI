@@ -72,30 +72,40 @@ public interface IServiceA;
 
 public interface IServiceB;
 
+public interface IServiceC;
+
 public class SerivceA : IServiceA { }
 
 public class ServiceB : IServiceB { }
+
+public class ServiceC : IServiceC { }
+
+// [Host]
+// public partial class HostA : Node
+// {
+//     public override partial void _Notification(int what);
+//
+//     // [Inject]
+//     // private IServiceC _c;
+//
+//     [Provide(ExposedTypes = [typeof(IServiceA)])]
+//     public SerivceA ServiceA => new();
+// }
 
 [Host]
 public partial class HostB : Node
 {
     public override partial void _Notification(int what);
 
-    [Inject]
-    private IServiceA _a;
-
-    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_a)])]
+    [Provide(ExposedTypes = [typeof(IServiceB)])]
     public ServiceB ServiceB => new();
 }
 
 [Host]
-public partial class HostA : Node
+public partial class HostC : Node
 {
     public override partial void _Notification(int what);
 
-    [Inject]
-    private IServiceB _b;
-
-    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_b)])]
-    public SerivceA ServiceA => new();
+    [Provide(ExposedTypes = [typeof(IServiceB)])]
+    public ServiceB ServiceB => new();
 }

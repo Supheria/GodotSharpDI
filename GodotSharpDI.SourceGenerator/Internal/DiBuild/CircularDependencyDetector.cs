@@ -156,16 +156,21 @@ internal sealed class CircularDependencyDetector
             // 构建循环路径
             var cyclePath = BuildCyclePath(cycle.Components);
 
-            // 找到循环中的最佳报告位置（第一个节点）
-            var firstNode = _serviceImplToNode[cycle.Components[0]];
-
-            diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.CircularDependencyDetected,
-                    firstNode.ValidatedTypeInfo.Location,
-                    cyclePath
-                )
-            );
+            // ===== 修复: 为循环中的每个节点都生成诊断 =====
+            // 这样用户可以在所有涉及循环依赖的类中看到错误提示
+            foreach (var component in cycle.Components)
+            {
+                if (_serviceImplToNode.TryGetValue(component, out var node))
+                {
+                    diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.CircularDependencyDetected,
+                            node.ValidatedTypeInfo.Location,
+                            cyclePath
+                        )
+                    );
+                }
+            }
         }
 
         return diagnostics.ToImmutable();

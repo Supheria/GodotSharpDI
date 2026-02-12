@@ -188,8 +188,8 @@
         <value>Service '{0}' has constructor parameter of type '{1}', which is not a Service</value>
     </data>
 
-    <data name="D_ServiceTypeConflict" xml:space="preserve">
-        <value>Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope</value>
+    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
+        <value>In Scope '{0}', Service type '{1}' is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope</value>
     </data>
 
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
