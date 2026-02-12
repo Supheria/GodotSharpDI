@@ -150,6 +150,9 @@ internal static class NodeBuilders
         {
             if (member.IsProvideMember && member.HasWaitFor)
             {
+                // 获取该Provide成员提供的第一个服务类型（用于标识这个成员）
+                var providedType = member.ExposedTypes.FirstOrDefault();
+
                 foreach (var waitForFieldName in member.WaitFor)
                 {
                     // 查找 WaitFor 引用的字段
@@ -163,7 +166,9 @@ internal static class NodeBuilders
                             new DependencyEdge(
                                 TargetType: waitForField.MemberType,
                                 Location: member.Location,
-                                Source: DependencySource.WaitForMember
+                                Source: DependencySource.WaitForMember,
+                                SourceMemberName: member.Symbol.Name, // 记录源成员名称
+                                SourceProvidedType: providedType // 记录源成员提供的服务类型
                             )
                         );
                     }
@@ -212,6 +217,9 @@ internal static class NodeBuilders
         {
             if (member.IsProvideMember && member.HasWaitFor)
             {
+                // 获取该Provide成员提供的第一个服务类型（用于标识这个成员）
+                var providedType = member.ExposedTypes.FirstOrDefault();
+
                 foreach (var waitForFieldName in member.WaitFor)
                 {
                     // 查找 WaitFor 引用的字段
@@ -225,7 +233,9 @@ internal static class NodeBuilders
                             new DependencyEdge(
                                 TargetType: waitForField.MemberType,
                                 Location: member.Location,
-                                Source: DependencySource.WaitForMember
+                                Source: DependencySource.WaitForMember,
+                                SourceMemberName: member.Symbol.Name, // 记录源成员名称
+                                SourceProvidedType: providedType // 记录源成员提供的服务类型
                             )
                         );
                     }
