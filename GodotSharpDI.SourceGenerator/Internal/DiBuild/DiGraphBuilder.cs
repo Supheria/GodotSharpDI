@@ -122,17 +122,20 @@ internal static class DiGraphBuilder
 
         var userNodes = NodeBuilders.BuildUserNodes(types.Users, diagnostics);
 
-        var serviceProviderMap = new ServiceProviderMap();
-        foreach (var node in hostNodes)
-        {
-            serviceProviderMap[node.ValidatedTypeInfo.Symbol] = node;
-        }
+        // ===== 修复: 正确构建 ServiceProviderMap =====
+        // Key 应该是暴露的服务类型（IServiceA, IServiceB），而不是 Host 类型
+        var serviceProviderMap = BuildServiceProviderMap(hostNodes, diagnostics);
+
+        // ===== 新增: 构建 Host 类型到 TypeNode 的映射 =====
+        // 用于 Scope 验证，确保每个 Host 都能被找到
+        var hostTypeToNode = BuildHostTypeToNodeMap(hostNodes);
 
         var scopeNodes = NodeBuilders.BuildScopeNodes(
             types.Scopes,
             symbols,
             diagnostics,
-            serviceProviderMap
+            serviceProviderMap,
+            hostTypeToNode // 传递新的映射
         );
 
         return new AllNodes(
@@ -141,6 +144,60 @@ internal static class DiGraphBuilder
             ScopeNodes: scopeNodes,
             ServiceProviderMap: serviceProviderMap
         );
+    }
+
+    /// <summary>
+    /// 构建服务提供者映射表
+    /// Key: 暴露的服务类型（如 IServiceA, IServiceB）
+    /// Value: 提供该服务的 TypeNode
+    /// </summary>
+    private static ServiceProviderMap BuildServiceProviderMap(
+        ImmutableArray<TypeNode> hostNodes,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        var serviceProviderMap = new ServiceProviderMap();
+
+        foreach (var node in hostNodes)
+        {
+            // 遍历该 Host 提供的所有服务类型
+            foreach (var providedService in node.ProvidedServices)
+            {
+                // 检查是否有重复提供
+                if (serviceProviderMap.ContainsKey(providedService))
+                {
+                    // 全局层面允许多个Host提供同一服务（可能用于不同Scope）
+                    // 这里只使用第一个提供者，不报告错误
+                    // Scope级别的冲突会在ValidateScopeServiceConflicts中检测
+                    continue;
+                }
+
+                // 将服务类型映射到提供它的 Host 节点
+                serviceProviderMap[providedService] = node;
+            }
+        }
+
+        return serviceProviderMap;
+    }
+
+    /// <summary>
+    /// 构建 Host 类型到 TypeNode 的映射
+    /// 用于 Scope 验证中查找每个 Host 的完整信息
+    /// </summary>
+    private static ImmutableDictionary<ITypeSymbol, TypeNode> BuildHostTypeToNodeMap(
+        ImmutableArray<TypeNode> hostNodes
+    )
+    {
+        var builder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
+            SymbolEqualityComparer.Default
+        );
+
+        foreach (var node in hostNodes)
+        {
+            builder[node.ValidatedTypeInfo.Symbol] = node;
+        }
+
+        return builder.ToImmutable();
     }
 
     /// <summary>

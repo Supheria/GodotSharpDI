@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -89,7 +89,8 @@ internal static class NodeBuilders
         ImmutableArray<ValidatedTypeInfo> scopes,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics,
-        ServiceProviderMap serviceProviderMap
+        ServiceProviderMap serviceProviderMap,
+        ImmutableDictionary<ITypeSymbol, TypeNode> hostTypeToNode
     )
     {
         var nodes = ImmutableArray.CreateBuilder<ScopeNode>();
@@ -98,7 +99,13 @@ internal static class NodeBuilders
         {
             try
             {
-                var node = BuildScopeNode(scope, symbols, diagnostics, serviceProviderMap);
+                var node = BuildScopeNode(
+                    scope,
+                    symbols,
+                    diagnostics,
+                    serviceProviderMap,
+                    hostTypeToNode
+                );
                 if (node != null)
                 {
                     nodes.Add(node);
@@ -289,7 +296,8 @@ internal static class NodeBuilders
         ValidatedTypeInfo scope,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics,
-        ServiceProviderMap serviceProviderMap
+        ServiceProviderMap serviceProviderMap,
+        ImmutableDictionary<ITypeSymbol, TypeNode> hostTypeToNode
     )
     {
         if (scope.ModulesInfo == null)
@@ -300,7 +308,13 @@ internal static class NodeBuilders
         ValidateScopeHosts(scope, hosts, symbols, diagnostics);
 
         // 验证 Scope 内的服务类型冲突
-        ValidateScopeServiceConflicts(scope, hosts, serviceProviderMap, diagnostics);
+        ValidateScopeServiceConflicts(
+            scope,
+            hosts,
+            serviceProviderMap,
+            hostTypeToNode,
+            diagnostics
+        );
 
         // 检查是否为空
         if (hosts.IsEmpty)
@@ -353,9 +367,14 @@ internal static class NodeBuilders
         ValidatedTypeInfo scope,
         ImmutableArray<INamedTypeSymbol> hosts,
         ServiceProviderMap serviceProviderMap,
+        ImmutableDictionary<ITypeSymbol, TypeNode> hostTypeToNode,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
+        // ===== 修复：使用传入的 hostTypeToNode，确保每个 Host 都能被找到 =====
+        // 不再从 serviceProviderMap 反向构建，因为如果多个 Host 提供相同服务，
+        // 只有第一个会在 serviceProviderMap 中，导致其他 Host 被忽略
+
         var conflictTracker = new ServiceConflictTracker();
 
         // 跟踪每个服务类型第一次出现的提供者
@@ -366,7 +385,8 @@ internal static class NodeBuilders
         // 遍历 Scope 中的所有 Host
         foreach (var hostType in hosts)
         {
-            if (!serviceProviderMap.TryGetValue(hostType, out var hostNode))
+            // ===== 修复：使用 hostTypeToNode 查找 =====
+            if (!hostTypeToNode.TryGetValue(hostType, out var hostNode))
                 continue;
 
             // 检查每个 Host 提供的服务
