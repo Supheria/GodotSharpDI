@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 依赖图构建器 - 主入口（重构版）
+/// 依赖图构建器 - 重构版
 /// 职责：协调各个构建器，组装最终的依赖图
 /// </summary>
 internal static class DiGraphBuilder
@@ -37,23 +37,36 @@ internal static class DiGraphBuilder
                 return new DiGraphBuildResult(null, diagnostics.ToImmutable());
 
             // 3. 构建各类节点
-            var nodes = BuildAllNodes(typesByRole, symbols, diagnostics);
+            var nodes = BuildAllNodes(typesByRole, diagnostics);
+
+            // 4. 构建全局索引
+            var indexes = ServiceIndexes.Build(nodes.HostNodes, nodes.UserNodes);
+
+            // 5. 验证依赖图
             GraphValidator.ValidateDependencyGraph(
                 nodes.HostNodes,
                 nodes.UserNodes,
-                nodes.ServiceProviderMap,
+                indexes,
                 symbols,
                 diagnostics
             );
 
-            // 6. 组装最终图
+            // 6. 构建并验证Scope节点
+            var scopeNodes = NodeBuilders.BuildScopeNodes(
+                typesByRole.Scopes,
+                symbols,
+                diagnostics,
+                indexes
+            );
+
+            // 7. 组装最终图
             try
             {
                 var graph = new DiGraph(
                     HostNodes: nodes.HostNodes,
                     UserNodes: nodes.UserNodes,
-                    ScopeNodes: nodes.ScopeNodes,
-                    ServiceProviderMap: nodes.ServiceProviderMap
+                    ScopeNodes: scopeNodes,
+                    ServiceProviderMap: BuildLegacyServiceProviderMap(indexes) // 为了兼容性保留
                 );
 
                 return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
@@ -72,7 +85,6 @@ internal static class DiGraphBuilder
         }
         catch (Exception ex)
         {
-            // 顶层异常捕获
             diagnostics.Add(
                 DiagnosticBuilder.CreateAtNone(DiagnosticDescriptors.GraphBuildFailed, ex.Message)
             );
@@ -80,9 +92,6 @@ internal static class DiGraphBuilder
         }
     }
 
-    /// <summary>
-    /// 按角色分类类型
-    /// </summary>
     private static TypesByRole? ClassifyTypesByRole(
         ImmutableArray<ValidatedTypeInfo> validTypes,
         ImmutableArray<Diagnostic>.Builder diagnostics
@@ -109,133 +118,39 @@ internal static class DiGraphBuilder
         }
     }
 
-    /// <summary>
-    /// 构建所有类型的节点
-    /// </summary>
     private static AllNodes BuildAllNodes(
         TypesByRole types,
-        CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
         var hostNodes = NodeBuilders.BuildHostNodes(types.Hosts, diagnostics);
-
         var userNodes = NodeBuilders.BuildUserNodes(types.Users, diagnostics);
 
-        // ===== 修复: 正确构建 ServiceProviderMap =====
-        // Key 应该是暴露的服务类型（IServiceA, IServiceB），而不是 Host 类型
-        var serviceProviderMap = BuildServiceProviderMap(hostNodes, diagnostics);
-
-        // ===== 新增: 构建 Host 类型到 TypeNode 的映射 =====
-        // 用于 Scope 验证，确保每个 Host 都能被找到
-        var hostTypeToNode = BuildHostTypeToNodeMap(hostNodes);
-
-        var scopeNodes = NodeBuilders.BuildScopeNodes(
-            types.Scopes,
-            symbols,
-            diagnostics,
-            serviceProviderMap,
-            hostTypeToNode // 传递新的映射
-        );
-
-        return new AllNodes(
-            HostNodes: hostNodes,
-            UserNodes: userNodes,
-            ScopeNodes: scopeNodes,
-            ServiceProviderMap: serviceProviderMap
-        );
+        return new AllNodes(HostNodes: hostNodes, UserNodes: userNodes);
     }
 
     /// <summary>
-    /// 构建服务提供者映射表
-    /// Key: 暴露的服务类型（如 IServiceA, IServiceB）
-    /// Value: 提供该服务的 TypeNode
+    /// 构建传统的ServiceProviderMap（为了向后兼容）
+    /// 新代码应该使用ServiceIndexes
     /// </summary>
-    private static ServiceProviderMap BuildServiceProviderMap(
-        ImmutableArray<TypeNode> hostNodes,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
+    private static ServiceProviderMap BuildLegacyServiceProviderMap(ServiceIndexes indexes)
     {
-        var serviceProviderMap = new ServiceProviderMap();
+        var map = new ServiceProviderMap();
 
-        foreach (var node in hostNodes)
+        // 为每个服务类型选择第一个提供者（保持向后兼容）
+        foreach (var kvp in indexes.ServiceTypeToProviders)
         {
-            // 遍历该 Host 提供的所有服务类型
-            foreach (var providedService in node.ProvidedServices)
+            if (kvp.Value.Length > 0)
             {
-                // 检查是否有重复提供
-                if (serviceProviderMap.ContainsKey(providedService))
-                {
-                    // 全局层面允许多个Host提供同一服务（可能用于不同Scope）
-                    // 这里只使用第一个提供者，不报告错误
-                    // Scope级别的冲突会在ValidateScopeServiceConflicts中检测
-                    continue;
-                }
-
-                // 将服务类型映射到提供它的 Host 节点
-                serviceProviderMap[providedService] = node;
+                map[kvp.Key] = kvp.Value[0];
             }
         }
 
-        return serviceProviderMap;
-    }
-
-    /// <summary>
-    /// 构建 Host 类型到 TypeNode 的映射
-    /// 用于 Scope 验证中查找每个 Host 的完整信息
-    /// </summary>
-    private static ImmutableDictionary<ITypeSymbol, TypeNode> BuildHostTypeToNodeMap(
-        ImmutableArray<TypeNode> hostNodes
-    )
-    {
-        var builder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
-            SymbolEqualityComparer.Default
-        );
-
-        foreach (var node in hostNodes)
-        {
-            builder[node.ValidatedTypeInfo.Symbol] = node;
-        }
-
-        return builder.ToImmutable();
-    }
-
-    /// <summary>
-    /// 构建 Host 节点映射字典
-    /// </summary>
-    private static ImmutableDictionary<ITypeSymbol, TypeNode> BuildHostNodeMap(
-        AllNodes nodes,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        try
-        {
-            var builder = ImmutableDictionary.CreateBuilder<ITypeSymbol, TypeNode>(
-                SymbolEqualityComparer.Default
-            );
-
-            foreach (var node in nodes.HostNodes)
-            {
-                builder[node.ValidatedTypeInfo.Symbol] = node;
-            }
-
-            return builder.ToImmutable();
-        }
-        catch (Exception ex)
-        {
-            diagnostics.Add(
-                DiagnosticBuilder.CreateAtNone(
-                    DiagnosticDescriptors.GraphBuildPhaseFailed,
-                    "BuildHostNodeMap",
-                    ex.Message
-                )
-            );
-            return ImmutableDictionary<ITypeSymbol, TypeNode>.Empty;
-        }
+        return map;
     }
 
     // ============================================================
-    // 内部数据结构 - 用于组织构建过程
+    // 内部数据结构
     // ============================================================
 
     private record TypesByRole(
@@ -244,10 +159,5 @@ internal static class DiGraphBuilder
         ImmutableArray<ValidatedTypeInfo> Scopes
     );
 
-    private record AllNodes(
-        ImmutableArray<TypeNode> HostNodes,
-        ImmutableArray<TypeNode> UserNodes,
-        ImmutableArray<ScopeNode> ScopeNodes,
-        ServiceProviderMap ServiceProviderMap
-    );
+    private record AllNodes(ImmutableArray<TypeNode> HostNodes, ImmutableArray<TypeNode> UserNodes);
 }

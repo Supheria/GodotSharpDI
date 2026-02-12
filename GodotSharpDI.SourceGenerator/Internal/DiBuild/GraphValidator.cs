@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
@@ -8,8 +7,9 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 依赖图验证器
-/// 职责：验证依赖关系的正确性（循环依赖、缺失服务等）
+/// 依赖图验证器 - 重构版
+/// 职责：验证全局依赖关系的正确性（循环依赖、缺失服务等）
+/// 不包含Scope级别的验证（Scope验证在NodeBuilders中）
 /// </summary>
 internal static class GraphValidator
 {
@@ -19,7 +19,7 @@ internal static class GraphValidator
     public static void ValidateDependencyGraph(
         ImmutableArray<TypeNode> allHostNodes,
         ImmutableArray<TypeNode> allUserNodes,
-        ServiceProviderMap serviceProviders,
+        ServiceIndexes indexes,
         CachedSymbols symbols,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
@@ -27,13 +27,13 @@ internal static class GraphValidator
         try
         {
             // 1. 检测 Host 节点的循环依赖（包括 WaitFor 循环）
-            DetectCircularDependencies(allHostNodes, diagnostics);
+            DetectCircularDependencies(allHostNodes, indexes, diagnostics);
 
             // 2. 验证 Host 的注入成员
-            ValidateHostInjections(allHostNodes, serviceProviders, diagnostics);
+            ValidateHostInjections(allHostNodes, indexes, diagnostics);
 
             // 3. 验证 User 注入成员
-            ValidateUserInjections(allUserNodes, serviceProviders, diagnostics);
+            ValidateUserInjections(allUserNodes, indexes, diagnostics);
         }
         catch (Exception ex)
         {
@@ -47,51 +47,25 @@ internal static class GraphValidator
         }
     }
 
-    // ============================================================
-    // 私有验证方法
-    // ============================================================
-
     /// <summary>
     /// 检测循环依赖（包括 WaitFor 形成的循环）
     /// </summary>
     private static void DetectCircularDependencies(
         ImmutableArray<TypeNode> hostNodes,
+        ServiceIndexes indexes,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
         try
         {
-            // 构建服务实现类型到节点的映射
-            var serviceImplToNode = new Dictionary<ITypeSymbol, TypeNode>(
-                SymbolEqualityComparer.Default
-            );
-
-            foreach (var node in hostNodes)
-            {
-                // Host 节点代表提供服务的类
-                serviceImplToNode[node.ValidatedTypeInfo.Symbol] = node;
-            }
-
             // 构建服务类型到提供者的映射（用于循环检测）
-            var serviceTypeToProvider = new Dictionary<ITypeSymbol, ValidatedTypeInfo>(
-                SymbolEqualityComparer.Default
-            );
-
-            foreach (var node in hostNodes)
-            {
-                // 对于每个 Host 提供的服务类型，记录提供者
-                foreach (var providedService in node.ProvidedServices)
-                {
-                    // 如果多个成员提供同一类型，使用第一个（与 ServiceProviderMap 行为一致）
-                    if (!serviceTypeToProvider.ContainsKey(providedService))
-                    {
-                        serviceTypeToProvider[providedService] = node.ValidatedTypeInfo;
-                    }
-                }
-            }
+            var serviceTypeToProvider = BuildServiceTypeToProviderMap(indexes);
 
             // 使用 CircularDependencyDetector 检测循环
-            var detector = new CircularDependencyDetector(serviceImplToNode, serviceTypeToProvider);
+            var detector = new CircularDependencyDetector(
+                indexes.HostTypeToNode.ToImmutableDictionary(),
+                serviceTypeToProvider
+            );
 
             var circularDiagnostics = detector.DetectCircularDependencies();
             diagnostics.AddRange(circularDiagnostics);
@@ -109,11 +83,35 @@ internal static class GraphValidator
     }
 
     /// <summary>
+    /// 构建服务类型到提供者的映射（用于循环依赖检测）
+    /// 如果有多个提供者，使用第一个（循环检测只需要知道类型间的依赖关系）
+    /// </summary>
+    private static ImmutableDictionary<
+        ITypeSymbol,
+        ValidatedTypeInfo
+    > BuildServiceTypeToProviderMap(ServiceIndexes indexes)
+    {
+        var builder = ImmutableDictionary.CreateBuilder<ITypeSymbol, ValidatedTypeInfo>(
+            SymbolEqualityComparer.Default
+        );
+
+        foreach (var kvp in indexes.ServiceTypeToProviders)
+        {
+            if (kvp.Value.Length > 0)
+            {
+                builder[kvp.Key] = kvp.Value[0].ValidatedTypeInfo;
+            }
+        }
+
+        return builder.ToImmutable();
+    }
+
+    /// <summary>
     /// 验证 Host 注入成员
     /// </summary>
     private static void ValidateHostInjections(
         ImmutableArray<TypeNode> hostNodes,
-        ServiceProviderMap serviceProviders,
+        ServiceIndexes indexes,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
@@ -121,7 +119,7 @@ internal static class GraphValidator
         {
             try
             {
-                ValidateNodeInjections(node, serviceProviders, diagnostics);
+                ValidateNodeInjections(node, indexes, diagnostics);
             }
             catch (Exception ex)
             {
@@ -142,7 +140,7 @@ internal static class GraphValidator
     /// </summary>
     private static void ValidateUserInjections(
         ImmutableArray<TypeNode> allUserNodes,
-        ServiceProviderMap serviceProviders,
+        ServiceIndexes indexes,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
@@ -150,7 +148,7 @@ internal static class GraphValidator
         {
             try
             {
-                ValidateNodeInjections(node, serviceProviders, diagnostics);
+                ValidateNodeInjections(node, indexes, diagnostics);
             }
             catch (Exception ex)
             {
@@ -171,7 +169,7 @@ internal static class GraphValidator
     /// </summary>
     private static void ValidateNodeInjections(
         TypeNode node,
-        ServiceProviderMap serviceProviders,
+        ServiceIndexes indexes,
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
@@ -181,7 +179,7 @@ internal static class GraphValidator
             // WaitFor 依赖会在循环检测中处理
             if (dep.Source == DependencySource.InjectMember)
             {
-                if (!serviceProviders.ContainsKey(dep.TargetType))
+                if (!indexes.HasProvider(dep.TargetType))
                 {
                     diagnostics.Add(
                         DiagnosticBuilder.Create(

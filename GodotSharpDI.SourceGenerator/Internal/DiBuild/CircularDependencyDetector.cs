@@ -15,8 +15,8 @@ namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 /// </summary>
 internal sealed class CircularDependencyDetector
 {
-    private readonly Dictionary<ITypeSymbol, TypeNode> _serviceImplToNode;
-    private readonly Dictionary<ITypeSymbol, ValidatedTypeInfo> _serviceProviders;
+    private readonly ImmutableDictionary<ITypeSymbol, TypeNode> _serviceImplToNode;
+    private readonly ImmutableDictionary<ITypeSymbol, ValidatedTypeInfo> _serviceProviders;
 
     // Tarjan 算法状态 - 使用服务类型作为节点
     // 键的格式：服务类型 (IServiceA, IServiceB etc.)
@@ -33,8 +33,8 @@ internal sealed class CircularDependencyDetector
     private readonly Dictionary<ITypeSymbol, ServiceMemberInfo> _serviceToMember;
 
     public CircularDependencyDetector(
-        Dictionary<ITypeSymbol, TypeNode> serviceImplToNode,
-        Dictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders
+        ImmutableDictionary<ITypeSymbol, TypeNode> serviceImplToNode,
+        ImmutableDictionary<ITypeSymbol, ValidatedTypeInfo> serviceProviders
     )
     {
         _serviceImplToNode = serviceImplToNode;
