@@ -73,7 +73,8 @@ internal static class WaitForPhase
                     f.AppendLine($"if (--{remainingVarName} == 0)");
                     f.BeginBlock();
                     {
-                        f.AppendLine($"{resolvedCallbackName}();");
+                        // 使用 _ = 启动异步流程但不等待
+                        f.AppendLine($"_ = {resolvedCallbackName}();");
                     }
                     f.EndBlock();
                 }
@@ -90,7 +91,8 @@ internal static class WaitForPhase
                     f.AppendLine($"if (--{remainingVarName} == 0)");
                     f.BeginBlock();
                     {
-                        f.AppendLine($"{resolvedCallbackName}();");
+                        // 即使失败也启动异步流程
+                        f.AppendLine($"_ = {resolvedCallbackName}();");
                     }
                     f.EndBlock();
                 }
@@ -107,11 +109,13 @@ internal static class WaitForPhase
         f.AppendLine("return;");
         f.AppendLine();
 
-        // 生成回调方法
-        f.AppendLine($"void {resolvedCallbackName}()");
+        // 生成异步回调方法
+        f.AppendLine($"async {GlobalNames.Task} {resolvedCallbackName}()");
         f.BeginBlock();
         {
             f.AppendLine($"// {memberName} 的所有 WaitFor 依赖已就绪，开始提供服务");
+
+            // 在异步上下文中调用服务提供代码
             onAllResolved();
         }
         f.EndBlock();

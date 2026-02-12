@@ -20,11 +20,13 @@ internal static class ServiceProvisionPhase
     /// <param name="member">要提供的成员</param>
     /// <param name="scopeField">Scope 字段名称</param>
     /// <param name="instancePrefix">实例访问前缀（Provider用""，外部调用可能用"instance."）</param>
+    /// <param name="inAsyncContext">是否在 async 上下文中（影响异步成员的调用方式）</param>
     public static void GenerateMemberProvide(
         CodeFormatter f,
         MemberInfo member,
         string scopeField,
-        string instancePrefix = ""
+        string instancePrefix = "",
+        bool inAsyncContext = false
     )
     {
         var memberAccess = GetMemberAccess(member, instancePrefix);
@@ -38,10 +40,21 @@ internal static class ServiceProvisionPhase
 
             if (member.IsAsync)
             {
-                // 异步成员 - 启动异步任务
-                f.AppendLine(
-                    $"_ = ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}({memberAccess}, {scopeField});"
-                );
+                // 异步成员
+                if (inAsyncContext)
+                {
+                    // 在 async 上下文中，使用 await 确保完成
+                    f.AppendLine(
+                        $"await ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}({memberAccess}, {scopeField});"
+                    );
+                }
+                else
+                {
+                    // 不在 async 上下文中，启动异步任务但不等待
+                    f.AppendLine(
+                        $"_ = ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}({memberAccess}, {scopeField});"
+                    );
+                }
             }
             else
             {

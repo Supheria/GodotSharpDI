@@ -92,12 +92,7 @@ internal static class HostGenerator
             if (!injectMembers.IsEmpty && validatedType.ImplementsIDependenciesResolved)
             {
                 // 有 Inject 成员且实现了 IDependenciesResolved - 使用依赖跟踪
-                GenerateWithDependencyTracking(
-                    f,
-                    validatedType,
-                    injectMembers,
-                    provideMembers
-                );
+                GenerateWithDependencyTracking(f, validatedType, injectMembers, provideMembers);
             }
             else if (!injectMembers.IsEmpty)
             {
@@ -134,12 +129,7 @@ internal static class HostGenerator
         f.AppendLine("// ━━━ 阶段 1: 注入依赖 (不阻塞服务提供) ━━━");
         foreach (var member in injectMembers)
         {
-            GenerateFieldInjectionWithTracking(
-                f,
-                member,
-                "scope",
-                validatedType.Symbol.Name
-            );
+            GenerateFieldInjectionWithTracking(f, member, "scope", validatedType.Symbol.Name);
         }
         f.AppendLine();
 
@@ -215,9 +205,7 @@ internal static class HostGenerator
             implementsIDependenciesResolved: false,
             onAllResolved: () =>
             {
-                f.AppendLine(
-                    "// ━━━ 阶段 2 & 3: 每个 Provide 成员独立处理 WaitFor 并提供服务 ━━━"
-                );
+                f.AppendLine("// ━━━ 阶段 2 & 3: 每个 Provide 成员独立处理 WaitFor 并提供服务 ━━━");
                 f.AppendLine();
 
                 // 依赖注入完成后，为每个 Provide 成员独立处理 WaitFor
@@ -241,7 +229,7 @@ internal static class HostGenerator
 
             if (member.HasWaitFor)
             {
-                // 有 WaitFor - 等待依赖就绪后提供
+                // 有 WaitFor - 等待依赖就绪后提供 (在 async 上下文中)
                 WaitForPhase.GenerateForMember(
                     f,
                     member,
@@ -253,19 +241,21 @@ internal static class HostGenerator
                             f,
                             member,
                             "scope",
-                            "" // Host 成员直接访问
+                            instancePrefix: "", // Host 成员直接访问
+                            inAsyncContext: true // WaitFor 回调在 async Task 方法中
                         );
                     }
                 );
             }
             else
             {
-                // 直接提供
+                // 直接提供 (不在 async 上下文中)
                 ServiceProvisionPhase.GenerateMemberProvide(
                     f,
                     member,
                     "scope",
-                    "" // Host 成员直接访问
+                    instancePrefix: "", // Host 成员直接访问
+                    inAsyncContext: false // 不在 async 上下文中
                 );
             }
 
