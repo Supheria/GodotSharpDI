@@ -24,7 +24,7 @@ public sealed partial class GameManager : Node, IGameState, IDependenciesResolve
         return this;
     }
 
-    [Provide(ExposedTypes = [typeof(PlayerStatsService3)], WaitFor = [nameof(_playerStatsCenter)])]
+    [Provide(ExposedTypes = [typeof(PlayerStatsService3)], WaitFor = [nameof(GetSelf)])]
     public Task<PlayerStatsService3> GetPlayerStatsService3()
     {
         return Task.Run(() => new PlayerStatsService3(_playerStatsCenter));

@@ -2,6 +2,6 @@
 
 internal enum DependencySource
 {
-    Constructor,
     InjectMember,
+    WaitForMember,
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
@@ -143,6 +144,32 @@ internal static class NodeBuilders
             }
         }
 
+        // 收集 Provide 成员的 WaitFor 依赖
+        foreach (var member in service.Members)
+        {
+            if (member.IsProvideMember && member.HasWaitFor)
+            {
+                foreach (var waitForFieldName in member.WaitFor)
+                {
+                    // 查找 WaitFor 引用的字段
+                    var waitForField = service.Members.FirstOrDefault(m =>
+                        m.Symbol.Name == waitForFieldName
+                    );
+
+                    if (waitForField != null && waitForField.IsInjectMember)
+                    {
+                        dependencies.Add(
+                            new DependencyEdge(
+                                TargetType: waitForField.MemberType,
+                                Location: member.Location,
+                                Source: DependencySource.WaitForMember
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
         // 收集 Provides 成员提供的服务
         foreach (var member in service.Members)
         {
@@ -176,6 +203,32 @@ internal static class NodeBuilders
                         Source: DependencySource.InjectMember
                     )
                 );
+            }
+        }
+
+        // 收集 Provide 成员的 WaitFor 依赖
+        foreach (var member in host.Members)
+        {
+            if (member.IsProvideMember && member.HasWaitFor)
+            {
+                foreach (var waitForFieldName in member.WaitFor)
+                {
+                    // 查找 WaitFor 引用的字段
+                    var waitForField = host.Members.FirstOrDefault(m =>
+                        m.Symbol.Name == waitForFieldName
+                    );
+
+                    if (waitForField != null && waitForField.IsInjectMember)
+                    {
+                        dependencies.Add(
+                            new DependencyEdge(
+                                TargetType: waitForField.MemberType,
+                                Location: member.Location,
+                                Source: DependencySource.WaitForMember
+                            )
+                        );
+                    }
+                }
             }
         }
 

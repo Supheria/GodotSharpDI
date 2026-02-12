@@ -66,3 +66,20 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
     //     GD.Print("PlayerUI inject Game State Injection Failed");
     // }
 }
+
+
+
+public interface IServiceA { }
+public partial class ServiceA : IServiceA { }
+
+[Host]
+public partial class ServiceHost : Node
+{
+    [Inject]
+    private IServiceA _a { get; set; }
+        
+    [Provide(ExposedTypes = new[] { typeof(IServiceA) }, WaitFor = new[] { nameof(_a) })]
+    public ServiceA CreateA() => new ServiceA();
+
+    public override partial void _Notification(int what);
+}

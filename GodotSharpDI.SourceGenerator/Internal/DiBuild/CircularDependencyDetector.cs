@@ -67,7 +67,60 @@ internal sealed class CircularDependencyDetector
     /// </summary>
     private void StrongConnect(ITypeSymbol typeSymbol)
     {
-        // TODO: 需要重写（已经从构造函数的依赖模式转变为 WaitFor 模式）
+        _indices[typeSymbol] = _index;
+        _lowLinks[typeSymbol] = _index;
+        _index++;
+        _stack.Push(typeSymbol);
+        _onStack.Add(typeSymbol);
+
+        // 获取该类型的节点
+        if (!_serviceImplToNode.TryGetValue(typeSymbol, out var node))
+            return;
+
+        // 遍历所有依赖
+        foreach (var dependency in node.Dependencies)
+        {
+            // 解析依赖的实际提供者
+            if (!_serviceProviders.TryGetValue(dependency.TargetType, out var provider))
+                continue;
+
+            var dependencyImpl = provider.Symbol;
+
+            // 只检查服务间的依赖（不检查 User 的 Inject）
+            if (!_serviceImplToNode.ContainsKey(dependencyImpl))
+                continue;
+
+            if (!_indices.ContainsKey(dependencyImpl))
+            {
+                // 递归访问未访问的依赖
+                StrongConnect(dependencyImpl);
+                _lowLinks[typeSymbol] = Math.Min(_lowLinks[typeSymbol], _lowLinks[dependencyImpl]);
+            }
+            else if (_onStack.Contains(dependencyImpl))
+            {
+                // 发现后向边（循环依赖）
+                _lowLinks[typeSymbol] = Math.Min(_lowLinks[typeSymbol], _indices[dependencyImpl]);
+            }
+        }
+
+        // 检查是否是强连通分量的根
+        if (_lowLinks[typeSymbol] == _indices[typeSymbol])
+        {
+            var component = new List<ITypeSymbol>();
+            ITypeSymbol w;
+            do
+            {
+                w = _stack.Pop();
+                _onStack.Remove(w);
+                component.Add(w);
+            } while (!SymbolEqualityComparer.Default.Equals(w, typeSymbol));
+
+            // 如果强连通分量包含多个节点，或有自环，则是循环依赖
+            if (component.Count > 1 || HasSelfLoop(typeSymbol))
+            {
+                _cycles.Add(new Cycle(component));
+            }
+        }
     }
 
     /// <summary>
@@ -75,7 +128,19 @@ internal sealed class CircularDependencyDetector
     /// </summary>
     private bool HasSelfLoop(ITypeSymbol typeSymbol)
     {
-        // TODO: 需要重写（已经从构造函数的依赖模式转变为 WaitFor 模式）
+        if (!_serviceImplToNode.TryGetValue(typeSymbol, out var node))
+            return false;
+
+        // 检查是否有指向自己的依赖边
+        foreach (var dependency in node.Dependencies)
+        {
+            if (_serviceProviders.TryGetValue(dependency.TargetType, out var provider))
+            {
+                if (SymbolEqualityComparer.Default.Equals(provider.Symbol, typeSymbol))
+                    return true;
+            }
+        }
+
         return false;
     }
 
@@ -136,8 +201,38 @@ internal sealed class CircularDependencyDetector
     /// </summary>
     private List<ITypeSymbol> OrderCyclePath(List<ITypeSymbol> components)
     {
-        // TODO: 需要重写（已经从构造函数的依赖模式转变为 WaitFor 模式）
-        return [];
+        if (components.Count <= 1)
+            return components;
+
+        // 构建循环内的依赖图
+        var graph = new Dictionary<ITypeSymbol, List<ITypeSymbol>>(SymbolEqualityComparer.Default);
+        var componentSet = new HashSet<ITypeSymbol>(components, SymbolEqualityComparer.Default);
+
+        foreach (var component in components)
+        {
+            graph[component] = new List<ITypeSymbol>();
+
+            if (_serviceImplToNode.TryGetValue(component, out var node))
+            {
+                foreach (var dependency in node.Dependencies)
+                {
+                    if (
+                        _serviceProviders.TryGetValue(dependency.TargetType, out var provider)
+                        && componentSet.Contains(provider.Symbol)
+                    )
+                    {
+                        graph[component].Add(provider.Symbol);
+                    }
+                }
+            }
+        }
+
+        // 从第一个组件开始构建路径
+        var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+        var path = new List<ITypeSymbol>();
+        BuildOrderedPath(components[0], graph, componentSet, visited, path);
+
+        return path.Count > 0 ? path : components;
     }
 
     /// <summary>

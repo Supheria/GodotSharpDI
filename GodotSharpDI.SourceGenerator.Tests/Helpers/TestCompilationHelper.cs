@@ -196,6 +196,13 @@ namespace GodotSharpDI.Abstractions
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
     public sealed class InjectAttribute : Attribute { }
 
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
+    public sealed class ProvideAttribute : Attribute
+    {
+        public Type[] ExposedTypes { get; set; } = Array.Empty<Type>();
+        public string[] WaitFor { get; set; } = Array.Empty<string>();
+    }
+
     [AttributeUsage(AttributeTargets.Constructor)]
     public sealed class InjectConstructorAttribute : Attribute { }
 
