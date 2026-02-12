@@ -1,4 +1,5 @@
-﻿using Godot;
+﻿using System;
+using Godot;
 using GodotSharpDI.Abstractions;
 
 namespace GodotSharpDI.Sample;
@@ -67,19 +68,34 @@ public sealed partial class PlayerUI : Control, IDependenciesResolved
     // }
 }
 
+public interface IServiceA;
 
+public interface IServiceB;
 
-public interface IServiceA { }
-public partial class ServiceA : IServiceA { }
+public class SerivceA : IServiceA { }
+
+public class ServiceB : IServiceB { }
 
 [Host]
-public partial class ServiceHost : Node
+public partial class HostB : Node
 {
-    [Inject]
-    private IServiceA _a { get; set; }
-        
-    [Provide(ExposedTypes = new[] { typeof(IServiceA) }, WaitFor = new[] { nameof(_a) })]
-    public ServiceA CreateA() => new ServiceA();
-
     public override partial void _Notification(int what);
+
+    [Inject]
+    private IServiceA _a;
+
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_a)])]
+    public ServiceB ServiceB => new();
+}
+
+[Host]
+public partial class HostA : Node
+{
+    public override partial void _Notification(int what);
+
+    [Inject]
+    private IServiceB _b;
+
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_b)])]
+    public SerivceA ServiceA => new();
 }

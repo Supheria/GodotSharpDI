@@ -50,6 +50,7 @@ internal static class DiGraphBuilder
             GraphValidator.ValidateHostServices(typesByRole.Hosts, serviceProviders, diagnostics);
 
             GraphValidator.ValidateDependencyGraph(
+                nodes.HostNodes,
                 nodes.UserNodes,
                 serviceProviders,
                 symbols,

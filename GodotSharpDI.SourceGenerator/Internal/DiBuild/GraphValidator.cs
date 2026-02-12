@@ -22,14 +22,20 @@ internal static class GraphValidator
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
-        // 当前实现为空，预留给未来的 Host 服务验证逻辑
-        // 可以在这里添加对 Host 提供的服务的额外验证
+        // 注意：实际的 Host 验证在 ValidateDependencyGraph 中进行
+        // 这里可以添加一些轻量级的预验证逻辑
+
+        // 预留给未来的额外验证逻辑：
+        // - 检查 Host 是否继承自 Node
+        // - 检查 Host 是否有必需的 _Notification 方法
+        // - 其他 Host 特定的验证
     }
 
     /// <summary>
     /// 验证依赖图
     /// </summary>
     public static void ValidateDependencyGraph(
+        ImmutableArray<TypeNode> allHostNodes,
         ImmutableArray<TypeNode> allUserNodes,
         ServiceProviderMap serviceProviders,
         CachedSymbols symbols,
@@ -38,10 +44,13 @@ internal static class GraphValidator
     {
         try
         {
-            // 1. 检查循环依赖
-            // TODO: 检测 Host Provide 成员的 WaitFor 循环依赖
+            // 1. 检测 Host 节点的循环依赖（包括 WaitFor 循环）
+            DetectCircularDependencies(allHostNodes, serviceProviders, diagnostics);
 
-            // 2. 检查 User 注入成员
+            // 2. 验证 Host 的注入成员
+            ValidateHostInjections(allHostNodes, serviceProviders, diagnostics);
+
+            // 3. 验证 User 注入成员
             ValidateUserInjections(allUserNodes, serviceProviders, diagnostics);
         }
         catch (Exception ex)
@@ -60,9 +69,92 @@ internal static class GraphValidator
     // 私有验证方法
     // ============================================================
 
-    // TODO: 还需要检测 Host Provide 成员的 WaitFor 循环依赖
+    /// <summary>
+    /// 检测循环依赖（包括 WaitFor 形成的循环）
+    /// </summary>
+    private static void DetectCircularDependencies(
+        ImmutableArray<TypeNode> hostNodes,
+        ServiceProviderMap serviceProviders,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        try
+        {
+            // 构建服务实现类型到节点的映射
+            var serviceImplToNode = new Dictionary<ITypeSymbol, TypeNode>(
+                SymbolEqualityComparer.Default
+            );
 
-    // TODO: 还需要验证 Host 的成员注入
+            foreach (var node in hostNodes)
+            {
+                // Host 节点代表提供服务的类
+                serviceImplToNode[node.ValidatedTypeInfo.Symbol] = node;
+            }
+
+            // 构建服务类型到提供者的映射（用于循环检测）
+            var serviceTypeToProvider = new Dictionary<ITypeSymbol, ValidatedTypeInfo>(
+                SymbolEqualityComparer.Default
+            );
+
+            foreach (var node in hostNodes)
+            {
+                // 对于每个 Host 提供的服务类型，记录提供者
+                foreach (var providedService in node.ProvidedServices)
+                {
+                    // 如果多个成员提供同一类型，使用第一个（与 ServiceProviderMap 行为一致）
+                    if (!serviceTypeToProvider.ContainsKey(providedService))
+                    {
+                        serviceTypeToProvider[providedService] = node.ValidatedTypeInfo;
+                    }
+                }
+            }
+
+            // 使用 CircularDependencyDetector 检测循环
+            var detector = new CircularDependencyDetector(serviceImplToNode, serviceTypeToProvider);
+
+            var circularDiagnostics = detector.DetectCircularDependencies();
+            diagnostics.AddRange(circularDiagnostics);
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add(
+                DiagnosticBuilder.CreateAtNone(
+                    DiagnosticDescriptors.GraphValidationFailed,
+                    "CircularDependencyDetection",
+                    ex.Message
+                )
+            );
+        }
+    }
+
+    /// <summary>
+    /// 验证 Host 注入成员
+    /// </summary>
+    private static void ValidateHostInjections(
+        ImmutableArray<TypeNode> hostNodes,
+        ServiceProviderMap serviceProviders,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        foreach (var node in hostNodes)
+        {
+            try
+            {
+                ValidateNodeInjections(node, serviceProviders, diagnostics);
+            }
+            catch (Exception ex)
+            {
+                diagnostics.Add(
+                    DiagnosticBuilder.CreateForSymbol(
+                        DiagnosticDescriptors.GraphValidationFailed,
+                        node.ValidatedTypeInfo.Symbol,
+                        "HostDependencyValidation",
+                        ex.Message
+                    )
+                );
+            }
+        }
+    }
 
     /// <summary>
     /// 验证 User 注入成员
@@ -77,7 +169,7 @@ internal static class GraphValidator
         {
             try
             {
-                ValidateUserInjection(node, serviceProviders, diagnostics);
+                ValidateNodeInjections(node, serviceProviders, diagnostics);
             }
             catch (Exception ex)
             {
@@ -94,9 +186,9 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// 验证单个 User 的注入
+    /// 验证单个节点的注入（Host 和 User 共用）
     /// </summary>
-    private static void ValidateUserInjection(
+    private static void ValidateNodeInjections(
         TypeNode node,
         ServiceProviderMap serviceProviders,
         ImmutableArray<Diagnostic>.Builder diagnostics
@@ -104,6 +196,8 @@ internal static class GraphValidator
     {
         foreach (var dep in node.Dependencies)
         {
+            // 只检查 Inject 成员依赖
+            // WaitFor 依赖会在循环检测中处理
             if (dep.Source == DependencySource.InjectMember)
             {
                 if (!serviceProviders.ContainsKey(dep.TargetType))
@@ -119,23 +213,5 @@ internal static class GraphValidator
                 }
             }
         }
-    }
-
-    // ============================================================
-    // 辅助方法
-    // ============================================================
-
-    private static Dictionary<ITypeSymbol, TypeNode> BuildServiceNodeMap(
-        ImmutableArray<TypeNode> serviceNodes
-    )
-    {
-        var map = new Dictionary<ITypeSymbol, TypeNode>(SymbolEqualityComparer.Default);
-
-        foreach (var node in serviceNodes)
-        {
-            map[node.ValidatedTypeInfo.Symbol] = node;
-        }
-
-        return map;
     }
 }
