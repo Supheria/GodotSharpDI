@@ -38,6 +38,12 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
+            // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
+            if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
+            {
+                IDependenciesResolvedGenerator.GenerateAll(f, injectMembers);
+            }
+
             GenerateProvideHostServices(f, validatedType, injectMembers, provideMembers);
             f.AppendLine();
 
@@ -55,10 +61,11 @@ internal static class HostGenerator
 
     /// <summary>
     /// 生成 ProvideHostServices 方法
-    /// 使用统一的三阶段流程：
-    /// 1. 依赖注入 (DependencyInjectionPhase)
-    /// 2. 每个 Provide 成员独立的 WaitFor 等待 (WaitForPhase)
-    /// 3. 服务提供 (ServiceProvisionPhase)
+    /// 核心逻辑:
+    /// 1. 如果有 Inject 成员且实现了 IDependenciesResolved,先注入依赖(不等待完成)
+    /// 2. 对每个 Provide 成员独立处理:
+    ///    - 如果有 WaitFor,等待 WaitFor 依赖
+    ///    - 否则直接提供服务
     /// </summary>
     private static void GenerateProvideHostServices(
         CodeFormatter f,
@@ -81,14 +88,20 @@ internal static class HostGenerator
             f.EndBlock();
             f.AppendLine();
 
-            if (injectMembers.IsEmpty)
+            // 核心逻辑:根据是否有 Inject 成员和是否实现 IDependenciesResolved 来决定处理方式
+            if (!injectMembers.IsEmpty && validatedType.ImplementsIDependenciesResolved)
             {
-                // 没有依赖注入，直接处理 Provide 成员（可能有 WaitFor）
-                GenerateDirectServiceProvision(f, validatedType.Members, provideMembers);
+                // 有 Inject 成员且实现了 IDependenciesResolved - 使用依赖跟踪
+                GenerateWithDependencyTracking(
+                    f,
+                    validatedType,
+                    injectMembers,
+                    provideMembers
+                );
             }
-            else
+            else if (!injectMembers.IsEmpty)
             {
-                // 有依赖注入，使用三阶段流程
+                // 有 Inject 成员但未实现 IDependenciesResolved - 使用传统三阶段流程
                 GenerateThreePhaseLifecycle(
                     f,
                     validatedType.Members,
@@ -97,12 +110,93 @@ internal static class HostGenerator
                     validatedType.Symbol.Name
                 );
             }
+            else
+            {
+                // 没有 Inject 成员 - 直接提供服务
+                GenerateDirectProvision(f, validatedType.Members, provideMembers);
+            }
         }
         f.EndBlock();
     }
 
     /// <summary>
-    /// 生成三阶段生命周期（有依赖注入的情况）
+    /// 有依赖跟踪的情况 (实现了 IDependenciesResolved)
+    /// Inject 成员注入不阻塞 Provide 成员提供服务
+    /// </summary>
+    private static void GenerateWithDependencyTracking(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType,
+        ImmutableArray<MemberInfo> injectMembers,
+        ImmutableArray<MemberInfo> provideMembers
+    )
+    {
+        // 阶段 1: 注入依赖 (不等待完成,不阻塞后续流程)
+        f.AppendLine("// ━━━ 阶段 1: 注入依赖 (不阻塞服务提供) ━━━");
+        foreach (var member in injectMembers)
+        {
+            GenerateFieldInjectionWithTracking(
+                f,
+                member,
+                "scope",
+                validatedType.Symbol.Name
+            );
+        }
+        f.AppendLine();
+
+        // 阶段 2 & 3: 每个 Provide 成员独立处理
+        f.AppendLine("// ━━━ 阶段 2 & 3: 提供服务 (独立于依赖注入) ━━━");
+        GenerateDirectProvision(f, validatedType.Members, provideMembers);
+    }
+
+    /// <summary>
+    /// 为单个字段生成依赖注入代码 (带依赖跟踪)
+    /// </summary>
+    private static void GenerateFieldInjectionWithTracking(
+        CodeFormatter f,
+        MemberInfo member,
+        string scopeField,
+        string typeName
+    )
+    {
+        var memberName = member.Symbol.Name;
+        var memberType = member.MemberType.ToFullyQualifiedName();
+
+        f.AppendLine($"// 解析依赖: {memberName}");
+        f.AppendLine($"{scopeField}.ResolveDependency<{memberType}>(");
+        f.BeginLevel();
+        {
+            // onResolved 回调
+            f.AppendLine("(dependency) =>");
+            f.BeginBlock();
+            {
+                f.AppendLine($"{memberName} = dependency;");
+                IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
+                IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+            }
+            f.EndBlock(",");
+
+            // onFailed 回调
+            f.AppendLine("(error) =>");
+            f.BeginBlock();
+            {
+                f.AppendLine(
+                    $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\");"
+                );
+                IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+            }
+            f.EndBlock(",");
+
+            // requestorType
+            f.AppendLine($"requestorType: \"{typeName}\"");
+        }
+        f.EndLevel();
+        f.AppendLine(");");
+        f.AppendLine();
+    }
+
+    /// <summary>
+    /// 生成三阶段生命周期（有依赖注入但未实现 IDependenciesResolved 的情况）
+    /// 这是传统的三阶段流程:所有 Inject 依赖解决后才提供 Provide 服务
     /// </summary>
     private static void GenerateThreePhaseLifecycle(
         CodeFormatter f,
@@ -118,6 +212,7 @@ internal static class HostGenerator
             injectMembers,
             "scope",
             typeName,
+            implementsIDependenciesResolved: false,
             onAllResolved: () =>
             {
                 f.AppendLine(
@@ -126,51 +221,15 @@ internal static class HostGenerator
                 f.AppendLine();
 
                 // 依赖注入完成后，为每个 Provide 成员独立处理 WaitFor
-                foreach (var member in provideMembers)
-                {
-                    f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
-
-                    if (member.HasWaitFor)
-                    {
-                        // 使用新的 WaitForPhase.GenerateForMember
-                        WaitForPhase.GenerateForMember(
-                            f,
-                            member,
-                            allMembers,
-                            "scope",
-                            onAllResolved: () =>
-                            {
-                                // WaitFor 依赖就绪后，提供服务
-                                ServiceProvisionPhase.GenerateMemberProvide(
-                                    f,
-                                    member,
-                                    "scope",
-                                    "" // Host 成员直接访问，不需要前缀
-                                );
-                            }
-                        );
-                    }
-                    else
-                    {
-                        // 没有 WaitFor，直接提供服务
-                        ServiceProvisionPhase.GenerateMemberProvide(
-                            f,
-                            member,
-                            "scope",
-                            "" // Host 成员直接访问，不需要前缀
-                        );
-                    }
-
-                    f.AppendLine();
-                }
+                GenerateDirectProvision(f, allMembers, provideMembers);
             }
         );
     }
 
     /// <summary>
-    /// 直接提供服务（无依赖注入的情况）
+    /// 直接提供服务（每个 Provide 成员独立处理,可能有 WaitFor）
     /// </summary>
-    private static void GenerateDirectServiceProvision(
+    private static void GenerateDirectProvision(
         CodeFormatter f,
         ImmutableArray<MemberInfo> allMembers,
         ImmutableArray<MemberInfo> provideMembers
@@ -182,7 +241,7 @@ internal static class HostGenerator
 
             if (member.HasWaitFor)
             {
-                // 有 WaitFor 但没有 Inject - 使用独立的 WaitFor 机制
+                // 有 WaitFor - 等待依赖就绪后提供
                 WaitForPhase.GenerateForMember(
                     f,
                     member,

@@ -1,5 +1,7 @@
-﻿using System.Linq;
+﻿using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
+using GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
@@ -27,35 +29,28 @@ internal static class UserGenerator
     public static void GenerateUserSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Inject 成员
-        var injectMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsInjectMember).ToArray();
+        var injectMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsInjectMember).ToImmutableArray();
 
         var f = new CodeFormatter();
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            // 如果有 Inject 成员，生成注入准备标识符字段
-            if (injectMembers.Length > 0)
+            // 如果有 Inject 成员
+            if (!injectMembers.IsEmpty)
             {
-                GenerateInjectionReadyProperties(f, injectMembers);
-                f.AppendLine();
-            }
+                // 如果有带 FailureCallback 的成员，生成 partial 方法声明
+                var membersWithCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
+                if (membersWithCallback.Length > 0)
+                {
+                    GenerateFailureCallbackDeclarations(f, membersWithCallback);
+                    f.AppendLine();
+                }
 
-            // 如果有带 FailureCallback 的成员，生成 partial 方法声明
-            var membersWithCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
-            if (membersWithCallback.Length > 0)
-            {
-                GenerateFailureCallbackDeclarations(f, membersWithCallback);
-                f.AppendLine();
-            }
-
-            GenerateIsAllDependenciesReadyProperty(f, injectMembers);
-            f.AppendLine();
-
-            // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
-            if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved && injectMembers.Length > 0)
-            {
-                GenerateDependencyTracking(f, injectMembers);
-                f.AppendLine();
+                // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
+                if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
+                {
+                    IDependenciesResolvedGenerator.GenerateAll(f, injectMembers);
+                }
             }
 
             // 生成 ResolveUserDependencies
@@ -64,24 +59,6 @@ internal static class UserGenerator
         f.EndClassDeclaration();
 
         context.AddSource($"{fileName}.DI.User.g.cs", f.ToString());
-    }
-
-    private static void GenerateInjectionReadyProperties(
-        CodeFormatter f,
-        MemberInfo[] injectMembers
-    )
-    {
-        // IsXxxInjectionReady
-        foreach (var member in injectMembers)
-        {
-            var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
-            f.AppendLine(
-                $"/// <summary>成员 {member.Symbol.Name} 是否成功注入依赖的标识符</summary>"
-            );
-            f.AppendLine($"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]");
-            f.AppendLine($"private {GlobalNames.Bool} {fieldName} {{ get; set; }} = false;");
-            f.AppendLine();
-        }
     }
 
     private static void GenerateFailureCallbackDeclarations(
@@ -99,88 +76,10 @@ internal static class UserGenerator
         }
     }
 
-    private static void GenerateIsAllDependenciesReadyProperty(
-        CodeFormatter f,
-        MemberInfo[] injectMembers
-    )
-    {
-        if (injectMembers.Length == 0)
-        {
-            f.AppendLine($"private {GlobalNames.Bool} IsAllDependenciesReady => true;");
-            return;
-        }
-
-        var fAttribute = f.CreateFromCurrentLevel();
-        var fValue = f.CreateFromCurrentLevel();
-        fValue.BeginLevel();
-        {
-            for (int i = 0; i < injectMembers.Length; i++)
-            {
-                var member = injectMembers[i];
-                fAttribute.AppendLine(
-                    $"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]"
-                );
-                var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
-                if (i > 0)
-                {
-                    fValue.AppendLine();
-                    fValue.AppendRaw($"&& {fieldName} == true", true);
-                }
-                else
-                {
-                    fValue.AppendRaw($"{fieldName} == true", true);
-                }
-            }
-            fValue.AppendRaw(";");
-        }
-        fValue.EndLevel();
-        f.AppendLine("/// <summary>所有 Inject 成员是否都成功注入依赖的标识符</summary>");
-        f.AppendRaw(fAttribute.ToString());
-        f.AppendLine($"private {GlobalNames.Bool} IsAllDependenciesReady =>");
-        f.AppendRaw(fValue.ToString());
-        f.AppendLine();
-    }
-
-    private static void GenerateDependencyTracking(CodeFormatter f, MemberInfo[] injectMembers)
-    {
-        // _unresolvedDependencies
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
-        );
-        f.BeginBlock();
-        {
-            foreach (var member in injectMembers)
-            {
-                f.AppendLine($"typeof({member.MemberType.ToFullyQualifiedName()}),");
-            }
-        }
-        f.EndBlock(";");
-        f.AppendLine();
-
-        // OnDependencyResolved
-        f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void OnDependencyResolved<T>()");
-        f.BeginBlock();
-        {
-            f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-            f.AppendLine("if (_unresolvedDependencies.Count == 0)");
-            f.BeginBlock();
-            {
-                f.AppendLine(
-                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved(IsAllDependenciesReady);"
-                );
-            }
-            f.EndBlock();
-        }
-        f.EndBlock();
-        f.AppendLine();
-    }
-
     private static void GenerateResolveUserDependencies(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
-        MemberInfo[] injectMembersList
+        ImmutableArray<MemberInfo> injectMembersList
     )
     {
         // ResolveUserDependencies
@@ -203,7 +102,6 @@ internal static class UserGenerator
             {
                 var memberTypeName = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
-                var injectionReadyFieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
 
                 f.AppendLine($"scope.ResolveDependency<{memberTypeName}>(");
                 f.BeginLevel();
@@ -214,7 +112,12 @@ internal static class UserGenerator
                         f.BeginTryCatch();
                         {
                             f.AppendLine($"{memberName} = dependency;");
-                            f.AppendLine($"{injectionReadyFieldName} = true;");
+                            
+                            // 如果实现了 IDependenciesResolved,设置注入准备标识
+                            if (validatedType.ImplementsIDependenciesResolved)
+                            {
+                                IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
+                            }
                         }
                         f.CatchBlock("ex");
                         {
@@ -223,19 +126,23 @@ internal static class UserGenerator
                             );
                         }
                         f.EndTryCatch();
+                        
+                        // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
+                            IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberTypeName);
                         }
                     }
                     f.EndBlock(",");
                     f.AppendLine("(errorMessage) =>");
                     f.BeginBlock();
                     {
+                        // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
+                            IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberTypeName);
                         }
+                        
                         // 如果有失败回调，调用它
                         if (member.HasFailureCallback)
                         {

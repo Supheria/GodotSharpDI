@@ -96,11 +96,11 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IDependenciesResolved but is not marked with [User].
+        ///   Looks up a localized string similar to Type &apos;{0}&apos; implements IDependenciesResolved but is not marked with [User] or [Host].
         /// </summary>
-        internal static string C_IDependenciesResolvedNeedUser {
+        internal static string C_IDependenciesResolvedInvalid {
             get {
-                return ResourceManager.GetString("C_IDependenciesResolvedNeedUser", resourceCulture);
+                return ResourceManager.GetString("C_IDependenciesResolvedInvalid", resourceCulture);
             }
         }
         
@@ -173,33 +173,6 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string C_ServiceCannotBeNode {
             get {
                 return ResourceManager.GetString("C_ServiceCannotBeNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot expose unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed.
-        /// </summary>
-        internal static string C_ServiceExposedTypeCannotBeGeneric {
-            get {
-                return ResourceManager.GetString("C_ServiceExposedTypeCannotBeGeneric", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; has exposed type &apos;{1}&apos;, but which is not implemented.
-        /// </summary>
-        internal static string C_ServiceExposedTypeNotImplemented {
-            get {
-                return ResourceManager.GetString("C_ServiceExposedTypeNotImplemented", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; exposed type &apos;{1}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
-        /// </summary>
-        internal static string C_ServiceExposedTypeShouldBeInterface {
-            get {
-                return ResourceManager.GetString("C_ServiceExposedTypeShouldBeInterface", resourceCulture);
             }
         }
         

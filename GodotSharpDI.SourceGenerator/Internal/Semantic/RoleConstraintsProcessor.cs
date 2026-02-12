@@ -47,14 +47,16 @@ internal sealed class RoleConstraintsProcessor
                 break;
         }
 
-        // TODO: IDependenciesResolved 同样适用于 Host
-
         // 验证 IDependenciesResolved
-        if (_raw.ImplementsIDependenciesResolved && _role != TypeRole.User)
+        if (
+            _raw.ImplementsIDependenciesResolved
+            && _role != TypeRole.User
+            && _role != TypeRole.Host
+        )
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.IDependenciesResolvedNeedUser,
+                    DiagnosticDescriptors.IDependenciesResolvedInvalid,
                     _raw.Location,
                     _raw.Symbol.Name
                 )

@@ -51,8 +51,8 @@
         <value>Scope '{0}' 必须继承自 Godot.Node</value>
     </data>
 
-    <data name="C_IDependenciesResolvedNeedUser" xml:space="preserve">
-        <value>类型 '{0}' 实现了 IDependenciesResolved 但未标记 [User]</value>
+    <data name="C_IDependenciesResolvedInvalid" xml:space="preserve">
+        <value>类型 '{0}' 实现了 IDependenciesResolved 但未标记 [User] 或 [Host]</value>
     </data>
 
     <data name="C_ScopeMissingModules" xml:space="preserve">

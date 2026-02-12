@@ -4,26 +4,26 @@
 
 ### Class-level Diagnostics (C_)
 
-| Rule ID  | Category    | Severity | Notes                                                          |
-|----------|-------------|----------|----------------------------------------------------------------|
-| GDI_C010 | GDI.Class   | Error    | Host cannot use incompatible attributes                        |
-| GDI_C011 | GDI.Class   | Error    | User cannot use incompatible attributes                        |
-| GDI_C012 | GDI.Class   | Error    | Scope cannot use incompatible attributes                       |
-| GDI_C013 | GDI.Class   | Error    | To use [Modules] must implement IScope                         |
-| GDI_C020 | GDI.Class   | Error    | Host must inherit from Godot.Node                              |
-| GDI_C021 | GDI.Class   | Error    | User must inherit from Godot.Node                              |
-| GDI_C022 | GDI.Class   | Error    | Scope must inherit from Godot.Node                             |
-| GDI_C030 | GDI.Class   | Error    | IDependenciesResolved implementation requires [User] attribute |
-| GDI_C040 | GDI.Class   | Error    | Scope must specify [Modules]                                   |
-| GDI_C050 | GDI.Class   | Error    | DI-relative class must be partial                              |
-| GDI_C060 | GDI.Class   | Error    | Service must be non-abstract, non-static class                 |
-| GDI_C061 | GDI.Class   | Error    | Service cannot inherit from Godot.Node                         |
-| GDI_C062 | GDI.Class   | Error    | Service cannot be generic type                                 |
-| GDI_C070 | GDI.Class   | Warning  | Service exposed type should be interface                       |
-| GDI_C071 | GDI.Class   | Error    | Service exposes type but does not implement it                 |
-| GDI_C072 | GDI.Class   | Error    | Service cannot expose generic type                             |
-| GDI_C080 | GDI.Class   | Error    | Host, User or Scope missing _Notification declaration          |
-| GDI_C081 | GDI.Class   | Error    | Unexpected Signature of _Notification declaration              |
+| Rule ID  | Category    | Severity | Notes                                                 |
+|----------|-------------|----------|-------------------------------------------------------|
+| GDI_C010 | GDI.Class   | Error    | Host cannot use incompatible attributes               |
+| GDI_C011 | GDI.Class   | Error    | User cannot use incompatible attributes               |
+| GDI_C012 | GDI.Class   | Error    | Scope cannot use incompatible attributes              |
+| GDI_C013 | GDI.Class   | Error    | To use [Modules] must implement IScope                |
+| GDI_C020 | GDI.Class   | Error    | Host must inherit from Godot.Node                     |
+| GDI_C021 | GDI.Class   | Error    | User must inherit from Godot.Node                     |
+| GDI_C022 | GDI.Class   | Error    | Scope must inherit from Godot.Node                    |
+| GDI_C030 | GDI.Class   | Error    | Only User or Host can use IDependenciesResolved       |
+| GDI_C040 | GDI.Class   | Error    | Scope must specify [Modules]                          |
+| GDI_C050 | GDI.Class   | Error    | DI-relative class must be partial                     |
+| GDI_C060 | GDI.Class   | Error    | Service must be non-abstract, non-static class        |
+| GDI_C061 | GDI.Class   | Error    | Service cannot inherit from Godot.Node                |
+| GDI_C062 | GDI.Class   | Error    | Service cannot be generic type                        |
+| GDI_C070 | GDI.Class   | Warning  | Service exposed type should be interface              |
+| GDI_C071 | GDI.Class   | Error    | Service exposes type but does not implement it        |
+| GDI_C072 | GDI.Class   | Error    | Service cannot expose generic type                    |
+| GDI_C080 | GDI.Class   | Error    | Host, User or Scope missing _Notification declaration |
+| GDI_C081 | GDI.Class   | Error    | Unexpected Signature of _Notification declaration     |
 
 ### Member-level Diagnostics (M_)
 

@@ -160,9 +160,9 @@ internal static class DiagnosticDescriptors
         Resources.C_ScopeCannotBeGenericType
     );
 
-    public static readonly DiagnosticDescriptor IDependenciesResolvedNeedUser = Class(
+    public static readonly DiagnosticDescriptor IDependenciesResolvedInvalid = Class(
         "030",
-        Resources.C_IDependenciesResolvedNeedUser
+        Resources.C_IDependenciesResolvedInvalid
     );
 
     public static readonly DiagnosticDescriptor ScopeMissingModules = Class(
