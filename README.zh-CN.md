@@ -1946,7 +1946,7 @@ partial class GameManager
 
 - [x] 实现依赖 WaitFor 机制
 - [x] 支持异步服务提供者
-- [ ] 支持异步操作（使用 CallDeferred）
+- [x] 支持异步操作（使用 CallDeferred）
 - [ ] 添加服务生命周期配置选项
 
 ### 4. 诊断

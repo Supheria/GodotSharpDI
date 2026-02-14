@@ -1946,7 +1946,7 @@ partial class GameManager
 
 - [x] Implement dependency WaitFor mechanism
 - [x] Support asynchronous service providers
-- [ ] Support asynchronous operations (using CallDeferred)
+- [x] Support asynchronous operations (using CallDeferred)
 - [ ] Add service lifetime configuration options
 
 ### 4. Diagnostics
