@@ -252,7 +252,7 @@ internal static class ScopeGenerator
                     f.EndStringBuilderAppend();
                     f.AppendLine();
 
-                    f.PushError("errorMsg.ToString()");
+                    f.PrintError("errorMsg.ToString()");
                 }
                 f.EndTryCatch();
             }
@@ -353,7 +353,7 @@ internal static class ScopeGenerator
                             f.EndStringBuilderAppend();
                             f.AppendLine();
 
-                            f.PushWarning("message");
+                            f.PrintError("message");
                         }
                         f.EndBlock();
                     }
@@ -424,7 +424,7 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.PushError("message");
+            f.PrintError("message");
         }
         f.EndBlock();
     }

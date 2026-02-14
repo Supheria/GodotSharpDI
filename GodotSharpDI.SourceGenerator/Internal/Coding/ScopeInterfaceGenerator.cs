@@ -82,7 +82,7 @@ internal static class ScopeInterfaceGenerator
                 }
                 f.EndLevel();
                 f.AppendLine(");");
-                f.PushError("sb.ToString()");
+                f.PrintError("sb.ToString()");
                 f.AppendLine();
 
                 f.AppendLine("return;");
@@ -166,7 +166,7 @@ internal static class ScopeInterfaceGenerator
             }
             f.EndLevel();
             f.AppendLine(");");
-            f.PushError("sb.ToString()");
+            f.PrintError("sb.ToString()");
             f.AppendLine("return;");
         }
         f.EndBlock();
@@ -212,7 +212,7 @@ internal static class ScopeInterfaceGenerator
         }
         f.EndLevel();
         f.AppendLine(");");
-        f.PushError("sb.ToString()");
+        f.PrintError("sb.ToString()");
         f.AppendLine();
 
         f.BeginTryCatch();
@@ -233,7 +233,7 @@ internal static class ScopeInterfaceGenerator
             }
             f.EndLevel();
             f.AppendLine(");");
-            f.PushError("sb.ToString()");
+            f.PrintError("sb.ToString()");
         }
         f.EndTryCatch();
     }
@@ -259,7 +259,7 @@ internal static class ScopeInterfaceGenerator
             }
             f.EndLevel();
             f.AppendLine(");");
-            f.PushError("sb.ToString()");
+            f.PrintError("sb.ToString()");
         }
         f.EndTryCatch();
     }
@@ -346,7 +346,7 @@ internal static class ScopeInterfaceGenerator
         }
         f.EndLevel();
         f.AppendLine(");");
-        f.PushError("sb.ToString()");
+        f.PrintError("sb.ToString()");
         f.AppendLine();
 
         f.AppendLine("// 调用结果回调");
@@ -370,7 +370,7 @@ internal static class ScopeInterfaceGenerator
             }
             f.EndLevel();
             f.AppendLine(");");
-            f.PushError("sb.ToString()");
+            f.PrintError("sb.ToString()");
         }
         f.EndTryCatch();
         f.AppendLine("return;");
@@ -403,7 +403,7 @@ internal static class ScopeInterfaceGenerator
                 }
                 f.EndLevel();
                 f.AppendLine(");");
-                f.PushError("sb.ToString()");
+                f.PrintError("sb.ToString()");
             }
             f.EndTryCatch();
             f.AppendLine("break;");
@@ -438,7 +438,7 @@ internal static class ScopeInterfaceGenerator
                 );
             }
             f.EndBlock();
-            f.PushError("sb.ToString()");
+            f.PrintError("sb.ToString()");
             f.AppendLine();
 
             f.AppendLine("// 调用结果回调");
@@ -462,7 +462,7 @@ internal static class ScopeInterfaceGenerator
                 }
                 f.EndLevel();
                 f.AppendLine(");");
-                f.PushError("sb.ToString()");
+                f.PrintError("sb.ToString()");
             }
             f.EndTryCatch();
             f.AppendLine("break;");

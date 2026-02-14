@@ -139,14 +139,9 @@ internal static class GeneratorHelper
         f.AppendRaw($".AppendLine($\"{content}\")", true);
     }
 
-    public static void PushWarning(this CodeFormatter f, string target)
+    public static void PrintError(this CodeFormatter f, string target)
     {
-        f.AppendLine($"{GlobalNames.GodotGD}.PushWarning({target});");
-    }
-
-    public static void PushError(this CodeFormatter f, string target)
-    {
-        f.AppendLine($"{GlobalNames.GodotGD}.PushError({target});");
+        f.AppendLine($"{GlobalNames.GodotGD}.PrintErr({target});");
     }
 
     public static void AppendTypeConstraints(this CodeFormatter f, string typeConstraints)

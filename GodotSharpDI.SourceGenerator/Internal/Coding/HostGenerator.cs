@@ -86,7 +86,7 @@ internal static class HostGenerator
             f.AppendLine("if (scope is null)");
             f.BeginBlock();
             {
-                f.PushError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
