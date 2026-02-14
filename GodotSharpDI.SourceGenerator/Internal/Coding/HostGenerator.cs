@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -226,43 +228,63 @@ internal static class HostGenerator
         ImmutableArray<MemberInfo> provideMembers
     )
     {
+        var waitForMembers = new List<(MemberInfo member, Action callback)>();
+
         foreach (var member in provideMembers)
         {
             f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
 
             if (member.HasWaitFor)
             {
-                // 有 WaitFor - 等待依赖就绪后提供 (在 async 上下文中)
+                // 收集需要生成 local function 的成员
+                Action callback = () =>
+                {
+                    ServiceProvisionPhase.GenerateMemberProvide(
+                        f,
+                        member,
+                        "scope",
+                        instancePrefix: "",
+                        inAsyncContext: true
+                    );
+                };
+
+                waitForMembers.Add((member, callback));
+
+                // 只生成监听代码，不生成 local function
                 WaitForPhase.GenerateForMember(
                     f,
                     member,
                     allMembers,
                     "scope",
-                    onAllResolved: () =>
-                    {
-                        ServiceProvisionPhase.GenerateMemberProvide(
-                            f,
-                            member,
-                            "scope",
-                            instancePrefix: "", // Host 成员直接访问
-                            inAsyncContext: true // WaitFor 回调在 async Task 方法中
-                        );
-                    }
+                    onAllResolved: callback
                 );
             }
             else
             {
-                // 直接提供 (不在 async 上下文中)
+                // 直接提供
                 ServiceProvisionPhase.GenerateMemberProvide(
                     f,
                     member,
                     "scope",
-                    instancePrefix: "", // Host 成员直接访问
-                    inAsyncContext: false // 不在 async 上下文中
+                    instancePrefix: "",
+                    inAsyncContext: false
                 );
             }
 
             f.AppendLine();
+        }
+
+        // 统一在方法末尾添加一个 return（可选）
+        if (waitForMembers.Any())
+        {
+            f.AppendLine("return;");
+            f.AppendLine();
+
+            // 生成所有 local function 定义
+            foreach (var (member, callback) in waitForMembers)
+            {
+                WaitForPhase.GenerateLocalFunction(f, member, callback);
+            }
         }
     }
 }
