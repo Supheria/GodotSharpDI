@@ -91,13 +91,11 @@ internal static class DependencyInjectionPhase
                 f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"{memberName} = result.Instance;");
-
-                    // 如果实现了 IDependenciesResolved,设置注入准备标识并调用跟踪方法
-                    if (implementsIDependenciesResolved)
-                    {
-                        IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
-                    }
+                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                        f,
+                        memberName,
+                        memberType
+                    );
 
                     f.AppendLine("if (--_remainingDeps == 0)");
                     f.BeginBlock();

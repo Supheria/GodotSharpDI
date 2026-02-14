@@ -150,9 +150,14 @@ internal static class IDependenciesResolvedGenerator
     /// 生成设置注入准备标识的代码片段
     /// 用于嵌入到依赖注入成功回调中
     /// </summary>
-    public static void GenerateSetInjectionReady(CodeFormatter f, string memberName)
+    public static void GenerateSetInjectionReady(
+        CodeFormatter f,
+        string memberName,
+        string memberType
+    )
     {
         var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
+        f.AppendLine($"{memberName} ??= ({memberType})result.Instance!;");
         f.AppendLine($"{fieldName} = true;");
     }
 }

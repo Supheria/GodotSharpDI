@@ -98,17 +98,6 @@ internal static class HostGenerator
                 // 有 Inject 成员且实现了 IDependenciesResolved - 使用依赖跟踪
                 GenerateWithDependencyTracking(f, validatedType, injectMembers, provideMembers);
             }
-            else if (!injectMembers.IsEmpty)
-            {
-                // 有 Inject 成员但未实现 IDependenciesResolved - 使用传统三阶段流程
-                GenerateThreePhaseLifecycle(
-                    f,
-                    validatedType.Members,
-                    injectMembers,
-                    provideMembers,
-                    validatedType.Symbol.Name
-                );
-            }
             else
             {
                 // 没有 Inject 成员 - 直接提供服务
@@ -166,8 +155,11 @@ internal static class HostGenerator
                 f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"{memberName} = result.Instance;");
-                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
+                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                        f,
+                        memberName,
+                        memberType
+                    );
                     IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
                 }
                 f.EndBlock();
@@ -189,36 +181,6 @@ internal static class HostGenerator
         f.EndLevel();
         f.AppendLine(");");
         f.AppendLine();
-    }
-
-    /// <summary>
-    /// 生成三阶段生命周期（有依赖注入但未实现 IDependenciesResolved 的情况）
-    /// 这是传统的三阶段流程:所有 Inject 依赖解决后才提供 Provide 服务
-    /// </summary>
-    private static void GenerateThreePhaseLifecycle(
-        CodeFormatter f,
-        ImmutableArray<MemberInfo> allMembers,
-        ImmutableArray<MemberInfo> injectMembers,
-        ImmutableArray<MemberInfo> provideMembers,
-        string typeName
-    )
-    {
-        // 阶段 1: 依赖注入
-        DependencyInjectionPhase.Generate(
-            f,
-            injectMembers,
-            "scope",
-            typeName,
-            implementsIDependenciesResolved: false,
-            onAllResolved: () =>
-            {
-                f.AppendLine("// ━━━ 阶段 2 & 3: 每个 Provide 成员独立处理 WaitFor 并提供服务 ━━━");
-                f.AppendLine();
-
-                // 依赖注入完成后，为每个 Provide 成员独立处理 WaitFor
-                GenerateDirectProvision(f, allMembers, provideMembers);
-            }
-        );
     }
 
     /// <summary>

@@ -14,7 +14,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 internal static class ServiceProvisionPhase
 {
     /// <summary>
-    /// 为单个成员生成提供代码
+    /// 为单个成员生成提供代码（使用成员的实现类型提供服务）
     /// </summary>
     /// <param name="f">代码格式化器</param>
     /// <param name="member">要提供的成员</param>
@@ -31,43 +31,40 @@ internal static class ServiceProvisionPhase
     {
         var memberAccess = GetMemberAccess(member, instancePrefix);
 
-        // 为每个暴露类型提供服务
-        foreach (var exposedType in member.ExposedTypes)
+        // 使用成员的实现类型提供服务
+        var implType = member.MemberType.ToFullyQualifiedName();
+
+        f.AppendLine($"// 提供服务: {implType}");
+
+        if (member.IsAsync)
         {
-            var exposedTypeName = exposedType.ToFullyQualifiedName();
-
-            f.AppendLine($"// 提供服务: {exposedTypeName}");
-
-            if (member.IsAsync)
+            // 异步成员
+            if (inAsyncContext)
             {
-                // 异步成员
-                if (inAsyncContext)
-                {
-                    // 在 async 上下文中，使用 await 确保完成
-                    f.AppendLine(
-                        $"await ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}({memberAccess}, {scopeField});"
-                    );
-                }
-                else
-                {
-                    // 不在 async 上下文中，启动异步任务但不等待
-                    f.AppendLine(
-                        $"_ = ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}({memberAccess}, {scopeField});"
-                    );
-                }
+                // 在 async 上下文中，使用 await 确保完成
+                f.AppendLine(
+                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField});"
+                );
             }
             else
             {
-                // 同步成员 - 直接提供
-                GenerateSyncProvide(f, memberAccess, exposedTypeName, scopeField);
+                // 不在 async 上下文中，启动异步任务但不等待
+                f.AppendLine(
+                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField});"
+                );
             }
-
-            f.AppendLine();
         }
+        else
+        {
+            // 同步成员 - 直接提供
+            GenerateSyncProvide(f, memberAccess, implType, scopeField);
+        }
+
+        f.AppendLine();
     }
 
     /// <summary>
-    /// 生成所有异步提供的辅助方法
+    /// 生成所有异步提供的辅助方法（使用成员的实现类型提供服务）
     /// </summary>
     public static void GenerateAsyncProviderMethods(
         CodeFormatter f,
@@ -76,27 +73,20 @@ internal static class ServiceProvisionPhase
     {
         foreach (var member in asyncMembers.Where(m => m.IsAsync))
         {
-            foreach (var exposedType in member.ExposedTypes)
-            {
-                GenerateAsyncProviderMethod(f, member, exposedType);
-            }
+            GenerateAsyncProviderMethod(f, member);
         }
     }
 
     /// <summary>
     /// 生成单个异步提供方法
     /// </summary>
-    private static void GenerateAsyncProviderMethod(
-        CodeFormatter f,
-        MemberInfo member,
-        INamedTypeSymbol exposedType
-    )
+    private static void GenerateAsyncProviderMethod(CodeFormatter f, MemberInfo member)
     {
-        var exposedTypeName = exposedType.ToFullyQualifiedName();
+        var implType = member.MemberType.ToFullyQualifiedName();
         // member.MemberType 是 T（从 Task<T> 中提取的），需要构建完整的 Task<T> 类型
         var innerTypeName = member.MemberType.ToFullyQualifiedName(); // T
         var taskTypeName = $"{GlobalNames.Task}<{innerTypeName}>"; // Task<T>
-        var methodName = $"ProvideAsync_{member.Symbol.Name}_{GetSafeTypeName(exposedType)}";
+        var methodName = $"ProvideAsync_{member.Symbol.Name}";
 
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
@@ -116,7 +106,7 @@ internal static class ServiceProvisionPhase
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        $"scope.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Success(result));"
+                        $"scope.ProvideService<{implType}>({GlobalNames.ResolutionResult}.Success(result));"
                     );
                 }
                 f.EndBlock(").CallDeferred();");
@@ -127,7 +117,7 @@ internal static class ServiceProvisionPhase
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        $"scope.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Failure(ex.Message));"
+                        $"scope.ProvideService<{implType}>({GlobalNames.ResolutionResult}.Failure(ex.Message));"
                     );
                 }
                 f.EndBlock(").CallDeferred();");
@@ -152,13 +142,13 @@ internal static class ServiceProvisionPhase
         {
             f.AppendLine($"var instance = {memberAccess};");
             f.AppendLine(
-                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Success(instance));"
+                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.ResolutionResult}.Success(instance));"
             );
         }
         f.CatchBlock("ex");
         {
             f.AppendLine(
-                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Failure(ex.Message));"
+                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.ResolutionResult}.Failure(ex.Message));"
             );
         }
         f.EndTryCatch();
@@ -178,13 +168,5 @@ internal static class ServiceProvisionPhase
             MemberKind.ProvideMethod => $"{prefix}{memberName}()",
             _ => throw new ArgumentOutOfRangeException(),
         };
-    }
-
-    /// <summary>
-    /// 获取类型的安全名称（用于方法命名）
-    /// </summary>
-    private static string GetSafeTypeName(INamedTypeSymbol type)
-    {
-        return type.Name.Replace("<", "_").Replace(">", "_").Replace(",", "_");
     }
 }

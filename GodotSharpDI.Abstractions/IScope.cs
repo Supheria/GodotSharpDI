@@ -4,9 +4,9 @@ namespace GodotSharpDI.Abstractions;
 
 public interface IScope
 {
-    void ProvideService<T>(ResolutionResult<T> result)
-        where T : class;
+    void ProvideService<TImpl>(ResolutionResult result)
+        where TImpl : class;
 
-    void ResolveDependency<T>(Action<ResolutionResult<T>> onResult, string requestorType)
-        where T : class;
+    void ResolveDependency<TExposed>(Action<ResolutionResult> onResult, string requestorType)
+        where TExposed : class;
 }

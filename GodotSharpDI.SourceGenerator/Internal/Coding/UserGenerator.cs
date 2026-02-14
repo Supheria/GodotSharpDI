@@ -104,10 +104,10 @@ internal static class UserGenerator
             // 注入 [Inject] 成员
             foreach (var member in injectMembersList)
             {
-                var memberTypeName = member.MemberType.ToFullyQualifiedName();
+                var memberType = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
 
-                f.AppendLine($"scope.ResolveDependency<{memberTypeName}>(");
+                f.AppendLine($"scope.ResolveDependency<{memberType}>(");
                 f.BeginLevel();
                 {
                     f.AppendLine("(result) =>");
@@ -118,16 +118,11 @@ internal static class UserGenerator
                         {
                             f.BeginTryCatch();
                             {
-                                f.AppendLine($"{memberName} = result.Instance;");
-
-                                // 如果实现了 IDependenciesResolved,设置注入准备标识
-                                if (validatedType.ImplementsIDependenciesResolved)
-                                {
-                                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(
-                                        f,
-                                        memberName
-                                    );
-                                }
+                                IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                                    f,
+                                    memberName,
+                                    memberType
+                                );
                             }
                             f.CatchBlock("ex");
                             {
@@ -157,10 +152,7 @@ internal static class UserGenerator
                         // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            IDependenciesResolvedGenerator.GenerateResolvedCallback(
-                                f,
-                                memberTypeName
-                            );
+                            IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
                         }
                     }
                     f.EndBlock(",");

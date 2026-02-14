@@ -12,8 +12,13 @@ public interface IGameState
     public GameState CurrentState { get; set; }
 }
 
+public interface IGameState2
+{
+    public GameState CurrentState { get; set; }
+}
+
 [Host]
-public sealed partial class GameManager : Node, IGameState
+public sealed partial class GameManager4 : Node, IGameState, IGameState2
 {
     [Inject]
     private PlayerStatsCenter _playerStatsCenter;
@@ -25,10 +30,13 @@ public sealed partial class GameManager : Node, IGameState
         ExposedTypes = [typeof(IGameState)],
         WaitFor = [nameof(_playerStatsCenter), nameof(_playerStatsService)]
     )]
-    public async Task<GameManager> GetSelf()
+    public async Task<GameManager4> GetSelf()
     {
         return this;
     }
+
+    [Provide(ExposedTypes = [typeof(IGameState), typeof(IGameState2)])]
+    public GameManager4 Self => this;
 
     [Provide(ExposedTypes = [typeof(PlayerStatsService3)], WaitFor = [nameof(_playerStatsCenter)])]
     public Task<PlayerStatsService3> GetPlayerStatsService3()

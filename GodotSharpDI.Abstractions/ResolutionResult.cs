@@ -3,14 +3,12 @@
 /// <summary>
 /// 表示依赖解析的结果
 /// </summary>
-/// <typeparam name="T">服务类型</typeparam>
-public readonly struct ResolutionResult<T>
-    where T : class
+public readonly struct ResolutionResult
 {
     /// <summary>
     /// 服务实例引用（解析成功时不为空）
     /// </summary>
-    public T? Instance { get; }
+    public object? Instance { get; }
 
     /// <summary>
     /// 错误消息（解析失败时不为空）
@@ -30,24 +28,24 @@ public readonly struct ResolutionResult<T>
     /// <summary>
     /// 创建成功的解析结果
     /// </summary>
-    public static ResolutionResult<T> Success(T instance)
+    public static ResolutionResult Success(object instance)
     {
         if (instance == null)
             throw new System.ArgumentNullException(nameof(instance));
-        return new ResolutionResult<T>(instance, null);
+        return new ResolutionResult(instance, null);
     }
 
     /// <summary>
     /// 创建失败的解析结果
     /// </summary>
-    public static ResolutionResult<T> Failure(string errorMessage)
+    public static ResolutionResult Failure(string errorMessage)
     {
         if (string.IsNullOrEmpty(errorMessage))
             throw new System.ArgumentException("错误消息不能为空", nameof(errorMessage));
-        return new ResolutionResult<T>(null, errorMessage);
+        return new ResolutionResult(null, errorMessage);
     }
 
-    private ResolutionResult(T? instance, string? errorMessage)
+    private ResolutionResult(object? instance, string? errorMessage)
     {
         Instance = instance;
         ErrorMessage = errorMessage;

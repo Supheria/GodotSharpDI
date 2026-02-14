@@ -43,7 +43,7 @@ internal static class ScopeInterfaceGenerator
             "以实现类型提供服务，TImpl 必须是服务的实际实现类型，而非暴露的接口类型"
         );
         f.AppendLine(
-            $"void {GlobalNames.IScope}.ProvideService<TImpl>({GlobalNames.AbstractionsNamespace}.ResolutionResult<TImpl> result)"
+            $"void {GlobalNames.IScope}.ProvideService<TImpl>({GlobalNames.ResolutionResult} result)"
         );
         f.AppendTypeConstraints("where TImpl : class");
         f.BeginBlock();
@@ -62,7 +62,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("if (parent is not null)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("parent.ProvideService(result);");
+                    f.AppendLine("parent.ProvideService<TImpl>(result);");
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
@@ -268,21 +268,19 @@ internal static class ScopeInterfaceGenerator
     {
         // ResolveDependency - 使用 ResolutionResult
         f.AppendHiddenMethodCommentAndAttribute(
-            "解析服务依赖，T 是暴露的接口类型，会通过 ServiceImplementationMap 转换为实现类型"
+            "解析服务依赖，TExposed 是暴露的接口类型，会通过 ServiceImplementationMap 转换为实现类型"
         );
         f.BeginLevel();
         {
-            f.AppendLine($"void {GlobalNames.IScope}.ResolveDependency<T>(");
-            f.AppendLine(
-                $"{GlobalNames.Action}<{GlobalNames.AbstractionsNamespace}.ResolutionResult<T>> onResult,"
-            );
+            f.AppendLine($"void {GlobalNames.IScope}.ResolveDependency<TExposed>(");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.ResolutionResult}> onResult,");
             f.AppendLine($"{GlobalNames.String} requestorType)");
         }
         f.EndLevel();
-        f.AppendTypeConstraints("where T : class");
+        f.AppendTypeConstraints("where TExposed : class");
         f.BeginBlock();
         {
-            f.AppendLine("var exposedType = typeof(T);", "T 是暴露类型");
+            f.AppendLine("var exposedType = typeof(TExposed);", "TExposed 是暴露类型");
             f.AppendLine();
 
             f.AppendLine("// 构建 Scope 传递链");
@@ -330,7 +328,7 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine("if (parent is not null)");
         f.BeginBlock();
         {
-            f.AppendLine("parent.ResolveDependency(onResult, requestorType);");
+            f.AppendLine("parent.ResolveDependency<TExposed>(onResult, requestorType);");
             f.AppendLine("return;");
         }
         f.EndBlock();
@@ -354,9 +352,7 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine("// 调用结果回调");
         f.BeginTryCatch();
         {
-            f.AppendLine(
-                $"var failureResult = {GlobalNames.AbstractionsNamespace}.ResolutionResult<T>.Failure("
-            );
+            f.AppendLine($"var failureResult = {GlobalNames.ResolutionResult}.Failure(");
             f.AppendLine("    $\"依赖注入请求失败：无法找到服务 {exposedType.Name}\");");
             f.AppendLine("onResult.Invoke(failureResult);");
         }
@@ -389,7 +385,7 @@ internal static class ScopeInterfaceGenerator
             f.BeginTryCatch();
             {
                 f.AppendLine(
-                    $"var successResult = {GlobalNames.AbstractionsNamespace}.ResolutionResult<T>.Success((T)cacheEntry.Instance!);"
+                    $"var successResult = {GlobalNames.ResolutionResult}.Success((TExposed)cacheEntry.Instance!);"
                 );
                 f.AppendLine("onResult.Invoke(successResult);");
             }
@@ -448,9 +444,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("// 调用结果回调");
             f.BeginTryCatch();
             {
-                f.AppendLine(
-                    $"var failureResult = {GlobalNames.AbstractionsNamespace}.ResolutionResult<T>.Failure("
-                );
+                f.AppendLine($"var failureResult = {GlobalNames.ResolutionResult}.Failure(");
                 f.AppendLine("    $\"依赖注入请求失败：先前创建服务 {exposedType.Name} 时失败\");");
                 f.AppendLine("onResult.Invoke(failureResult);");
             }
@@ -495,7 +489,7 @@ internal static class ScopeInterfaceGenerator
             f.BeginLevel();
             {
                 f.AppendLine(
-                    $"ResultCallback: obj => onResult.Invoke(({GlobalNames.AbstractionsNamespace}.ResolutionResult<T>)obj),"
+                    $"ResultCallback: obj => onResult.Invoke(({GlobalNames.ResolutionResult})obj),"
                 );
                 f.AppendLine($"RequestTicks: {GlobalNames.DateTime}.Now.Ticks,");
                 f.AppendLine("RequestorType: requestorType,");

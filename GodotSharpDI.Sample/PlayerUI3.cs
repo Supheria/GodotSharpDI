@@ -6,7 +6,7 @@ using GodotSharpDI.Abstractions;
 namespace GodotSharpDI.Sample;
 
 [User]
-public sealed partial class PlayerUI2 : Control, IDependenciesResolved
+public sealed partial class PlayerUI3 : Control
 {
     // [Inject]
     // private IPlayerStats<int> PlayerStats

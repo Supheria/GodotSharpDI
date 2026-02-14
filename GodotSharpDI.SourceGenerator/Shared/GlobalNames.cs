@@ -13,7 +13,6 @@ public static class GlobalNames
     public const string String = "global::System.String";
     public const string Long = "global::System.Int64";
     public const string Bool = "global::System.Boolean";
-    public const string StringSplitOptions = "global::System.StringSplitOptions";
 
     // System.Threading.Tasks
     public const string Task = "global::System.Threading.Tasks.Task";
@@ -35,9 +34,9 @@ public static class GlobalNames
     public const string GodotTimer = "global::Godot.Timer";
     public const string GodotCallable = "global::Godot.Callable";
 
-    // GodotSharp.DI.Shared
-    public const string AbstractionsNamespace = "global::GodotSharpDI.Abstractions";
+    // GodotSharp.DI.Abstractions
     public const string IScope = "global::GodotSharpDI.Abstractions.IScope";
     public const string IDependenciesResolved =
         "global::GodotSharpDI.Abstractions.IDependenciesResolved";
+    public const string ResolutionResult = "global::GodotSharpDI.Abstractions.ResolutionResult";
 }
