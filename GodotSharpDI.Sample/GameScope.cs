@@ -10,8 +10,8 @@ public partial class GameScope : Node, IScope
 }
 
 
-[Modules(Hosts = [typeof(GameManager6), typeof(HostC)])]
-public partial class GameScope7 : Node, IScope
+[Modules(Hosts = [typeof(GameManager7), typeof(HostC)])]
+public partial class GameScope8 : Node, IScope
 {
     public override partial void _Notification(int what);
 }

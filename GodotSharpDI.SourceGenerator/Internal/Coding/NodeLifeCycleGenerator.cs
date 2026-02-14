@@ -104,11 +104,11 @@ internal static class NodeLifeCycleGenerator
                     switch (validatedType.Role)
                     {
                         case TypeRole.Host:
-                            f.AppendLine("ProvideHostServices();");
-                            f.AppendLine("ResolveUserDependencies();");
+                            f.AppendLine("ProvideServices();");
+                            f.AppendLine("ResolveDependencies();");
                             break;
                         case TypeRole.User:
-                            f.AppendLine("ResolveUserDependencies();");
+                            f.AppendLine("ResolveDependencies();");
                             break;
                         case TypeRole.Scope:
                             f.AppendLine("StartDependencyMonitoring();");

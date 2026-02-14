@@ -18,14 +18,18 @@ internal static class HostGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        UserGenerator.Generate(context, node);
+        // 生成基础 DI 文件
+        NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
+
+        // 生成依赖注入部分的代码
+        InjectionGenerator.Generate(context, node);
 
         // 生成 Host 特定代码
         GenerateHostSpecific(context, node);
     }
 
     /// <summary>
-    /// 生成 Host 特定代码（ProvideHostServices）
+    /// 生成 Host 特定代码（ProvideServices）
     /// </summary>
     public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
@@ -39,16 +43,7 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
-            // DependencyResolveGenerator.GenerateInjectionReadyProperties(f, injectMembers);
-            // DependencyResolveGenerator.GenerateIsAllDependenciesReadyProperty(f, injectMembers);
-            //
-            // // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
-            // if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
-            // {
-            //     DependencyResolveGenerator.GenerateIDependenciesResolvedOnly(f, injectMembers);
-            // }
-
-            GenerateProvideHostServices(f, validatedType, injectMembers, provideMembers);
+            GenerateProvideServices(f, validatedType, injectMembers, provideMembers);
             f.AppendLine();
 
             // 生成异步提供方法
@@ -60,18 +55,18 @@ internal static class HostGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{fileName}.DI.Host.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.Provide.g.cs", f.ToString());
     }
 
     /// <summary>
-    /// 生成 ProvideHostServices 方法
+    /// 生成 ProvideServices 方法
     /// 核心逻辑:
     /// 1. 如果有 Inject 成员且实现了 IDependenciesResolved,先注入依赖(不等待完成)
     /// 2. 对每个 Provide 成员独立处理:
     ///    - 如果有 WaitFor,等待 WaitFor 依赖
     ///    - 否则直接提供服务
     /// </summary>
-    private static void GenerateProvideHostServices(
+    private static void GenerateProvideServices(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
         ImmutableArray<MemberInfo> injectMembers,
@@ -79,7 +74,7 @@ internal static class HostGenerator
     )
     {
         f.AppendHiddenMethodCommentAndAttribute();
-        f.AppendLine("private void ProvideHostServices()");
+        f.AppendLine("private void ProvideServices()");
         f.BeginBlock();
         {
             f.AppendLine("var scope = GetParentScope();");
