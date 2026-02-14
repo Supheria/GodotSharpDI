@@ -11,5 +11,5 @@ internal sealed record DiGraph(
     ImmutableArray<TypeNode> HostNodes,
     ImmutableArray<TypeNode> UserNodes,
     ImmutableArray<ScopeNode> ScopeNodes,
-    ServiceProviderMap ServiceProviderMap
+    ImmutableDictionary<ITypeSymbol, TypeNode> HostNodeMap
 );

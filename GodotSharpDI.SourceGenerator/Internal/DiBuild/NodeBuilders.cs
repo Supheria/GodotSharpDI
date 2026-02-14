@@ -10,7 +10,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
 /// 节点构建器集合
-/// 职责：为各种角色类型构建对应的节点
+/// 职责:为各种角色类型构建对应的节点
 /// </summary>
 internal static class NodeBuilders
 {
@@ -119,6 +119,10 @@ internal static class NodeBuilders
     {
         var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
         var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+        // 新增：收集服务暴露类型到实现类型的映射
+        var serviceImplMap = ImmutableDictionary.CreateBuilder<INamedTypeSymbol, INamedTypeSymbol>(
+            SymbolEqualityComparer.Default
+        );
 
         // 收集 Inject 成员依赖
         foreach (var member in host.Members)
@@ -166,19 +170,32 @@ internal static class NodeBuilders
             }
         }
 
-        // 收集 Provides 成员提供的服务
+        // 收集 Provides 成员提供的服务，同时建立暴露类型到实现类型的映射
         foreach (var member in host.Members)
         {
             if (member.IsProvideMember)
             {
+                // 添加所有暴露类型
                 providedServices.AddRange(member.ExposedTypes);
+
+                // 建立映射：暴露类型 -> 实现类型
+                // member.MemberType 是该成员返回的实际实现类型
+                var implementationType = member.MemberType;
+
+                foreach (var exposedType in member.ExposedTypes)
+                {
+                    // 如果暴露类型和实现类型不同，建立映射
+                    // （如果相同，也可以添加映射以保持一致性）
+                    serviceImplMap[exposedType] = implementationType;
+                }
             }
         }
 
         return new TypeNode(
             ValidatedTypeInfo: host,
             Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: providedServices.ToImmutable()
+            ProvidedServices: providedServices.ToImmutable(),
+            ServiceImplementationMap: serviceImplMap.ToImmutable()
         );
     }
 
@@ -204,7 +221,8 @@ internal static class NodeBuilders
         return new TypeNode(
             ValidatedTypeInfo: user,
             Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty
+            ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty,
+            ServiceImplementationMap: ImmutableDictionary<INamedTypeSymbol, INamedTypeSymbol>.Empty
         );
     }
 

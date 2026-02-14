@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -66,7 +67,7 @@ internal static class DiGraphBuilder
                     HostNodes: nodes.HostNodes,
                     UserNodes: nodes.UserNodes,
                     ScopeNodes: scopeNodes,
-                    ServiceProviderMap: BuildLegacyServiceProviderMap(indexes) // 为了兼容性保留
+                    HostNodeMap: indexes.HostTypeToNode
                 );
 
                 return new DiGraphBuildResult(graph, diagnostics.ToImmutable());
@@ -127,26 +128,6 @@ internal static class DiGraphBuilder
         var userNodes = NodeBuilders.BuildUserNodes(types.Users, diagnostics);
 
         return new AllNodes(HostNodes: hostNodes, UserNodes: userNodes);
-    }
-
-    /// <summary>
-    /// 构建传统的ServiceProviderMap（为了向后兼容）
-    /// 新代码应该使用ServiceIndexes
-    /// </summary>
-    private static ServiceProviderMap BuildLegacyServiceProviderMap(ServiceIndexes indexes)
-    {
-        var map = new ServiceProviderMap();
-
-        // 为每个服务类型选择第一个提供者（保持向后兼容）
-        foreach (var kvp in indexes.ServiceTypeToProviders)
-        {
-            if (kvp.Value.Length > 0)
-            {
-                map[kvp.Key] = kvp.Value[0];
-            }
-        }
-
-        return map;
     }
 
     // ============================================================

@@ -13,7 +13,7 @@ public interface IGameState
 }
 
 [Host]
-public sealed partial class GameManager : Node, IGameState, IDependenciesResolved
+public sealed partial class GameManager : Node, IGameState
 {
     [Inject]
     private PlayerStatsCenter _playerStatsCenter;
