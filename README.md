@@ -34,7 +34,7 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Service Lifecycle](#service-lifecycle-1)
   - [Scope Hierarchy](#scope-hierarchy)
   - [Dependency Injection Timing](#dependency-injection-timing)
-  - [Host + User and Circular Dependencies](#host--user-and-circular-dependencies)
+  - [Host Using Inject](#host-using-inject)
 - [Type Constraints](#type-constraints)
   - [Role Type Constraints](#role-type-constraints)
   - [Injectable Type Constraints](#injectable-type-constraints)
@@ -50,7 +50,7 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Service Disposal](#service-disposal)
   - [Avoiding Circular Dependencies](#avoiding-circular-dependencies)
   - [Interface-First Principle](#interface-first-principle)
-  - [Host + User Combination Usage](#host--user-combination-usage)
+  - [Host Injecting and Providing Services](#host-injecting-and-providing-services)
   - [Using Service Factories](#using-service-factories)
 - [Migration Guide from 1.0.0-rc.3](#migration-guide-from-100-rc3)
 - [Diagnostic Codes](#diagnostic-codes)
@@ -74,7 +74,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.1.0-rc.1" />
+<PackageReference Include="GodotSharpDI" Version="1.1.0" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -465,49 +465,289 @@ private static async Task ProvideAsync_ConnectAsync_IDatabase(Task<IDatabase> ta
 
 **New in 1.1.0**: Services can wait for other services to be ready before being provided.
 
+#### Core Concepts
+
+When using `WaitFor`, understand the distinction between these two important concepts:
+
+| Concept | Description | Corresponding State |
+|---------|-------------|---------------------|
+| **Dependency Resolution Completed** | Framework has attempted to resolve the dependency and invoked the callback | `OnDependencyResolved<T>()` is called |
+| **Dependency Actually Ready** | Dependency successfully resolved and instance is available | `IsXxxInjectionReady = true` |
+
+⚠️ **Important**: `WaitFor` only guarantees that dependency resolution has been **attempted**, not that it **succeeded**!
+
+#### Basic Example
+
 ```csharp
 [Host]
 public partial class DependentHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // This service will be provided immediately
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger()
+    // Framework automatically generates these properties (in generated code):
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // Immediately provided service (no dependencies to wait for)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        return new Logger();
+        return new MetricsService();
     }
     
-    // This service waits for CreateLogger to complete
-    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(CreateLogger)])]
+    // Waits for _config injection before providing
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
     public IDatabase CreateDatabase()
     {
-        // Logger is guaranteed to be available
-        return new DatabaseService();
+        // ⚠️ WaitFor only guarantees resolution was attempted, must check if truly successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config dependency not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        // Safe: _config is guaranteed not null here
+        return new DatabaseService(_config.ConnectionString);
     }
     
-    // This service waits for both _config injection and CreateDatabase
-    [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config), nameof(CreateDatabase)])]
+    // Waits for both _logger and _config injection before providing
+    [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        // Both config and database are guaranteed to be ready
-        return new Repository(_config, /* database will be injected */);
+        // Check both dependencies' status
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config dependency not ready, using default config");
+            return new Repository(new DefaultConfig(), _logger);
+        }
+        
+        if (!IsLoggerInjectionReady || _logger == null)
+        {
+            GD.PrintErr("Logger dependency not ready, using null logger");
+            return new Repository(_config, new NullLogger());
+        }
+        
+        // Safe: both dependencies are ready
+        return new Repository(_config, _logger);
     }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        GD.Print("All dependencies resolved");
+        if (isAllDependenciesReady)
+        {
+            GD.Print("All dependencies successfully injected");
+        }
+        else
+        {
+            GD.PrintErr("Some dependencies failed to inject");
+            
+            // Check which specific dependency failed
+            if (!IsConfigInjectionReady)
+            {
+                GD.PrintErr("Config injection failed");
+            }
+            if (!IsLoggerInjectionReady)
+            {
+                GD.PrintErr("Logger injection failed");
+            }
+        }
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-**WaitFor Rules**:
-- Can wait for `[Inject]` members (e.g., `nameof(_config)`)
-- Can wait for other `[Provide]` members (e.g., `nameof(CreateLogger)`)
-- Circular waits are detected at compile time
-- Supports complex dependency chains
+#### Complex Dependency Chain Example
+
+```csharp
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    [Inject] private IAuthService? _authService;
+    
+    // Generated readiness flags (available for use in code):
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    // private bool IsAuthServiceInjectionReady { get; set; } = false;
+    // private bool IsAllDependenciesReady => 
+    //     IsConfigInjectionReady && IsLoggerInjectionReady && IsAuthServiceInjectionReady;
+    
+    // Layer 1: Basic service (no dependencies)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        // No injection dependencies, provided immediately
+        return new MetricsService();
+    }
+    
+    // Layer 2: Wait for single dependency
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // Even though WaitFor'd _config, still need to check if successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        var connectionString = _config.DatabaseConnectionString;
+        var db = new DatabaseService(connectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    // Layer 3: Wait for multiple dependencies
+    [Provide(
+        ExposedTypes = [typeof(IUserRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public async Task<IUserRepository> CreateUserRepositoryAsync()
+    {
+        // All WaitFor dependencies have been attempted to resolve
+        // Note: Still need to handle cases where dependencies may have failed
+        
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        if (!hasLogger)
+        {
+            GD.PrintErr("Logger not ready, will use null logger");
+        }
+        
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        if (!hasConfig)
+        {
+            GD.PrintErr("Config not ready, using default config");
+        }
+        
+        // Get other services through dependency injection (like IDatabase)
+        // Or create degraded version directly
+        return await UserRepository.CreateAsync(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    // Layer 4: Wait for all dependencies
+    [Provide(
+        ExposedTypes = [typeof(ISecureRepository)],
+        WaitFor = [nameof(_authService), nameof(_logger), nameof(_config)]
+    )]
+    public ISecureRepository CreateSecureRepository()
+    {
+        // Check readiness status of all dependencies
+        if (!IsAllDependenciesReady)
+        {
+            // Some dependencies failed, log details
+            if (!IsAuthServiceInjectionReady)
+                GD.PrintErr("AuthService not ready");
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("Logger not ready");
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config not ready");
+                
+            // Return degraded version or throw exception
+            throw new InvalidOperationException("Cannot create SecureRepository: critical dependencies not ready");
+        }
+        
+        // All dependencies ready, safe to create
+        return new SecureRepository(_authService!, _logger!, _config!);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies failed, certain services may run in degraded mode");
+        }
+        else
+        {
+            GD.Print("All dependencies successfully injected");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### WaitFor Rules
+
+1. **Wait Targets**:
+   - ✅ Can only wait for `[Inject]` members (e.g., `nameof(_config)`)
+   - ❌ Cannot wait for `[Provide]` members (compile-time error)
+   - ❌ Cannot wait for non-existent members (compile-time error)
+
+2. **Execution Order**:
+   - WaitFor creates dependency topological sort
+   - Services without WaitFor start providing immediately
+   - Services with WaitFor provide only after dependencies resolve
+
+3. **Failure Handling**:
+   - Even if a dependency fails, WaitFor continues
+   - Use `IsXxxInjectionReady` to check dependency status
+   - Handle failure cases in `OnDependenciesResolved`
+
+4. **Circular Detection**:
+   - Circular WaitFor dependencies detected at compile time
+   - Example: A WaitFor B, B WaitFor A (compile error)
+
+5. **Async Support**:
+   - WaitFor supports both sync and async providers
+   - Async provider completion notifies subsequent dependencies
+
+#### Best Practices
+
+1. **Always Check Dependency Status**
+   ```csharp
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       if (!IsConfigInjectionReady || _config == null)
+       {
+           // Handle failure: use defaults, throw exception, or return degraded version
+           return new ServiceWithDefaults();
+       }
+       return new Service(_config);
+   }
+   ```
+
+2. **Implement IDependenciesResolved**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (!isAllDependenciesReady)
+       {
+           // Log or handle dependency failures
+           LogDependencyStatus();
+       }
+   }
+   
+   private void LogDependencyStatus()
+   {
+       if (!IsConfigInjectionReady)
+           GD.PrintErr("Config injection failed");
+       if (!IsLoggerInjectionReady)
+           GD.PrintErr("Logger injection failed");
+   }
+   ```
+
+3. **Avoid Overly Long Dependency Chains**
+   - Keep dependency layers within 2-3 levels
+   - Longer chains increase failure risk and debugging difficulty
+
+4. **Consider Using Nullable Types**
+   ```csharp
+   [Inject] private IConfig? _config;  // Use nullable type
+   
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       // Compiler will remind to check null
+       return new Service(_config ?? new DefaultConfig());
+   }
+   ```
 
 ---
 
@@ -538,25 +778,141 @@ Child scopes inherit services from parent scopes but can also override them.
 
 ### Dependency Injection Timing
 
-1. **Scope enters scene tree** (`NotificationEnterTree`)
-2. **Hosts register providers**
-3. **Services are created (respecting WaitFor chains)**
-4. **Users receive injection**
-5. **`OnDependenciesResolved` is called** (after `_Ready`)
+#### Standard Injection Flow (without WaitFor)
 
-### Host + User and Circular Dependencies
+```
+1. Node.EnterTree
+   ↓
+2. Find parent Scope
+   ↓
+3. Resolve all [Inject] dependencies concurrently
+   │
+   ├─ Dependency A: Success → IsAInjectionReady = true
+   ├─ Dependency B: Success → IsBInjectionReady = true
+   └─ Dependency C: Failed → IsCInjectionReady = false
+   ↓
+4. OnDependenciesResolved(false) called after all dependencies resolved
+   ↓
+5. Provide all [Provide] services concurrently
+```
 
-A Host can also be a User:
+#### WaitFor Injection Flow (New in 1.1.0)
+
+```
+1. Node.EnterTree
+   ↓
+2. Find parent Scope
+   ↓
+3. Phase 1: Resolve all [Inject] dependencies concurrently (doesn't block service provision)
+   │
+   ├─ Dependency A: Success → IsAInjectionReady = true
+   ├─ Dependency B: Failed → IsBInjectionReady = false
+   └─ Dependency C: Success → IsCInjectionReady = true
+   ↓
+4. Phase 2: Provide services (independent of dependency injection)
+   │
+   ├─ Service X (no WaitFor): Provide immediately
+   │
+   ├─ Service Y (WaitFor = [A, X]): 
+   │  ├─ Wait for A resolution
+   │  ├─ Wait for X provision
+   │  └─ All complete → Provide service Y
+   │
+   └─ Service Z (WaitFor = [B, Y]):
+      ├─ Wait for B resolution (failed but continues)
+      ├─ Wait for Y provision
+      └─ All complete → Provide service Z
+         (Must check IsBInjectionReady)
+   ↓
+5. OnDependenciesResolved(false) called after all dependencies resolved
+```
+
+#### Key Concepts
+
+1. **Resolution Complete vs Dependency Ready**
+   - **Resolution Complete**: Framework attempted to get dependency and invoked callback (may succeed or fail)
+   - **Dependency Ready**: `IsXxxInjectionReady = true` and instance is not null
+
+2. **WaitFor Behavior**
+   - WaitFor waits for dependency **resolution complete**, not **resolution success**
+   - Even if dependency fails, WaitFor continues execution
+   - Use `IsXxxInjectionReady` to check if dependency is truly available
+
+3. **Concurrent vs Sequential**
+   - Without WaitFor: All operations execute concurrently
+   - With WaitFor: Creates dependency graph, executes in topological order
+
+#### Example Timeline
+
+```csharp
+[Host]
+public partial class ExampleHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;    // T1: Start resolving
+    [Inject] private ILogger? _logger;    // T1: Start resolving (concurrent)
+    
+    [Provide(ExposedTypes = [typeof(IMetrics)])]  
+    public IMetrics CreateMetrics()       // T1: Start providing immediately
+    {
+        return new Metrics();
+    }
+    
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()     // T2: Wait for _config resolution complete
+    {
+        // T2 timing: _config resolution complete (success or failure)
+        if (!IsConfigInjectionReady)
+        {
+            return new InMemoryDatabase();
+        }
+        return new Database(_config!);
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public IRepository CreateRepository() // T3: Wait for _logger and _config
+    {
+        // T3 timing: both _logger and _config resolution complete
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        
+        return new Repository(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        // Called at T4: All Inject dependencies have been resolved
+        // Some Provide services may still be executing asynchronously
+    }
+}
+
+// Timeline:
+// T1: _config starts resolving, _logger starts resolving, CreateMetrics starts providing
+// T2: _config resolution complete → CreateDatabase starts providing
+// T3: both _logger and _config resolution complete → CreateRepository starts providing  
+// T4: both _config and _logger resolved → OnDependenciesResolved is called
+```
+
+### Host Using Inject
+
+**New in 1.1.0**: Hosts can directly use `[Inject]` to inject dependencies without needing to be marked as `[User]`.
+
+⚠️ **Important**: Host, User, and Scope roles **cannot coexist** on the same class.
 
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // As User: inject dependencies
-    [Inject] private IConfig _config;
-    [Inject] private ISaveSystem _saveSystem;
+    // Host can directly inject dependencies (no [User] attribute needed)
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
     
-    // As Host: provide service
+    // Host also provides services
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
     
@@ -566,20 +922,83 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     {
         if (isAllDependenciesReady)
         {
-            // Dependencies are ready, can initialize
+            // All dependencies ready, safe to initialize
+            // Both IsConfigInjectionReady and IsSaveSystemInjectionReady are true
             LoadLastSave();
         }
+        else
+        {
+            // Some dependencies failed, use degraded mode
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config not ready, using default config");
+            if (!IsSaveSystemInjectionReady)
+                GD.PrintErr("SaveSystem not ready, cannot load save");
+        }
+    }
+    
+    private void LoadLastSave()
+    {
+        // Safe to use _config and _saveSystem here
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-This pattern is **not** a circular dependency because:
-1. Host registration happens first
-2. Service provision occurs
-3. User injection happens afterward
-4. No constructor cycle is formed
+**Features**:
+- Host can inject dependencies for use in provider methods
+- Host can use WaitFor to wait for injection completion
+- Host can implement IDependenciesResolved to receive notifications
+- No additional `[User]` attribute needed
+
+**Using Injected Dependencies in Providers**:
+
+```csharp
+[Host]
+public partial class ServiceFactory : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Wait for dependency injection before providing service
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        // Safe to use injected config
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)],
+        WaitFor = [nameof(_config), nameof(_logger)]
+    )]
+    public IRepository CreateRepository()
+    {
+        // Check multiple dependencies
+        if (!IsAllDependenciesReady)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // All dependencies ready
+        return new Repository(_config!, _logger!);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
 
 ---
 
@@ -687,12 +1106,314 @@ public partial class GameScope : Node, IScope
 ```
 
 #### `IDependenciesResolved`
+
 Optional interface for receiving dependency resolution notification.
 
 ```csharp
 public interface IDependenciesResolved
 {
     void OnDependenciesResolved(bool isAllDependenciesReady);
+}
+```
+
+#### Parameter Description
+
+- **`isAllDependenciesReady`**:
+  - `true`: All `[Inject]` members were successfully injected
+  - `false`: At least one `[Inject]` member failed to inject
+
+#### Generated Helper Properties
+
+The framework automatically generates readiness flags for each `[Inject]` member. These properties are in the generated `*.DI.g.cs` files:
+
+```csharp
+// User code
+[Host]
+public partial class MyHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // ... other code
+}
+
+// Generated code (in MyHost.DI.Host.g.cs)
+partial class MyHost
+{
+    // Readiness flag generated for each Inject member
+    [MemberNotNullWhen(true, nameof(_config))]
+    private bool IsConfigInjectionReady { get; set; } = false;
+    
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // Combined readiness flag
+    [MemberNotNullWhen(true, nameof(_config))]
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsAllDependenciesReady => 
+        IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
+    
+    // Unresolved dependency tracking
+    private readonly HashSet<Type> _unresolvedDependencies = new()
+    {
+        typeof(IConfig),
+        typeof(ILogger),
+    };
+    
+    // Dependency resolution callback
+    private void OnDependencyResolved<T>()
+    {
+        _unresolvedDependencies.Remove(typeof(T));
+        if (_unresolvedDependencies.Count == 0)
+        {
+            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+        }
+    }
+}
+```
+
+#### Usage Examples
+
+##### Basic Usage
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _playerStats;
+    [Inject] private IGameConfig? _config;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("All dependencies ready, game can start");
+            StartGame();
+        }
+        else
+        {
+            GD.PrintErr("Dependency injection failed, cannot start game");
+            ShowErrorScreen();
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### Fine-Grained Status Checking
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _stats;
+    [Inject] private IInventory? _inventory;
+    [Inject] private IAchievements? _achievements;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // All dependencies succeeded, enable full features
+            EnableAllFeatures();
+        }
+        else
+        {
+            // Some dependencies failed, enable degraded mode
+            EnableDegradedMode();
+            
+            // Check which specific dependencies are available
+            if (IsStatsInjectionReady)
+            {
+                UpdateStatsDisplay(_stats!);  // ! operator is safe because IsStatsInjectionReady = true
+            }
+            else
+            {
+                GD.PrintErr("Stats service unavailable");
+            }
+            
+            if (IsInventoryInjectionReady)
+            {
+                UpdateInventoryDisplay(_inventory!);
+            }
+            else
+            {
+                HideInventoryPanel();
+            }
+            
+            if (IsAchievementsInjectionReady)
+            {
+                ShowAchievements(_achievements!);
+            }
+            else
+            {
+                DisableAchievementsButton();
+            }
+        }
+    }
+    
+    private void EnableAllFeatures()
+    {
+        // All features available
+        UpdateStatsDisplay(_stats!);
+        UpdateInventoryDisplay(_inventory!);
+        ShowAchievements(_achievements!);
+    }
+    
+    private void EnableDegradedMode()
+    {
+        // Some features running in degraded mode
+        GD.Print("UI running in degraded mode");
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### Using with WaitFor
+
+```csharp
+[Host]
+public partial class DataManager : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Generated properties available for checking:
+    // private bool IsConfigInjectionReady { get; set; }
+    // private bool IsLoggerInjectionReady { get; set; }
+    
+    // Wait for _config injection before providing database service
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // WaitFor guarantees _config resolution was attempted, but need to check if successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            // Config injection failed, use in-memory database
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        // Config successfully injected, use configured database
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies failed to inject:");
+            
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("  - Config injection failed, will use default config");
+                
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("  - Logger injection failed, logging will be disabled");
+        }
+        else
+        {
+            GD.Print("All dependencies successfully injected");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### Invocation Timing
+
+`OnDependenciesResolved` is called at the following timing:
+
+1. **All `[Inject]` dependencies have been attempted to resolve** (success or failure)
+2. **After the node's `_Notification(NotificationEnterTree)`**
+3. **Before any `[Provide]` services are actually used**
+
+#### Best Practices
+
+1. **Always check the `isAllDependenciesReady` parameter**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (isAllDependenciesReady)
+       {
+           // Normal flow
+       }
+       else
+       {
+           // Degradation or error handling
+       }
+   }
+   ```
+
+2. **Use generated `IsXxxInjectionReady` for fine-grained checking**
+   ```csharp
+   if (!IsConfigInjectionReady)
+   {
+       GD.PrintErr("Config injection failed");
+       // Use default config
+   }
+   ```
+
+3. **Combine with null checking for increased safety**
+   ```csharp
+   if (IsStatsInjectionReady && _stats != null)
+   {
+       // Safe to use _stats
+       DisplayStats(_stats);
+   }
+   ```
+
+4. **Log dependency status for debugging**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       GD.Print($"Dependencies ready: {isAllDependenciesReady}");
+       GD.Print($"  Config: {IsConfigInjectionReady}");
+       GD.Print($"  Logger: {IsLoggerInjectionReady}");
+   }
+   ```
+
+#### Notes
+
+⚠️ **Important**:
+- `IsXxxInjectionReady` properties are generated when there are `[Inject]` members, regardless of whether `IDependenciesResolved` interface is implemented
+- `IsAllDependenciesReady` property is only generated when `IDependenciesResolved` interface is implemented
+- These properties are private and can only be used inside the class
+- **`[MemberNotNullWhen(true, ...)]` attribute effect**: When `IsXxxInjectionReady` is `true`, the compiler ensures the corresponding nullable member is not `null`. This means after checking `IsXxxInjectionReady`, you can safely use the null-forgiving operator (`!`) or directly access the member without additional null checks
+- `OnDependenciesResolved` is called even if dependency injection fails (parameter will be `false`)
+
+**Benefits of Using `IsXxxInjectionReady`**:
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    [Inject] private IConfig? _config;
+    
+    // Generated:
+    // [MemberNotNullWhen(true, nameof(_config))]
+    // private bool IsConfigInjectionReady { get; set; }
+    
+    [Provide(ExposedTypes = [typeof(IService)], WaitFor = [nameof(_config)])]
+    public IService CreateService()
+    {
+        if (IsConfigInjectionReady)
+        {
+            // ✅ Compiler knows _config is not null
+            // Can use directly without null check
+            return new Service(_config.ConnectionString);
+            
+            // Or use null-forgiving operator
+            return new Service(_config!.ConnectionString);
+        }
+        
+        // Handle case where _config might be null
+        return new ServiceWithDefaults();
+    }
 }
 ```
 
@@ -773,26 +1494,58 @@ public partial class DataHost : Node
 
 ### Avoiding Circular Dependencies
 
-**Compile-time Detection**: The framework detects circular WaitFor chains:
+**Compile-time Detection**: The framework detects circular WaitFor chains. Note: WaitFor can only wait for `[Inject]` members, so circular dependencies typically occur with mutually dependent injected services:
 
 ```csharp
-// ❌ Circular dependency - compile error
-[Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(CreateB)])]
-public IServiceA CreateA() => new ServiceA();
+// ❌ Conceptual example - if two Hosts mutually inject each other's provided services and wait
+// Host A injects service from Host B and waits for it
+[Host]
+public partial class HostA : Node
+{
+    [Inject] private IServiceB? _serviceB;
+    
+    // Provides service A, but waits for _serviceB injection
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateA() => new ServiceA(_serviceB);
+}
 
-[Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(CreateA)])]
-public IServiceB CreateB() => new ServiceB();
+// Host B injects service from Host A and waits for it
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+    
+    // Provides service B, but waits for _serviceA injection - this will cause runtime deadlock
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB() => new ServiceB(_serviceA);
+}
 ```
 
-**Solution**: Refactor dependencies or use events:
+**Solution**: Refactor dependency relationships to avoid mutual waiting:
 
 ```csharp
-// ✅ Correct approach
-[Provide(ExposedTypes = [typeof(IServiceA)])]
-public IServiceA CreateA() => new ServiceA();
+// ✅ Correct approach - only one direction waits
+[Host]
+public partial class HostA : Node
+{
+    // No wait for any dependency, provides immediately
+    [Provide(ExposedTypes = [typeof(IServiceA)])]
+    public IServiceA CreateA() => new ServiceA();
+}
 
-[Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(CreateA)])]
-public IServiceB CreateB() => new ServiceB(/* will receive A through injection */);
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+    
+    // Wait for _serviceA, but ServiceA doesn't depend on ServiceB
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB()
+    {
+        if (_serviceA == null)
+            return new ServiceB(new NullServiceA());
+        return new ServiceB(_serviceA);
+    };
 ```
 
 ### Interface-First Principle
@@ -809,19 +1562,19 @@ public DatabaseService CreateDatabase() => new DatabaseService();
 public IDatabase CreateDatabase() => new DatabaseService();
 ```
 
-### Host + User Combination Usage
+### Host Injecting and Providing Services
 
-Combine Host and User when a Node needs to both provide and consume services:
+Hosts can both inject dependencies and provide services without needing the `[User]` attribute:
 
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // As User: inject dependencies
-    [Inject] private IConfig _config;
-    [Inject] private ISaveSystem _saveSystem;
+    // Host directly injects dependencies
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
     
-    // As Host: provide service
+    // Host provides services
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
     
@@ -833,9 +1586,34 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
         }
     }
     
+    private void InitializeWithDependencies()
+    {
+        // Both IsConfigInjectionReady and IsSaveSystemInjectionReady are true
+        // Safe to use _config and _saveSystem
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
+
+**Role Exclusivity Rules**:
+
+| Role | Can Be Combined | Cannot Be Combined |
+|------|----------------|-------------------|
+| **Host** | Can be used alone | Cannot coexist with User or Scope |
+| **User** | Can be used alone | Cannot coexist with Host or Scope |
+| **Scope** | Must be used alone | Cannot coexist with any other role |
+
+**Host Capabilities**:
+- ✅ Use `[Provide]` to provide services
+- ✅ Use `[Inject]` to inject dependencies
+- ✅ Use `WaitFor` to wait for dependencies
+- ✅ Implement `IDependenciesResolved`
+- ❌ Cannot be marked as `[User]` simultaneously
+- ❌ Cannot be marked as `[Scope]` simultaneously
 
 ### Using Service Factories
 
@@ -1018,29 +1796,43 @@ If your services have dependencies on other services:
 [Host]
 public partial class ServiceHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // Logger created first
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger()
+    // Metrics created immediately (no dependencies)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        return new Logger();
+        return new MetricsService();
     }
     
-    // Database waits for config injection
+    // Database waits for _config injection
     [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
     public IDatabase CreateDatabase()
     {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
         return new DatabaseService(_config.ConnectionString);
     }
     
-    // Repository waits for both
+    // Repository waits for both _config and _logger injection
     [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateLogger), nameof(CreateDatabase)])]
+             WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        // Both logger and database are ready
-        return new Repository();
+        // Check if dependencies are ready
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        
+        if (!hasConfig || !hasLogger)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // Both dependencies ready, injected services can also be obtained through scope
+        return new Repository(_config, _logger);
     }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady) { }
@@ -1050,7 +1842,7 @@ public partial class ServiceHost : Node, IDependenciesResolved
 
 ### Breaking Changes Summary
 
-| Feature | 1.0.0-rc.3 | 1.1.0-rc.1 |
+| Feature | 1.0.0-rc.3 | 1.1.0 |
 |---------|------------|------------|
 | Service Declaration | `[Singleton]` on class | `[Provide]` on Host member |
 | Constructor Injection | `[InjectConstructor]` | Use provider method parameters |

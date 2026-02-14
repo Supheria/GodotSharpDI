@@ -1,25 +1,24 @@
-# v1.1.0-rc.1
+# v1.1.0
+
+---
 
 > ## 为什么是 1.1.0 而不是 1.0.0？
 >
-> 在发布 1.0.0-rc.3 后，我们发现了一个重大的架构局限：`[Singleton]` 特性和独立的服务类虽然功能正常，但在多个方面造成了不必要的复杂性并限制了灵活性：
+> 在发布 1.0.0-rc.3 后，由 Scope 创建并管理纯逻辑服务，DI 容器逻辑和服务生命周期管理的逻辑杂糅在一起，会导致 Scope 生成的代码过于复杂，并且导致 Scope 的语义和职责范围混乱，同时还造成了一些局限性：
 >
-> 1. **紧密耦合**：服务在逻辑上应该创建的地方之外单独声明
-> 2. **灵活性受限**：创建服务时难以使用 Node 资源或上下文
-> 3. **不支持异步**：仅通过构造函数注入无法处理异步初始化
-> 4. **复杂的依赖关系**：通过构造函数管理服务依赖关系不够灵活
->
+> 1. **灵活性受限**：创建服务时难以使用 Node 资源或上下文
+> 2. **不支持异步**：仅通过构造函数注入无法处理异步初始化
+> 
 > 1.1.0 中的新**基于提供者的架构**从根本上解决了这些问题，提供了：
 >
 > - 服务与 Host 内联定义，更好的内聚性
 > - 创建服务时直接访问 Node 资源和上下文
 > - 原生的 async/await 支持用于服务初始化
 > - 通过 WaitFor 机制实现灵活的依赖排序
-> - 更简单的心智模型（减少一个学习概念）
->
-> **鉴于这些架构改进和破坏性变更的规模，我们决定增加到 1.1.0，而不是发布具有已知架构限制的 1.0.0。** 这使我们能够以更强大和灵活的基础向前发展。
->
-> ---
+> 
+> **鉴于这些架构改进和破坏性变更的规模，决定将项目版本增加到 1.1.0，而不是发布具有已知架构限制的 1.0.0。** 
+> 
+>---
 
 ## 🎯 重大架构变化
 
@@ -46,7 +45,7 @@ public partial class PlayerStatsService : IPlayerStats
 )]
 public partial class GameScope : Node, IScope { }
 
-// ✅ 新方法（1.1.0-rc.1）
+// ✅ 新方法（1.1.0）
 [Host]
 public partial class GameManager : Node
 {
@@ -74,6 +73,7 @@ public class PlayerStatsService : IPlayerStats
 ```
 
 **优势**：
+
 - 服务定义在它们逻辑上应该在的地方
 - 完全访问 Host 的上下文和资源
 - 更灵活的服务创建模式
@@ -85,48 +85,70 @@ public class PlayerStatsService : IPlayerStats
 
 **1.1.0 新功能**：服务可以显式等待依赖项后再被提供。
 
+**重要提示**：`WaitFor` **只能等待** `[Inject]` 成员，不能等待 `[Provide]` 成员。
+
 **使用方法**：
 
 ```csharp
 [Host]
 public partial class ServiceHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // 立即提供
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger()
+    // 立即提供（无依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        return new Logger();
+        return new MetricsService();
     }
     
     // 等待 _config 注入
     [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
     public IDatabase CreateDatabase()
     {
+        // WaitFor 保证 _config 解析已尝试，但需检查是否成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
         return new DatabaseService(_config.ConnectionString);
     }
     
-    // 等待 CreateLogger 和 CreateDatabase
+    // 等待 _config 和 _logger 注入
     [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateLogger), nameof(CreateDatabase)])]
+             WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        // 所有依赖保证就绪
-        return new Repository();
+        // 检查多个依赖的就绪状态
+        if (!IsAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖未就绪");
+            return new RepositoryWithDefaults();
+        }
+        // 所有依赖都就绪
+        return new Repository(_config!, _logger!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved(bool isAllDependenciesReady) 
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖注入失败");
+        }
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
 
 **特性**：
-- 等待 `[Inject]` 成员被注入
-- 等待其他 `[Provide]` 成员完成
+- **只能**等待 `[Inject]` 成员被注入
 - 编译时循环依赖检测
 - 支持复杂的依赖链
 - 同时支持同步和异步提供者
+- 即使依赖失败也会继续（需手动检查 `IsXxxInjectionReady`）
 
 ---
 
@@ -138,32 +160,44 @@ public partial class ServiceHost : Node, IDependenciesResolved
 
 ```csharp
 [Host]
-public partial class AsyncHost : Node
+public partial class AsyncHost : Node, IDependenciesResolved
 {
-    [Provide(ExposedTypes = [typeof(IResourceLoader)])]
+    [Inject] private IConfig? _config;
+    
+    // 异步提供服务，等待 _config 注入
+    [Provide(ExposedTypes = [typeof(IResourceLoader)], WaitFor = [nameof(_config)])]
     public async Task<IResourceLoader> LoadResourcesAsync()
     {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new ResourceLoader();  // 默认加载器
+        }
+        
         var loader = new ResourceLoader();
-        await loader.LoadAssetsAsync();
+        await loader.LoadAssetsAsync(_config.AssetPath);
         await loader.ValidateAsync();
         return loader;
     }
     
-    [Provide(ExposedTypes = [typeof(INetworkService)])]
+    [Provide(ExposedTypes = [typeof(INetworkService)], WaitFor = [nameof(_config)])]
     public async Task<INetworkService> ConnectAsync()
     {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new OfflineNetworkService();
+        }
+        
         var service = new NetworkService();
-        await service.ConnectToServerAsync();
+        await service.ConnectToServerAsync(_config.ServerUrl);
         return service;
     }
     
-    // 可以等待异步提供者
-    [Provide(ExposedTypes = [typeof(IGameSession)], 
-             WaitFor = [nameof(LoadResourcesAsync), nameof(ConnectAsync)])]
-    public IGameSession CreateSession()
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        // 资源和网络已就绪
-        return new GameSession();
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖未就绪，某些服务将使用降级版本");
+        }
     }
     
     public override partial void _Notification(int what);
@@ -194,11 +228,17 @@ public partial class AsyncHost : Node
 4. **独立服务类**：不再是一个概念
    - **迁移**：将服务创建逻辑移至 Host 提供者
 
+5. **Host + User 角色共存**：不再允许
+   - **迁移**：Host 现在可以直接使用 `[Inject]`，无需 `[User]` 特性
+   - **规则**：Host、User、Scope 三个角色不能共存
+
 ### 行为变更
 
 1. **服务注册**：现在通过 Host 提供者进行，而不是类声明
 2. **服务构造**：完全由提供者方法控制，而不是构造函数
 3. **依赖解析**：使用 WaitFor 机制而不是构造函数参数
+4. **角色独占**：一个类只能有一个角色（Host、User 或 Scope）
+5. **Host 注入**：Host 可以直接注入依赖，无需额外角色标记
 
 ---
 
@@ -212,7 +252,7 @@ public partial class AsyncHost : Node
 
 **参数**：
 - `ExposedTypes`（必需）：要暴露的类型数组
-- `WaitFor`（可选）：提供前要等待的成员名称数组
+- `WaitFor`（可选）：提供前要等待的 `[Inject]` 成员名称数组
 
 **可应用于**：
 - 属性（用于简单的服务提供）
@@ -228,10 +268,16 @@ public IConfig Config => new ConfigService();
 [Provide(ExposedTypes = [typeof(IDatabase)])]
 public IDatabase CreateDatabase() => new DatabaseService();
 
-// 带 WaitFor 的异步提供者
+// 带 WaitFor 的异步提供者（只能等待 Inject 成员）
+[Inject] private IConfig? _config;
+
 [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config)])]
 public async Task<IRepository> InitializeRepositoryAsync()
 {
+    if (!IsConfigInjectionReady || _config == null)
+    {
+        return new Repository();
+    }
     var repo = new Repository(_config);
     await repo.ConnectAsync();
     return repo;
@@ -245,6 +291,7 @@ public async Task<IRepository> InitializeRepositoryAsync()
 简化为只接受 Hosts。
 
 **之前（1.0.0-rc.3）**：
+
 ```csharp
 [Modules(
     Services = [typeof(Service1), typeof(Service2)],
@@ -252,130 +299,142 @@ public async Task<IRepository> InitializeRepositoryAsync()
 )]
 ```
 
-**之后（1.1.0-rc.1）**：
+**之后（1.1.0）**：
+
 ```csharp
 [Modules(Hosts = [typeof(Host1), typeof(Host2)])]
 ```
 
 ---
 
-## 💡 新功能
+## 📖 迁移指南（从 1.0.0-rc.3）
 
-### 1. 基于属性的服务提供
+### 必需的变更
 
-简单的服务可以通过属性提供：
+#### 1. 移除 Singleton 特性
 
 ```csharp
-[Host]
-public partial class ConfigHost : Node
+// ❌ 旧代码（1.0.0-rc.3）
+[Singleton(typeof(IPlayerStats))]
+public partial class PlayerStatsService : IPlayerStats
 {
-    [Provide(ExposedTypes = [typeof(IConfig)])]
-    public IConfig Config => new ConfigService();
-    
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger Logger { get; } = new Logger();
-    
-    public override partial void _Notification(int what);
+    public int Health { get; set; }
 }
-```
 
-### 2. 带上下文的基于方法的服务提供
+[Modules(Services = [typeof(PlayerStatsService)])]
+public partial class GameScope : Node, IScope { }
 
-复杂的服务可以访问 Host 上下文：
-
-```csharp
+// ✅ 新代码（1.1.0）
 [Host]
-public partial class GameHost : Node, IDependenciesResolved
+public partial class PlayerHost : Node
 {
-    [Inject] private IConfig _config;
-    
-    private PlayerData _playerData;
-    
-    [Provide(ExposedTypes = [typeof(IPlayerStats)], WaitFor = [nameof(_config)])]
+    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
     public IPlayerStats CreatePlayerStats()
     {
-        // 可以访问 Host 的状态和注入的依赖
-        var stats = new PlayerStatsService();
-        stats.Initialize(_config.StartingHealth, _playerData);
-        return stats;
+        return new PlayerStatsService();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) 
+    public override partial void _Notification(int what);
+}
+
+// 服务实现不需要任何特性
+public class PlayerStatsService : IPlayerStats
+{
+    public int Health { get; set; }
+}
+
+[Modules(Hosts = [typeof(PlayerHost)])]
+public partial class GameScope : Node, IScope
+{
+    public override partial void _Notification(int what);
+}
+```
+
+#### 2. 移除 InjectConstructor 特性
+
+```csharp
+// ❌ 旧代码
+public class ServiceA
+{
+    [InjectConstructor]
+    public ServiceA(IServiceB serviceB) { }
+}
+
+// ✅ 新代码
+[Host]
+public partial class ServiceHost : Node
+{
+    [Inject] private IServiceB? _serviceB;
+    
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateServiceA()
     {
-        _playerData = LoadPlayerData();
+        if (!IsServiceBInjectionReady || _serviceB == null)
+        {
+            return new ServiceA(new NullServiceB());
+        }
+        return new ServiceA(_serviceB);
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-### 3. 异步服务初始化
-
-具有异步初始化要求的服务：
+#### 3. 更新 Modules 特性
 
 ```csharp
-[Host]
-public partial class DataHost : Node
-{
-    [Provide(ExposedTypes = [typeof(IDatabase)])]
-    public async Task<IDatabase> ConnectToDatabaseAsync()
-    {
-        var db = new DatabaseService();
-        await db.ConnectAsync();
-        await db.MigrateSchemaAsync();
-        return db;
-    }
-    
-    [Provide(ExposedTypes = [typeof(ICache)])]
-    public async Task<ICache> InitializeCacheAsync()
-    {
-        var cache = new CacheService();
-        await cache.WarmUpAsync();
-        return cache;
-    }
-    
-    public override partial void _Notification(int what);
-}
+// ❌ 旧代码
+[Modules(
+    Services = [typeof(Service1), typeof(Service2)],
+    Hosts = [typeof(Host1)]
+)]
+
+// ✅ 新代码
+[Modules(Hosts = [typeof(Host1)])]
 ```
 
-### 4. 复杂的依赖链
+#### 4. 使用 WaitFor 处理服务依赖
 
-显式控制服务初始化顺序：
+**重要**：WaitFor 只能等待 `[Inject]` 成员。
 
 ```csharp
 [Host]
-public partial class ComplexHost : Node, IDependenciesResolved
+public partial class ServiceHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // 第 1 层：核心服务
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger() => new Logger();
-    
-    // 第 2 层：依赖第 1 层
-    [Provide(ExposedTypes = [typeof(IDatabase)], 
-             WaitFor = [nameof(CreateLogger), nameof(_config)])]
-    public async Task<IDatabase> ConnectDatabaseAsync()
+    // Metrics 立即创建（无依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        var db = new DatabaseService(_config.ConnectionString);
-        await db.ConnectAsync();
-        return db;
+        return new MetricsService();
     }
     
-    // 第 3 层：依赖第 2 层
+    // Database 等待 _config 注入
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // Repository 等待 _config 和 _logger 注入
     [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(ConnectDatabaseAsync)])]
+             WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        return new Repository(/* database 已就绪 */);
-    }
-    
-    // 第 4 层：依赖多个前面的层
-    [Provide(ExposedTypes = [typeof(IDataService)], 
-             WaitFor = [nameof(CreateLogger), nameof(CreateRepository)])]
-    public IDataService CreateDataService()
-    {
-        return new DataService(/* logger 和 repository 已就绪 */);
+        // 检查依赖是否就绪
+        if (!IsAllDependenciesReady)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // 两个依赖都就绪，注入的服务也可通过 scope 获取
+        return new Repository(_config!, _logger!);
     }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady) { }
@@ -383,365 +442,99 @@ public partial class ComplexHost : Node, IDependenciesResolved
 }
 ```
 
----
+#### 5. 移除 Host + User 组合
 
-## 🔍 增强的诊断
+**1.1.0 变更**：Host、User、Scope 角色不能共存。
 
-### 新错误代码
-
-| 代码 | 类别 | 描述 |
-|------|------|------|
-| GDI_M100 | Provide | [Provide] 成员必须至少有一个暴露类型 |
-| GDI_M101 | Provide | [Provide] 暴露类型未由返回类型实现 |
-| GDI_M102 | Provide | [Provide] WaitFor 目标未找到 |
-| GDI_M103 | Provide | [Provide] WaitFor 目标无效 |
-| GDI_D200 | WaitFor | 检测到循环 WaitFor 依赖 |
-| GDI_D201 | WaitFor | WaitFor 链验证失败 |
-
-### 改进的错误消息
-
-所有诊断现在包括：
-- 问题的清晰说明
-- 为什么有问题
-- 建议的修复
-- 适用时的代码示例
-
-**示例**：
-```
-错误 GDI_D200：检测到循环 WaitFor 依赖
-  
-  CreateA（等待）→ CreateB
-  CreateB（等待）→ CreateC
-  CreateC（等待）→ CreateA
-  
-  建议：通过移除其中一个 WaitFor 依赖来打破循环依赖，
-  或重构为使用基于事件的通信。
-```
-
----
-
-## 🔧 内部改进
-
-### 代码生成
-
-1. **重构的生成管道**：
-   - 分离的依赖注入阶段
-   - 专用的服务提供阶段
-   - WaitFor 依赖解析阶段
-
-2. **更好的性能**：
-   - 优化的服务查找
-   - 减少生成的代码大小
-   - 更快的编译时间
-
-3. **更清晰的生成代码**：
-   - 更可读的输出
-   - 更好的注释
-   - 一致的格式
-
-### 测试
-
-1. **新测试套件**：
-   - WaitFor 循环依赖测试
-   - WaitFor 验证测试
-   - 异步提供者测试
-
-2. **增强的覆盖率**：
-   - 提供者注册场景
-   - 复杂的依赖链
-   - 错误条件
-
----
-
-## 📖 迁移指南
-
-### 步骤 1：将服务类转换为提供者方法
-
-**之前**：
 ```csharp
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
+// ❌ 旧代码（1.0.0-rc.3 中可能有效）
+[Host, User]
+public partial class GameManager : Node
 {
-    [InjectConstructor]
-    public PlayerStatsService(IConfig config)
-    {
-        Health = config.StartingHealth;
-    }
-    
-    public int Health { get; set; }
-    public int Mana { get; set; }
-}
-```
-
-**之后**：
-```csharp
-// 在 Host 类中：
-[Inject] private IConfig _config;
-
-[Provide(ExposedTypes = [typeof(IPlayerStats)], WaitFor = [nameof(_config)])]
-public IPlayerStats CreatePlayerStats()
-{
-    return new PlayerStatsService 
-    { 
-        Health = _config.StartingHealth,
-        Mana = 50 
-    };
+    [Inject] private IConfig _config;
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
 }
 
-// 服务实现（无需特性）：
-public class PlayerStatsService : IPlayerStats
-{
-    public int Health { get; set; }
-    public int Mana { get; set; }
-}
-```
-
-### 步骤 2：更新 Scope 定义
-
-**之前**：
-```csharp
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(CombatService)],
-    Hosts = [typeof(GameManager)]
-)]
-public partial class GameScope : Node, IScope { }
-```
-
-**之后**：
-```csharp
-[Modules(Hosts = [typeof(GameManager)])]
-public partial class GameScope : Node, IScope
-{
-    public override partial void _Notification(int what);
-}
-```
-
-### 步骤 3：处理服务依赖
-
-**之前**：
-```csharp
-[Singleton(typeof(IRepository))]
-public partial class Repository : IRepository
-{
-    [InjectConstructor]
-    public Repository(IDatabase database, ILogger logger)
-    {
-        // 构造函数注入
-    }
-}
-```
-
-**之后**：
-```csharp
+// ✅ 新代码（1.1.0）
 [Host]
-public partial class DataHost : Node
+public partial class GameManager : Node
 {
-    [Provide(ExposedTypes = [typeof(IDatabase)])]
-    public IDatabase CreateDatabase() => new DatabaseService();
+    // Host 可以直接使用 Inject，无需 User
+    [Inject] private IConfig? _config;
     
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger() => new Logger();
-    
-    [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateDatabase), nameof(CreateLogger)])]
-    public IRepository CreateRepository()
-    {
-        // 依赖保证就绪
-        return new Repository();
-    }
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
     
     public override partial void _Notification(int what);
 }
 ```
 
-### 步骤 4：在需要时添加异步支持
+### 重大变化总结
 
-如果服务需要异步初始化：
-
-```csharp
-[Host]
-public partial class AsyncHost : Node
-{
-    [Provide(ExposedTypes = [typeof(INetworkService)])]
-    public async Task<INetworkService> InitializeNetworkAsync()
-    {
-        var service = new NetworkService();
-        await service.ConnectAsync();
-        return service;
-    }
-    
-    public override partial void _Notification(int what);
-}
-```
+| 功能 | 1.0.0-rc.3 | 1.1.0 |
+|------|------------|------------|
+| 服务注册 | `[Singleton]` 特性 | `[Provide]` 在 Host 成员上 |
+| 构造函数注入 | `[InjectConstructor]` | WaitFor + 提供者方法参数 |
+| 异步初始化 | 不支持 | `Task<T>` 提供者 |
+| 依赖排序 | 构造函数参数 | `WaitFor` 机制 |
+| Host + User | 可以组合 | 不能组合（Host 可直接 Inject） |
+| WaitFor 目标 | N/A | 只能等待 `[Inject]` 成员 |
+| Modules 参数 | `Services` + `Hosts` | 只有 `Hosts` |
+| 角色共存 | 部分允许 | 完全独占 |
 
 ---
 
-## 🎓 最佳实践
+## 已知问题和限制
 
-### 1. 组织相关提供者
+### WaitFor 限制
 
-在 Host 中逻辑地组织提供者：
+1. **只能等待 Inject 成员**：不能等待其他 Provide 成员
+2. **解析完成不等于成功**：必须检查 `IsXxxInjectionReady`
+3. **循环等待**：在编译时检测并报错
 
-```csharp
-[Host]
-public partial class DataServicesHost : Node
-{
-    // 所有数据相关的服务在一个地方
-    [Provide(ExposedTypes = [typeof(IDatabase)])]
-    public IDatabase CreateDatabase() => new DatabaseService();
-    
-    [Provide(ExposedTypes = [typeof(ICache)])]
-    public ICache CreateCache() => new CacheService();
-    
-    [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateDatabase)])]
-    public IRepository CreateRepository() => new Repository();
-    
-    public override partial void _Notification(int what);
-}
-```
+### 异步提供者
 
-### 2. 使用 WaitFor 明确依赖
-
-使依赖显式：
-
-```csharp
-// ✅ 清晰明确
-[Provide(ExposedTypes = [typeof(IService)], 
-         WaitFor = [nameof(_config), nameof(CreateLogger)])]
-public IService CreateService()
-{
-    // 依赖保证就绪
-}
-
-// ❌ 隐式且容易出错
-[Provide(ExposedTypes = [typeof(IService)])]
-public IService CreateService()
-{
-    // 希望依赖就绪？
-}
-```
-
-### 3. I/O 操作优先使用异步
-
-```csharp
-// ✅ 网络/文件操作使用异步
-[Provide(ExposedTypes = [typeof(IDatabase)])]
-public async Task<IDatabase> ConnectAsync()
-{
-    var db = new DatabaseService();
-    await db.ConnectAsync();
-    return db;
-}
-
-// ❌ 在提供者中阻塞
-[Provide(ExposedTypes = [typeof(IDatabase)])]
-public IDatabase Connect()
-{
-    var db = new DatabaseService();
-    db.ConnectAsync().Wait(); // 阻塞！
-    return db;
-}
-```
-
-### 4. 保持提供者简单
-
-```csharp
-// ✅ 简单专注
-[Provide(ExposedTypes = [typeof(IConfig)])]
-public IConfig CreateConfig()
-{
-    return ConfigService.LoadFromFile("config.json");
-}
-
-// ❌ 提供者中逻辑过多
-[Provide(ExposedTypes = [typeof(IConfig)])]
-public IConfig CreateConfig()
-{
-    var config = new ConfigService();
-    config.Load();
-    config.Validate();
-    config.ApplyDefaults();
-    config.MigrateOldFormat();
-    config.Save();
-    return config;
-}
-```
+1. **取消**：不支持取消令牌
 
 ---
 
-## 🔮 展望未来
+## 下一步
 
-此版本为未来的增强奠定了坚实的基础：
-
-- **未来考虑**：服务生命周期作用域（Transient、Scoped、Singleton）
-- **未来考虑**：延迟服务初始化
-- **未来考虑**：服务装饰器
-- **未来考虑**：同类型的多个服务实例
-
-我们相信基于提供者的架构为这些未来功能提供了所需的灵活性，同时保持了常见用例的简单性。
+- 完善文档和示例
+- 收集社区反馈
+- 进行性能测试
+- 修复发现的任何问题
 
 ---
-
-## 📝 总结
-
-v1.1.0-rc.1 代表了重大的架构演进：
-
-**✅ 新架构**：
-- 使用 `[Provide]` 的基于提供者的服务定义
-- 用于依赖排序的 WaitFor 机制
-- 原生 async/await 支持
-- 简化的概念模型
-
-**⚠️ 破坏性变更**：
-- 移除 `[Singleton]` 特性
-- 移除 `[InjectConstructor]` 特性
-- 从 `[Modules]` 移除 `Services` 参数
-- 不再使用独立服务类
-
-**🚀 优势**：
-- 服务创建更大的灵活性
-- 与 Node 资源更好的集成
-- 更清晰的关注点分离
-- 更强大的依赖管理
-- 面向未来的架构
-
----
-
-**迁移工作量**：中等。大多数项目可以通过遵循迁移指南在几个小时内完成迁移。
-
-**我们建议所有新项目使用此版本，并鼓励现有项目在方便时进行迁移。**
-
----
-
 
 # v1.0.0-rc.3
 
-> ## 主要新功能
+> ## 关键增强
 >
-> ### ✨ 注入失败回调机制
+> ### 🎯 注入失败回调
 >
-> **RC.3 新功能**：单个注入成员现在可以拥有失败回调以进行细粒度错误处理。
+> **RC.3 新功能**：现在可以为每个 `[Inject]` 成员添加失败回调处理程序。
 >
 > **使用方法**：
->
 > ```csharp
 > [User]
-> public partial class PlayerUI : Control
+> public partial class PlayerController : Node
 > {
-> [Inject(FailureCallback = true)]
-> private IGameManager GameManager { get; set; }
+>     [Inject(FailureCallback = true)]
+>     private IOptionalService OptionalService { get; set; }
 > 
-> partial void OnGameManagerInjectionFailed(string error)
-> {
-> GD.PrintErr($"GameManager 注入失败：{error}");
-> // 实现回退逻辑
-> }
+>     // 生成的回调方法（在 partial 类中实现）
+>     partial void OnOptionalServiceInjectionFailed(string error)
+>     {
+>         GD.Print($"可选服务不可用：{error}");
+>         // 使用回退逻辑
+>     }
 > }
 > ```
 >
 > **优势**：
-> * 按依赖项而不是全局处理注入失败
+> * 优雅地处理可选依赖
 > * 为可选依赖实现回退逻辑
 > * 更好的错误处理和用户体验
 >

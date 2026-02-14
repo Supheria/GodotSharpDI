@@ -1,25 +1,24 @@
-# v1.1.0-rc.1
+# v1.1.0
+
+---
 
 > ## Why 1.1.0 Instead of 1.0.0?
 >
-> After releasing 1.0.0-rc.3, we identified a significant architectural limitation: the `[Singleton]` attribute and standalone service classes, while functional, created unnecessary complexity and limited flexibility in several ways:
+> After releasing 1.0.0-rc.3, the design where Scope creates and manages pure logic services led to DI container logic and service lifecycle management logic being intertwined. This resulted in overly complex generated code for Scope and caused confusion in Scope's semantics and scope of responsibilities, while also creating some limitations:
 >
-> 1. **Tight Coupling**: Services were declared separately from where they were logically created
-> 2. **Limited Flexibility**: No easy way to use Node resources or context when creating services
-> 3. **No Async Support**: Constructor-only injection couldn't handle asynchronous initialization
-> 4. **Complex Dependencies**: Managing service dependencies through constructors was inflexible
->
-> The new **provider-based architecture** in 1.1.0 fundamentally addresses these issues, offering:
+> 1. **Limited Flexibility**: Difficulty using Node resources or context when creating services
+> 2. **No Async Support**: Constructor-only injection couldn't handle asynchronous initialization
+> 
+> The new **provider-based architecture** in 1.1.0 fundamentally addresses these issues, providing:
 >
 > - Services defined inline with Hosts for better cohesion
 > - Direct access to Node resources and context during service creation
 > - Native async/await support for service initialization
 > - Flexible dependency ordering through the WaitFor mechanism
-> - Simpler mental model (one less concept to learn)
->
-> **Given the magnitude of these architectural improvements and breaking changes, we decided to increment to 1.1.0 rather than release 1.0.0 with known architectural limitations.** This allows us to move forward with a more robust and flexible foundation.
->
-> ---
+> 
+> **Given the magnitude of these architectural improvements and breaking changes, we decided to increment the project version to 1.1.0 rather than release 1.0.0 with known architectural limitations.** 
+> 
+>---
 
 ## 🎯 Major Architectural Changes
 
@@ -32,7 +31,7 @@
 **Migration Example**:
 
 ```csharp
-// ❌ Old approach (1.0.0-rc.3)
+// ❌ Old Way (1.0.0-rc.3)
 [Singleton(typeof(IPlayerStats))]
 public partial class PlayerStatsService : IPlayerStats
 {
@@ -46,7 +45,7 @@ public partial class PlayerStatsService : IPlayerStats
 )]
 public partial class GameScope : Node, IScope { }
 
-// ✅ New approach (1.1.0-rc.1)
+// ✅ New Way (1.1.0)
 [Host]
 public partial class GameManager : Node
 {
@@ -73,11 +72,12 @@ public class PlayerStatsService : IPlayerStats
 }
 ```
 
-**Benefits**:
-- Services are defined where they logically belong
+**Advantages**:
+
+- Services defined where they logically belong
 - Full access to Host's context and resources
 - More flexible service creation patterns
-- Cleaner separation of concerns
+- Clearer separation of concerns
 
 ---
 
@@ -85,52 +85,74 @@ public class PlayerStatsService : IPlayerStats
 
 **New in 1.1.0**: Services can explicitly wait for dependencies before being provided.
 
+**Important Note**: `WaitFor` can **only wait for** `[Inject]` members, not `[Provide]` members.
+
 **Usage**:
 
 ```csharp
 [Host]
 public partial class ServiceHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // Provided immediately
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger()
+    // Provided immediately (no dependencies)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        return new Logger();
+        return new MetricsService();
     }
     
     // Waits for _config injection
     [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
     public IDatabase CreateDatabase()
     {
+        // WaitFor guarantees resolution was attempted, but need to check if successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
         return new DatabaseService(_config.ConnectionString);
     }
     
-    // Waits for both CreateLogger and CreateDatabase
+    // Waits for both _config and _logger injection
     [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateLogger), nameof(CreateDatabase)])]
+             WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        // All dependencies guaranteed to be ready
-        return new Repository();
+        // Check readiness of multiple dependencies
+        if (!IsAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies not ready");
+            return new RepositoryWithDefaults();
+        }
+        // All dependencies ready
+        return new Repository(_config!, _logger!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved(bool isAllDependenciesReady) 
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies failed to inject");
+        }
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
 
 **Features**:
-- Wait for `[Inject]` members to be injected
-- Wait for other `[Provide]` members to complete
+- Can **only** wait for `[Inject]` members to be injected
 - Compile-time circular dependency detection
 - Supports complex dependency chains
-- Works with both sync and async providers
+- Supports both sync and async providers
+- Continues even if dependencies fail (must manually check `IsXxxInjectionReady`)
 
 ---
 
-### ⚡ Asynchronous Service Support
+### ⚡ Async Service Support
 
 **New in 1.1.0**: Providers can return `Task<T>` for async initialization.
 
@@ -138,43 +160,55 @@ public partial class ServiceHost : Node, IDependenciesResolved
 
 ```csharp
 [Host]
-public partial class AsyncHost : Node
+public partial class AsyncHost : Node, IDependenciesResolved
 {
-    [Provide(ExposedTypes = [typeof(IResourceLoader)])]
+    [Inject] private IConfig? _config;
+    
+    // Async service provision, waiting for _config injection
+    [Provide(ExposedTypes = [typeof(IResourceLoader)], WaitFor = [nameof(_config)])]
     public async Task<IResourceLoader> LoadResourcesAsync()
     {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new ResourceLoader();  // Default loader
+        }
+        
         var loader = new ResourceLoader();
-        await loader.LoadAssetsAsync();
+        await loader.LoadAssetsAsync(_config.AssetPath);
         await loader.ValidateAsync();
         return loader;
     }
     
-    [Provide(ExposedTypes = [typeof(INetworkService)])]
+    [Provide(ExposedTypes = [typeof(INetworkService)], WaitFor = [nameof(_config)])]
     public async Task<INetworkService> ConnectAsync()
     {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new OfflineNetworkService();
+        }
+        
         var service = new NetworkService();
-        await service.ConnectToServerAsync();
+        await service.ConnectToServerAsync(_config.ServerUrl);
         return service;
     }
     
-    // Can wait for async providers
-    [Provide(ExposedTypes = [typeof(IGameSession)], 
-             WaitFor = [nameof(LoadResourcesAsync), nameof(ConnectAsync)])]
-    public IGameSession CreateSession()
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        // Resources and network are ready
-        return new GameSession();
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies not ready, certain services will use degraded versions");
+        }
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-**Benefits**:
+**Advantages**:
 - Natural async/await syntax
 - Better control over initialization order
 - Proper error handling with try/catch
-- Integrates seamlessly with WaitFor mechanism
+- Seamless integration with WaitFor mechanism
 
 ---
 
@@ -182,23 +216,29 @@ public partial class AsyncHost : Node
 
 ### Removed Features
 
-1. **`[Singleton]` Attribute**: Removed entirely
-   - **Migration**: Use `[Provide]` on Host members instead
+1. **`[Singleton]` Attribute**: Completely removed
+   - **Migration**: Use `[Provide]` on Host members
 
 2. **`[InjectConstructor]` Attribute**: No longer needed
    - **Migration**: Control construction in provider methods
 
 3. **`Services` Parameter in `[Modules]`**: Removed
-   - **Migration**: Remove this parameter; only `Hosts = [...]` is needed
+   - **Migration**: Remove this parameter; only need `Hosts = [...]`
 
 4. **Standalone Service Classes**: No longer a concept
-   - **Migration**: Move service creation logic into Host providers
+   - **Migration**: Move service creation logic to Host providers
 
-### Changed Behavior
+5. **Host + User Role Coexistence**: No longer allowed
+   - **Migration**: Host can now directly use `[Inject]` without `[User]` attribute
+   - **Rule**: Host, User, and Scope roles cannot coexist
 
-1. **Service Registration**: Now happens through Host providers, not class declarations
+### Behavior Changes
+
+1. **Service Registration**: Now through Host providers, not class declarations
 2. **Service Construction**: Fully controlled by provider methods, not constructors
 3. **Dependency Resolution**: Uses WaitFor mechanism instead of constructor parameters
+4. **Role Exclusivity**: A class can only have one role (Host, User, or Scope)
+5. **Host Injection**: Host can directly inject dependencies without additional role marking
 
 ---
 
@@ -212,7 +252,7 @@ Marks a property or method as a service provider.
 
 **Parameters**:
 - `ExposedTypes` (required): Array of types to expose
-- `WaitFor` (optional): Array of member names to wait for
+- `WaitFor` (optional): Array of `[Inject]` member names to wait for before providing
 
 **Can be applied to**:
 - Properties (for simple service provision)
@@ -228,10 +268,16 @@ public IConfig Config => new ConfigService();
 [Provide(ExposedTypes = [typeof(IDatabase)])]
 public IDatabase CreateDatabase() => new DatabaseService();
 
-// Async provider with WaitFor
+// Async provider with WaitFor (can only wait for Inject members)
+[Inject] private IConfig? _config;
+
 [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config)])]
 public async Task<IRepository> InitializeRepositoryAsync()
 {
+    if (!IsConfigInjectionReady || _config == null)
+    {
+        return new Repository();
+    }
     var repo = new Repository(_config);
     await repo.ConnectAsync();
     return repo;
@@ -252,130 +298,142 @@ Simplified to only accept Hosts.
 )]
 ```
 
-**After (1.1.0-rc.1)**:
+**After (1.1.0)**:
+
 ```csharp
 [Modules(Hosts = [typeof(Host1), typeof(Host2)])]
 ```
 
 ---
 
-## 💡 New Capabilities
+## 📖 Migration Guide (from 1.0.0-rc.3)
 
-### 1. Property-Based Service Provision
+### Required Changes
 
-Simple services can be provided through properties:
+#### 1. Remove Singleton Attribute
 
 ```csharp
-[Host]
-public partial class ConfigHost : Node
+// ❌ Old Code (1.0.0-rc.3)
+[Singleton(typeof(IPlayerStats))]
+public partial class PlayerStatsService : IPlayerStats
 {
-    [Provide(ExposedTypes = [typeof(IConfig)])]
-    public IConfig Config => new ConfigService();
-    
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger Logger { get; } = new Logger();
-    
-    public override partial void _Notification(int what);
+    public int Health { get; set; }
 }
-```
 
-### 2. Method-Based Service Provision with Context
+[Modules(Services = [typeof(PlayerStatsService)])]
+public partial class GameScope : Node, IScope { }
 
-Complex services can access Host context:
-
-```csharp
+// ✅ New Code (1.1.0)
 [Host]
-public partial class GameHost : Node, IDependenciesResolved
+public partial class PlayerHost : Node
 {
-    [Inject] private IConfig _config;
-    
-    private PlayerData _playerData;
-    
-    [Provide(ExposedTypes = [typeof(IPlayerStats)], WaitFor = [nameof(_config)])]
+    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
     public IPlayerStats CreatePlayerStats()
     {
-        // Can access Host's state and injected dependencies
-        var stats = new PlayerStatsService();
-        stats.Initialize(_config.StartingHealth, _playerData);
-        return stats;
+        return new PlayerStatsService();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) 
+    public override partial void _Notification(int what);
+}
+
+// Service implementation doesn't need any attributes
+public class PlayerStatsService : IPlayerStats
+{
+    public int Health { get; set; }
+}
+
+[Modules(Hosts = [typeof(PlayerHost)])]
+public partial class GameScope : Node, IScope
+{
+    public override partial void _Notification(int what);
+}
+```
+
+#### 2. Remove InjectConstructor Attribute
+
+```csharp
+// ❌ Old Code
+public class ServiceA
+{
+    [InjectConstructor]
+    public ServiceA(IServiceB serviceB) { }
+}
+
+// ✅ New Code
+[Host]
+public partial class ServiceHost : Node
+{
+    [Inject] private IServiceB? _serviceB;
+    
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateServiceA()
     {
-        _playerData = LoadPlayerData();
+        if (!IsServiceBInjectionReady || _serviceB == null)
+        {
+            return new ServiceA(new NullServiceB());
+        }
+        return new ServiceA(_serviceB);
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-### 3. Async Service Initialization
-
-Services with async initialization requirements:
+#### 3. Update Modules Attribute
 
 ```csharp
-[Host]
-public partial class DataHost : Node
-{
-    [Provide(ExposedTypes = [typeof(IDatabase)])]
-    public async Task<IDatabase> ConnectToDatabaseAsync()
-    {
-        var db = new DatabaseService();
-        await db.ConnectAsync();
-        await db.MigrateSchemaAsync();
-        return db;
-    }
-    
-    [Provide(ExposedTypes = [typeof(ICache)])]
-    public async Task<ICache> InitializeCacheAsync()
-    {
-        var cache = new CacheService();
-        await cache.WarmUpAsync();
-        return cache;
-    }
-    
-    public override partial void _Notification(int what);
-}
+// ❌ Old Code
+[Modules(
+    Services = [typeof(Service1), typeof(Service2)],
+    Hosts = [typeof(Host1)]
+)]
+
+// ✅ New Code
+[Modules(Hosts = [typeof(Host1)])]
 ```
 
-### 4. Complex Dependency Chains
+#### 4. Use WaitFor for Service Dependencies
 
-Explicit control over service initialization order:
+**Important**: WaitFor can only wait for `[Inject]` members.
 
 ```csharp
 [Host]
-public partial class ComplexHost : Node, IDependenciesResolved
+public partial class ServiceHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // Layer 1: Core services
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger() => new Logger();
-    
-    // Layer 2: Depends on Layer 1
-    [Provide(ExposedTypes = [typeof(IDatabase)], 
-             WaitFor = [nameof(CreateLogger), nameof(_config)])]
-    public async Task<IDatabase> ConnectDatabaseAsync()
+    // Metrics created immediately (no dependencies)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        var db = new DatabaseService(_config.ConnectionString);
-        await db.ConnectAsync();
-        return db;
+        return new MetricsService();
     }
     
-    // Layer 3: Depends on Layer 2
+    // Database waits for _config injection
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // Repository waits for both _config and _logger injection
     [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(ConnectDatabaseAsync)])]
+             WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        return new Repository(/* database is ready */);
-    }
-    
-    // Layer 4: Depends on multiple previous layers
-    [Provide(ExposedTypes = [typeof(IDataService)], 
-             WaitFor = [nameof(CreateLogger), nameof(CreateRepository)])]
-    public IDataService CreateDataService()
-    {
-        return new DataService(/* logger and repository are ready */);
+        // Check if dependencies are ready
+        if (!IsAllDependenciesReady)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // Both dependencies ready, injected services can also be obtained through scope
+        return new Repository(_config!, _logger!);
     }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady) { }
@@ -383,365 +441,99 @@ public partial class ComplexHost : Node, IDependenciesResolved
 }
 ```
 
----
+#### 5. Remove Host + User Combination
 
-## 🔍 Enhanced Diagnostics
+**1.1.0 Change**: Host, User, and Scope roles cannot coexist.
 
-### New Error Codes
-
-| Code | Category | Description |
-|------|----------|-------------|
-| GDI_M100 | Provide | [Provide] member must have at least one exposed type |
-| GDI_M101 | Provide | [Provide] exposed type not implemented by return type |
-| GDI_M102 | Provide | [Provide] WaitFor target not found |
-| GDI_M103 | Provide | [Provide] WaitFor target is invalid |
-| GDI_D200 | WaitFor | Circular WaitFor dependency detected |
-| GDI_D201 | WaitFor | WaitFor chain validation failed |
-
-### Improved Error Messages
-
-All diagnostics now include:
-- Clear explanation of the problem
-- Why it's problematic
-- Suggested fix
-- Code examples when applicable
-
-**Example**:
-```
-Error GDI_D200: Circular WaitFor dependency detected
-  
-  CreateA (waits for) → CreateB
-  CreateB (waits for) → CreateC
-  CreateC (waits for) → CreateA
-  
-  Suggestion: Break the circular dependency by removing one of the WaitFor dependencies
-  or refactor to use event-based communication instead.
-```
-
----
-
-## 🔧 Internal Improvements
-
-### Code Generation
-
-1. **Refactored Generation Pipeline**:
-   - Separated dependency injection phase
-   - Dedicated service provision phase
-   - WaitFor dependency resolution phase
-
-2. **Better Performance**:
-   - Optimized service lookup
-   - Reduced generated code size
-   - Faster compilation times
-
-3. **Cleaner Generated Code**:
-   - More readable output
-   - Better comments
-   - Consistent formatting
-
-### Testing
-
-1. **New Test Suites**:
-   - WaitFor circular dependency tests
-   - WaitFor validation tests
-   - Async provider tests
-
-2. **Enhanced Coverage**:
-   - Provider registration scenarios
-   - Complex dependency chains
-   - Error conditions
-
----
-
-## 📖 Migration Guide
-
-### Step 1: Convert Service Classes to Provider Methods
-
-**Before**:
 ```csharp
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
+// ❌ Old Code (may have been valid in 1.0.0-rc.3)
+[Host, User]
+public partial class GameManager : Node
 {
-    [InjectConstructor]
-    public PlayerStatsService(IConfig config)
-    {
-        Health = config.StartingHealth;
-    }
-    
-    public int Health { get; set; }
-    public int Mana { get; set; }
-}
-```
-
-**After**:
-```csharp
-// In a Host class:
-[Inject] private IConfig _config;
-
-[Provide(ExposedTypes = [typeof(IPlayerStats)], WaitFor = [nameof(_config)])]
-public IPlayerStats CreatePlayerStats()
-{
-    return new PlayerStatsService 
-    { 
-        Health = _config.StartingHealth,
-        Mana = 50 
-    };
+    [Inject] private IConfig _config;
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
 }
 
-// Service implementation (no attributes):
-public class PlayerStatsService : IPlayerStats
-{
-    public int Health { get; set; }
-    public int Mana { get; set; }
-}
-```
-
-### Step 2: Update Scope Definitions
-
-**Before**:
-```csharp
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(CombatService)],
-    Hosts = [typeof(GameManager)]
-)]
-public partial class GameScope : Node, IScope { }
-```
-
-**After**:
-```csharp
-[Modules(Hosts = [typeof(GameManager)])]
-public partial class GameScope : Node, IScope
-{
-    public override partial void _Notification(int what);
-}
-```
-
-### Step 3: Handle Service Dependencies
-
-**Before**:
-```csharp
-[Singleton(typeof(IRepository))]
-public partial class Repository : IRepository
-{
-    [InjectConstructor]
-    public Repository(IDatabase database, ILogger logger)
-    {
-        // Constructor injection
-    }
-}
-```
-
-**After**:
-```csharp
+// ✅ New Code (1.1.0)
 [Host]
-public partial class DataHost : Node
+public partial class GameManager : Node
 {
-    [Provide(ExposedTypes = [typeof(IDatabase)])]
-    public IDatabase CreateDatabase() => new DatabaseService();
+    // Host can directly use Inject without User
+    [Inject] private IConfig? _config;
     
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger() => new Logger();
-    
-    [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateDatabase), nameof(CreateLogger)])]
-    public IRepository CreateRepository()
-    {
-        // Dependencies are guaranteed to be ready
-        return new Repository();
-    }
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
     
     public override partial void _Notification(int what);
 }
 ```
 
-### Step 4: Add Async Support Where Needed
+### Breaking Changes Summary
 
-If services need async initialization:
-
-```csharp
-[Host]
-public partial class AsyncHost : Node
-{
-    [Provide(ExposedTypes = [typeof(INetworkService)])]
-    public async Task<INetworkService> InitializeNetworkAsync()
-    {
-        var service = new NetworkService();
-        await service.ConnectAsync();
-        return service;
-    }
-    
-    public override partial void _Notification(int what);
-}
-```
+| Feature | 1.0.0-rc.3 | 1.1.0 |
+|---------|------------|------------|
+| Service Registration | `[Singleton]` attribute | `[Provide]` on Host members |
+| Constructor Injection | `[InjectConstructor]` | WaitFor + provider method parameters |
+| Async Initialization | Not supported | `Task<T>` providers |
+| Dependency Ordering | Constructor parameters | `WaitFor` mechanism |
+| Host + User | Can combine | Cannot combine (Host can directly Inject) |
+| WaitFor Targets | N/A | Can only wait for `[Inject]` members |
+| Modules Parameters | `Services` + `Hosts` | Only `Hosts` |
+| Role Coexistence | Partially allowed | Fully exclusive |
 
 ---
 
-## 🎓 Best Practices
+## Known Issues and Limitations
 
-### 1. Group Related Providers
+### WaitFor Limitations
 
-Organize providers logically within Hosts:
+1. **Can only wait for Inject members**: Cannot wait for other Provide members
+2. **Resolution complete ≠ success**: Must check `IsXxxInjectionReady`
+3. **Circular waits**: Detected at compile time and error out
 
-```csharp
-[Host]
-public partial class DataServicesHost : Node
-{
-    // All data-related services in one place
-    [Provide(ExposedTypes = [typeof(IDatabase)])]
-    public IDatabase CreateDatabase() => new DatabaseService();
-    
-    [Provide(ExposedTypes = [typeof(ICache)])]
-    public ICache CreateCache() => new CacheService();
-    
-    [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateDatabase)])]
-    public IRepository CreateRepository() => new Repository();
-    
-    public override partial void _Notification(int what);
-}
-```
+### Async Providers
 
-### 2. Use WaitFor for Clear Dependencies
-
-Make dependencies explicit:
-
-```csharp
-// ✅ Clear and explicit
-[Provide(ExposedTypes = [typeof(IService)], 
-         WaitFor = [nameof(_config), nameof(CreateLogger)])]
-public IService CreateService()
-{
-    // Dependencies guaranteed ready
-}
-
-// ❌ Implicit and error-prone
-[Provide(ExposedTypes = [typeof(IService)])]
-public IService CreateService()
-{
-    // Hope that dependencies are ready?
-}
-```
-
-### 3. Prefer Async for I/O Operations
-
-```csharp
-// ✅ Async for network/file operations
-[Provide(ExposedTypes = [typeof(IDatabase)])]
-public async Task<IDatabase> ConnectAsync()
-{
-    var db = new DatabaseService();
-    await db.ConnectAsync();
-    return db;
-}
-
-// ❌ Blocking in provider
-[Provide(ExposedTypes = [typeof(IDatabase)])]
-public IDatabase Connect()
-{
-    var db = new DatabaseService();
-    db.ConnectAsync().Wait(); // Blocks!
-    return db;
-}
-```
-
-### 4. Keep Providers Simple
-
-```csharp
-// ✅ Simple and focused
-[Provide(ExposedTypes = [typeof(IConfig)])]
-public IConfig CreateConfig()
-{
-    return ConfigService.LoadFromFile("config.json");
-}
-
-// ❌ Too much logic in provider
-[Provide(ExposedTypes = [typeof(IConfig)])]
-public IConfig CreateConfig()
-{
-    var config = new ConfigService();
-    config.Load();
-    config.Validate();
-    config.ApplyDefaults();
-    config.MigrateOldFormat();
-    config.Save();
-    return config;
-}
-```
+1. **Cancellation**: No cancellation token support
 
 ---
 
-## 🔮 Looking Forward
+## Next Steps
 
-This release establishes a solid foundation for future enhancements:
-
-- **Future consideration**: Service lifetime scopes (Transient, Scoped, Singleton)
-- **Future consideration**: Lazy service initialization
-- **Future consideration**: Service decorators
-- **Future consideration**: Multiple service instances of same type
-
-We believe the provider-based architecture provides the flexibility needed for these future features while maintaining simplicity for common use cases.
+- Complete documentation and examples
+- Gather community feedback
+- Conduct performance testing
+- Fix any discovered issues
 
 ---
-
-## 📝 Summary
-
-v1.1.0-rc.1 represents a significant architectural evolution:
-
-**✅ New Architecture**:
-- Provider-based service definition with `[Provide]`
-- WaitFor mechanism for dependency ordering
-- Native async/await support
-- Simplified conceptual model
-
-**⚠️ Breaking Changes**:
-- `[Singleton]` attribute removed
-- `[InjectConstructor]` attribute removed  
-- `Services` parameter removed from `[Modules]`
-- Standalone service classes no longer used
-
-**🚀 Benefits**:
-- Greater flexibility in service creation
-- Better integration with Node resources
-- Cleaner separation of concerns
-- More powerful dependency management
-- Future-proof architecture
-
----
-
-**Migration effort**: Moderate. Most projects can be migrated in a few hours by following the migration guide.
-
-**We recommend this release for all new projects and encourage existing projects to migrate when convenient.**
-
----
-
 
 # v1.0.0-rc.3
 
-> ## Major New Features
+> ## Key Enhancements
 >
-> ### ✨ Injection Failure Callback Mechanism
+> ### 🎯 Injection Failure Callbacks
 >
-> **New in RC.3**: Individual inject members can now have failure callbacks for fine-grained error handling.
+> **New in RC.3**: You can now add failure callback handlers for each `[Inject]` member.
 >
 > **Usage**:
->
 > ```csharp
 > [User]
-> public partial class PlayerUI : Control
+> public partial class PlayerController : Node
 > {
-> [Inject(FailureCallback = true)]
-> private IGameManager GameManager { get; set; }
+>     [Inject(FailureCallback = true)]
+>     private IOptionalService OptionalService { get; set; }
 > 
-> partial void OnGameManagerInjectionFailed(string error)
-> {
-> GD.PrintErr($"GameManager injection failed: {error}");
-> // Implement fallback logic
-> }
+>     // Generated callback method (implement in partial class)
+>     partial void OnOptionalServiceInjectionFailed(string error)
+>     {
+>         GD.Print($"Optional service unavailable: {error}");
+>         // Use fallback logic
+>     }
 > }
 > ```
 >
 > **Benefits**:
-> * Handle injection failures per-dependency instead of globally
+> * Handle optional dependencies gracefully
 > * Implement fallback logic for optional dependencies
 > * Better error handling and user experience
 >
@@ -749,7 +541,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ### 🎯 Injection Ready Indicators
 >
-> **New in RC.3**: Every `[Inject]` member now generates a corresponding `IsXxxInjectionReady` boolean indicator.
+> **New in RC.3**: Each `[Inject]` member now generates a corresponding `IsXxxInjectionReady` boolean indicator.
 >
 > **Usage**:
 > ```csharp
@@ -761,7 +553,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > 
 >     public void Update()
 >     {
->         // Check if dependency is ready at runtime
+>         // Check at runtime if dependency is ready
 >         if (IsGameManagerInjectionReady)
 >         {
 >             GameManager.DoSomething();
@@ -771,15 +563,15 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > ```
 >
 > **Benefits**:
-> * Runtime checks for dependency availability
-> * Safer code when dealing with optional dependencies
+> * Runtime checking of dependency availability
+> * Safer code when handling optional dependencies
 > * Better control flow based on injection status
 >
 > ---
 >
-> ### 🔄 Interface Renamed: IServicesReady → IDependenciesResolved
+> ### 🔄 Interface Rename: IServicesReady → IDependenciesResolved
 >
-> **Breaking Change**: The interface has been renamed to better reflect its purpose, with an updated method signature.
+> **Breaking Change**: The interface has been renamed to better reflect its purpose, with updated method signature.
 >
 > **Before (RC.2)**:
 >
@@ -803,9 +595,9 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > * Update method signature to accept `isAllDependenciesReady` parameter
 > * Add logic to check the parameter and handle partial failures
 >
-> **Example Migration**:
+> **Migration Example**:
 > ```csharp
-> // Old code (RC.2)
+> // Old Code (RC.2)
 > [User]
 > public partial class PlayerUI : Control, IServicesReady
 > {
@@ -815,7 +607,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >     }
 > }
 > 
-> // New code (RC.3)
+> // New Code (RC.3)
 > [User]
 > public partial class PlayerUI : Control, IDependenciesResolved
 > {
@@ -841,8 +633,8 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > **New in RC.3**: All DI roles (Service, Host, User, Scope) cannot be generic types.
 >
-> **Rationale**:
-> * Generic types cannot be instantiated without type arguments
+> **Reasoning**:
+> * Generic types cannot be instantiated without type parameters
 > * Generic types cannot serve as stable service identifiers
 > * Type safety and dependency graph construction require concrete types
 >
@@ -854,7 +646,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > * Scope: "Generic types cannot be marked as [Scope]"
 >
 > **Workaround**:
-> If you need to use generic types, create a concrete class that inherits from the generic type:
+> If you need generic types, create a concrete class that inherits from the generic type:
 > ```csharp
 > // ❌ Not allowed
 > [Singleton(typeof(IRepository<Player>))]
@@ -871,13 +663,13 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ## Improved Error Diagnostics
 >
-> ### 📊 Complete Dependency Chain Display
+> ### 📊 Full Dependency Chain Display
 >
-> **Enhanced in RC.3**: When dependency resolution fails, error messages now show the complete dependency chain.
+> **RC.3 Enhancement**: When dependency resolution fails, error messages now show the complete dependency chain.
 >
-> **Example Error Message**:
+> **Error Message Example**:
 > ```
-> Error: Failed to resolve dependency chain:
+> Error: Dependency chain resolution failed:
 >   PlayerController (User)
 >   → ICombatSystem (Service)
 >   → IWeaponFactory (Service)
@@ -886,14 +678,14 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > **Benefits**:
 > * Quickly identify which service is missing
-> * Understand the full context of dependency failures
+> * Understand the full context of dependency failure
 > * Easier debugging of complex dependency graphs
 >
 > ---
 >
 > ### 🔍 Runtime Circular Dependency Detection
 >
-> **Optimized in RC.3**: Circular dependency detection now runs only in DEBUG builds for better performance.
+> **RC.3 Optimization**: Circular dependency detection now only runs in DEBUG builds for better performance.
 >
 > **Detection Scope**:
 > * Only checks Service → Service constructor dependencies
@@ -912,11 +704,11 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ### 📝 Clearer Error Messages
 >
-> **Improved in RC.3**: All error messages now include:
+> **RC.3 Improvement**: All error messages now include:
 > * What went wrong
-> * Why it's problematic  
+> * Why it's a problem
 > * Suggested fix when applicable
-> * Complete dependency chain context
+> * Full dependency chain context
 >
 > ---
 >
@@ -924,7 +716,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ### 🏭 Service Factory Optimization
 >
-> **Changed in RC.3**: `ServiceFactories` is now a static collection for better memory efficiency.
+> **RC.3 Change**: `ServiceFactories` is now a static collection for better memory efficiency.
 >
 > **Impact**:
 > * Reduced memory footprint
@@ -933,29 +725,29 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ---
 >
-> ### 🏭 Service Creation or Provision Failures Also Trigger Callbacks
+> ### 🏭 Service Creation or Provision Failure Also Triggers Callback
 >
-> **Changed in RC.3**: Service creation failures are now written into the service cache and trigger failure callbacks.
+> **RC.3 Change**: Service creation failures now write to service cache and trigger failure callbacks.
 >
 > **Impact**:
 >
 > - Better error propagation
-> - Prevents waiting queues from hanging on services that have already definitively failed
+> - Prevents wait queues from hanging on services that have already explicitly failed
 > - Clearer error messages
 >
 > ---
 >
 > ### 📁 Enhanced File Naming
 >
-> **Improved in RC.3**: Generated files now use `Namespace+MetaName` format for better organization.
+> **RC.3 Improvement**: Generated files now use `Namespace+MetaName` format for better organization.
 >
 > **Example**:
 > * Before: `PlayerController.DI.g.cs`
 > * After: `MyGame.Player.PlayerController.DI.g.cs`
 >
 > **Benefits**:
-> * Avoids naming conflicts in large projects
-> * Better file organization in solution explorer
+> * Avoid naming conflicts in large projects
+> * Better file organization in Solution Explorer
 > * Easier to locate generated files
 >
 > ---
@@ -964,34 +756,34 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ### 🛡️ Comprehensive Exception Handling
 >
-> **New in RC.3**: The source generator, analyzers, and code fix providers now have robust exception handling to ensure stability.
+> **New in RC.3**: Source generators, analyzers, and code fix providers now have robust exception handling to ensure stability.
 >
 > **Improvements**:
 >
-> #### Source Generator
-> - **Layered Exception Handling**: Each stage of code generation has independent error handling
-> - **Detailed Diagnostics**: New internal error diagnostics (GDI_E001-E101) provide clear error messages
-> - **Graceful Degradation**: Failures in one class don't prevent generation for other classes
-> - **User-Friendly Messages**: Error messages explain what failed and how to fix it
+> #### Source Generators
+> - **Layered exception handling**: Each stage of code generation has independent error handling
+> - **Detailed diagnostics**: New internal error diagnostics (GDI_E001-E101) provide clear error messages
+> - **Graceful degradation**: Failures in one class don't prevent generation for other classes
+> - **User-friendly messages**: Error messages explain what failed and how to fix it
 >
 > **New Error Codes**:
 > - `GDI_E001`: Generator initialization failed
 > - `GDI_E010`: Class analysis failed
 > - `GDI_E011`: Symbol cache unavailable
 > - `GDI_E012`: Class validation failed
-> - `GDI_E020`: Dependency graph build failed
+> - `GDI_E020`: Dependency graph building failed
 > - `GDI_E021`: Graph build phase failed
 > - `GDI_E030`: Service provider registration failed
-> - `GDI_E040`: Node build failed
+> - `GDI_E040`: Node building failed
 > - `GDI_E050`: Dependency graph validation failed
 > - `GDI_E100`: Code generation failed
 > - `GDI_E101`: Source output failed
 >
 > #### Analyzers
-> - **Silent Failure**: Analyzer exceptions no longer crash compilation
-> - **Protected Analysis**: Each syntax node analyzed independently with exception protection
-> - **Cancellation Support**: Proper handling of `OperationCanceledException`
-> - **Conservative Approach**: When in doubt, skip reporting rather than crash
+> - **Silent failures**: Analyzer exceptions no longer crash compilation
+> - **Protected analysis**: Each syntax node analyzed independently with exception protection
+> - **Cancellation support**: Properly handles `OperationCanceledException`
+> - **Conservative approach**: When in doubt, skip reporting rather than crash
 >
 > **Affected Analyzers**:
 >
@@ -999,13 +791,13 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > - `InjectionFailureCallbackAnalyzer`: Detects missing failure callback implementations
 >
 > #### Code Fix Providers
-> - **Stable IDE Experience**: Code fix failures no longer crash the quick fix menu
-> - **Fallback Mechanisms**: Simplified code generation when complex generation fails
-> - **Safe Parsing**: String extraction and method generation protected against edge cases
-> - **Return Original Document**: Failed fixes return the original document unchanged
+> - **Stable IDE experience**: Code fix failures no longer crash quick fix menu
+> - **Fallback mechanisms**: Simplified code generation when complex generation fails
+> - **Safe parsing**: String extraction and method generation protected from edge cases
+> - **Return original document**: Failed fixes return unchanged original document
 >
 > **Affected Providers**:
-> - `NotificationMethodCodeFixProvider`: Adds missing `_Notification` method
+> - `NotificationMethodCodeFixProvider`: Adds missing `_Notification` methods
 > - `InjectionFailureCallbackCodeFixProvider`: Implements missing failure callbacks
 >
 > ---
@@ -1014,7 +806,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ### Required Changes
 >
-> 1. **Update Interface Implementation**:
+> 1. **Update interface implementation**:
 >   ```csharp
 >    // Replace this
 >   public partial class MyClass : Node, IServicesReady
@@ -1035,10 +827,10 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >    }
 >   ```
 >
->    2. **Check for Generic Types**:
+>    2. **Check for generic types**:
 >         * Remove generic type parameters from any Service, Host, User, or Scope classes
 >    * Create concrete wrapper classes if needed
->    3. **Optional: Add Failure Callbacks**:
+>    3. **Optional: Add failure callbacks**:
 >
 >
 >    ```csharp
@@ -1061,7 +853,7 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > ✅ **New Features**:
 >    - Injection failure callbacks for fine-grained error handling
 >       - Injection ready indicators for runtime checks
-> - Better error diagnostics with complete dependency chains
+> - Better error diagnostics with full dependency chains
 >
 > ⚠️ **Breaking Changes**:
 > - `IServicesReady` → `IDependenciesResolved` (migration required)
@@ -1073,33 +865,33 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 >
 > ---
 >
-> After further refining and polishing the overall project code, the next version will be the 1.0 release! 🎉
+> After further refinement and polishing of the overall project code, the next release will be the 1.0 launch! 🎉
 
 
 # v1.0.0-rc.2
 
-> ## Critical Fixes
+> ## Key Fixes
 >
 > ### ✅ Fixed `OnServicesReady()` Timing Issue
 >
-> **Problem in RC.1**: `OnServicesReady()` could be called before `_Ready()`, breaking the guarantee that all dependencies are available when nodes are ready.
+> **Problem in RC.1**: `OnServicesReady()` could be called before `_Ready()`, breaking the guarantee that all dependencies are available when the node is ready.
 >
 > **Fixed in RC.2**:
 >
 > * `OnServicesReady()` now guaranteed to be called after `_Ready()`
-> * Dependencies are fully resolved before callback execution
-> * Proper integration with Godot's lifecycle
+> * Dependencies fully resolved before callback execution
+> * Proper integration with Godot lifecycle
 >
 > ---
 >
 > ## Enhanced Type Validation
 >
-> ### New Diagnostics Added
+> ### New Diagnostics
 >
-> * Inject member cannot be regular Node (Error)
+> * Inject members cannot be regular Nodes (Error)
 > * Inject member type should be interface (Warning)
 > 
-> * Singleton member type is invalid (Error)
+> * Singleton member type invalid (Error)
 > * Singleton member is Host type (Warning)
 > * Singleton member cannot be User type (Error)
 > * Singleton member cannot be Scope/regular Node (Error)
@@ -1119,18 +911,17 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > ## Improved Error Messages
 > 
 > All diagnostic messages now provide:
-> * Clear explanation of what went wrong
-> * Why it's problematic
+> * Clear description of what went wrong
+> * Why it's a problem
 > * Suggested fix when applicable
 > ```csharp
 > // Before (RC.1):
 > // Error: [Inject] member 'IGameState _state' has invalid type
 > 
 > // After (RC.2):
-> // Warning GDI_M041: [Inject] member '_manager' has type 'GameManager', 
-> // which is a [Host] type. While allowed, injecting Host types directly 
-> // is not recommended - consider injecting an interface exposed by the 
-> // Host instead
+> // Warning GDI_M041: [Inject] member '_manager' has type 'GameManager',
+> // which is a [Host] type. While allowed, it's not recommended to inject Host types directly
+> // - Consider injecting the interface exposed by the Host
 > ```
 > 
 > ---
@@ -1149,4 +940,4 @@ v1.1.0-rc.1 represents a significant architectural evolution:
 > 
 > ---
 >
-> It's almost production-ready and look forward to the stable 1.0 release! 🚀
+> Almost production-ready, looking forward to the stable 1.0 release! 🚀

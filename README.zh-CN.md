@@ -34,7 +34,7 @@
   - [服务生命周期](#服务生命周期-1)
   - [Scope 层级](#scope-层级)
   - [依赖注入时序](#依赖注入时序)
-  - [Host + User 与循环依赖](#host--user-与循环依赖)
+  - [Host 使用 Inject](#host-使用-inject)
 - [类型约束](#类型约束)
   - [角色类型约束](#角色类型约束)
   - [注入类型约束](#注入类型约束)
@@ -50,7 +50,7 @@
   - [服务释放](#服务释放)
   - [避免循环依赖](#避免循环依赖)
   - [接口优先原则](#接口优先原则)
-  - [Host + User 组合使用](#host--user-组合使用)
+  - [Host 注入和提供服务](#host-注入和提供服务)
   - [使用服务工厂](#使用服务工厂)
 - [从 1.0.0-rc.3 迁移指南](#从-100-rc3-迁移指南)
 - [诊断代码](#诊断代码)
@@ -74,7 +74,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.1.0-rc.1" />
+<PackageReference Include="GodotSharpDI" Version="1.1.0" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -465,49 +465,289 @@ private static async Task ProvideAsync_ConnectAsync_IDatabase(Task<IDatabase> ta
 
 **1.1.0 新功能**：服务可以等待其他服务就绪后再提供。
 
+#### 核心概念
+
+在使用 `WaitFor` 时，理解以下两个重要概念的区别：
+
+| 概念 | 说明 | 对应状态 |
+|-----|------|---------|
+| **依赖解析完成** | 框架已尝试解析依赖并调用了回调 | `OnDependencyResolved<T>()` 被调用 |
+| **依赖真正就绪** | 依赖成功解析且实例可用 | `IsXxxInjectionReady = true` |
+
+⚠️ **重要**：`WaitFor` 只保证依赖解析已尝试，不保证依赖一定成功注入！
+
+#### 基础示例
+
 ```csharp
 [Host]
 public partial class DependentHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // 此服务立即提供
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger()
+    // 框架会自动生成以下属性（在生成的代码中）：
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // 立即提供的服务（无需等待任何依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        return new Logger();
+        return new MetricsService();
     }
     
-    // 此服务等待 CreateLogger 完成
-    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(CreateLogger)])]
+    // 等待 _config 注入后才提供
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
     public IDatabase CreateDatabase()
     {
-        // Logger 保证可用
-        return new DatabaseService();
+        // ⚠️ WaitFor 只保证解析已尝试，需要检查是否真正成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 依赖未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        // 安全：此时 _config 保证不为 null
+        return new DatabaseService(_config.ConnectionString);
     }
     
-    // 此服务等待 _config 注入和 CreateDatabase
-    [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config), nameof(CreateDatabase)])]
+    // 等待 _logger 和 _config 注入后才提供
+    [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        // config 和 database 都保证就绪
-        return new Repository(_config, /* database 将被注入 */);
+        // 检查两个依赖的状态
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 依赖未就绪，使用默认配置");
+            return new Repository(new DefaultConfig(), _logger);
+        }
+        
+        if (!IsLoggerInjectionReady || _logger == null)
+        {
+            GD.PrintErr("Logger 依赖未就绪，使用 null logger");
+            return new Repository(_config, new NullLogger());
+        }
+        
+        // 安全：两个依赖都已就绪
+        return new Repository(_config, _logger);
     }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
-        GD.Print("所有依赖已解析");
+        if (isAllDependenciesReady)
+        {
+            GD.Print("所有依赖都成功注入");
+        }
+        else
+        {
+            GD.PrintErr("部分依赖注入失败");
+            
+            // 检查具体哪个依赖失败
+            if (!IsConfigInjectionReady)
+            {
+                GD.PrintErr("Config 注入失败");
+            }
+            if (!IsLoggerInjectionReady)
+            {
+                GD.PrintErr("Logger 注入失败");
+            }
+        }
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-**WaitFor 规则**：
-- 可以等待 `[Inject]` 成员（例如：`nameof(_config)`）
-- 可以等待其他 `[Provide]` 成员（例如：`nameof(CreateLogger)`）
-- 循环等待在编译时检测
-- 支持复杂的依赖链
+#### 复杂依赖链示例
+
+```csharp
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    [Inject] private IAuthService? _authService;
+    
+    // 生成的就绪标志（可在代码中使用）：
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    // private bool IsAuthServiceInjectionReady { get; set; } = false;
+    // private bool IsAllDependenciesReady => 
+    //     IsConfigInjectionReady && IsLoggerInjectionReady && IsAuthServiceInjectionReady;
+    
+    // 第一层：基础服务（无依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        // 不依赖任何注入，立即提供
+        return new MetricsService();
+    }
+    
+    // 第二层：等待单个依赖
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // 虽然 WaitFor 了 _config，仍需检查是否成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        var connectionString = _config.DatabaseConnectionString;
+        var db = new DatabaseService(connectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    // 第三层：等待多个依赖
+    [Provide(
+        ExposedTypes = [typeof(IUserRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public async Task<IUserRepository> CreateUserRepositoryAsync()
+    {
+        // 所有 WaitFor 的依赖都已尝试解析
+        // 注意：仍需处理依赖可能失败的情况
+        
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        if (!hasLogger)
+        {
+            GD.PrintErr("Logger 未就绪，将使用 null logger");
+        }
+        
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        if (!hasConfig)
+        {
+            GD.PrintErr("Config 未就绪，使用默认配置");
+        }
+        
+        // 通过依赖注入获取其他服务（如 IDatabase）
+        // 或直接创建降级版本
+        return await UserRepository.CreateAsync(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    // 第四层：等待所有依赖
+    [Provide(
+        ExposedTypes = [typeof(ISecureRepository)],
+        WaitFor = [nameof(_authService), nameof(_logger), nameof(_config)]
+    )]
+    public ISecureRepository CreateSecureRepository()
+    {
+        // 检查所有依赖的就绪状态
+        if (!IsAllDependenciesReady)
+        {
+            // 有依赖失败，记录详情
+            if (!IsAuthServiceInjectionReady)
+                GD.PrintErr("AuthService 未就绪");
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("Logger 未就绪");
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config 未就绪");
+                
+            // 返回降级版本或抛出异常
+            throw new InvalidOperationException("无法创建 SecureRepository：关键依赖未就绪");
+        }
+        
+        // 所有依赖都已就绪，安全创建
+        return new SecureRepository(_authService!, _logger!, _config!);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖注入失败，某些服务可能降级运行");
+        }
+        else
+        {
+            GD.Print("所有依赖成功注入");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### WaitFor 规则
+
+1. **等待目标**：
+   - ✅ 只能等待 `[Inject]` 成员（例如：`nameof(_config)`）
+   - ❌ 不能等待 `[Provide]` 成员（编译时错误）
+   - ❌ 不能等待不存在的成员（编译时错误）
+
+2. **执行顺序**：
+   - WaitFor 创建依赖拓扑排序
+   - 无 WaitFor 的服务立即开始提供
+   - 有 WaitFor 的服务在依赖解析完成后才提供
+
+3. **失败处理**：
+   - 即使依赖失败，WaitFor 也会继续
+   - 使用 `IsXxxInjectionReady` 检查依赖状态
+   - 在 `OnDependenciesResolved` 中处理失败情况
+
+4. **循环检测**：
+   - 循环 WaitFor 依赖在编译时检测
+   - 例如：A WaitFor B, B WaitFor A（编译错误）
+
+5. **异步支持**：
+   - WaitFor 同时支持同步和异步提供者
+   - 异步提供者的完成会通知后续依赖
+
+#### 最佳实践
+
+1. **始终检查依赖状态**
+   ```csharp
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       if (!IsConfigInjectionReady || _config == null)
+       {
+           // 处理失败情况：使用默认值、抛出异常或返回降级版本
+           return new ServiceWithDefaults();
+       }
+       return new Service(_config);
+   }
+   ```
+
+2. **实现 IDependenciesResolved**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (!isAllDependenciesReady)
+       {
+           // 记录或处理依赖失败
+           LogDependencyStatus();
+       }
+   }
+   
+   private void LogDependencyStatus()
+   {
+       if (!IsConfigInjectionReady)
+           GD.PrintErr("Config injection failed");
+       if (!IsLoggerInjectionReady)
+           GD.PrintErr("Logger injection failed");
+   }
+   ```
+
+3. **避免过长的依赖链**
+   - 保持依赖层级在 2-3 层
+   - 过长的链会增加失败风险和调试难度
+
+4. **考虑使用可空类型**
+   ```csharp
+   [Inject] private IConfig? _config;  // 使用可空类型
+   
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       // 编译器会提醒检查 null
+       return new Service(_config ?? new DefaultConfig());
+   }
+   ```
 
 ---
 
@@ -538,25 +778,141 @@ RootScope
 
 ### 依赖注入时序
 
-1. **Scope 进入场景树**（`NotificationEnterTree`）
-2. **Host 注册提供者**
-3. **服务被创建**（遵守 WaitFor 链）
-4. **User 接收注入**
-5. **调用 `OnDependenciesResolved`**（在 `_Ready` 之后）
+#### 标准注入流程（无 WaitFor）
 
-### Host + User 与循环依赖
+```
+1. Node.EnterTree
+   ↓
+2. 查找父 Scope
+   ↓
+3. 并发解析所有 [Inject] 依赖
+   │
+   ├─ 依赖 A: 成功 → IsAInjectionReady = true
+   ├─ 依赖 B: 成功 → IsBInjectionReady = true
+   └─ 依赖 C: 失败 → IsCInjectionReady = false
+   ↓
+4. 所有依赖解析完成后调用 OnDependenciesResolved(false)
+   ↓
+5. 并发提供所有 [Provide] 服务
+```
 
-Host 也可以是 User：
+#### WaitFor 注入流程（1.1.0 新增）
+
+```
+1. Node.EnterTree
+   ↓
+2. 查找父 Scope
+   ↓
+3. 阶段 1: 并发解析所有 [Inject] 依赖（不阻塞服务提供）
+   │
+   ├─ 依赖 A: 成功 → IsAInjectionReady = true
+   ├─ 依赖 B: 失败 → IsBInjectionReady = false
+   └─ 依赖 C: 成功 → IsCInjectionReady = true
+   ↓
+4. 阶段 2: 提供服务（独立于依赖注入）
+   │
+   ├─ 服务 X (无 WaitFor): 立即提供
+   │
+   ├─ 服务 Y (WaitFor = [A, X]): 
+   │  ├─ 监听 A 的解析
+   │  ├─ 监听 X 的提供
+   │  └─ 全部完成后 → 提供服务 Y
+   │
+   └─ 服务 Z (WaitFor = [B, Y]):
+      ├─ 监听 B 的解析（失败但继续）
+      ├─ 监听 Y 的提供
+      └─ 全部完成后 → 提供服务 Z
+         （需检查 IsBInjectionReady）
+   ↓
+5. 所有依赖解析完成后调用 OnDependenciesResolved(false)
+```
+
+#### 关键概念
+
+1. **依赖解析完成 vs 依赖就绪**
+   - **解析完成**：框架尝试获取依赖并调用了回调（可能成功或失败）
+   - **依赖就绪**：`IsXxxInjectionReady = true` 且实例不为 null
+
+2. **WaitFor 的行为**
+   - WaitFor 等待依赖**解析完成**，不等待**解析成功**
+   - 即使依赖失败，WaitFor 也会继续执行
+   - 使用 `IsXxxInjectionReady` 检查依赖是否真正可用
+
+3. **并发 vs 串行**
+   - 无 WaitFor：所有操作并发执行
+   - 有 WaitFor：创建依赖图，按拓扑顺序执行
+
+#### 示例时序
+
+```csharp
+[Host]
+public partial class ExampleHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;    // T1: 开始解析
+    [Inject] private ILogger? _logger;    // T1: 开始解析（并发）
+    
+    [Provide(ExposedTypes = [typeof(IMetrics)])]  
+    public IMetrics CreateMetrics()       // T1: 立即开始提供
+    {
+        return new Metrics();
+    }
+    
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()     // T2: 等待 _config 解析完成
+    {
+        // T2 执行时机：_config 解析完成（无论成功或失败）
+        if (!IsConfigInjectionReady)
+        {
+            return new InMemoryDatabase();
+        }
+        return new Database(_config!);
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public IRepository CreateRepository() // T3: 等待 _logger 和 _config
+    {
+        // T3 执行时机：_logger 和 _config 都解析完成
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        
+        return new Repository(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        // 在 T4 调用：所有 Inject 依赖都已解析完成
+        // 此时可能部分 Provide 服务仍在异步执行
+    }
+}
+
+// 时间线：
+// T1: _config 开始解析, _logger 开始解析, CreateMetrics 开始提供
+// T2: _config 解析完成 → CreateDatabase 开始提供
+// T3: _logger 和 _config 都解析完成 → CreateRepository 开始提供  
+// T4: _config 和 _logger 都解析完成 → OnDependenciesResolved 被调用
+```
+
+### Host 使用 Inject
+
+**1.1.0 新特性**：Host 可以直接使用 `[Inject]` 注入依赖，无需同时标记为 `[User]`。
+
+⚠️ **重要**：Host、User、Scope 三个角色**不能共存**在同一个类上。
 
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // 作为 User：注入依赖
-    [Inject] private IConfig _config;
-    [Inject] private ISaveSystem _saveSystem;
+    // Host 可以直接注入依赖（无需 [User] 特性）
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
     
-    // 作为 Host：提供服务
+    // Host 同时提供服务
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
     
@@ -566,20 +922,83 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     {
         if (isAllDependenciesReady)
         {
-            // 依赖就绪，可以初始化
+            // 所有依赖就绪，可以安全初始化
+            // IsConfigInjectionReady 和 IsSaveSystemInjectionReady 都为 true
             LoadLastSave();
         }
+        else
+        {
+            // 部分依赖失败，使用降级模式
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config 未就绪，使用默认配置");
+            if (!IsSaveSystemInjectionReady)
+                GD.PrintErr("SaveSystem 未就绪，无法加载存档");
+        }
+    }
+    
+    private void LoadLastSave()
+    {
+        // 此时可以安全使用 _config 和 _saveSystem
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
     }
     
     public override partial void _Notification(int what);
 }
 ```
 
-这个模式**不是**循环依赖，因为：
-1. Host 注册首先发生
-2. 服务提供发生
-3. User 注入随后发生
-4. 不形成构造函数循环
+**特点**：
+- Host 可以注入依赖用于提供者方法
+- Host 可以使用 WaitFor 等待注入完成
+- Host 可以实现 IDependenciesResolved 接收通知
+- 不需要额外的 `[User]` 特性
+
+**在提供者中使用注入依赖**：
+
+```csharp
+[Host]
+public partial class ServiceFactory : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // 等待依赖注入后再提供服务
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        // 安全使用注入的配置
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)],
+        WaitFor = [nameof(_config), nameof(_logger)]
+    )]
+    public IRepository CreateRepository()
+    {
+        // 检查多个依赖
+        if (!IsAllDependenciesReady)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // 所有依赖都就绪
+        return new Repository(_config!, _logger!);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
 
 ---
 
@@ -687,12 +1106,314 @@ public partial class GameScope : Node, IScope
 ```
 
 #### `IDependenciesResolved`
+
 可选接口，用于接收依赖解析通知。
 
 ```csharp
 public interface IDependenciesResolved
 {
     void OnDependenciesResolved(bool isAllDependenciesReady);
+}
+```
+
+#### 参数说明
+
+- **`isAllDependenciesReady`**：
+  - `true`：所有 `[Inject]` 成员都成功注入
+  - `false`：至少有一个 `[Inject]` 成员注入失败
+
+#### 生成的辅助属性
+
+框架为每个 `[Inject]` 成员自动生成就绪标志，这些属性在生成的 `*.DI.g.cs` 文件中：
+
+```csharp
+// 用户代码
+[Host]
+public partial class MyHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // ... 其他代码
+}
+
+// 生成的代码（在 MyHost.DI.Host.g.cs 中）
+partial class MyHost
+{
+    // 为每个 Inject 成员生成的就绪标志
+    [MemberNotNullWhen(true, nameof(_config))]
+    private bool IsConfigInjectionReady { get; set; } = false;
+    
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // 综合就绪标志
+    [MemberNotNullWhen(true, nameof(_config))]
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsAllDependenciesReady => 
+        IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
+    
+    // 未解析依赖追踪
+    private readonly HashSet<Type> _unresolvedDependencies = new()
+    {
+        typeof(IConfig),
+        typeof(ILogger),
+    };
+    
+    // 依赖解析回调
+    private void OnDependencyResolved<T>()
+    {
+        _unresolvedDependencies.Remove(typeof(T));
+        if (_unresolvedDependencies.Count == 0)
+        {
+            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+        }
+    }
+}
+```
+
+#### 使用示例
+
+##### 基础用法
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _playerStats;
+    [Inject] private IGameConfig? _config;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("所有依赖就绪，游戏可以开始");
+            StartGame();
+        }
+        else
+        {
+            GD.PrintErr("依赖注入失败，无法启动游戏");
+            ShowErrorScreen();
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### 细粒度状态检查
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _stats;
+    [Inject] private IInventory? _inventory;
+    [Inject] private IAchievements? _achievements;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // 所有依赖都成功，启用完整功能
+            EnableAllFeatures();
+        }
+        else
+        {
+            // 部分依赖失败，启用降级模式
+            EnableDegradedMode();
+            
+            // 检查具体哪些依赖可用
+            if (IsStatsInjectionReady)
+            {
+                UpdateStatsDisplay(_stats!);  // ! 操作符安全，因为 IsStatsInjectionReady = true
+            }
+            else
+            {
+                GD.PrintErr("Stats 服务不可用");
+            }
+            
+            if (IsInventoryInjectionReady)
+            {
+                UpdateInventoryDisplay(_inventory!);
+            }
+            else
+            {
+                HideInventoryPanel();
+            }
+            
+            if (IsAchievementsInjectionReady)
+            {
+                ShowAchievements(_achievements!);
+            }
+            else
+            {
+                DisableAchievementsButton();
+            }
+        }
+    }
+    
+    private void EnableAllFeatures()
+    {
+        // 所有功能都可用
+        UpdateStatsDisplay(_stats!);
+        UpdateInventoryDisplay(_inventory!);
+        ShowAchievements(_achievements!);
+    }
+    
+    private void EnableDegradedMode()
+    {
+        // 部分功能降级运行
+        GD.Print("UI 运行在降级模式");
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### 结合 WaitFor 使用
+
+```csharp
+[Host]
+public partial class DataManager : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // 生成的属性可用于检查：
+    // private bool IsConfigInjectionReady { get; set; }
+    // private bool IsLoggerInjectionReady { get; set; }
+    
+    // 等待 _config 注入后才提供数据库服务
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // WaitFor 保证 _config 的解析已尝试，但需要检查是否成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            // Config 注入失败，使用内存数据库
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        // Config 成功注入，使用配置的数据库
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖注入失败：");
+            
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("  - Config 注入失败，将使用默认配置");
+                
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("  - Logger 注入失败，日志功能将被禁用");
+        }
+        else
+        {
+            GD.Print("所有依赖成功注入");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### 调用时机
+
+`OnDependenciesResolved` 在以下时机被调用：
+
+1. **所有 `[Inject]` 依赖都已尝试解析**（成功或失败）
+2. **在节点的 `_Notification(NotificationEnterTree)` 之后**
+3. **在任何 `[Provide]` 服务被实际使用之前**
+
+#### 最佳实践
+
+1. **总是检查 `isAllDependenciesReady` 参数**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (isAllDependenciesReady)
+       {
+           // 正常流程
+       }
+       else
+       {
+           // 降级或错误处理
+       }
+   }
+   ```
+
+2. **使用生成的 `IsXxxInjectionReady` 进行细粒度检查**
+   ```csharp
+   if (!IsConfigInjectionReady)
+   {
+       GD.PrintErr("Config 注入失败");
+       // 使用默认配置
+   }
+   ```
+
+3. **结合空值检查提高安全性**
+   ```csharp
+   if (IsStatsInjectionReady && _stats != null)
+   {
+       // 安全使用 _stats
+       DisplayStats(_stats);
+   }
+   ```
+
+4. **记录依赖状态用于调试**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       GD.Print($"Dependencies ready: {isAllDependenciesReady}");
+       GD.Print($"  Config: {IsConfigInjectionReady}");
+       GD.Print($"  Logger: {IsLoggerInjectionReady}");
+   }
+   ```
+
+#### 注意事项
+
+⚠️ **重要**：
+- `IsXxxInjectionReady` 属性会在有 `[Inject]` 成员时生成，无论是否实现了 `IDependenciesResolved` 接口
+- `IsAllDependenciesReady` 属性只在实现了 `IDependenciesResolved` 接口时才会生成
+- 这些属性是私有的，只能在类内部使用
+- **`[MemberNotNullWhen(true, ...)]` 特性的作用**：当 `IsXxxInjectionReady` 为 `true` 时，编译器会确保对应的可空成员不为 `null`，这意味着在检查 `IsXxxInjectionReady` 后，可以安全地使用非空断言运算符（`!`）或直接访问成员，无需额外的 null 检查
+- 即使依赖注入失败，`OnDependenciesResolved` 也会被调用（参数为 `false`）
+
+**使用 `IsXxxInjectionReady` 的好处**：
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    [Inject] private IConfig? _config;
+    
+    // 生成：
+    // [MemberNotNullWhen(true, nameof(_config))]
+    // private bool IsConfigInjectionReady { get; set; }
+    
+    [Provide(ExposedTypes = [typeof(IService)], WaitFor = [nameof(_config)])]
+    public IService CreateService()
+    {
+        if (IsConfigInjectionReady)
+        {
+            // ✅ 编译器知道 _config 不为 null
+            // 可以直接使用，无需 null 检查
+            return new Service(_config.ConnectionString);
+            
+            // 或者使用非空断言
+            return new Service(_config!.ConnectionString);
+        }
+        
+        // _config 可能为 null 的处理
+        return new ServiceWithDefaults();
+    }
 }
 ```
 
@@ -773,26 +1494,58 @@ public partial class DataHost : Node
 
 ### 避免循环依赖
 
-**编译时检测**：框架检测循环 WaitFor 链：
+**编译时检测**：框架检测循环 WaitFor 链。注意：WaitFor 只能等待 `[Inject]` 成员，因此循环依赖通常发生在相互依赖的注入服务中：
 
 ```csharp
-// ❌ 循环依赖 - 编译错误
-[Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(CreateB)])]
-public IServiceA CreateA() => new ServiceA();
+// ❌ 概念示例 - 如果两个 Host 相互注入对方提供的服务并等待
+// Host A 注入来自 Host B 的服务，并等待它
+[Host]
+public partial class HostA : Node
+{
+    [Inject] private IServiceB? _serviceB;
+    
+    // 提供服务 A，但等待 _serviceB 注入
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateA() => new ServiceA(_serviceB);
+}
 
-[Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(CreateA)])]
-public IServiceB CreateB() => new ServiceB();
+// Host B 注入来自 Host A 的服务，并等待它
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+    
+    // 提供服务 B，但等待 _serviceA 注入 - 这将导致运行时死锁
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB() => new ServiceB(_serviceA);
+}
 ```
 
-**解决方案**：重构依赖或使用事件：
+**解决方案**：重构依赖关系，避免相互等待：
 
 ```csharp
-// ✅ 正确方法
-[Provide(ExposedTypes = [typeof(IServiceA)])]
-public IServiceA CreateA() => new ServiceA();
+// ✅ 正确方法 - 只有一个方向等待
+[Host]
+public partial class HostA : Node
+{
+    // 不等待任何依赖，立即提供
+    [Provide(ExposedTypes = [typeof(IServiceA)])]
+    public IServiceA CreateA() => new ServiceA();
+}
 
-[Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(CreateA)])]
-public IServiceB CreateB() => new ServiceB(/* 将通过注入接收 A */);
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+    
+    // 等待 _serviceA，但 ServiceA 不依赖 ServiceB
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB()
+    {
+        if (_serviceA == null)
+            return new ServiceB(new NullServiceA());
+        return new ServiceB(_serviceA);
+    };
 ```
 
 ### 接口优先原则
@@ -809,19 +1562,19 @@ public DatabaseService CreateDatabase() => new DatabaseService();
 public IDatabase CreateDatabase() => new DatabaseService();
 ```
 
-### Host + User 组合使用
+### Host 注入和提供服务
 
-当 Node 需要同时提供和消费服务时，结合 Host 和 User：
+Host 可以同时注入依赖和提供服务，无需 `[User]` 特性：
 
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // 作为 User：注入依赖
-    [Inject] private IConfig _config;
-    [Inject] private ISaveSystem _saveSystem;
+    // Host 直接注入依赖
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
     
-    // 作为 Host：提供服务
+    // Host 提供服务
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
     
@@ -833,9 +1586,34 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
         }
     }
     
+    private void InitializeWithDependencies()
+    {
+        // IsConfigInjectionReady 和 IsSaveSystemInjectionReady 都为 true
+        // 可以安全使用 _config 和 _saveSystem
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
+
+**角色独占规则**：
+
+| 角色 | 可以组合 | 不可以组合 |
+|------|---------|-----------|
+| **Host** | 可单独使用 | 不能与 User 或 Scope 共存 |
+| **User** | 可单独使用 | 不能与 Host 或 Scope 共存 |
+| **Scope** | 必须单独使用 | 不能与任何其他角色共存 |
+
+**Host 的能力**：
+- ✅ 使用 `[Provide]` 提供服务
+- ✅ 使用 `[Inject]` 注入依赖
+- ✅ 使用 `WaitFor` 等待依赖
+- ✅ 实现 `IDependenciesResolved`
+- ❌ 不能同时标记 `[User]`
+- ❌ 不能同时标记 `[Scope]`
 
 ### 使用服务工厂
 
@@ -1018,29 +1796,43 @@ public partial class GameScope : Node, IScope
 [Host]
 public partial class ServiceHost : Node, IDependenciesResolved
 {
-    [Inject] private IConfig _config;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // Logger 首先创建
-    [Provide(ExposedTypes = [typeof(ILogger)])]
-    public ILogger CreateLogger()
+    // Metrics 立即创建（无依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
     {
-        return new Logger();
+        return new MetricsService();
     }
     
-    // Database 等待 config 注入
+    // Database 等待 _config 注入
     [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
     public IDatabase CreateDatabase()
     {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
         return new DatabaseService(_config.ConnectionString);
     }
     
-    // Repository 等待两者
+    // Repository 等待 _config 和 _logger 注入
     [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(CreateLogger), nameof(CreateDatabase)])]
+             WaitFor = [nameof(_config), nameof(_logger)])]
     public IRepository CreateRepository()
     {
-        // logger 和 database 都已就绪
-        return new Repository();
+        // 检查依赖是否就绪
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        
+        if (!hasConfig || !hasLogger)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // 两个依赖都就绪，注入的服务也可通过 scope 获取
+        return new Repository(_config, _logger);
     }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady) { }
@@ -1050,7 +1842,7 @@ public partial class ServiceHost : Node, IDependenciesResolved
 
 ### 重大变化总结
 
-| 功能 | 1.0.0-rc.3 | 1.1.0-rc.1 |
+| 功能 | 1.0.0-rc.3 | 1.1.0 |
 |------|------------|------------|
 | 服务声明 | 类上的 `[Singleton]` | Host 成员上的 `[Provide]` |
 | 构造函数注入 | `[InjectConstructor]` | 使用提供者方法参数 |
