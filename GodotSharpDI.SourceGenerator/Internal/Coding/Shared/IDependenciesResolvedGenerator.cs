@@ -132,8 +132,6 @@ internal static class IDependenciesResolvedGenerator
         {
             return;
         }
-
-        GenerateInjectionReadyProperties(f, injectMembers);
         GenerateIsAllDependenciesReadyProperty(f, injectMembers);
         GenerateUnresolvedDependenciesField(f, injectMembers);
         GenerateTrackingMethod(f);

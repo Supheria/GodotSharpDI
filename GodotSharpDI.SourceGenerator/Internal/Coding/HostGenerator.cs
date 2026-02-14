@@ -40,6 +40,8 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
+            IDependenciesResolvedGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+
             // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
             if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
             {

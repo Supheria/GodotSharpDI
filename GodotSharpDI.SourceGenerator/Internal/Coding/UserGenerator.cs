@@ -48,6 +48,8 @@ internal static class UserGenerator
                     f.AppendLine();
                 }
 
+                IDependenciesResolvedGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+
                 // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
                 if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
                 {

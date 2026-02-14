@@ -102,8 +102,8 @@ public partial class HostC : Node
     [Inject]
     private IServiceB _b;
 
-    [Provide(ExposedTypes = [typeof(IServiceB)])]
-    public Task<ServiceB> ServiceB => new();
+    // [Provide(ExposedTypes = [typeof(IServiceB)])]
+    // public Task<ServiceB> ServiceB => new();
 
     [Provide(ExposedTypes = [typeof(IServiceC)], WaitFor = [nameof(_b)])]
     public ServiceC ServiceC => new();
