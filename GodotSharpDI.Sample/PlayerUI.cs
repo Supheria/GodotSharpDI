@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -113,5 +114,8 @@ public partial class HostC : Node
     private IServiceB _b;
 
     [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_b)])]
-    public ServiceB ServiceB => new();
+    public Task<ServiceB> ServiceB => new();
+
+    [Provide(ExposedTypes = [typeof(IServiceC)], WaitFor = [nameof(_b)])]
+    public ServiceC ServiceC => new();
 }
