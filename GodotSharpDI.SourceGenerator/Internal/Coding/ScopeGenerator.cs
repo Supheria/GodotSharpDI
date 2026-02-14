@@ -91,8 +91,7 @@ internal static class ScopeGenerator
         f.AppendLine("private sealed record DependencyWaitInfo(");
         f.BeginLevel();
         {
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}> Callback,");
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.String}> FailureCallback,");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}> ResultCallback,");
             f.AppendLine($"{GlobalNames.Long} RequestTicks,");
             f.AppendLine($"{GlobalNames.String} RequestorType,");
             f.AppendLine($"{GlobalNames.String} ScopeChain,");

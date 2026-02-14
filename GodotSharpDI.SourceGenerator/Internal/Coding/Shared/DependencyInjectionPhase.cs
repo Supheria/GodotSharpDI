@@ -26,7 +26,8 @@ internal static class DependencyInjectionPhase
         string scopeField,
         string typeName,
         bool implementsIDependenciesResolved,
-        Action onAllResolved)
+        Action onAllResolved
+    )
     {
         if (injectMembers.IsEmpty)
         {
@@ -34,20 +35,26 @@ internal static class DependencyInjectionPhase
             onAllResolved();
             return;
         }
-        
+
         f.AppendLine("// ━━━ 阶段 1: 依赖注入 ━━━");
         f.AppendLine($"var _remainingDeps = {injectMembers.Length};");
         f.AppendLine("var _depsFailed = false;");
         f.AppendLine();
-        
+
         foreach (var member in injectMembers)
         {
-            GenerateFieldResolution(f, member, scopeField, typeName, implementsIDependenciesResolved);
+            GenerateFieldResolution(
+                f,
+                member,
+                scopeField,
+                typeName,
+                implementsIDependenciesResolved
+            );
         }
-        
+
         f.AppendLine("return;");
         f.AppendLine();
-        
+
         // 生成回调方法
         f.AppendLine("void OnDependenciesResolved()");
         f.BeginBlock();
@@ -58,7 +65,7 @@ internal static class DependencyInjectionPhase
         }
         f.EndBlock();
     }
-    
+
     /// <summary>
     /// 为单个字段生成依赖解析代码
     /// </summary>
@@ -67,57 +74,63 @@ internal static class DependencyInjectionPhase
         MemberInfo member,
         string scopeField,
         string typeName,
-        bool implementsIDependenciesResolved)
+        bool implementsIDependenciesResolved
+    )
     {
         var memberName = member.Symbol.Name;
         var memberType = member.MemberType.ToFullyQualifiedName();
-        
+
         f.AppendLine($"// 解析依赖: {memberName}");
         f.AppendLine($"{scopeField}.ResolveDependency<{memberType}>(");
         f.BeginLevel();
         {
-            // onResolved 回调
-            f.AppendLine("(dependency) =>");
+            // onResult 回调
+            f.AppendLine("(result) =>");
             f.BeginBlock();
             {
-                f.AppendLine($"{memberName} = dependency;");
-                
-                // 如果实现了 IDependenciesResolved,设置注入准备标识并调用跟踪方法
-                if (implementsIDependenciesResolved)
-                {
-                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
-                }
-                
-                f.AppendLine("if (--_remainingDeps == 0)");
+                f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("OnDependenciesResolved();");
+                    f.AppendLine($"{memberName} = result.Instance;");
+
+                    // 如果实现了 IDependenciesResolved,设置注入准备标识并调用跟踪方法
+                    if (implementsIDependenciesResolved)
+                    {
+                        IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
+                    }
+
+                    f.AppendLine("if (--_remainingDeps == 0)");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine("OnDependenciesResolved();");
+                    }
+                    f.EndBlock();
+
+                    // 如果实现了 IDependenciesResolved,调用跟踪方法
+                    if (implementsIDependenciesResolved)
+                    {
+                        IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                    }
                 }
                 f.EndBlock();
-                
-                // 如果实现了 IDependenciesResolved,调用跟踪方法
-                if (implementsIDependenciesResolved)
+                f.AppendLine("else");
+                f.BeginBlock();
                 {
-                    IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                    f.AppendLine("_depsFailed = true;");
+                    f.AppendLine(
+                        $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{result.ErrorMessage}}\");"
+                    );
+
+                    // 如果实现了 IDependenciesResolved,即使失败也要调用跟踪方法
+                    if (implementsIDependenciesResolved)
+                    {
+                        IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                    }
                 }
+                f.EndBlock();
             }
             f.EndBlock(",");
-            
-            // onFailed 回调
-            f.AppendLine("(error) =>");
-            f.BeginBlock();
-            {
-                f.AppendLine("_depsFailed = true;");
-                f.AppendLine($"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\");");
-                
-                // 如果实现了 IDependenciesResolved,即使失败也要调用跟踪方法
-                if (implementsIDependenciesResolved)
-                {
-                    IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
-                }
-            }
-            f.EndBlock(",");
-            
+
             // requestorType
             f.AppendLine($"requestorType: \"{typeName}\"");
         }

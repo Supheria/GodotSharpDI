@@ -29,7 +29,9 @@ internal static class UserGenerator
     public static void GenerateUserSpecific(SourceProductionContext context, TypeNode node)
     {
         // 收集 Inject 成员
-        var injectMembers = node.ValidatedTypeInfo.Members.Where(m => m.IsInjectMember).ToImmutableArray();
+        var injectMembers = node
+            .ValidatedTypeInfo.Members.Where(m => m.IsInjectMember)
+            .ToImmutableArray();
 
         var f = new CodeFormatter();
 
@@ -106,50 +108,57 @@ internal static class UserGenerator
                 f.AppendLine($"scope.ResolveDependency<{memberTypeName}>(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("(dependency) =>");
+                    f.AppendLine("(result) =>");
                     f.BeginBlock();
                     {
-                        f.BeginTryCatch();
+                        f.AppendLine("if (result.IsSuccess)");
+                        f.BeginBlock();
                         {
-                            f.AppendLine($"{memberName} = dependency;");
-                            
-                            // 如果实现了 IDependenciesResolved,设置注入准备标识
-                            if (validatedType.ImplementsIDependenciesResolved)
+                            f.BeginTryCatch();
                             {
-                                IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
+                                f.AppendLine($"{memberName} = result.Instance;");
+
+                                // 如果实现了 IDependenciesResolved,设置注入准备标识
+                                if (validatedType.ImplementsIDependenciesResolved)
+                                {
+                                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                                        f,
+                                        memberName
+                                    );
+                                }
+                            }
+                            f.CatchBlock("ex");
+                            {
+                                f.AppendLine(
+                                    $"PushError(ex.Message, \"{member.Symbol.Name}\", \"{member.MemberType.Name}\");"
+                                );
+                            }
+                            f.EndTryCatch();
+                        }
+                        f.EndBlock();
+                        f.AppendLine("else");
+                        f.BeginBlock();
+                        {
+                            // 如果有失败回调，调用它
+                            if (member.HasFailureCallback)
+                            {
+                                var callbackMethodName = NamingHelper.GetFailureCallbackMethodName(
+                                    member.Symbol.Name
+                                );
+                                f.AppendLine(
+                                    $"{callbackMethodName}(result.ErrorMessage ?? \"Unknown error\");"
+                                );
                             }
                         }
-                        f.CatchBlock("ex");
-                        {
-                            f.AppendLine(
-                                $"PushError(ex.Message, \"{member.Symbol.Name}\", \"{member.MemberType.Name}\");"
-                            );
-                        }
-                        f.EndTryCatch();
-                        
+                        f.EndBlock();
+
                         // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberTypeName);
-                        }
-                    }
-                    f.EndBlock(",");
-                    f.AppendLine("(errorMessage) =>");
-                    f.BeginBlock();
-                    {
-                        // 如果实现了 IDependenciesResolved,调用跟踪方法
-                        if (validatedType.ImplementsIDependenciesResolved)
-                        {
-                            IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberTypeName);
-                        }
-                        
-                        // 如果有失败回调，调用它
-                        if (member.HasFailureCallback)
-                        {
-                            var callbackMethodName = NamingHelper.GetFailureCallbackMethodName(
-                                member.Symbol.Name
+                            IDependenciesResolvedGenerator.GenerateResolvedCallback(
+                                f,
+                                memberTypeName
                             );
-                            f.AppendLine($"{callbackMethodName}(errorMessage);");
                         }
                     }
                     f.EndBlock(",");

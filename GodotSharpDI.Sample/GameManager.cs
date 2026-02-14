@@ -13,7 +13,7 @@ public interface IGameState
 }
 
 [Host]
-public sealed partial class GameManager2 : Node, IGameState, IDependenciesResolved
+public sealed partial class GameManager : Node, IGameState, IDependenciesResolved
 {
     [Inject]
     private PlayerStatsCenter _playerStatsCenter;
@@ -25,7 +25,7 @@ public sealed partial class GameManager2 : Node, IGameState, IDependenciesResolv
         ExposedTypes = [typeof(IGameState)],
         WaitFor = [nameof(_playerStatsCenter), nameof(_playerStatsService)]
     )]
-    public async Task<GameManager2> GetSelf()
+    public async Task<GameManager> GetSelf()
     {
         return this;
     }

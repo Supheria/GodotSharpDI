@@ -9,25 +9,28 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Host 代码生成器（重构优化版）
-///
-/// 主要改进：
-/// 1. ProvideService 调用使用实现类型而非暴露类型
-/// 2. 提取公共的 WaitFor 辅助方法，大幅减少重复代码
-/// 3. 优化代码结构，提高生成代码的可读性和可维护性
-/// 4. 按类型分组依赖，减少重复的 ResolveDependency 调用
+/// Host 代码生成器（重构版本）
+/// 支持每个 Provide 成员独立的 WaitFor remaining 计数
 /// </summary>
 internal static class HostGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
+        // 生成 Node 生命周期
         NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
+
+        // 生成 Host 特定代码
         GenerateHostSpecific(context, node);
     }
 
+    /// <summary>
+    /// 生成 Host 特定代码（ProvideHostServices）
+    /// </summary>
     public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
         var validatedType = node.ValidatedTypeInfo;
+
+        // 分离注入成员和提供成员
         var injectMembers = validatedType.Members.Where(m => m.IsInjectMember).ToImmutableArray();
         var provideMembers = validatedType.Members.Where(m => m.IsProvideMember).ToImmutableArray();
 
@@ -35,6 +38,7 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
+            // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
             if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
             {
                 IDependenciesResolvedGenerator.GenerateAll(f, injectMembers);
@@ -43,20 +47,11 @@ internal static class HostGenerator
             GenerateProvideHostServices(f, validatedType, injectMembers, provideMembers);
             f.AppendLine();
 
-            // 生成辅助方法
-            var hasAsyncMembers = provideMembers.Any(m => m.IsAsync);
-            var hasWaitForMembers = provideMembers.Any(m => m.HasWaitFor);
-
-            if (hasAsyncMembers)
+            // 生成异步提供方法
+            var asyncMembers = provideMembers.Where(m => m.IsAsync).ToImmutableArray();
+            if (!asyncMembers.IsEmpty)
             {
-                GenerateAsyncProviderHelper(f);
-                f.AppendLine();
-            }
-
-            if (hasWaitForMembers)
-            {
-                GenerateWaitForDependenciesHelper(f);
-                f.AppendLine();
+                ServiceProvisionPhase.GenerateAsyncProviderMethods(f, asyncMembers);
             }
         }
         f.EndClassDeclaration();
@@ -64,132 +59,14 @@ internal static class HostGenerator
         context.AddSource($"{fileName}.DI.Host.g.cs", f.ToString());
     }
 
-    #region 辅助方法生成
-
     /// <summary>
-    /// 生成异步服务提供辅助方法
+    /// 生成 ProvideHostServices 方法
+    /// 核心逻辑:
+    /// 1. 如果有 Inject 成员且实现了 IDependenciesResolved,先注入依赖(不等待完成)
+    /// 2. 对每个 Provide 成员独立处理:
+    ///    - 如果有 WaitFor,等待 WaitFor 依赖
+    ///    - 否则直接提供服务
     /// </summary>
-    private static void GenerateAsyncProviderHelper(CodeFormatter f)
-    {
-        f.AppendHiddenMethodCommentAndAttribute(
-            "异步服务提供辅助方法，使用实现类型调用 ProvideService"
-        );
-        f.AppendLine(
-            "private static async global::System.Threading.Tasks.Task ProvideServiceAsync<TImpl>("
-        );
-        f.BeginLevel();
-        {
-            f.AppendLine("global::System.Threading.Tasks.Task<TImpl> task,");
-            f.AppendLine("global::GodotSharpDI.Abstractions.IScope scope)");
-        }
-        f.EndLevel();
-        f.AppendTypeConstraints("where TImpl : class");
-        f.BeginBlock();
-        {
-            f.BeginTryCatch();
-            {
-                f.AppendLine("var result = await task;");
-                f.AppendLine(
-                    "global::Godot.Callable.From(() => scope.ProvideService<TImpl>(result)).CallDeferred();"
-                );
-            }
-            f.CatchBlock("ex");
-            {
-                f.AppendLine(
-                    "var errorMessage = $\"异步服务提供失败: {ex.Message} (类型: {typeof(TImpl).Name})\";"
-                );
-                f.AppendLine(
-                    "global::Godot.Callable.From(() => scope.ProvideService<TImpl>(null, errorMessage)).CallDeferred();"
-                );
-            }
-            f.EndTryCatch();
-        }
-        f.EndBlock();
-    }
-
-    /// <summary>
-    /// 生成 WaitFor 依赖等待辅助方法
-    /// 这个方法大幅简化了 WaitFor 逻辑，避免为每个成员生成重复的计数器代码
-    /// </summary>
-    private static void GenerateWaitForDependenciesHelper(CodeFormatter f)
-    {
-        f.AppendHiddenMethodCommentAndAttribute(
-            "等待指定数量的依赖解析完成后执行回调（用于 WaitFor）"
-        );
-        f.AppendLine("private void WaitForDependenciesAndThen<T>(");
-        f.BeginLevel();
-        {
-            f.AppendLine("global::GodotSharpDI.Abstractions.IScope scope,");
-            f.AppendLine("int count,");
-            f.AppendLine("global::System.Action onComplete,");
-            f.AppendLine("string memberName)");
-        }
-        f.EndLevel();
-        f.AppendTypeConstraints("where T : class");
-        f.BeginBlock();
-        {
-            // 边界检查
-            f.AppendLine("if (count <= 0)");
-            f.BeginBlock();
-            {
-                f.AppendLine("onComplete();");
-                f.AppendLine("return;");
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            // 计数器
-            f.AppendLine("var remaining = count;");
-            f.AppendLine();
-
-            // 解析所有依赖
-            f.AppendLine("for (int i = 0; i < count; i++)");
-            f.BeginBlock();
-            {
-                f.AppendLine("scope.ResolveDependency<T>(");
-                f.BeginLevel();
-                {
-                    // 成功回调 - 递减计数器，如果为0则执行完成回调
-                    f.AppendLine("_ =>");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine("if (--remaining == 0)");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine("onComplete();");
-                        }
-                        f.EndBlock();
-                    }
-                    f.EndBlock(",");
-
-                    // 失败回调 - 打印错误并递减计数器
-                    f.AppendLine("error =>");
-                    f.BeginBlock();
-                    {
-                        f.PushError("$\"[{memberName}] WaitFor 依赖失败: {error}\"");
-                        f.AppendLine("if (--remaining == 0)");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine("onComplete();");
-                        }
-                        f.EndBlock();
-                    }
-                    f.EndBlock(",");
-
-                    f.AppendLine($"requestorType: $\"{{memberName}} (WaitFor)\"");
-                }
-                f.EndLevel();
-                f.AppendLine(");");
-            }
-            f.EndBlock();
-        }
-        f.EndBlock();
-    }
-
-    #endregion
-
-    #region 主要生成逻辑
-
     private static void GenerateProvideHostServices(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
@@ -211,12 +88,15 @@ internal static class HostGenerator
             f.EndBlock();
             f.AppendLine();
 
+            // 核心逻辑:根据是否有 Inject 成员和是否实现 IDependenciesResolved 来决定处理方式
             if (!injectMembers.IsEmpty && validatedType.ImplementsIDependenciesResolved)
             {
+                // 有 Inject 成员且实现了 IDependenciesResolved - 使用依赖跟踪
                 GenerateWithDependencyTracking(f, validatedType, injectMembers, provideMembers);
             }
             else if (!injectMembers.IsEmpty)
             {
+                // 有 Inject 成员但未实现 IDependenciesResolved - 使用传统三阶段流程
                 GenerateThreePhaseLifecycle(
                     f,
                     validatedType.Members,
@@ -227,12 +107,17 @@ internal static class HostGenerator
             }
             else
             {
+                // 没有 Inject 成员 - 直接提供服务
                 GenerateDirectProvision(f, validatedType.Members, provideMembers);
             }
         }
         f.EndBlock();
     }
 
+    /// <summary>
+    /// 有依赖跟踪的情况 (实现了 IDependenciesResolved)
+    /// Inject 成员注入不阻塞 Provide 成员提供服务
+    /// </summary>
     private static void GenerateWithDependencyTracking(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
@@ -240,30 +125,37 @@ internal static class HostGenerator
         ImmutableArray<MemberInfo> provideMembers
     )
     {
+        // 阶段 1: 注入依赖 (不等待完成,不阻塞后续流程)
         f.AppendLine("// ━━━ 阶段 1: 注入依赖 (不阻塞服务提供) ━━━");
         foreach (var member in injectMembers)
         {
-            GenerateFieldInjectionWithTracking(f, member, validatedType.Symbol.Name);
+            GenerateFieldInjectionWithTracking(f, member, "scope", validatedType.Symbol.Name);
         }
         f.AppendLine();
 
+        // 阶段 2 & 3: 每个 Provide 成员独立处理
         f.AppendLine("// ━━━ 阶段 2 & 3: 提供服务 (独立于依赖注入) ━━━");
         GenerateDirectProvision(f, validatedType.Members, provideMembers);
     }
 
+    /// <summary>
+    /// 为单个字段生成依赖注入代码 (带依赖跟踪)
+    /// </summary>
     private static void GenerateFieldInjectionWithTracking(
         CodeFormatter f,
         MemberInfo member,
+        string scopeField,
         string typeName
     )
     {
         var memberName = member.Symbol.Name;
         var memberType = member.MemberType.ToFullyQualifiedName();
 
-        f.AppendLine($"// 注入: {memberName}");
-        f.AppendLine($"scope.ResolveDependency<{memberType}>(");
+        f.AppendLine($"// 解析依赖: {memberName}");
+        f.AppendLine($"{scopeField}.ResolveDependency<{memberType}>(");
         f.BeginLevel();
         {
+            // onResolved 回调
             f.AppendLine("(dependency) =>");
             f.BeginBlock();
             {
@@ -273,14 +165,18 @@ internal static class HostGenerator
             }
             f.EndBlock(",");
 
+            // onFailed 回调
             f.AppendLine("(error) =>");
             f.BeginBlock();
             {
-                f.PushError($"$\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\"");
+                f.AppendLine(
+                    $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\");"
+                );
                 IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
             }
             f.EndBlock(",");
 
+            // requestorType
             f.AppendLine($"requestorType: \"{typeName}\"");
         }
         f.EndLevel();
@@ -288,6 +184,10 @@ internal static class HostGenerator
         f.AppendLine();
     }
 
+    /// <summary>
+    /// 生成三阶段生命周期（有依赖注入但未实现 IDependenciesResolved 的情况）
+    /// 这是传统的三阶段流程:所有 Inject 依赖解决后才提供 Provide 服务
+    /// </summary>
     private static void GenerateThreePhaseLifecycle(
         CodeFormatter f,
         ImmutableArray<MemberInfo> allMembers,
@@ -296,6 +196,7 @@ internal static class HostGenerator
         string typeName
     )
     {
+        // 阶段 1: 依赖注入
         DependencyInjectionPhase.Generate(
             f,
             injectMembers,
@@ -304,229 +205,61 @@ internal static class HostGenerator
             implementsIDependenciesResolved: false,
             onAllResolved: () =>
             {
-                f.AppendLine("// ━━━ 阶段 2 & 3: 提供服务 ━━━");
+                f.AppendLine("// ━━━ 阶段 2 & 3: 每个 Provide 成员独立处理 WaitFor 并提供服务 ━━━");
+                f.AppendLine();
+
+                // 依赖注入完成后，为每个 Provide 成员独立处理 WaitFor
                 GenerateDirectProvision(f, allMembers, provideMembers);
             }
         );
     }
 
+    /// <summary>
+    /// 直接提供服务（每个 Provide 成员独立处理,可能有 WaitFor）
+    /// </summary>
     private static void GenerateDirectProvision(
         CodeFormatter f,
         ImmutableArray<MemberInfo> allMembers,
         ImmutableArray<MemberInfo> provideMembers
     )
     {
-        var membersWithWaitFor = provideMembers.Where(m => m.HasWaitFor).ToList();
-        var membersWithoutWaitFor = provideMembers.Where(m => !m.HasWaitFor).ToList();
-
-        // 先处理没有 WaitFor 的成员
-        foreach (var member in membersWithoutWaitFor)
+        foreach (var member in provideMembers)
         {
-            GenerateServiceProvisionForMember(f, member);
+            f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+
+            if (member.HasWaitFor)
+            {
+                // 有 WaitFor - 等待依赖就绪后提供 (在 async 上下文中)
+                WaitForPhase.GenerateForMember(
+                    f,
+                    member,
+                    allMembers,
+                    "scope",
+                    onAllResolved: () =>
+                    {
+                        ServiceProvisionPhase.GenerateMemberProvide(
+                            f,
+                            member,
+                            "scope",
+                            instancePrefix: "", // Host 成员直接访问
+                            inAsyncContext: true // WaitFor 回调在 async Task 方法中
+                        );
+                    }
+                );
+            }
+            else
+            {
+                // 直接提供 (不在 async 上下文中)
+                ServiceProvisionPhase.GenerateMemberProvide(
+                    f,
+                    member,
+                    "scope",
+                    instancePrefix: "", // Host 成员直接访问
+                    inAsyncContext: false // 不在 async 上下文中
+                );
+            }
+
             f.AppendLine();
         }
-
-        // 处理有 WaitFor 的成员
-        foreach (var member in membersWithWaitFor)
-        {
-            GenerateWaitForHandling(f, member, allMembers);
-            f.AppendLine();
-        }
     }
-
-    #endregion
-
-    #region WaitFor 处理
-
-    /// <summary>
-    /// 生成 WaitFor 处理逻辑
-    /// 重构后使用辅助方法，大幅减少重复代码
-    /// </summary>
-    private static void GenerateWaitForHandling(
-        CodeFormatter f,
-        MemberInfo member,
-        ImmutableArray<MemberInfo> allMembers
-    )
-    {
-        var memberName = member.Symbol.Name;
-        var waitForDeps = member
-            .WaitFor.Select(name => allMembers.First(m => m.Symbol.Name == name))
-            .ToList();
-
-        f.AppendLine($"// ━━━ {memberName} (等待 {waitForDeps.Count} 个依赖) ━━━");
-
-        // 按类型分组依赖，减少重复代码
-        var depsByType = waitForDeps.GroupBy(dep => dep.MemberType.ToFullyQualifiedName()).ToList();
-
-        if (depsByType.Count == 1 && depsByType[0].Count() == 1)
-        {
-            // 优化：单个依赖直接等待，无需使用辅助方法
-            GenerateSingleDependencyWait(f, member, waitForDeps[0]);
-        }
-        else
-        {
-            // 多个依赖：使用辅助方法处理
-            GenerateMultipleDependenciesWait(f, member, depsByType);
-        }
-    }
-
-    /// <summary>
-    /// 单个依赖的简化处理
-    /// </summary>
-    private static void GenerateSingleDependencyWait(
-        CodeFormatter f,
-        MemberInfo member,
-        MemberInfo dependency
-    )
-    {
-        var memberName = member.Symbol.Name;
-        var depType = dependency.MemberType.ToFullyQualifiedName();
-
-        f.AppendLine($"scope.ResolveDependency<{depType}>(");
-        f.BeginLevel();
-        {
-            f.AppendLine("_ =>");
-            f.BeginBlock();
-            {
-                GenerateServiceProvision(f, member);
-            }
-            f.EndBlock(",");
-
-            f.AppendLine("error =>");
-            f.BeginBlock();
-            {
-                f.PushError($"$\"[{memberName}] WaitFor 依赖失败: {{error}}\"");
-            }
-            f.EndBlock(",");
-
-            f.AppendLine($"requestorType: \"{memberName} (WaitFor)\"");
-        }
-        f.EndLevel();
-        f.AppendLine(");");
-    }
-
-    /// <summary>
-    /// 多个依赖使用辅助方法处理
-    /// 按类型分组，减少重复调用
-    /// </summary>
-    private static void GenerateMultipleDependenciesWait(
-        CodeFormatter f,
-        MemberInfo member,
-        System.Collections.Generic.List<System.Linq.IGrouping<string, MemberInfo>> depsByType
-    )
-    {
-        var memberName = member.Symbol.Name;
-        var totalDeps = depsByType.Sum(g => g.Count());
-
-        // 如果所有依赖都是同一类型，使用单次调用
-        if (depsByType.Count == 1)
-        {
-            var depType = depsByType[0].Key;
-            var count = depsByType[0].Count();
-
-            f.AppendLine($"WaitForDependenciesAndThen<{depType}>(");
-            f.BeginLevel();
-            {
-                f.AppendLine("scope,");
-                f.AppendLine($"count: {count},");
-                f.AppendLine("onComplete: () =>");
-                f.BeginBlock();
-                {
-                    GenerateServiceProvision(f, member);
-                }
-                f.EndBlock(",");
-                f.AppendLine($"memberName: \"{memberName}\"");
-            }
-            f.EndLevel();
-            f.AppendLine(");");
-        }
-        else
-        {
-            // 多种类型：需要嵌套等待
-            GenerateNestedDependenciesWait(f, member, depsByType, 0);
-        }
-    }
-
-    /// <summary>
-    /// 生成嵌套的依赖等待（处理多种类型的依赖）
-    /// </summary>
-    private static void GenerateNestedDependenciesWait(
-        CodeFormatter f,
-        MemberInfo member,
-        System.Collections.Generic.List<System.Linq.IGrouping<string, MemberInfo>> depsByType,
-        int currentIndex
-    )
-    {
-        if (currentIndex >= depsByType.Count)
-        {
-            return;
-        }
-
-        var memberName = member.Symbol.Name;
-        var group = depsByType[currentIndex];
-        var depType = group.Key;
-        var count = group.Count();
-        var isLast = currentIndex == depsByType.Count - 1;
-
-        f.AppendLine($"WaitForDependenciesAndThen<{depType}>(");
-        f.BeginLevel();
-        {
-            f.AppendLine("scope,");
-            f.AppendLine($"count: {count},");
-            f.AppendLine("onComplete: () =>");
-            f.BeginBlock();
-            {
-                if (isLast)
-                {
-                    // 最后一组：提供服务
-                    GenerateServiceProvision(f, member);
-                }
-                else
-                {
-                    // 还有下一组：递归生成嵌套等待
-                    GenerateNestedDependenciesWait(f, member, depsByType, currentIndex + 1);
-                }
-            }
-            f.EndBlock(",");
-            f.AppendLine($"memberName: \"{memberName}\"");
-        }
-        f.EndLevel();
-        f.AppendLine(");");
-    }
-
-    #endregion
-
-    #region 服务提供
-
-    /// <summary>
-    /// 为成员生成服务提供代码（带注释）
-    /// </summary>
-    private static void GenerateServiceProvisionForMember(CodeFormatter f, MemberInfo member)
-    {
-        var memberName = member.Symbol.Name;
-        f.AppendLine($"// ━━━ {memberName} ━━━");
-        GenerateServiceProvision(f, member);
-    }
-
-    /// <summary>
-    /// 生成服务提供代码（使用实现类型）
-    /// </summary>
-    private static void GenerateServiceProvision(CodeFormatter f, MemberInfo member)
-    {
-        var memberName = member.Symbol.Name;
-        var implTypeName = member.MemberType.ToFullyQualifiedName();
-
-        if (member.IsAsync)
-        {
-            // 异步：使用辅助方法
-            f.AppendLine($"_ = ProvideServiceAsync({memberName}(), scope);");
-        }
-        else
-        {
-            // 同步：直接提供
-            f.AppendLine($"scope.ProvideService<{implTypeName}>({memberName}());");
-        }
-    }
-
-    #endregion
 }
