@@ -132,7 +132,6 @@ internal static class NodeLifeCycleGenerator
                     switch (validatedType.Role)
                     {
                         case TypeRole.Scope:
-                            f.AppendLine("DisposeScopeSingletons();");
                             f.AppendLine("StopDependencyMonitoring();");
                             f.AppendLine("ReportUnresolvedDependencies();");
                             break;

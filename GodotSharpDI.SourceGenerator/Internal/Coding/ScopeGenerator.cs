@@ -47,9 +47,6 @@ internal static class ScopeGenerator
             GenerateStaticMethods(f, node, graph);
             f.AppendLine();
 
-            GenerateDisposeScopeSingletons(f, node.ValidatedTypeInfo);
-            f.AppendLine();
-
             GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
         }
         f.EndClassDeclaration();
@@ -131,12 +128,6 @@ internal static class ScopeGenerator
         );
         f.AppendLine();
 
-        // _disposableSingletons
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
-        );
-
         // _dependencyCheckTimer
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.GodotTimer}? _dependencyCheckTimer;");
@@ -217,49 +208,6 @@ internal static class ScopeGenerator
             f.AppendLine();
 
             f.AppendLine("return map;");
-        }
-        f.EndBlock();
-    }
-
-    private static void GenerateDisposeScopeSingletons(
-        CodeFormatter f,
-        ValidatedTypeInfo validatedType
-    )
-    {
-        // DisposeScopeSingletons
-        f.AppendHiddenMethodCommentAndAttribute("释放所有 Scope 约束的单例服务实例");
-        f.AppendLine("private void DisposeScopeSingletons()");
-        f.BeginBlock();
-        {
-            f.AppendLine("foreach (var disposable in _disposableSingletons)");
-            f.BeginBlock();
-            {
-                f.BeginTryCatch();
-                {
-                    f.AppendLine("disposable.Dispose();");
-                }
-                f.CatchBlock("ex");
-                {
-                    f.BeginStringBuilderAppend("errorMsg", true);
-                    {
-                        f.StringBuilderAppendLine(
-                            $"[{ShortNames.GodotSharpDI}] 单例服务释放资源失败"
-                        );
-                        f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                        f.StringBuilderAppendLine("  服务类型: {disposable.GetType().Name}");
-                        f.StringBuilderAppendLine("  异常: {ex.Message}");
-                    }
-                    f.EndStringBuilderAppend();
-                    f.AppendLine();
-
-                    f.PrintError("errorMsg.ToString()");
-                }
-                f.EndTryCatch();
-            }
-            f.EndBlock();
-
-            f.AppendLine("_disposableSingletons.Clear();");
-            f.AppendLine("ServiceCache.Clear();");
         }
         f.EndBlock();
     }
