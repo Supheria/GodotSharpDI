@@ -958,7 +958,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
 
 ```csharp
 [Host]
-public partial class ServiceFactory : Node, IDependenciesResolved
+public partial class ServiceFactory : Node
 {
     [Inject] private IConfig? _config;
     [Inject] private ILogger? _logger;
@@ -995,7 +995,6 @@ public partial class ServiceFactory : Node, IDependenciesResolved
         return new Repository(_config!, _logger!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
     public override partial void _Notification(int what);
 }
 ```
@@ -1380,8 +1379,7 @@ public partial class DataManager : Node, IDependenciesResolved
 #### 注意事项
 
 ⚠️ **重要**：
-- `IsXxxInjectionReady` 属性会在有 `[Inject]` 成员时生成，无论是否实现了 `IDependenciesResolved` 接口
-- `IsAllDependenciesReady` 属性只在实现了 `IDependenciesResolved` 接口时才会生成
+- `IsXxxInjectionReady` 属性和 `IsAllDependenciesReady` 属性会在有 `[Inject]` 成员时生成，无论是否实现了 `IDependenciesResolved` 接口
 - 这些属性是私有的，只能在类内部使用
 - **`[MemberNotNullWhen(true, ...)]` 特性的作用**：当 `IsXxxInjectionReady` 为 `true` 时，编译器会确保对应的可空成员不为 `null`，这意味着在检查 `IsXxxInjectionReady` 后，可以安全地使用非空断言运算符（`!`）或直接访问成员，无需额外的 null 检查
 - 即使依赖注入失败，`OnDependenciesResolved` 也会被调用（参数为 `false`）

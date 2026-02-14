@@ -958,7 +958,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
 
 ```csharp
 [Host]
-public partial class ServiceFactory : Node, IDependenciesResolved
+public partial class ServiceFactory : Node
 {
     [Inject] private IConfig? _config;
     [Inject] private ILogger? _logger;
@@ -995,7 +995,6 @@ public partial class ServiceFactory : Node, IDependenciesResolved
         return new Repository(_config!, _logger!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
     public override partial void _Notification(int what);
 }
 ```
@@ -1380,8 +1379,7 @@ public partial class DataManager : Node, IDependenciesResolved
 #### Notes
 
 ⚠️ **Important**:
-- `IsXxxInjectionReady` properties are generated when there are `[Inject]` members, regardless of whether `IDependenciesResolved` interface is implemented
-- `IsAllDependenciesReady` property is only generated when `IDependenciesResolved` interface is implemented
+- `IsXxxInjectionReady` properties and `IsAllDependenciesReady` property are generated when there are `[Inject]` members, regardless of whether `IDependenciesResolved` interface is implemented
 - These properties are private and can only be used inside the class
 - **`[MemberNotNullWhen(true, ...)]` attribute effect**: When `IsXxxInjectionReady` is `true`, the compiler ensures the corresponding nullable member is not `null`. This means after checking `IsXxxInjectionReady`, you can safely use the null-forgiving operator (`!`) or directly access the member without additional null checks
 - `OnDependenciesResolved` is called even if dependency injection fails (parameter will be `false`)

@@ -398,7 +398,7 @@ public partial class ServiceHost : Node
 
 ```csharp
 [Host]
-public partial class ServiceHost : Node, IDependenciesResolved
+public partial class ServiceHost : Node
 {
     [Inject] private IConfig? _config;
     [Inject] private ILogger? _logger;
@@ -436,7 +436,6 @@ public partial class ServiceHost : Node, IDependenciesResolved
         return new Repository(_config!, _logger!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
     public override partial void _Notification(int what);
 }
 ```

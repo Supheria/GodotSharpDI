@@ -48,12 +48,16 @@ internal static class UserGenerator
                     f.AppendLine();
                 }
 
-                IDependenciesResolvedGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+                DependencyResolveGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+                DependencyResolveGenerator.GenerateIsAllDependenciesReadyProperty(
+                    f,
+                    injectMembers
+                );
 
                 // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
                 if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
                 {
-                    IDependenciesResolvedGenerator.GenerateAll(f, injectMembers);
+                    DependencyResolveGenerator.GenerateIDependenciesResolvedOnly(f, injectMembers);
                 }
             }
 
@@ -118,7 +122,7 @@ internal static class UserGenerator
                         {
                             f.BeginTryCatch();
                             {
-                                IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                                DependencyResolveGenerator.GenerateSetInjectionReady(
                                     f,
                                     memberName,
                                     memberType
@@ -152,7 +156,7 @@ internal static class UserGenerator
                         // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                            DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                         }
                     }
                     f.EndBlock(",");

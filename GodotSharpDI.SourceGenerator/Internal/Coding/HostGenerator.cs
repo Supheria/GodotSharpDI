@@ -40,12 +40,13 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
-            IDependenciesResolvedGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+            DependencyResolveGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+            DependencyResolveGenerator.GenerateIsAllDependenciesReadyProperty(f, injectMembers);
 
             // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
             if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
             {
-                IDependenciesResolvedGenerator.GenerateAll(f, injectMembers);
+                DependencyResolveGenerator.GenerateIDependenciesResolvedOnly(f, injectMembers);
             }
 
             GenerateProvideHostServices(f, validatedType, injectMembers, provideMembers);
@@ -155,12 +156,12 @@ internal static class HostGenerator
                 f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                    DependencyResolveGenerator.GenerateSetInjectionReady(
                         f,
                         memberName,
                         memberType
                     );
-                    IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                    DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                 }
                 f.EndBlock();
                 f.AppendLine("else");
@@ -169,7 +170,7 @@ internal static class HostGenerator
                     f.AppendLine(
                         $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{result.ErrorMessage}}\");"
                     );
-                    IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                    DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                 }
                 f.EndBlock();
             }

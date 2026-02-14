@@ -6,10 +6,9 @@ using GodotSharpDI.SourceGenerator.Shared;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 生成 IDependenciesResolved 接口实现所需的代码
-/// Host 和 User 都可以使用此模块
+/// Host 和 User 解析依赖时都会用到的内容
 /// </summary>
-internal static class IDependenciesResolvedGenerator
+internal static class DependencyResolveGenerator
 {
     /// <summary>
     /// 生成注入准备标识符字段 (IsXxxInjectionReady)
@@ -123,16 +122,18 @@ internal static class IDependenciesResolvedGenerator
     }
 
     /// <summary>
-    /// 生成所有 IDependenciesResolved 相关的字段和方法
+    /// 仅生成 IDependenciesResolved 相关的字段和方法
     /// (便捷方法,一次性生成所有内容)
     /// </summary>
-    public static void GenerateAll(CodeFormatter f, ImmutableArray<MemberInfo> injectMembers)
+    public static void GenerateIDependenciesResolvedOnly(
+        CodeFormatter f,
+        ImmutableArray<MemberInfo> injectMembers
+    )
     {
         if (injectMembers.IsEmpty)
         {
             return;
         }
-        GenerateIsAllDependenciesReadyProperty(f, injectMembers);
         GenerateUnresolvedDependenciesField(f, injectMembers);
         GenerateTrackingMethod(f);
     }

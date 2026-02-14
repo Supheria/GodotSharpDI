@@ -63,7 +63,7 @@ internal static class WaitForPhase
                     f.AppendLine("if (result.IsSuccess)");
                     f.BeginBlock();
                     {
-                        IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                        DependencyResolveGenerator.GenerateSetInjectionReady(
                             f,
                             depName,
                             depType

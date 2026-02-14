@@ -91,7 +91,7 @@ internal static class DependencyInjectionPhase
                 f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(
+                    DependencyResolveGenerator.GenerateSetInjectionReady(
                         f,
                         memberName,
                         memberType
@@ -107,7 +107,7 @@ internal static class DependencyInjectionPhase
                     // 如果实现了 IDependenciesResolved,调用跟踪方法
                     if (implementsIDependenciesResolved)
                     {
-                        IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                        DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                     }
                 }
                 f.EndBlock();
@@ -122,7 +122,7 @@ internal static class DependencyInjectionPhase
                     // 如果实现了 IDependenciesResolved,即使失败也要调用跟踪方法
                     if (implementsIDependenciesResolved)
                     {
-                        IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                        DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                     }
                 }
                 f.EndBlock();
