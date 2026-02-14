@@ -115,7 +115,9 @@ internal static class ServiceProvisionPhase
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"scope.ProvideService<{exposedTypeName}>(result);");
+                    f.AppendLine(
+                        $"scope.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Success(result));"
+                    );
                 }
                 f.EndBlock(").CallDeferred();");
             }
@@ -124,8 +126,9 @@ internal static class ServiceProvisionPhase
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"var errorMessage = $\"异步服务提供失败: {{ex.Message}}\";");
-                    f.AppendLine($"scope.ProvideService<{exposedTypeName}>(null, errorMessage);");
+                    f.AppendLine(
+                        $"scope.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Failure(ex.Message));"
+                    );
                 }
                 f.EndBlock(").CallDeferred();");
             }
@@ -148,11 +151,15 @@ internal static class ServiceProvisionPhase
         f.BeginTryCatch();
         {
             f.AppendLine($"var instance = {memberAccess};");
-            f.AppendLine($"{scopeField}.ProvideService<{exposedTypeName}>(instance);");
+            f.AppendLine(
+                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Success(instance));"
+            );
         }
         f.CatchBlock("ex");
         {
-            f.AppendLine($"{scopeField}.ProvideService<{exposedTypeName}>(null, ex.Message);");
+            f.AppendLine(
+                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.AbstractionsNamespace}.ResolutionResult<{exposedTypeName}>.Failure(ex.Message));"
+            );
         }
         f.EndTryCatch();
     }

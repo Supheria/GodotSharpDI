@@ -155,24 +155,27 @@ internal static class HostGenerator
         f.AppendLine($"{scopeField}.ResolveDependency<{memberType}>(");
         f.BeginLevel();
         {
-            // onResolved 回调
-            f.AppendLine("(dependency) =>");
+            // onResult 回调
+            f.AppendLine("(result) =>");
             f.BeginBlock();
             {
-                f.AppendLine($"{memberName} = dependency;");
-                IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
-                IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
-            }
-            f.EndBlock(",");
-
-            // onFailed 回调
-            f.AppendLine("(error) =>");
-            f.BeginBlock();
-            {
-                f.AppendLine(
-                    $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{error}}\");"
-                );
-                IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                f.AppendLine("if (result.IsSuccess)");
+                f.BeginBlock();
+                {
+                    f.AppendLine($"{memberName} = result.Instance;");
+                    IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, memberName);
+                    IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                }
+                f.EndBlock();
+                f.AppendLine("else");
+                f.BeginBlock();
+                {
+                    f.AppendLine(
+                        $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{result.ErrorMessage}}\");"
+                    );
+                    IDependenciesResolvedGenerator.GenerateResolvedCallback(f, memberType);
+                }
+                f.EndBlock();
             }
             f.EndBlock(",");
 

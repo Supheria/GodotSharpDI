@@ -66,33 +66,38 @@ internal static class WaitForPhase
             f.AppendLine($"{scopeField}.ResolveDependency<{depType}>(");
             f.BeginLevel();
             {
-                // onResolved 回调
-                f.AppendLine("(dependency) =>");
+                // onResult 回调
+                f.AppendLine("(result) =>");
                 f.BeginBlock();
                 {
-                    f.AppendLine($"if (--{remainingVarName} == 0)");
+                    f.AppendLine("if (result.IsSuccess)");
                     f.BeginBlock();
                     {
-                        // 使用 _ = 启动异步流程但不等待
-                        f.AppendLine($"_ = {resolvedCallbackName}();");
+                        // 设置对应 Inject 成员的就绪标志
+                        IDependenciesResolvedGenerator.GenerateSetInjectionReady(f, depName);
+                        f.AppendLine($"if (--{remainingVarName} == 0)");
+                        f.BeginBlock();
+                        {
+                            // 使用 _ = 启动异步流程但不等待
+                            f.AppendLine($"_ = {resolvedCallbackName}();");
+                        }
+                        f.EndBlock();
                     }
                     f.EndBlock();
-                }
-                f.EndBlock(",");
-
-                // onFailed 回调
-                f.AppendLine("(error) =>");
-                f.BeginBlock();
-                {
-                    f.AppendLine(
-                        $"{GlobalNames.GodotGD}.PrintErr($\"[{memberName}] WaitFor 依赖 '{depName}' 解析失败: {{error}}\");"
-                    );
-                    // 依赖失败时也减少计数，避免死锁
-                    f.AppendLine($"if (--{remainingVarName} == 0)");
+                    f.AppendLine("else");
                     f.BeginBlock();
                     {
-                        // 即使失败也启动异步流程
-                        f.AppendLine($"_ = {resolvedCallbackName}();");
+                        f.AppendLine(
+                            $"{GlobalNames.GodotGD}.PrintErr($\"[{memberName}] WaitFor 依赖 '{depName}' 解析失败: {{result.ErrorMessage}}\");"
+                        );
+                        // 依赖失败时也减少计数，避免死锁
+                        f.AppendLine($"if (--{remainingVarName} == 0)");
+                        f.BeginBlock();
+                        {
+                            // 即使失败也启动异步流程
+                            f.AppendLine($"_ = {resolvedCallbackName}();");
+                        }
+                        f.EndBlock();
                     }
                     f.EndBlock();
                 }
@@ -114,6 +119,7 @@ internal static class WaitForPhase
         f.BeginBlock();
         {
             f.AppendLine($"// {memberName} 的所有 WaitFor 依赖已就绪，开始提供服务");
+            f.AppendLine();
 
             // 在异步上下文中调用服务提供代码
             onAllResolved();

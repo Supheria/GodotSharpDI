@@ -16,7 +16,8 @@ internal static class IDependenciesResolvedGenerator
     /// </summary>
     public static void GenerateInjectionReadyProperties(
         CodeFormatter f,
-        ImmutableArray<MemberInfo> injectMembers)
+        ImmutableArray<MemberInfo> injectMembers
+    )
     {
         foreach (var member in injectMembers)
         {
@@ -35,7 +36,8 @@ internal static class IDependenciesResolvedGenerator
     /// </summary>
     public static void GenerateIsAllDependenciesReadyProperty(
         CodeFormatter f,
-        ImmutableArray<MemberInfo> injectMembers)
+        ImmutableArray<MemberInfo> injectMembers
+    )
     {
         if (injectMembers.IsEmpty)
         {
@@ -79,7 +81,8 @@ internal static class IDependenciesResolvedGenerator
     /// </summary>
     public static void GenerateUnresolvedDependenciesField(
         CodeFormatter f,
-        ImmutableArray<MemberInfo> injectMembers)
+        ImmutableArray<MemberInfo> injectMembers
+    )
     {
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
@@ -123,9 +126,7 @@ internal static class IDependenciesResolvedGenerator
     /// 生成所有 IDependenciesResolved 相关的字段和方法
     /// (便捷方法,一次性生成所有内容)
     /// </summary>
-    public static void GenerateAll(
-        CodeFormatter f,
-        ImmutableArray<MemberInfo> injectMembers)
+    public static void GenerateAll(CodeFormatter f, ImmutableArray<MemberInfo> injectMembers)
     {
         if (injectMembers.IsEmpty)
         {
@@ -142,9 +143,7 @@ internal static class IDependenciesResolvedGenerator
     /// 生成调用 OnDependencyResolved 的代码片段
     /// 用于嵌入到依赖注入回调中
     /// </summary>
-    public static void GenerateResolvedCallback(
-        CodeFormatter f,
-        string memberTypeName)
+    public static void GenerateResolvedCallback(CodeFormatter f, string memberTypeName)
     {
         f.AppendLine($"OnDependencyResolved<{memberTypeName}>();");
     }
@@ -153,9 +152,7 @@ internal static class IDependenciesResolvedGenerator
     /// 生成设置注入准备标识的代码片段
     /// 用于嵌入到依赖注入成功回调中
     /// </summary>
-    public static void GenerateSetInjectionReady(
-        CodeFormatter f,
-        string memberName)
+    public static void GenerateSetInjectionReady(CodeFormatter f, string memberName)
     {
         var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
         f.AppendLine($"{fieldName} = true;");

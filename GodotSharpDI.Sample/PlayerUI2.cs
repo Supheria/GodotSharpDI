@@ -8,17 +8,6 @@ namespace GodotSharpDI.Sample;
 [User]
 public sealed partial class PlayerUI2 : Control, IDependenciesResolved
 {
-    public override partial void _Notification(int what);
-
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
-    {
-        throw new System.NotImplementedException();
-    }
-}
-
-[User]
-public sealed partial class PlayerUI : Control, IDependenciesResolved
-{
     // [Inject]
     // private IPlayerStats<int> PlayerStats
     // {
@@ -113,7 +102,7 @@ public partial class HostC : Node
     [Inject]
     private IServiceB _b;
 
-    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_b)])]
+    [Provide(ExposedTypes = [typeof(IServiceB)])]
     public Task<ServiceB> ServiceB => new();
 
     [Provide(ExposedTypes = [typeof(IServiceC)], WaitFor = [nameof(_b)])]
