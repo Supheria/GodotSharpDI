@@ -105,6 +105,7 @@ internal static class NodeLifeCycleGenerator
                     {
                         case TypeRole.Host:
                             f.AppendLine("ProvideHostServices();");
+                            f.AppendLine("ResolveUserDependencies();");
                             break;
                         case TypeRole.User:
                             f.AppendLine("ResolveUserDependencies();");

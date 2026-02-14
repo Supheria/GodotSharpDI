@@ -18,7 +18,7 @@ public interface IGameState2
 }
 
 [Host]
-public sealed partial class GameManager4 : Node, IGameState, IGameState2
+public sealed partial class GameManager6 : Node, IGameState, IGameState2
 {
     [Inject]
     private PlayerStatsCenter _playerStatsCenter;
@@ -30,15 +30,15 @@ public sealed partial class GameManager4 : Node, IGameState, IGameState2
         ExposedTypes = [typeof(IGameState)],
         WaitFor = [nameof(_playerStatsCenter), nameof(_playerStatsService)]
     )]
-    public async Task<GameManager4> GetSelf()
+    public async Task<GameManager6> GetSelf()
     {
         return this;
     }
-
+    //
     [Provide(ExposedTypes = [typeof(IGameState), typeof(IGameState2)])]
-    public GameManager4 Self => this;
-
-    [Provide(ExposedTypes = [typeof(PlayerStatsService3)], WaitFor = [nameof(_playerStatsCenter)])]
+    public GameManager6 Self => this;
+    //
+    [Provide(ExposedTypes = [typeof(PlayerStatsService3)])]
     public Task<PlayerStatsService3> GetPlayerStatsService3()
     {
         return Task.Run(() => new PlayerStatsService3(_playerStatsCenter));

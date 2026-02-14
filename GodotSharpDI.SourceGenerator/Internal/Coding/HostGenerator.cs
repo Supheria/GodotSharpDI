@@ -18,8 +18,7 @@ internal static class HostGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        // 生成 Node 生命周期
-        NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
+        UserGenerator.Generate(context, node);
 
         // 生成 Host 特定代码
         GenerateHostSpecific(context, node);
@@ -40,14 +39,14 @@ internal static class HostGenerator
 
         f.BeginClassDeclaration(validatedType, out var fileName);
         {
-            DependencyResolveGenerator.GenerateInjectionReadyProperties(f, injectMembers);
-            DependencyResolveGenerator.GenerateIsAllDependenciesReadyProperty(f, injectMembers);
-
-            // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
-            if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
-            {
-                DependencyResolveGenerator.GenerateIDependenciesResolvedOnly(f, injectMembers);
-            }
+            // DependencyResolveGenerator.GenerateInjectionReadyProperties(f, injectMembers);
+            // DependencyResolveGenerator.GenerateIsAllDependenciesReadyProperty(f, injectMembers);
+            //
+            // // 如果实现了 IDependenciesResolved 且有 Inject 成员,生成相关字段和方法
+            // if (validatedType.ImplementsIDependenciesResolved && !injectMembers.IsEmpty)
+            // {
+            //     DependencyResolveGenerator.GenerateIDependenciesResolvedOnly(f, injectMembers);
+            // }
 
             GenerateProvideHostServices(f, validatedType, injectMembers, provideMembers);
             f.AppendLine();
@@ -156,11 +155,7 @@ internal static class HostGenerator
                 f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    DependencyResolveGenerator.GenerateSetInjectionReady(
-                        f,
-                        memberName,
-                        memberType
-                    );
+                    DependencyResolveGenerator.GenerateSetInjectionReady(f, memberName, memberType);
                     DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                 }
                 f.EndBlock();
