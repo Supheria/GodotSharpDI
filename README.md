@@ -13,29 +13,31 @@ A compile-time dependency injection framework specifically designed for the Godo
 - [Design Philosophy](#design-philosophy)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-  - [1. Define a Service](#1-define-a-service)
-  - [2. Define a Service Factory](#2-define-a-service-factory)
+  - [1. Define Service Interfaces](#1-define-service-interfaces)
+  - [2. Define a Host with Service Providers](#2-define-a-host-with-service-providers)
   - [3. Define a Scope](#3-define-a-scope)
-  - [4. Define a Host](#4-define-a-host)
-  - [5. Define a User](#5-define-a-user)
-  - [6. Scene Tree Structure](#6-scene-tree-structure)
+  - [4. Define a User](#4-define-a-user)
+  - [5. Scene Tree Structure](#5-scene-tree-structure)
 - [Core Concepts](#core-concepts)
-  - [Four Role Types](#four-role-types)
+  - [Three Role Types](#three-role-types)
   - [Service Lifecycle](#service-lifecycle)
 - [Role Details](#role-details)
-  - [Singleton Service](#singleton-service)
-  - [Host](#host)
+  - [Host (Service Provider)](#host-service-provider)
   - [User (Consumer)](#user-consumer)
   - [Scope (Container)](#scope-container)
+- [Service Provision with [Provide]](#service-provision-with-provide)
+  - [Property Providers](#property-providers)
+  - [Method Providers](#method-providers)
+  - [Asynchronous Providers](#asynchronous-providers)
+  - [WaitFor Mechanism](#waitfor-mechanism)
 - [Lifecycle Management](#lifecycle-management)
-  - [Singleton Service Lifecycle](#singleton-service-lifecycle)
+  - [Service Lifecycle](#service-lifecycle-1)
   - [Scope Hierarchy](#scope-hierarchy)
   - [Dependency Injection Timing](#dependency-injection-timing)
-  - [Host + User and Circular Dependencies](#host--user-and-circular-dependencies)
+  - [Host Using Inject](#host-using-inject)
 - [Type Constraints](#type-constraints)
-  - [Role Type Constraints](#role-type-constraints-1)
+  - [Role Type Constraints](#role-type-constraints)
   - [Injectable Type Constraints](#injectable-type-constraints)
-  - [Service Implementation Type Constraints](#service-implementation-type-constraints)
   - [Exposed Type Constraints](#exposed-type-constraints)
   - [Other Constraints](#other-constraints)
 - [API Reference](#api-reference)
@@ -48,11 +50,12 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Service Disposal](#service-disposal)
   - [Avoiding Circular Dependencies](#avoiding-circular-dependencies)
   - [Interface-First Principle](#interface-first-principle)
-  - [Host + User Combination Usage](#host--user-combination-usage)
+  - [Host Injecting and Providing Services](#host-injecting-and-providing-services)
   - [Using Service Factories](#using-service-factories)
+- [Migration Guide from 1.0.0-rc.3](#migration-guide-from-100-rc3)
 - [Diagnostic Codes](#diagnostic-codes)
 - [License](#license)
-- [Appendix: _Notification method explicitly definition requirement](#Appendix:-_Notification method-explicitly-definition-requirement)
+- [Appendix: _Notification method explicitly definition requirement](#appendix-_notification-method-explicitly-definition-requirement)
 - [Todo List](#todo-list)
 
 ---
@@ -64,13 +67,14 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 - **Scene Tree as Container Hierarchy**: Leverages Godot's scene tree structure to implement Scope hierarchy
 - **Node Lifecycle Integration**: Service creation and destruction are bound to Node's enter/exit scene tree events
 - **Compile-Time Safety**: Completes dependency analysis and code generation at compile time through Source Generator, providing comprehensive compile-time error checking
+- **Provider-Based Architecture**: Services are provided by Hosts through the `[Provide]` attribute, offering greater flexibility and control
 
 ---
 
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="x.x.x" />
+<PackageReference Include="GodotSharpDI" Version="1.1.0" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -78,7 +82,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 
 ## Quick Start
 
-### 1. Define a Service
+### 1. Define Service Interfaces
 
 ```csharp
 // Define service interface
@@ -88,52 +92,56 @@ public interface IPlayerStats
     int Mana { get; set; }
 }
 
-// Implement service
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
+public interface IGameState
 {
-    public int Health { get; set; } = 100;
-    public int Mana { get; set; } = 50;
+    GameState CurrentState { get; set; }
 }
 ```
 
-### 2. Define a Service Factory
+### 2. Define a Host with Service Providers
 
 ```csharp
-// Define service interface
-public interface IEnemySpawner
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    Enemy SpawnEnemy();
+    // Provide itself as IGameState service
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
+    
+    // Provide IPlayerStats service
+    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
+    public IPlayerStats CreatePlayerStats()
+    {
+        return new PlayerStatsService { Health = 100, Mana = 50 };
+    }
+    
+    public GameState CurrentState { get; set; }
+    
+    // Called after all dependencies are resolved
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("GameManager ready with all dependencies");
+        }
+    }
+    
+    // Required for Godot lifecycle integration
+    public override partial void _Notification(int what);
 }
 
-// Implement service factory
-[Singleton(typeof(IEnemySpawner))]
-public partial class EnemyFactory : IEnemySpawner
+// Service implementation (doesn't need [Singleton] anymore)
+public class PlayerStatsService : IPlayerStats
 {
-    private IPlayerStats _playerStats;
-    
-    // Inject dependencies through constructor
-    [InjectConstructor]
-    public EnemyFactory(IPlayerStats playerStats)
-    {
-        _playerStats = playerStats;
-    }
-    
-    public Enemy SpawnEnemy()
-    {
-        // Pass dependencies to dynamic objects
-        return new Enemy(_playerStats);
-    }
+    public int Health { get; set; }
+    public int Mana { get; set; }
 }
 ```
 
 ### 3. Define a Scope
 
 ```csharp
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(EnemyFactory)],
-    Hosts = [typeof(GameManager)]
-)]
+[Modules(Hosts = [typeof(GameManager)])]
 public partial class GameScope : Node, IScope
 {
     // Framework automatically generates IScope implementation
@@ -143,24 +151,7 @@ public partial class GameScope : Node, IScope
 }
 ```
 
-### 4. Define a Host
-
-```csharp
-[Host]
-public partial class GameManager : Node, IGameState
-{
-    // Expose itself as IGameState service
-    [Singleton(typeof(IGameState))]
-    private GameManager Self => this;
-    
-    public GameState CurrentState { get; set; }
-    
-    // Required for Godot lifecycle integration
-    public override partial void _Notification(int what);
-}
-```
-
-### 5. Define a User
+### 4. Define a User
 
 ```csharp
 [User]
@@ -182,209 +173,110 @@ public partial class PlayerUI : Control, IDependenciesResolved
         }
     }
     
+    private void UpdateUI()
+    {
+        GD.Print($"Health: {_stats.Health}, Mana: {_stats.Mana}");
+        GD.Print($"Game State: {_gameState.CurrentState}");
+    }
+    
     // Required for Godot lifecycle integration
     public override partial void _Notification(int what);
 }
 ```
 
-### 6. Scene Tree Structure
+### 5. Scene Tree Structure
 
 ```
 GameScope (IScope)
-├── GameManager (Host)
-└── PlayerUI (User) ← Automatically receives injection
+├── GameManager (Host) ← Provides services
+└── PlayerUI (User) ← Consumes services
 ```
 
 ---
 
 ## Core Concepts
 
-### Four Role Types
+### Three Role Types
 
 | Role | Description | Constraints |
 |------|-------------|-------------|
-| **Singleton Service** | Pure logic service, unique within Scope, created and managed by Scope, released when Scope is destroyed | Must be non-Node class |
-| **Host** | Scene-level resource provider, bridges Node resources to the DI world | Must be Node |
+| **Host** | Service provider, bridges Node resources to the DI world, provides services through `[Provide]` members | Must be Node |
 | **User** | Dependency consumer, receives injection | Must be Node |
 | **Scope** | DI container, manages service lifecycle | Must be Node, implements IScope |
+
+**Key Change in 1.1.0**: The `[Singleton]` attribute and standalone service classes have been removed. Services are now provided directly by Hosts through the `[Provide]` attribute, offering a more flexible and unified architecture.
 
 ---
 
 ## Role Details
 
-### Singleton Service
+### Host (Service Provider)
 
 #### Responsibilities
 
-Types marked with [Singleton] are pure logic services that encapsulate business logic and data processing, **not dependent on the Godot Node system**.
+Host is the bridge between the Godot Node system and the DI system, providing services through `[Provide]` members.
 
-#### Lifecycle Marking
+#### Service Provision Methods
 
-```csharp
-// Singleton: Unique instance within Scope
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-```
+Hosts can provide services through:
 
-#### Constructor Injection
-
-Singleton services inject dependencies through constructors:
+1. **Properties** - Simple, synchronous service provision
+2. **Methods** - Flexible service creation with parameters
+3. **Async Methods** - Support for asynchronous initialization
 
 ```csharp
-[Singleton(typeof(ICombatSystem))]
-public partial class CombatSystem : ICombatSystem
+[Host]
+public partial class ServiceHost : Node
 {
-    private readonly IPlayerStats _stats;
-    private readonly IWeaponFactory _weapons;
+    // Property provider
+    [Provide(ExposedTypes = [typeof(IConfig)])]
+    public IConfig Config => new ConfigService();
     
-    public CombatSystem(IPlayerStats stats, IWeaponFactory weapons)
+    // Method provider
+    [Provide(ExposedTypes = [typeof(IDatabase)])]
+    public IDatabase CreateDatabase()
     {
-        _stats = stats;
-        _weapons = weapons;
+        return new DatabaseService("connection-string");
     }
-}
-```
-
-**Constructor Selection Rules**:
-
-1. Use the constructor marked with `[InjectConstructor]`
-2. When there is only one constructor, it serves as the default constructor, regardless of whether it is marked with `[InjectConstructor]`
-3. If there are multiple constructors, a unique `[InjectConstructor]` must be specified
-
-```csharp
-[Singleton(typeof(IService))]
-public partial class MyService : IService
-{
-    // When there are multiple constructors, must specify
-    [InjectConstructor]
-    public MyService(IDep1 dep1) { }
     
-    public MyService(IDep1 dep1, IDep2 dep2) { }
-}
-```
-
-#### Exposed Types
-
-Specify the exposed service types through [Singleton] parameters:
-
-```csharp
-// Expose single interface
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-
-// Expose multiple interfaces
-[Singleton(typeof(IReader), typeof(IWriter))]
-public partial class FileService : IReader, IWriter { }
-
-// When no parameter is specified, expose the class itself (not recommended)
-[Singleton]  // Exposes ConfigService type
-public partial class ConfigService { }
-```
-
-> ⚠️ **Best Practice**: Always expose interfaces rather than concrete classes to maintain loose coupling and testability.
-
----
-
-### Host
-
-#### Responsibilities
-
-Host is the bridge between the Godot Node system and the DI system, exposing Node-managed resources as injectable services.
-
-#### Static Constraints
-
-Host is a **static** component of Scope, not a dynamic service provider.
-
-**❌ Don't:**
-
-* Reparent at runtime
-* Dynamically add/remove Hosts
-* Expect Hosts to migrate between different Scopes
-
-**✅ Do:**
-
-* Treat Host as a fixed part of the Scope node tree
-* Determine Host's position during scene design
-* Make Host a scene tree child of Scope, cleaned up when Scope is destroyed
-* Use service factory pattern for dynamic services (see **[Using Service Factories](#using-service-factories)** section)
-
-> These constraints give Scope singleton characteristics within its scope. Compared to traditional global singletons, Scope can actively limit its influence—naturally partitioning service boundaries through the scene tree hierarchy. This makes the scene structure more flexible and controllable, allowing Users to conveniently access required dependencies at various levels of the scene tree without global pollution.
->
-> In short, treat Scope and Host as stable "anchor points" in the scene tree, where Host serves as a "functional module" for Scope to partition logic and manage resources.
-
-#### Typical Usage Patterns
-
-**Pattern 1: Host Exposes Itself**
-
-```csharp
-[Host]
-public partial class ChunkManager : Node3D, IChunkGetter, IChunkLoader
-{
-    [Singleton(typeof(IChunkGetter), typeof(IChunkLoader))]
-    private ChunkManager Self => this;
-    
-    // Node-managed resources
-    private Dictionary<Vector3I, Chunk> _chunks = new();
-    
-    // Implement interfaces
-    public Chunk GetChunk(Vector3I pos) => _chunks.GetValueOrDefault(pos);
-    public void LoadChunk(Vector3I pos) { /* ... */ }
+    // Async provider
+    [Provide(ExposedTypes = [typeof(IAsyncService)])]
+    public async Task<IAsyncService> InitializeAsync()
+    {
+        var service = new AsyncService();
+        await service.InitializeAsync();
+        return service;
+    }
     
     // Required for Godot lifecycle integration
     public override partial void _Notification(int what);
 }
 ```
 
-This is the most typical usage of Host: the Node itself implements service interfaces and exposes itself to the DI system.
+#### Host as Service Consumer
 
-**Pattern 2: Host Holds and Exposes Other Objects**
+Hosts can also be service consumers by adding `[Inject]` members:
 
 ```csharp
 [Host]
-public partial class WorldManager : Node
+public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    [Singleton(typeof(IWorldConfig))]
-    private WorldConfig _config = new();
+    // Consume services
+    [Inject] private IConfig _config;
     
-    [Singleton(typeof(IWorldState))]
-    private WorldState _state = new();
+    // Provide services
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
     
-    // Required for Godot lifecycle integration
-    public override partial void _Notification(int what);
-}
-
-public class WorldConfig : IWorldConfig { /* ... */ }
-public class WorldState : IWorldState { /* ... */ }
-```
-
-Host can hold and manage other objects and expose them as services. **The lifecycle of these objects is controlled by the Host.**
-
-```csharp
-// ❌ Error: Types marked with [Singleton] can only be held by Scope
-[Singleton(typeof(IConfig))]
-public partial class ConfigService : IConfig { }
-
-[Host]
-public partial class BadHost : Node
-{
-    [Singleton(typeof(IConfig))]
-    private ConfigService _config = new();  // Compile error GDI_M050
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // Initialize with injected dependencies
+            InitializeGame();
+        }
+    }
     
-    // Required for Godot lifecycle integration
-    public override partial void _Notification(int what);
-}
-
-// ✅ Correct: Use injection instead of holding
-[Host, User]
-public partial class GoodHost : Node
-{
-    [Singleton(typeof(ISelf))]
-    private ISelf Self => this;
-    
-    [Inject]
-    private IConfig _config;  // Get Service through injection
-    
-    // Required for Godot lifecycle integration
     public override partial void _Notification(int what);
 }
 ```
@@ -395,136 +287,34 @@ public partial class GoodHost : Node
 
 #### Responsibilities
 
-User is the dependency consumer, receiving service dependencies through field or property injection.
+Users are service consumers that receive injected dependencies.
 
-#### User Automatic Dependency Injection
-
-```csharp
-[User]
-public partial class PlayerController : CharacterBody3D, IDependenciesResolved
-{
-    [Inject] private IPlayerStats _stats;
-    [Inject] private ICombatSystem _combat;
-    
-    // Automatically called when all dependencies are resolved
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
-    {
-        if (isAllDependenciesReady)
-        {
-            GD.Print("All services are ready, can start game logic");
-        }
-    }
-    
-    // Required for Godot lifecycle integration
-    public override partial void _Notification(int what);
-}
-```
-
-> Users automatically trigger injection when entering the scene tree, no manual operation required.
->
-
-#### IDependenciesResolved Interface
-
-User types can implement the `IDependenciesResolved` interface, `OnDependenciesResolved(bool isAllDependenciesReady)` is called immediately after all `[Inject]` members are resolved.
-
-```csharp
-public interface IDependenciesResolved
-{
-    void OnDependenciesResolved(bool isAllDependenciesReady);
-}
-```
-
-**Parameter**:
-- `isAllDependenciesReady`: If `true`, all dependencies were successfully injected; if `false`, at least one dependency injection failed.
-
-> ⚠️ **`OnDependenciesResolved()` is always called after `_Ready()`**, because User starts dependency resolution at `NotificationReady`.
-
-**Example**:
+#### Dependency Injection
 
 ```csharp
 [User]
-public partial class UIManager : Control, IDependenciesResolved
+public partial class PlayerController : Node, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
-    [Inject] private IGameState _gameState;
+    [Inject] private IInputService _input;
+    [Inject] private IPhysicsService _physics;
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
         if (isAllDependenciesReady)
         {
-            // All dependencies are ready, can safely access them
-            _stats.OnHealthChanged += UpdateHealthBar;
-            _gameState.OnStateChanged += UpdateGameState;
-            
-            // Initial UI update
-            UpdateHealthBar(_stats.Health);
-            UpdateGameState(_gameState.CurrentState);
+            // All dependencies are ready
+            InitializeController();
         }
         else
         {
-            GD.PrintErr("Some dependencies failed to inject, please check service configuration");
+            GD.PrintErr("Failed to inject some dependencies");
         }
-    }
-    
-    // Required for Godot lifecycle integration
-    public override partial void _Notification(int what);
-}
-```
-
-#### Injection Failure Callbacks
-
-Starting from **v1.0.0-rc.3**, you can set failure callbacks for individual inject members to handle injection failures more granularly.
-
-**Usage**:
-
-```csharp
-[User]
-public partial class PlayerUI : Control, IDependenciesResolved
-{
-    // Normal injection
-    [Inject]
-    private IPlayerStats PlayerStats { get; set; }
-    
-    // Injection with failure callback enabled
-    [Inject(FailureCallback = true)]
-    private IGameManager GameManager { get; set; }
-    
-    // Called after all dependencies are resolved
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
-    {
-        if (isAllDependenciesReady)
-        {
-            GD.Print("All dependencies injected successfully");
-        }
-        else
-        {
-            GD.Print("Some dependencies failed to inject");
-        }
-    }
-    
-    // Generated failure callback for GameManager (partial method)
-    partial void OnGameManagerInjectionFailed(string error)
-    {
-        GD.PrintErr($"GameManager injection failed: {error}");
-        // You can implement fallback logic here or show error UI
     }
     
     public override partial void _Notification(int what);
 }
 ```
-
-**Attribute Property**:
-- `FailureCallback`: When set to `true`, generates an `OnXxxInjectionFailed(string error)` failure callback method for this member.
-
-**Generated Code**:
-
-For each member marked with `[Inject(FailureCallback = true)]`, the source generator will:
-1. Generate an `IsXxxInjectionReady` boolean field to check if the dependency was successfully injected
-2. Generate a `partial void OnXxxInjectionFailed(string error)` method declaration that you need to implement in your user code
-
-⚠️ **`IsXxxInjectionReady` could be true only after `_Ready()`**, because User starts dependency resolution at `NotificationReady`.
-
-⚠️ **`OnXxxInjectionFailed(string error)` is always called after `_Ready()` and before `OnDependenciesResolved()`**.
 
 ---
 
@@ -532,482 +322,712 @@ For each member marked with `[Inject(FailureCallback = true)]`, the source gener
 
 #### Responsibilities
 
-Scope is the DI container responsible for:
-- Creating and managing Singleton service instances
-- Resolving dependency requests
-- Managing service lifecycle (creation and disposal)
-- Providing parent-child Scope hierarchy
+Scope is the DI container that manages service lifecycle and coordinates dependency injection.
 
-#### Static Constraints
-
-Scope is a **static service container** in the scene tree with well-defined scope boundaries.
-
-**❌ Don't:**
-
-- Dynamically create/destroy Scopes at runtime (unless the entire subscene needs to be unloaded)
-- Expect Scopes to frequently move positions in the scene tree
-- Use Scope as a temporary service cache or dynamic service pool
-- Change Scope's parent-child relationships at runtime to "switch" service scopes
-
-**✅ Do:**
-
-- Treat Scope as a **fixed structural node** of the scene tree
-- Determine Scope's hierarchy and position during scene design phase
-- Synchronize Scope's lifecycle with its corresponding scene region
-- Create and destroy Scope together with its scene node
-- Register service factories within Scope for dynamic services (see **[Using Service Factories](#using-service-factories)** section)
-
-> These constraints give Scope singleton characteristics within its scope. Compared to traditional global singletons, Scope can actively limit its influence—naturally partitioning service boundaries through the scene tree hierarchy. This makes the scene structure more flexible and controllable, allowing Users to conveniently access required dependencies at various levels of the scene tree without global pollution.
->
-> In short, treat Scope as a stable "anchor point" in the scene tree that defines the visibility range of services, while Host serves as a "functional module" for Scope to partition logic and manage resources.
-
-> **Static Nature: Host vs Scope**
->
-> | Aspect             | Host                          | Scope                                  |
-> | ------------------ | ----------------------------- | -------------------------------------- |
-> | **Nature**         | Component of Scope            | Structural node of scene tree          |
-> | **Scope**          | No independent scope          | Defines service scope boundaries       |
-> | **Static Meaning** | Cannot migrate between Scopes | Cannot be frequently created/destroyed |
-> | **Lifecycle**      | Destroyed with Scope          | Follows scene region lifecycle         |
-
-#### Defining a Scope
+#### Declaration
 
 ```csharp
-[Modules(
-    Services = [typeof(ServiceA), typeof(ServiceB)],
-    Hosts = [typeof(HostA), typeof(HostB)]
-)]
+[Modules(Hosts = [typeof(GameManager), typeof(ServiceHost)])]
 public partial class GameScope : Node, IScope
 {
-    // Framework automatically generates IScope implementation
-    
-    // Required for Godot lifecycle integration
+    // Framework generates all implementation
     public override partial void _Notification(int what);
 }
 ```
 
-**Modules Attribute Parameters**:
+#### Scope Hierarchy
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| Services | Type[] | List of Singleton service types, must be [Singleton] marked classes |
-| Hosts | Type[] | List of Host types, must be [Host] marked classes |
+```
+RootScope (IScope)
+├── Host1 (Host)
+├── User1 (User)
+└── SubScope (IScope)
+    ├── Host2 (Host)
+    └── User2 (User)
+```
+
+Services provided by parent scopes are accessible to child scopes.
+
+---
+
+## Service Provision with [Provide]
+
+### Property Providers
+
+The simplest way to provide services:
+
+```csharp
+[Host]
+public partial class ConfigHost : Node
+{
+    [Provide(ExposedTypes = [typeof(IConfig)])]
+    public IConfig Config => new ConfigService();
+    
+    // Can expose multiple types
+    [Provide(ExposedTypes = [typeof(IReader), typeof(IWriter)])]
+    public FileService FileService => new FileService();
+    
+    public override partial void _Notification(int what);
+}
+```
+
+### Method Providers
+
+More flexible service creation:
+
+```csharp
+[Host]
+public partial class FactoryHost : Node
+{
+    [Inject] private IConfig _config;
+    
+    [Provide(ExposedTypes = [typeof(IDatabase)])]
+    public IDatabase CreateDatabase()
+    {
+        // Can use injected dependencies
+        var connectionString = _config.GetConnectionString();
+        return new DatabaseService(connectionString);
+    }
+    
+    [Provide(ExposedTypes = [typeof(ICache)])]
+    public ICache CreateCache()
+    {
+        // Can implement complex initialization logic
+        var cache = new CacheService();
+        cache.Initialize();
+        return cache;
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+### Asynchronous Providers
+
+Support for async initialization with automatic thread safety via `CallDeferred`:
+
+```csharp
+[Host]
+public partial class AsyncHost : Node
+{
+    [Provide(ExposedTypes = [typeof(IResourceLoader)])]
+    public async Task<IResourceLoader> LoadResourcesAsync()
+    {
+        var loader = new ResourceLoader();
+        await loader.LoadAsync();
+        return loader;
+    }
+    
+    [Provide(ExposedTypes = [typeof(INetworkService)])]
+    public async Task<INetworkService> ConnectAsync()
+    {
+        var service = new NetworkService();
+        await service.ConnectAsync();
+        return service;
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+**Thread Safety**: When async providers complete (potentially on background threads), the framework automatically uses Godot's `CallDeferred` mechanism to marshal results back to the main thread. This ensures all service registration happens on Godot's main thread, preventing crashes and ensuring thread safety.
+
+**What happens internally**:
+```csharp
+// You write this:
+[Provide(ExposedTypes = [typeof(IDatabase)])]
+public async Task<IDatabase> ConnectAsync() { ... }
+
+// Framework generates this:
+private static async Task ProvideAsync_ConnectAsync_IDatabase(Task<IDatabase> task, IScope scope)
+{
+    try
+    {
+        var result = await task; // May complete on background thread
+        
+        // Automatically use CallDeferred to return to main thread
+        Callable.From(() =>
+        {
+            scope.ProvideService<IDatabase>(result);
+        }).CallDeferred();
+    }
+    catch (Exception ex)
+    {
+        Callable.From(() =>
+        {
+            scope.ProvideService<IDatabase>(null, ex.Message);
+        }).CallDeferred();
+    }
+}
+```
+
+### WaitFor Mechanism
+
+**New in 1.1.0**: Services can wait for other services to be ready before being provided.
+
+#### Core Concepts
+
+When using `WaitFor`, understand the distinction between these two important concepts:
+
+| Concept | Description | Corresponding State |
+|---------|-------------|---------------------|
+| **Dependency Resolution Completed** | Framework has attempted to resolve the dependency and invoked the callback | `OnDependencyResolved<T>()` is called |
+| **Dependency Actually Ready** | Dependency successfully resolved and instance is available | `IsXxxInjectionReady = true` |
+
+⚠️ **Important**: `WaitFor` only guarantees that dependency resolution has been **attempted**, not that it **succeeded**!
+
+#### Basic Example
+
+```csharp
+[Host]
+public partial class DependentHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Framework automatically generates these properties (in generated code):
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // Immediately provided service (no dependencies to wait for)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        return new MetricsService();
+    }
+    
+    // Waits for _config injection before providing
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        // ⚠️ WaitFor only guarantees resolution was attempted, must check if truly successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config dependency not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        // Safe: _config is guaranteed not null here
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // Waits for both _logger and _config injection before providing
+    [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config), nameof(_logger)])]
+    public IRepository CreateRepository()
+    {
+        // Check both dependencies' status
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config dependency not ready, using default config");
+            return new Repository(new DefaultConfig(), _logger);
+        }
+        
+        if (!IsLoggerInjectionReady || _logger == null)
+        {
+            GD.PrintErr("Logger dependency not ready, using null logger");
+            return new Repository(_config, new NullLogger());
+        }
+        
+        // Safe: both dependencies are ready
+        return new Repository(_config, _logger);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("All dependencies successfully injected");
+        }
+        else
+        {
+            GD.PrintErr("Some dependencies failed to inject");
+            
+            // Check which specific dependency failed
+            if (!IsConfigInjectionReady)
+            {
+                GD.PrintErr("Config injection failed");
+            }
+            if (!IsLoggerInjectionReady)
+            {
+                GD.PrintErr("Logger injection failed");
+            }
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### Complex Dependency Chain Example
+
+```csharp
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    [Inject] private IAuthService? _authService;
+    
+    // Generated readiness flags (available for use in code):
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    // private bool IsAuthServiceInjectionReady { get; set; } = false;
+    // private bool IsAllDependenciesReady => 
+    //     IsConfigInjectionReady && IsLoggerInjectionReady && IsAuthServiceInjectionReady;
+    
+    // Layer 1: Basic service (no dependencies)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        // No injection dependencies, provided immediately
+        return new MetricsService();
+    }
+    
+    // Layer 2: Wait for single dependency
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // Even though WaitFor'd _config, still need to check if successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        var connectionString = _config.DatabaseConnectionString;
+        var db = new DatabaseService(connectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    // Layer 3: Wait for multiple dependencies
+    [Provide(
+        ExposedTypes = [typeof(IUserRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public async Task<IUserRepository> CreateUserRepositoryAsync()
+    {
+        // All WaitFor dependencies have been attempted to resolve
+        // Note: Still need to handle cases where dependencies may have failed
+        
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        if (!hasLogger)
+        {
+            GD.PrintErr("Logger not ready, will use null logger");
+        }
+        
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        if (!hasConfig)
+        {
+            GD.PrintErr("Config not ready, using default config");
+        }
+        
+        // Get other services through dependency injection (like IDatabase)
+        // Or create degraded version directly
+        return await UserRepository.CreateAsync(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    // Layer 4: Wait for all dependencies
+    [Provide(
+        ExposedTypes = [typeof(ISecureRepository)],
+        WaitFor = [nameof(_authService), nameof(_logger), nameof(_config)]
+    )]
+    public ISecureRepository CreateSecureRepository()
+    {
+        // Check readiness status of all dependencies
+        if (!IsAllDependenciesReady)
+        {
+            // Some dependencies failed, log details
+            if (!IsAuthServiceInjectionReady)
+                GD.PrintErr("AuthService not ready");
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("Logger not ready");
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config not ready");
+                
+            // Return degraded version or throw exception
+            throw new InvalidOperationException("Cannot create SecureRepository: critical dependencies not ready");
+        }
+        
+        // All dependencies ready, safe to create
+        return new SecureRepository(_authService!, _logger!, _config!);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies failed, certain services may run in degraded mode");
+        }
+        else
+        {
+            GD.Print("All dependencies successfully injected");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### WaitFor Rules
+
+1. **Wait Targets**:
+   - ✅ Can only wait for `[Inject]` members (e.g., `nameof(_config)`)
+   - ❌ Cannot wait for `[Provide]` members (compile-time error)
+   - ❌ Cannot wait for non-existent members (compile-time error)
+
+2. **Execution Order**:
+   - WaitFor creates dependency topological sort
+   - Services without WaitFor start providing immediately
+   - Services with WaitFor provide only after dependencies resolve
+
+3. **Failure Handling**:
+   - Even if a dependency fails, WaitFor continues
+   - Use `IsXxxInjectionReady` to check dependency status
+   - Handle failure cases in `OnDependenciesResolved`
+
+4. **Circular Detection**:
+   - Circular WaitFor dependencies detected at compile time
+   - Example: A WaitFor B, B WaitFor A (compile error)
+
+5. **Async Support**:
+   - WaitFor supports both sync and async providers
+   - Async provider completion notifies subsequent dependencies
+
+#### Best Practices
+
+1. **Always Check Dependency Status**
+   ```csharp
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       if (!IsConfigInjectionReady || _config == null)
+       {
+           // Handle failure: use defaults, throw exception, or return degraded version
+           return new ServiceWithDefaults();
+       }
+       return new Service(_config);
+   }
+   ```
+
+2. **Implement IDependenciesResolved**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (!isAllDependenciesReady)
+       {
+           // Log or handle dependency failures
+           LogDependencyStatus();
+       }
+   }
+   
+   private void LogDependencyStatus()
+   {
+       if (!IsConfigInjectionReady)
+           GD.PrintErr("Config injection failed");
+       if (!IsLoggerInjectionReady)
+           GD.PrintErr("Logger injection failed");
+   }
+   ```
+
+3. **Avoid Overly Long Dependency Chains**
+   - Keep dependency layers within 2-3 levels
+   - Longer chains increase failure risk and debugging difficulty
+
+4. **Consider Using Nullable Types**
+   ```csharp
+   [Inject] private IConfig? _config;  // Use nullable type
+   
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       // Compiler will remind to check null
+       return new Service(_config ?? new DefaultConfig());
+   }
+   ```
 
 ---
 
 ## Lifecycle Management
 
-### Singleton Service Lifecycle
+### Service Lifecycle
 
-#### Creation Timing
+1. **Creation**: Services are created when:
+   - A Scope enters the scene tree
+   - Hosts register their providers
+   - Users request injection
 
-Singleton services are created at these times:
-1. **Scope Ready**: When Scope's `NotificationReady` event triggers, all Services specified in [Modules] are created
-2. **On Demand**: When a dependency request comes in and the service hasn't been created yet
-
-#### Destruction Timing
-
-Singleton services are destroyed when:
-1. **Scope Destruction**: When Scope's `NotificationPredelete` event triggers
-2. **IDisposable Support**: Services implementing `IDisposable` will have `Dispose()` called
-
-```csharp
-[Singleton(typeof(IResourceManager))]
-public partial class ResourceManager : IResourceManager, IDisposable
-{
-    public void Dispose()
-    {
-        // Release resources
-    }
-}
-```
-
----
+2. **Destruction**: Services are destroyed when:
+   - The providing Scope exits the scene tree
+   - All services are automatically disposed
 
 ### Scope Hierarchy
 
-Scope forms a hierarchical relationship through a scene tree structure:
-
 ```
 RootScope
-├── GameManager (Host)
-├── GlobalServices...
-│
-└── LevelScope
-    ├── LevelManager (Host)
-    ├── LevelServices...
-    │
-    └── Player
-        └── PlayerUI (User)
+├── Service A (from RootScope)
+└── ChildScope
+    ├── Service A (inherited from parent)
+    └── Service B (only in child)
 ```
 
-#### Service Visibility Rules
-
-| Service Location | Accessible From |
-|-----------------|----------------|
-| RootScope | All descendant Scopes |
-| GameScope | GameScope and LevelScope |
-| LevelScope | Only LevelScope |
-
-**Example**:
-
-```csharp
-// RootScope
-[Modules(Services = [typeof(ConfigService)])]
-public partial class RootScope : Node, IScope { }
-
-// GameScope can access ConfigService
-[Modules(Services = [typeof(PlayerService)])]
-public partial class GameScope : Node, IScope { }
-
-// LevelScope can access both ConfigService and PlayerService
-[Modules(Services = [typeof(EnemyService)])]
-public partial class LevelScope : Node, IScope { }
-```
-
-> **Hierarchy Rules**:
->
-> - A Scope searches upward in the scene tree to find its parent Scope
-> - If a service is not found in the current Scope, it searches in the parent Scope
-> - Service lifecycle is bound to its defining Scope
->
-
----
+Child scopes inherit services from parent scopes but can also override them.
 
 ### Dependency Injection Timing
 
-#### Singleton Service Creation Timeline
+#### Standard Injection Flow (without WaitFor)
+
 ```
-Scope Node Ready (NotificationReady)
-    ↓
-Scope.InstantiateScopeSingletons()
-    ↓
-For each Service in Modules.Services:
-    ↓
-    Service.CreateService()
-    ↓
-    For each constructor parameter:
-        ↓
-        Scope.ResolveDependency<T>()
-    ↓
-    All dependencies resolved?
-    ↓
-    Yes
-    ↓
-    scope.ProvideService<T>(service)
-    ↓
-    Notify waiting queue
+1. Node.EnterTree
+   ↓
+2. Find parent Scope
+   ↓
+3. Resolve all [Inject] dependencies concurrently
+   │
+   ├─ Dependency A: Success → IsAInjectionReady = true
+   ├─ Dependency B: Success → IsBInjectionReady = true
+   └─ Dependency C: Failed → IsCInjectionReady = false
+   ↓
+4. OnDependenciesResolved(false) called after all dependencies resolved
+   ↓
+5. Provide all [Provide] services concurrently
 ```
 
-#### User Injection Timeline
+#### WaitFor Injection Flow (New in 1.1.0)
+
 ```
-User Node Ready (NotificationReady)
- ↓
-GetServiceScope() ← Search upward for nearest IScope
- ↓
-ResolveUserDependencies(scope)
- ↓
-scope.ResolveDependency<T>(callback) ← For each [Inject] member
- ↓
-Wait for service ready or immediate callback
- ↓
-OnDependenciesResolved(isAllDependenciesReady) ← All dependencies resolved (if implements IDependenciesResolved)
+1. Node.EnterTree
+   ↓
+2. Find parent Scope
+   ↓
+3. Phase 1: Resolve all [Inject] dependencies concurrently (doesn't block service provision)
+   │
+   ├─ Dependency A: Success → IsAInjectionReady = true
+   ├─ Dependency B: Failed → IsBInjectionReady = false
+   └─ Dependency C: Success → IsCInjectionReady = true
+   ↓
+4. Phase 2: Provide services (independent of dependency injection)
+   │
+   ├─ Service X (no WaitFor): Provide immediately
+   │
+   ├─ Service Y (WaitFor = [A, X]): 
+   │  ├─ Wait for A resolution
+   │  ├─ Wait for X provision
+   │  └─ All complete → Provide service Y
+   │
+   └─ Service Z (WaitFor = [B, Y]):
+      ├─ Wait for B resolution (failed but continues)
+      ├─ Wait for Y provision
+      └─ All complete → Provide service Z
+         (Must check IsBInjectionReady)
+   ↓
+5. OnDependenciesResolved(false) called after all dependencies resolved
 ```
 
-#### Host Service Registration Timeline
-```
-Host Node Ready (NotificationReady)
- ↓
-GetServiceScope() ← Search upward for nearest IScope
- ↓
-ProvideHostServices(scope)
- ↓
-scope.ProvideService<T>(this.Member) ← For each [Singleton] member
- ↓
-Notify waiting queue
-```
+#### Key Concepts
 
----
+1. **Resolution Complete vs Dependency Ready**
+   - **Resolution Complete**: Framework attempted to get dependency and invoked callback (may succeed or fail)
+   - **Dependency Ready**: `IsXxxInjectionReady = true` and instance is not null
 
-### Host + User and Circular Dependencies
+2. **WaitFor Behavior**
+   - WaitFor waits for dependency **resolution complete**, not **resolution success**
+   - Even if dependency fails, WaitFor continues execution
+   - Use `IsXxxInjectionReady` to check if dependency is truly available
 
-In GodotSharpDI, a type can be marked as both `[Host, User]`, meaning it both provides and consumes services. To avoid false positives for circular dependencies, it's important to understand the difference between Host and User in terms of lifecycle and injection timing.
+3. **Concurrent vs Sequential**
+   - Without WaitFor: All operations execute concurrently
+   - With WaitFor: Creates dependency graph, executes in topological order
 
-#### Injection Timing Differences Between Host and User
-
-**Host (Service Provider)**
-
-- Registers services from its `[Singleton]` members during the **EnterTree** phase
-- Service registration **does not trigger any dependency injection**
-- Does not trigger its own User injection
-- Does not trigger injection for other Users
-
-**User (Service Consumer)**
-
-- Attaches to the nearest Scope during the **EnterTree** phase
-- Immediately initiates dependency resolution for all `[Inject]` members
-- If a service is not yet registered, joins the waiting queue
-- Gets injected via callback when the service is registered or when Scope is Ready
-- Triggers `OnDependenciesResolved(isAllDependenciesReady)` after all dependencies are resolved
-
-**Conclusion**
-
-> **Host's service registration phase does not participate in the dependency injection chain.**
-> **User's dependency injection only triggers after the Node enters the scene tree or after service registration completes.**
-
-This rule ensures that Host+User combinations don't create circular dependencies due to "self-providing and self-consuming".
-
-#### Example 1: Host+User Self-Injection Is Not a Circular Dependency
+#### Example Timeline
 
 ```csharp
-public interface IMyService { }
-
-[Host, User]
-public partial class MyService : Node, IMyService
+[Host]
+public partial class ExampleHost : Node, IDependenciesResolved
 {
-    [Singleton(typeof(IMyService))]
-    private MyService Self => this;
-
-    [Inject]
-    private IMyService _self;
-}
-```
-
-**Dependency Relationship**
-
-- Host part provides `IMyService`
-- User part consumes `IMyService`
-
-**Why is this not a circular dependency?**
-
-1. When Host registers `Self`, it **does not trigger** injection of `_self`
-2. Injection of `_self` happens during the User injection phase (EnterTree → AttachToScope)
-3. At that point, `IMyService` is already registered, so injection succeeds
-4. The entire process has no constructor chain and does not form a dependency loop
-
-**Conclusion**
-
-> **Host+User self-injection is legal and not a circular dependency.**
-
-#### Example 2: Host Providing Service + Consuming Another Service Is Not a Circular Dependency
-
-```csharp
-public interface IServiceA { }
-public interface IServiceB { }
-
-[Singleton(typeof(IServiceA))]
-public partial class ServiceA : IServiceA
-{
-    public ServiceA(IServiceB b) { }
-}
-
-[Host, User]
-public partial class HostUser : Node, IServiceB
-{
-    [Singleton(typeof(IServiceB))]
-    private HostUser Self => this;
-
-    [Inject]
-    private IServiceA _serviceA;
+    [Inject] private IConfig? _config;    // T1: Start resolving
+    [Inject] private ILogger? _logger;    // T1: Start resolving (concurrent)
     
-    // Required for Godot lifecycle integration
+    [Provide(ExposedTypes = [typeof(IMetrics)])]  
+    public IMetrics CreateMetrics()       // T1: Start providing immediately
+    {
+        return new Metrics();
+    }
+    
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()     // T2: Wait for _config resolution complete
+    {
+        // T2 timing: _config resolution complete (success or failure)
+        if (!IsConfigInjectionReady)
+        {
+            return new InMemoryDatabase();
+        }
+        return new Database(_config!);
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public IRepository CreateRepository() // T3: Wait for _logger and _config
+    {
+        // T3 timing: both _logger and _config resolution complete
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        
+        return new Repository(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        // Called at T4: All Inject dependencies have been resolved
+        // Some Provide services may still be executing asynchronously
+    }
+}
+
+// Timeline:
+// T1: _config starts resolving, _logger starts resolving, CreateMetrics starts providing
+// T2: _config resolution complete → CreateDatabase starts providing
+// T3: both _logger and _config resolution complete → CreateRepository starts providing  
+// T4: both _config and _logger resolved → OnDependenciesResolved is called
+```
+
+### Host Using Inject
+
+**New in 1.1.0**: Hosts can directly use `[Inject]` to inject dependencies without needing to be marked as `[User]`.
+
+⚠️ **Important**: Host, User, and Scope roles **cannot coexist** on the same class.
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
+{
+    // Host can directly inject dependencies (no [User] attribute needed)
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
+    
+    // Host also provides services
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
+    
+    public GameState CurrentState { get; set; }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // All dependencies ready, safe to initialize
+            // Both IsConfigInjectionReady and IsSaveSystemInjectionReady are true
+            LoadLastSave();
+        }
+        else
+        {
+            // Some dependencies failed, use degraded mode
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config not ready, using default config");
+            if (!IsSaveSystemInjectionReady)
+                GD.PrintErr("SaveSystem not ready, cannot load save");
+        }
+    }
+    
+    private void LoadLastSave()
+    {
+        // Safe to use _config and _saveSystem here
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
 
-**Dependency Relationship**
+**Features**:
+- Host can inject dependencies for use in provider methods
+- Host can use WaitFor to wait for injection completion
+- Host can implement IDependenciesResolved to receive notifications
+- No additional `[User]` attribute needed
 
-- `HostUser` (Host) provides `IServiceB`
-- `ServiceA` constructor depends on `IServiceB` → injects `HostUser`
-- `HostUser` (User) depends on `IServiceA`
-
-**Why is this not a circular dependency?**
-
-1. When HostUser registers `IServiceB`, it **does not trigger** injection of `_serviceA`
-2. ServiceA's constructor resolves `IServiceB` → gets HostUser
-3. After ServiceA construction completes, HostUser's `_serviceA` is assigned during the User injection phase
-4. There is no constructor loop in the entire chain
-
-**Dependency graph**:
-
-```
-ServiceA → IServiceB (HostUser)
-HostUser(User) → IServiceA
-```
-
-This is a "diamond dependency", not a cycle.
-
-**Conclusion**
-
-> **Host providing services + consuming other services as User is legal and not a circular dependency.**
-
-#### Scope of Circular Dependency Detection
-
-GodotSharpDI's circular dependency detection only applies to:
-
-- **Service → Service constructor dependency chains**
-
-It does not include:
-
-- User's `[Inject]` members
-- Host's `[Singleton]` members
-- Host+User self-injection
-- Cross-dependencies between Host and User
-
-Reason:
-
-> **User injection occurs after all Service construction is complete and does not participate in construction-time dependency loops.**
-
-Therefore, only the following situation is considered a circular dependency:
+**Using Injected Dependencies in Providers**:
 
 ```csharp
-[Singleton(typeof(IA))]
-class A : IA { public A(IB b) {} }
-
-[Singleton(typeof(IB))]
-class B : IB { public B(IA a) {} }
+[Host]
+public partial class ServiceFactory : Node
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Wait for dependency injection before providing service
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        // Safe to use injected config
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)],
+        WaitFor = [nameof(_config), nameof(_logger)]
+    )]
+    public IRepository CreateRepository()
+    {
+        // Check multiple dependencies
+        if (!IsAllDependenciesReady)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // All dependencies ready
+        return new Repository(_config!, _logger!);
+    }
+    
+    public override partial void _Notification(int what);
+}
 ```
-
-#### Summary
-
-| Situation | Circular Dependency? | Reason |
-|-----------|---------------------|---------|
-| Host+User self-injection | ❌ | Host registration doesn't trigger injection, User injection comes after |
-| Host provides service + consumes as User | ❌ | Injection timing is separated, no constructor loop formed |
-| Service ↔ Service mutual constructor dependency | ✔️ | Constructor loop |
-
-Final rule:
-
-> **As long as the dependency chain doesn't form a loop in Service constructors, it's not a circular dependency. Host+User injection timing naturally avoids constructor cycles.**
 
 ---
 
 ## Type Constraints
 
-> **Terminology**:
-> - **Host + User**: A node marked with both Host and User attributes
-> - **Non-Node class**: Regular C# class that does not inherit from Godot.Node
-> - **Regular Node**: Node that inherits from Node but is not marked with special roles
+### Role Type Constraints
 
-### Singleton Service Detailed Constraints
+| Role | Allowed Base Types | Forbidden |
+|------|-------------------|-----------|
+| **Host** | Node and its subclasses | Generic types |
+| **User** | Node and its subclasses | Generic types |
+| **Scope** | Must implement IScope | Generic types |
 
-**Basic Constraints**
+### Injectable Type Constraints
 
-| Constraint | Requirement | Reason |
-|------------|-------------|---------|
-| Type | Must be class | Needs instantiation |
-| Inheritance | Cannot be Node | Node lifecycle is controlled by Godot, conflicts with DI container |
-| Modifiers | Cannot be abstract or static | Needs instantiation |
-| Generics | Unbound generics not allowed | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
-| Declaration | Must be partial | Source generator needs to extend the class |
+- **Recommended**: Inject interfaces (e.g., `IService`)
+- **Warning**: Injecting concrete Host types
+- **Error**: Injecting User types, Scope types, or regular Node types
 
-**Exposed Type Constraints**
+### Exposed Type Constraints
 
-| Type | Allowed | Description |
-|------|---------|-------------|
-| Implemented interface | ✅ | **Recommended** |
-| Inherited class | ⚠️ | Allowed but not recommended |
-| Unimplemented interface | ❌ | Meaningless |
-| Non-inherited class | ❌ | Meaningless |
-| Generics | ❌ Unbound generics | Unbound generic types (e.g., IList<T>) cannot be used as stable service identifiers. Closed generic types (e.g., IList<int>) are allowed |
+- **Recommended**: Expose interfaces
+- **Allowed**: Expose the Host type itself
+- **Must Implement**: The provider must implement or return the exposed type
 
-**Constructor Constraints**
+### Other Constraints
 
-| Constraint | Requirement |
-|------------|-------------|
-| Visibility | At least one non-static constructor |
-| Multiple constructors | Must specify with [InjectConstructor] |
-
-**Constructor Parameter Type Constraints**
-
-| Type | Allowed | Description |
-|------|---------|-------------|
-| interface | ✅ | **Recommended approach** |
-| Non-Node class | ⚠️ | Allowed but not recommended |
-| Host / Host + User | ⚠️ | Allowed but not recommended, should depend on interfaces exposed by Host |
-| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
-| User | ❌ | No static constraints, cannot guarantee lifecycle |
-| Scope | ❌ | Container cannot be a service |
-| Generics | ❌ Unbound generics | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
-| Other types | ❌ | Not supported |
-
----
-
-### Host Detailed Constraints
-
-**Basic Constraints**
-
-| Constraint    | Requirement                                                  | Reason                                                       |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Type          | Must be class                                                | Needs instantiation                                          |
-| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Generics | Unbound generics not allowed | Unbound generic types (e.g., Node<T>) cannot be used. Closed generic types (e.g., Node<int>) are allowed |
-| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
-| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
-
-**Host Singleton Member Type Constraints**
-
-| Type | Allowed | Description |
-|------|---------|-------------|
-| Non-Node class | ✅ | **Recommended** |
-| Host / Host + User (self type) | ✅ | Can expose itself as a service |
-| Host / Host + User (non-self type) | ❌ | Host nesting not allowed |
-| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
-| User | ❌ | No static constraints, cannot guarantee lifecycle |
-| Scope | ❌ | Container nesting not allowed |
-| Generics | ❌ Unbound generics | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
-| Other types | ❌ | Not supported |
-
-**Host Singleton Member Exposed Type Constraints**
-
-| Type | Allowed | Description |
-|------|---------|-------------|
-| Implemented interface | ✅ | **Recommended** |
-| Inherited class | ⚠️ | Allowed but not recommended |
-| Unimplemented interface | ❌ | Meaningless |
-| Non-inherited class | ❌ | Meaningless |
-| Generics | ❌ Unbound generics | Unbound generic types (e.g., IList<T>) cannot be used as stable service identifiers. Closed generic types (e.g., IList<int>) are allowed |
-
----
-
-### User Detailed Constraints
-
-**Basic Constraints**
-
-| Constraint    | Requirement                                                  | Reason                                                       |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Type          | Must be class                                                | Needs instantiation                                          |
-| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Generics | Unbound generics not allowed | Unbound generic types (e.g., Node<T>) cannot be used. Closed generic types (e.g., Node<int>) are allowed |
-| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
-| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
-
-**User Inject Member Type Constraints**
-
-| Type | Allowed | Description |
-|------|---------|-------------|
-| interface | ✅ | **Recommended approach** |
-| Non-Node class | ⚠️ | Allowed but not recommended |
-| Host / Host + User | ⚠️ | Allowed but not recommended, should depend on interfaces exposed by Host |
-| Regular Node | ❌ | No static constraints, cannot guarantee lifecycle |
-| User | ❌ | No static constraints, cannot guarantee lifecycle |
-| Scope | ❌ | Container cannot be a service |
-| Generics | ❌ Unbound generics | Unbound generic types (e.g., List<T>) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List<int>) are allowed |
-| Other types | ❌ | Not supported |
-
----
-
-### Scope Detailed Constraints
-
-| Constraint    | Requirement                                                  | Reason                                                       |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Type          | Must be class                                                | Needs instantiation                                          |
-| Inheritance   | Must be Node                                                 | Needs to integrate with scene tree lifecycle                 |
-| Interface     | Must implement IScope                                        | Provides service registration API                            |
-| Generics | Unbound generics not allowed | Unbound generic types (e.g., Node<T>) cannot be used. Closed generic types (e.g., Node<int>) are allowed |
-| Modules       | Must specify [Modules]                                       | Defines service composition                                  |
-| Declaration   | Must be partial                                              | Source generator needs to extend the class                   |
-| _Notification | Must declare `public override partial void _Notification(int what);` | Godot only recognizes lifecycle methods defined in the attached script file |
+- Each `[Provide]` member must have at least one exposed type
+- WaitFor targets must be valid `[Inject]` or `[Provide]` members
+- Circular WaitFor dependencies are compile-time errors
 
 ---
 
@@ -1015,316 +1035,413 @@ Final rule:
 
 ### Attributes
 
-#### [Singleton]
-
-Marks a type as a Singleton service and specifies exposed service types.
+#### `[Host]`
+Marks a Node as a service provider.
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property)]
-public class SingletonAttribute : Attribute
+[Host]
+public partial class ServiceHost : Node
 {
-    public Type[] ServiceTypes { get; }
-    
-    public SingletonAttribute(params Type[] serviceTypes) { }
+    public override partial void _Notification(int what);
 }
 ```
 
-**Usage Scenarios**:
+#### `[User]`
+Marks a Node as a service consumer.
 
-1. On Service classes: Mark the class as a Singleton service
-2. On Host members: Expose the member as a service
+```csharp
+[User]
+public partial class ServiceUser : Node
+{
+    [Inject] private IService _service;
+    public override partial void _Notification(int what);
+}
+```
+
+#### `[Provide(ExposedTypes = [...], WaitFor = [...])]`
+Marks a property or method as a service provider.
 
 **Parameters**:
-- `serviceTypes`: Service types to expose (interfaces or base classes)
-- When empty: Service class exposes itself; Host member exposes its own type
-
-#### [Host]
-
-Marks a Node as a Host.
+- `ExposedTypes`: Array of types that this service will be registered as
+- `WaitFor`: (Optional) Array of member names to wait for before providing
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
+[Provide(ExposedTypes = [typeof(IService)])]
+public IService Service => new ServiceImpl();
 
-[AttributeUsage(AttributeTargets.Class)]
-public class HostAttribute : Attribute { }
+[Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+public IDatabase CreateDatabase()
+{
+    return new DatabaseService(_config.ConnectionString);
+}
 ```
 
-#### [User]
-
-Marks a Node as a User.
-
-```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class)]
-public class UserAttribute : Attribute { }
-```
-
-#### [Inject]
-
+#### `[Inject]`
 Marks a field or property for dependency injection.
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-public class InjectAttribute : Attribute 
-{
-    public bool FailureCallback { get; set; }
-}
+[Inject] private IService _service;
+[Inject] private IConfig Config { get; set; }
 ```
 
-**Usage Rules**:
-
-- Can only be used on User or Host+User types
-- Member must be writable (field non-readonly, property must have setter)
-- Cannot be static
-
-**Properties**:
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `FailureCallback` | bool | false | When enabled, generates a failure callback method `OnXxxInjectionFailed(string error)` for this member |
-
-**Generated Members** (v1.0.0-rc.3+):
-
-For each `[Inject]` member, the source generator generates:
-- `IsXxxInjectionReady`: Boolean field indicating whether the dependency was successfully injected
-- `OnXxxInjectionFailed(string error)`: Failure callback method (only generated when `FailureCallback = true`)
-
-#### [InjectConstructor]
-
-Marks which constructor to use for dependency injection.
+#### `[Modules(Hosts = [...])]`
+Defines which Hosts belong to a Scope.
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Constructor)]
-public class InjectConstructorAttribute : Attribute { }
+[Modules(Hosts = [typeof(Host1), typeof(Host2)])]
+public partial class GameScope : Node, IScope { }
 ```
-
-**Usage Rules**:
-
-- Can only be used on Singleton Service types
-- Required when there are multiple constructors
-- Must be unique (only one constructor can be marked)
-
-#### [Modules]
-
-Specifies the services and hosts managed by a Scope.
-
-```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class)]
-public class ModulesAttribute : Attribute
-{
-    public Type[] Services { get; set; } = Array.Empty<Type>();
-    public Type[] Hosts { get; set; } = Array.Empty<Type>();
-}
-```
-
-**Parameters**:
-
-| Parameter  | Description                                         |
-| ---------- | --------------------------------------------------- |
-| `Services` | List of Service types created and managed by Scope  |
-| `Hosts`    | List of Host types expected to be received by Scope |
-
----
 
 ### Interfaces
 
-#### IScope
-
-Container interface, manages service registration and resolution.
+#### `IScope`
+Must be implemented by Scope types. The framework generates the implementation.
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-public interface IScope
+public partial class GameScope : Node, IScope
 {
-    void ProvideService<T>(T instance) where T : notnull;
-    void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
+    // Framework generates implementation
 }
 ```
 
-**Methods**:
+#### `IDependenciesResolved`
 
-| Method | Description | When to Use |
-|--------|-------------|-------------|
-| `ProvideService<T>` | Provide a service | Called automatically by framework, no manual call needed |
-| `ResolveDependency<T>` | Request a dependency | Called automatically by framework, no manual call needed |
-
-> ⚠️ **Important**: These methods are managed by the framework and should not be called manually. Framework generates appropriate calls in User, Host, and Service code.
-
-#### IDependenciesResolved
-
-Notification interface for when all dependencies are resolved.
+Optional interface for receiving dependency resolution notification.
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
 public interface IDependenciesResolved
 {
     void OnDependenciesResolved(bool isAllDependenciesReady);
 }
 ```
 
-**Usage Rules**:
+#### Parameter Description
 
-- Can only be implemented by User or Host+User types
-- Called immediately after all [Inject] members are resolved
-- Suitable for initialization logic that depends on injected services
-- The `isAllDependenciesReady` parameter indicates whether all dependencies were successfully injected
+- **`isAllDependenciesReady`**:
+  - `true`: All `[Inject]` members were successfully injected
+  - `false`: At least one `[Inject]` member failed to inject
 
-> **Note**: Starting from v1.0.0-rc.3, `IServicesReady` has been renamed to `IDependenciesResolved` with an updated method signature.
+#### Generated Helper Properties
 
----
+The framework automatically generates readiness flags for each `[Inject]` member. These properties are in the generated `*.DI.g.cs` files:
+
+```csharp
+// User code
+[Host]
+public partial class MyHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // ... other code
+}
+
+// Generated code (in MyHost.DI.Host.g.cs)
+partial class MyHost
+{
+    // Readiness flag generated for each Inject member
+    [MemberNotNullWhen(true, nameof(_config))]
+    private bool IsConfigInjectionReady { get; set; } = false;
+    
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // Combined readiness flag
+    [MemberNotNullWhen(true, nameof(_config))]
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsAllDependenciesReady => 
+        IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
+    
+    // Unresolved dependency tracking
+    private readonly HashSet<Type> _unresolvedDependencies = new()
+    {
+        typeof(IConfig),
+        typeof(ILogger),
+    };
+    
+    // Dependency resolution callback
+    private void OnDependencyResolved<T>()
+    {
+        _unresolvedDependencies.Remove(typeof(T));
+        if (_unresolvedDependencies.Count == 0)
+        {
+            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+        }
+    }
+}
+```
+
+#### Usage Examples
+
+##### Basic Usage
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _playerStats;
+    [Inject] private IGameConfig? _config;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("All dependencies ready, game can start");
+            StartGame();
+        }
+        else
+        {
+            GD.PrintErr("Dependency injection failed, cannot start game");
+            ShowErrorScreen();
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### Fine-Grained Status Checking
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _stats;
+    [Inject] private IInventory? _inventory;
+    [Inject] private IAchievements? _achievements;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // All dependencies succeeded, enable full features
+            EnableAllFeatures();
+        }
+        else
+        {
+            // Some dependencies failed, enable degraded mode
+            EnableDegradedMode();
+            
+            // Check which specific dependencies are available
+            if (IsStatsInjectionReady)
+            {
+                UpdateStatsDisplay(_stats!);  // ! operator is safe because IsStatsInjectionReady = true
+            }
+            else
+            {
+                GD.PrintErr("Stats service unavailable");
+            }
+            
+            if (IsInventoryInjectionReady)
+            {
+                UpdateInventoryDisplay(_inventory!);
+            }
+            else
+            {
+                HideInventoryPanel();
+            }
+            
+            if (IsAchievementsInjectionReady)
+            {
+                ShowAchievements(_achievements!);
+            }
+            else
+            {
+                DisableAchievementsButton();
+            }
+        }
+    }
+    
+    private void EnableAllFeatures()
+    {
+        // All features available
+        UpdateStatsDisplay(_stats!);
+        UpdateInventoryDisplay(_inventory!);
+        ShowAchievements(_achievements!);
+    }
+    
+    private void EnableDegradedMode()
+    {
+        // Some features running in degraded mode
+        GD.Print("UI running in degraded mode");
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### Using with WaitFor
+
+```csharp
+[Host]
+public partial class DataManager : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Generated properties available for checking:
+    // private bool IsConfigInjectionReady { get; set; }
+    // private bool IsLoggerInjectionReady { get; set; }
+    
+    // Wait for _config injection before providing database service
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // WaitFor guarantees _config resolution was attempted, but need to check if successful
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            // Config injection failed, use in-memory database
+            GD.PrintErr("Config not ready, using in-memory database");
+            return new InMemoryDatabase();
+        }
+        
+        // Config successfully injected, use configured database
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("Some dependencies failed to inject:");
+            
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("  - Config injection failed, will use default config");
+                
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("  - Logger injection failed, logging will be disabled");
+        }
+        else
+        {
+            GD.Print("All dependencies successfully injected");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### Invocation Timing
+
+`OnDependenciesResolved` is called at the following timing:
+
+1. **All `[Inject]` dependencies have been attempted to resolve** (success or failure)
+2. **After the node's `_Notification(NotificationEnterTree)`**
+3. **Before any `[Provide]` services are actually used**
+
+#### Best Practices
+
+1. **Always check the `isAllDependenciesReady` parameter**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (isAllDependenciesReady)
+       {
+           // Normal flow
+       }
+       else
+       {
+           // Degradation or error handling
+       }
+   }
+   ```
+
+2. **Use generated `IsXxxInjectionReady` for fine-grained checking**
+   ```csharp
+   if (!IsConfigInjectionReady)
+   {
+       GD.PrintErr("Config injection failed");
+       // Use default config
+   }
+   ```
+
+3. **Combine with null checking for increased safety**
+   ```csharp
+   if (IsStatsInjectionReady && _stats != null)
+   {
+       // Safe to use _stats
+       DisplayStats(_stats);
+   }
+   ```
+
+4. **Log dependency status for debugging**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       GD.Print($"Dependencies ready: {isAllDependenciesReady}");
+       GD.Print($"  Config: {IsConfigInjectionReady}");
+       GD.Print($"  Logger: {IsLoggerInjectionReady}");
+   }
+   ```
+
+#### Notes
+
+⚠️ **Important**:
+- `IsXxxInjectionReady` properties and `IsAllDependenciesReady` property are generated when there are `[Inject]` members, regardless of whether `IDependenciesResolved` interface is implemented
+- These properties are private and can only be used inside the class
+- **`[MemberNotNullWhen(true, ...)]` attribute effect**: When `IsXxxInjectionReady` is `true`, the compiler ensures the corresponding nullable member is not `null`. This means after checking `IsXxxInjectionReady`, you can safely use the null-forgiving operator (`!`) or directly access the member without additional null checks
+- `OnDependenciesResolved` is called even if dependency injection fails (parameter will be `false`)
+
+**Benefits of Using `IsXxxInjectionReady`**:
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    [Inject] private IConfig? _config;
+    
+    // Generated:
+    // [MemberNotNullWhen(true, nameof(_config))]
+    // private bool IsConfigInjectionReady { get; set; }
+    
+    [Provide(ExposedTypes = [typeof(IService)], WaitFor = [nameof(_config)])]
+    public IService CreateService()
+    {
+        if (IsConfigInjectionReady)
+        {
+            // ✅ Compiler knows _config is not null
+            // Can use directly without null check
+            return new Service(_config.ConnectionString);
+            
+            // Or use null-forgiving operator
+            return new Service(_config!.ConnectionString);
+        }
+        
+        // Handle case where _config might be null
+        return new ServiceWithDefaults();
+    }
+}
+```
 
 ### Generated Code
 
-#### Node Lifecycle Related Methods
+For each role, the framework generates:
 
-For types marked with `[Host]`, `[User]`, or `[Scope]`, the framework generates:
+- **Host**: Provider registration, service creation logic
+- **User**: Injection logic, dependency resolution
+- **Scope**: Service container, lifecycle management
 
-```csharp
-// Scope reference
-private IScope? _serviceScope;
-
-// Find nearest parent Scope
-private IScope? GetServiceScope();
-
-// Override Godot's notification method
-public override partial void _Notification(int what);
-```
-
-#### User Generated Content
-
-For types marked with `[User]`, the framework generates:
-
-```csharp
-// Resolve User dependencies
-private void ResolveUserDependencies(IScope scope);
-```
-
-#### Host Generated Content
-
-For types marked with `[Host]`, the framework generates:
-
-```csharp
-// Register Host services to Scope
-private void ProvideHostServices(IScope scope);
-```
-
-#### Service Generated Content
-
-For services marked with `[Singleton]`, the framework generates factory methods:
-
-```csharp
-// Create service instance
-public static void CreateService(
-    IScope scope,
-    Action<object, IScope> onCreated
-);
-```
-
-#### Scope Generated Content
-
-For types implementing `IScope`, the framework generates complete container implementation:
-
-```csharp
-// Static collections
-private static readonly HashSet<Type> ServiceTypes;
-
-// Instance fields
-private readonly Dictionary<Type, object> _services;
-private readonly Dictionary<Type, List<Action<object>>> _waiters;
-private readonly HashSet<IDisposable> _disposableSingletons;
-
-// Lifecycle methods
-private void InstantiateScopeSingletons();
-private void DisposeScopeSingletons();
-private void CheckWaitList();
-
-// IScope implementation
-void IScope.ProvideService<T>(T instance);
-void IScope.ResolveDependency<T>(Action<T> onResolved);
-```
-
----
+All generated code is in `*.DI.g.cs` files.
 
 ### Scene Tree Integration
 
-#### Lifecycle Events
-
-**EnterTree (Top to Bottom)**
-```
-1. Scope EnterTree
-   └→ Clear _parentScope cache
-2. Host EnterTree
-   └→ Clear _parentScope cache
-3. User EnterTree
-   └→ Clear _parentScope cache
-```
-
-**Ready (Bottom to Top)**
-```
-1. Host Ready
-   └→ Provide Host Service ⭐
-2. User Ready
-   └→ Resolve dependencies ⭐
-   └→ OnDependenciesResolved(isAllDependenciesReady) ⭐
-3. Scope Ready
-   └→ Create all Scope Services ⭐
-   └→ Check if waiting queue is empty ⭐
-```
-
-**ExitTree (Bottom to Top)**
-```
-1. User ExitTree
-   └→ Clear _parentScope cache
-2. Host ExitTree
-   └→ Clear _parentScope cache
-3. Scope ExitTree
-   └→ Clear _parentScope cache
-```
-
-**Predelete**
-```
-1. User Predelete
-   └→ (No additional operations needed)
-2. Host Predelete
-   └→ (No additional operations needed)
-3. Scope Predelete
-   └→ Release all singletons ⭐
-```
-
-#### Scene Tree Search
-
-Logic for getting Scope:
+The framework integrates with Godot's lifecycle through `_Notification`:
 
 ```csharp
-private IScope? GetServiceScope()
+public override partial void _Notification(int what)
 {
-    if (_serviceScope is not null)
-        return _serviceScope;
-    
-    var parent = GetParent();
-    while (parent is not null)
+    base._Notification(what);
+    switch ((long)what)
     {
-        if (parent is IScope scope)
-        {
-            _serviceScope = scope;
-            return _serviceScope;
-        }
-        parent = parent.GetParent();
+        case NotificationEnterTree:
+            AttachToScope();
+            break;
+        case NotificationExitTree:
+            DetachFromScope();
+            break;
     }
-    
-    GD.PushError("No nearest Service Scope found");
-    return null;
 }
 ```
 
@@ -1334,336 +1451,402 @@ private IScope? GetServiceScope()
 
 ### Scope Granularity Design
 
-```csharp
-// ✅ Good design: Divide Scopes by functionality/lifecycle
-RootScope          // Global services
-├── MainMenuScope  // Main menu services
-└── GameScope      // Game services
-    └── LevelScope // Level services
+Design scopes based on functional modules:
 
-// ❌ Avoid: Too many or too few Scopes
-// Too many: One Scope per Node (over-engineering)
-// Too few: Entire game in one Scope (cannot isolate)
 ```
-
----
+GameRoot (Scope)
+├── GlobalServices (Host) - Config, SaveSystem
+├── MainMenu (Scope)
+│   └── MenuServices (Host) - UIManager
+└── GameLevel (Scope)
+    ├── LevelServices (Host) - PhysicsEngine
+    └── PlayerServices (Host) - PlayerStats
+```
 
 ### Service Disposal
 
+Implement `IDisposable` for services that need cleanup:
+
 ```csharp
-// ✅ Implement IDisposable for cleanup
-[Singleton(typeof(IResourceLoader))]
-public partial class ResourceLoader : IResourceLoader, IDisposable
+public class DatabaseService : IDatabase, IDisposable
 {
-    private List<Resource> _loadedResources = new();
-    
     public void Dispose()
     {
-        foreach (var res in _loadedResources)
-        {
-            res.Free();  // Release Godot resources
-        }
-        _loadedResources.Clear();
+        // Cleanup resources
+        Connection?.Close();
     }
 }
-```
 
----
+[Host]
+public partial class DataHost : Node
+{
+    [Provide(ExposedTypes = [typeof(IDatabase)])]
+    public IDatabase CreateDatabase()
+    {
+        return new DatabaseService();
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
 
 ### Avoiding Circular Dependencies
 
+**Compile-time Detection**: The framework detects circular WaitFor chains. Note: WaitFor can only wait for `[Inject]` members, so circular dependencies typically occur with mutually dependent injected services:
+
 ```csharp
-// ❌ Circular dependency
-[Singleton(typeof(IA))]
-public partial class A : IA
+// ❌ Conceptual example - if two Hosts mutually inject each other's provided services and wait
+// Host A injects service from Host B and waits for it
+[Host]
+public partial class HostA : Node
 {
-    public A(IB b) { }  // A depends on B
+    [Inject] private IServiceB? _serviceB;
+    
+    // Provides service A, but waits for _serviceB injection
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateA() => new ServiceA(_serviceB);
 }
 
-[Singleton(typeof(IB))]
-public partial class B : IB
+// Host B injects service from Host A and waits for it
+[Host]
+public partial class HostB : Node
 {
-    public B(IA a) { }  // B depends on A → Circular!
-}
-
-// ✅ Break the cycle: Use events or callbacks
-[Singleton(typeof(IA))]
-public partial class A : IA
-{
-    public event Action<int> OnValueChanged;
-}
-
-[Singleton(typeof(IB))]
-public partial class B : IB
-{
-    public B(IA a)
-    {
-        a.OnValueChanged += HandleValueChanged;
-    }
+    [Inject] private IServiceA? _serviceA;
+    
+    // Provides service B, but waits for _serviceA injection - this will cause runtime deadlock
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB() => new ServiceB(_serviceA);
 }
 ```
 
----
+**Solution**: Refactor dependency relationships to avoid mutual waiting:
+
+```csharp
+// ✅ Correct approach - only one direction waits
+[Host]
+public partial class HostA : Node
+{
+    // No wait for any dependency, provides immediately
+    [Provide(ExposedTypes = [typeof(IServiceA)])]
+    public IServiceA CreateA() => new ServiceA();
+}
+
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+    
+    // Wait for _serviceA, but ServiceA doesn't depend on ServiceB
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB()
+    {
+        if (_serviceA == null)
+            return new ServiceB(new NullServiceA());
+        return new ServiceB(_serviceA);
+    };
+```
 
 ### Interface-First Principle
 
-```csharp
-// ✅ Recommended: Expose interfaces
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-
-// ⚠️ Not recommended: Expose concrete class
-[Singleton(typeof(ConfigService))]
-public partial class ConfigService { }
-```
+Always expose interfaces rather than concrete types:
 
 ```csharp
+// ❌ Not recommended
+[Provide(ExposedTypes = [typeof(DatabaseService)])]
+public DatabaseService CreateDatabase() => new DatabaseService();
+
 // ✅ Recommended
-// Host exposes interfaces
-[Host]
-public partial class GameManager : Node, IGameManager
-{
-    [Singleton(typeof(IGameManager))]
-    private GameManager Self => this; // ✅ Recommended
-    
-    [Singleton(typeof(ICombatSystem))]
-    private CombatSystemImpl _combat = new(); // ✅ Recommended
-}
-
-// User injects interfaces
-[User]
-public partial class Player : Node
-{
-    [Inject] private IGameManager _gameManager; // ✅ Recommended
-    [Inject] private ICombatSystem _combat; // ✅ Recommended
-}
-
-// ⚠️ Not Recommended
-// Host directly exposes concrete types
-[Host]
-public partial class GameManager : Node
-{
-    [Singleton] private GameManager Self => this; // ⚠️ Will produce warning
-    [Singleton] private CombatSystemImpl _combat = new(); // ⚠️ Will produce warning
-}
-
-// User injects concrete types
-[User]
-public partial class Player : Node
-{
-    [Inject] private GameManager _state; // ⚠️ Will produce warning
-}
+[Provide(ExposedTypes = [typeof(IDatabase)])]
+public IDatabase CreateDatabase() => new DatabaseService();
 ```
 
-**Reasons**:
+### Host Injecting and Providing Services
 
-- Interfaces provide better loose coupling
-- Easier for unit testing (using mocks)
-- Easier to replace implementations
-
----
-
-### Host + User Combination Usage
-
-A Node can be both Host and User simultaneously:
+Hosts can both inject dependencies and provide services without needing the `[User]` attribute:
 
 ```csharp
-[Host, User]
+[Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // Host part: expose service
-    [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
+    // Host directly injects dependencies
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
     
-    // User part: inject dependencies
-    [Inject] private IConfig _config;
-    [Inject] private ISaveSystem _saveSystem;
+    // Host provides services
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
         if (isAllDependenciesReady)
         {
-            // Dependencies are ready, can initialize
-            LoadLastSave();
+            InitializeWithDependencies();
         }
     }
     
-    // Required for Godot lifecycle integration
+    private void InitializeWithDependencies()
+    {
+        // Both IsConfigInjectionReady and IsSaveSystemInjectionReady are true
+        // Safe to use _config and _saveSystem
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
 
-This is very useful for Nodes that need to both provide and consume services.
+**Role Exclusivity Rules**:
+
+| Role | Can Be Combined | Cannot Be Combined |
+|------|----------------|-------------------|
+| **Host** | Can be used alone | Cannot coexist with User or Scope |
+| **User** | Can be used alone | Cannot coexist with Host or Scope |
+| **Scope** | Must be used alone | Cannot coexist with any other role |
+
+**Host Capabilities**:
+- ✅ Use `[Provide]` to provide services
+- ✅ Use `[Inject]` to inject dependencies
+- ✅ Use `WaitFor` to wait for dependencies
+- ✅ Implement `IDependenciesResolved`
+- ❌ Cannot be marked as `[User]` simultaneously
+- ❌ Cannot be marked as `[Scope]` simultaneously
+
+### Using Service Factories
+
+Create factory services to manage dynamic object creation:
+
+```csharp
+public interface IEnemyFactory
+{
+    Enemy CreateEnemy(Vector3 position);
+}
+
+public class Enemy
+{
+    private readonly IPlayerStats _playerStats;
+    
+    public Enemy(IPlayerStats playerStats, Vector3 position)
+    {
+        _playerStats = playerStats;
+        Position = position;
+    }
+    
+    public Vector3 Position { get; }
+}
+
+[Host]
+public partial class GameHost : Node, IDependenciesResolved
+{
+    [Inject] private IPlayerStats _playerStats;
+    
+    [Provide(ExposedTypes = [typeof(IEnemyFactory)], WaitFor = [nameof(_playerStats)])]
+    public IEnemyFactory CreateEnemyFactory()
+    {
+        return new EnemyFactory(_playerStats);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    
+    public override partial void _Notification(int what);
+}
+
+public class EnemyFactory : IEnemyFactory
+{
+    private readonly IPlayerStats _playerStats;
+    
+    public EnemyFactory(IPlayerStats playerStats)
+    {
+        _playerStats = playerStats;
+    }
+    
+    public Enemy CreateEnemy(Vector3 position)
+    {
+        return new Enemy(_playerStats, position);
+    }
+}
+```
 
 ---
 
-## Using Service Factories
+## Migration Guide from 1.0.0-rc.3
 
-**Factory is a Singleton:**
+### Why 1.1.0 Instead of 1.0.0?
 
+After releasing 1.0.0-rc.3, we identified an architectural limitation: the `[Singleton]` attribute and standalone service classes, while functional, created unnecessary complexity and limited flexibility. The new provider-based architecture in 1.1.0 offers:
+
+- **Greater Flexibility**: Services defined inline with Hosts
+- **Better Resource Management**: Direct access to Node resources when creating services
+- **Asynchronous Support**: Native support for async service initialization
+- **Dependency Ordering**: WaitFor mechanism for complex initialization sequences
+- **Simplified Architecture**: One less concept to learn (no more separate Service classes)
+
+Given the magnitude of these changes, we decided to increment to 1.1.0 rather than release 1.0.0 with known limitations.
+
+### Migration Steps
+
+#### 1. Replace [Singleton] Service Classes with [Provide] Methods
+
+**Before (1.0.0-rc.3)**:
 ```csharp
-[Singleton(typeof(IFactory))]
-public partial class MyFactory : IFactory
+// Separate service class
+[Singleton(typeof(IPlayerStats))]
+public partial class PlayerStatsService : IPlayerStats
 {
-    private readonly IDep _dep;
-    
-    public MyFactory(IDep dep)
-    {
-        _dep = dep;
-    }
-    
-    public Product Create(params...)
-    {
-        return new Product(_dep, params...);
-    }
+    public int Health { get; set; } = 100;
+    public int Mana { get; set; } = 50;
 }
+
+[Singleton(typeof(IDatabase))]
+public partial class DatabaseService : IDatabase
+{
+    [InjectConstructor]
+    public DatabaseService(IConfig config)
+    {
+        ConnectionString = config.ConnectionString;
+    }
+    
+    public string ConnectionString { get; }
+}
+
+[Modules(
+    Services = [typeof(PlayerStatsService), typeof(DatabaseService)],
+    Hosts = [typeof(GameManager)]
+)]
+public partial class GameScope : Node, IScope { }
 ```
 
-**Product is a regular class:**
-
+**After (1.1.0)**:
 ```csharp
-public class Product : IDisposable
+// Service provided by Host
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
 {
-    private readonly IDep _dep;
+    [Inject] private IConfig _config;
     
-    public Product(IDep dep, ...)
+    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
+    public IPlayerStats CreatePlayerStats()
     {
-        _dep = dep;
+        return new PlayerStatsService { Health = 100, Mana = 50 };
     }
     
-    public void Dispose() { }
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    
+    public override partial void _Notification(int what);
 }
-```
 
-**Usage:**
-```csharp
-[User]
-public partial class MyUser : Node
+// Service implementation (no attributes needed)
+public class PlayerStatsService : IPlayerStats
 {
-    [Inject] private IFactory _factory;
-    
-    public void DoWork()
+    public int Health { get; set; }
+    public int Mana { get; set; }
+}
+
+public class DatabaseService : IDatabase
+{
+    public DatabaseService(string connectionString)
     {
-        using var product = _factory.Create(...);
-        product.Execute();
+        ConnectionString = connectionString;
     }
     
-    // Required for Godot lifecycle integration
+    public string ConnectionString { get; }
+}
+
+// Simplified Modules attribute
+[Modules(Hosts = [typeof(ServiceHost), typeof(GameManager)])]
+public partial class GameScope : Node, IScope
+{
     public override partial void _Notification(int what);
 }
 ```
 
-### Common Patterns
+#### 2. Remove [InjectConstructor] Attributes
 
-#### 1. Simple Factory
+The `[InjectConstructor]` attribute is no longer needed. Services are created by provider methods, giving you full control over construction.
+
+#### 3. Update Modules Attribute
+
+Remove the `Services` parameter from `[Modules]`:
+
 ```csharp
-[Singleton(typeof(IBulletFactory))]
-public partial class BulletFactory : IBulletFactory
+// Before
+[Modules(
+    Services = [typeof(Service1), typeof(Service2)],
+    Hosts = [typeof(Host1)]
+)]
+
+// After
+[Modules(Hosts = [typeof(Host1)])]
+```
+
+#### 4. Use WaitFor for Service Dependencies
+
+If your services have dependencies on other services:
+
+```csharp
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
 {
-    public Bullet Create() => new Bullet();
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Metrics created immediately (no dependencies)
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        return new MetricsService();
+    }
+    
+    // Database waits for _config injection
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // Repository waits for both _config and _logger injection
+    [Provide(ExposedTypes = [typeof(IRepository)], 
+             WaitFor = [nameof(_config), nameof(_logger)])]
+    public IRepository CreateRepository()
+    {
+        // Check if dependencies are ready
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        
+        if (!hasConfig || !hasLogger)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // Both dependencies ready, injected services can also be obtained through scope
+        return new Repository(_config, _logger);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
 }
 ```
 
-#### 2. Object Pool
-```csharp
-[Singleton(typeof(IPooledFactory))]
-public partial class PooledFactory : IPooledFactory
-{
-    private ObjectPool _pool = new();
-    
-    public Item Get() => _pool.Get();
-    public void Return(Item item) => _pool.Return(item);
-}
-```
+### Breaking Changes Summary
 
-#### 3. Dependency Propagation
-```csharp
-[Singleton(typeof(IComplexFactory))]
-public partial class ComplexFactory : IComplexFactory
-{
-    private readonly IPhysics _physics;
-    private readonly IAudio _audio;
-    
-    public ComplexFactory(IPhysics physics, IAudio audio)
-    {
-        _physics = physics;
-        _audio = audio;
-    }
-    
-    public ComplexObject Create(params...)
-    {
-        return new ComplexObject(_physics, _audio, params...);
-    }
-}
-```
-
-#### 4. Extension: ECS Integration Example
-
-```csharp
-// System is a Singleton service
-
-[Singleton(typeof(IMovementSystem))]
-public partial class MovementSystem : IMovementSystem { ... }
-
-[Singleton(typeof(IWorld))]
-public partial class GameWorld : IWorld
-{
-    public GameWorld(IMovementSystem movement) { ... }
-    public void Update(double delta) { ... }
-}
-
-[Singleton(typeof(IProjectileSystem))]
-public partial class ProjectileSystem : IProjectileSystem
-{
-    private readonly IPhysics _physics;
-    private readonly IWorld _world;
-    
-    public ProjectileSystem(IPhysics physics, IWorld world)
-    {
-        _physics = physics;
-        _world = world;
-    }
-    
-    // Create Entity (ECS approach)
-    public void SpawnProjectile(Vector3 pos, Vector3 vel)
-    {
-        var entity = _world.CreateEntity();
-        entity.Set(new Position { Value = pos });
-        entity.Set(new Velocity { Value = vel });
-    }
-    
-    // Or use factory to create regular objects
-    public Projectile CreateProjectile(Vector3 pos, Vector3 vel)
-    {
-        return new Projectile(_physics, pos, vel);
-    }
-}
-
-// Entity is pure data (ECS recommended)
-public struct ProjectileEntity
-{
-    public Vector3 Position;
-    public Vector3 Velocity;
-}
-
-// Or regular class object (traditional approach)
-public class Projectile : IDisposable
-{
-    private readonly IPhysics _physics;
-    public Vector3 Position { get; set; }
-    public Vector3 Velocity { get; set; }
-    
-    public Projectile(IPhysics physics, Vector3 pos, Vector3 vel)
-    {
-        _physics = physics;
-        Position = pos;
-        Velocity = vel;
-    }
-    
-    public void Update(double delta) { }
-    public void Dispose() { }
-}
-```
+| Feature | 1.0.0-rc.3 | 1.1.0 |
+|---------|------------|------------|
+| Service Declaration | `[Singleton]` on class | `[Provide]` on Host member |
+| Constructor Injection | `[InjectConstructor]` | Use provider method parameters |
+| Modules Attribute | `Services = [...]` | Removed, only `Hosts = [...]` |
+| Service Dependencies | Constructor parameters | `WaitFor` mechanism |
+| Async Support | Not supported | `Task<T>` return types |
 
 ---
 
@@ -1677,7 +1860,6 @@ The framework provides comprehensive compile-time error checking. For a complete
 |--------|----------|-------------|
 | GDI_C | Class | Class-level errors |
 | GDI_M | Member | Member-level errors |
-| GDI_S | Constructor | Constructor-level errors |
 | GDI_D | Dependency Graph | Dependency graph errors |
 | GDI_E | Internal Error | Internal errors |
 | GDI_U | User Behavior | User behavior warnings |
@@ -1690,7 +1872,7 @@ MIT License
 
 ## Appendix: _Notification method explicitly definition requirement
 
-**Starting from version 1.0.0-rc.1**, all Host, User, and Scope types **must** explicitly define the `_Notification` method in C# script file attached to the node:
+All Host, User, and Scope types **must** explicitly define the `_Notification` method in C# script file attached to the node:
 
 ```csharp
 public override partial void _Notification(int what);
@@ -1721,8 +1903,8 @@ public partial class GameManager : Node
     // Required: Godot needs to see this declaration
     public override partial void _Notification(int what);
 
-    [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public IGameState Self => this;
 }
 
 // Generated file: GameManager.DI.g.cs (not scanned by Godot)
@@ -1749,20 +1931,26 @@ partial class GameManager
 
 ### 1. Documentation and Examples
 
-- [ ] Improve bilingual (Chinese-English) support
-- [ ] Add sample projects (running GodotSharpDI.Sample from Godot)
+- [ ] Complete bilingual (Chinese-English) documentation
+- [ ] Add comprehensive sample projects
+- [ ] Create video tutorials
 - [ ] Enhance comment coverage in generated code
 
 ### 2. Testing
 
 - [ ] Add runtime integration tests
 - [ ] Add generator, analyzer, code fixer integration tests
+- [ ] Add WaitFor mechanism tests
 
 ### 3. Features
 
-- [x] Implement dependency callback waiting timing and timeout handling
+- [x] Implement dependency WaitFor mechanism
+- [x] Support asynchronous service providers
 - [ ] Support asynchronous operations (using CallDeferred)
+- [ ] Add service lifetime configuration options
 
 ### 4. Diagnostics
 
 - [x] Diagnose generator internal errors (GDI_E)
+- [ ] Add more detailed WaitFor cycle detection
+- [ ] Improve error messages with code examples

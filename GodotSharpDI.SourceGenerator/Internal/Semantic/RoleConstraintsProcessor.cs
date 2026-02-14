@@ -31,12 +31,7 @@ internal sealed class RoleConstraintsProcessor
     {
         switch (_role)
         {
-            case TypeRole.Service:
-                ValidateServiceConstraints();
-                break;
-
             case TypeRole.Host:
-            case TypeRole.HostAndUser:
                 ValidateHostConstraints();
                 ValidateNotificationMethod();
                 break;
@@ -56,120 +51,16 @@ internal sealed class RoleConstraintsProcessor
         if (
             _raw.ImplementsIDependenciesResolved
             && _role != TypeRole.User
-            && _role != TypeRole.HostAndUser
+            && _role != TypeRole.Host
         )
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.IDependenciesResolvedNeedUser,
+                    DiagnosticDescriptors.IDependenciesResolvedInvalid,
                     _raw.Location,
                     _raw.Symbol.Name
                 )
             );
-        }
-    }
-
-    private void ValidateServiceConstraints()
-    {
-        // 必须是实体类
-        if (!_raw.Symbol.IsConcreteClass())
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceTypeIsInvalid,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
-
-        // 不能是泛型类型
-        if (_raw.Symbol.IsGenericType)
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceTypeCannotBeGeneric,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
-
-        // 不能是 Node
-        if (_symbols.IsNode(_raw.Symbol))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ServiceCannotBeNode,
-                    _raw.Location,
-                    _raw.Symbol.Name
-                )
-            );
-        }
-
-        var exposedTypes = AttributeHelper.GetServiceExposedTypes(_raw.Symbol, _symbols);
-
-        foreach (var exposedType in exposedTypes)
-        {
-            // 不能是开放泛型类型（封闭泛型是允许的，如 IList<int>）
-            if (exposedType.IsUnboundGenericType())
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ServiceExposedTypeCannotBeGeneric,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        exposedType.ToDisplayString()
-                    )
-                );
-            }
-
-            // 检查暴露类型是否是接口（Warning）
-            if (exposedType.TypeKind != TypeKind.Interface)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ServiceExposedTypeShouldBeInterface,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        exposedType.ToDisplayString()
-                    )
-                );
-            }
-
-            // 检查是否实现了暴露的接口
-            if (exposedType.TypeKind == TypeKind.Interface)
-            {
-                if (!_raw.Symbol.ImplementsInterface(exposedType))
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ServiceExposedTypeNotImplemented,
-                            _raw.Location,
-                            _raw.Symbol.Name,
-                            exposedType.ToDisplayString()
-                        )
-                    );
-                }
-            }
-            // 检查是否是继承关系
-            else if (exposedType.TypeKind == TypeKind.Class)
-            {
-                if (
-                    !SymbolEqualityComparer.Default.Equals(_raw.Symbol, exposedType)
-                    && !_raw.Symbol.InheritsFrom(exposedType)
-                )
-                {
-                    _diagnostics.Add(
-                        DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.ServiceExposedTypeNotImplemented,
-                            _raw.Location,
-                            _raw.Symbol.Name,
-                            exposedType.ToDisplayString()
-                        )
-                    );
-                }
-            }
         }
     }
 

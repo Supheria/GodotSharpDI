@@ -4,7 +4,7 @@
 
 <p align="left"> <a href="README.md">English</a> </p>
 
-一个专为 Godot 4 设计的编译时依赖注入框架，通过 C# 源生成器实现零反射、高性能的 DI 支持。
+一个专为 Godot 4 设计的编译时依赖注入框架,通过 C# 源生成器实现零反射、高性能的 DI 支持。
 
 [![NuGet Version](https://img.shields.io/nuget/v/GodotSharpDI.svg?style=flat)](https://www.nuget.org/packages/GodotSharpDI/)
 
@@ -13,29 +13,31 @@
 - [设计理念](#设计理念)
 - [安装](#安装)
 - [快速开始](#快速开始)
-  - [1. 定义服务](#1-定义服务)
-  - [2. 定义服务工厂](#2-定义服务工厂)
+  - [1. 定义服务接口](#1-定义服务接口)
+  - [2. 定义带服务提供者的 Host](#2-定义带服务提供者的-host)
   - [3. 定义 Scope](#3-定义-scope)
-  - [4. 定义 Host](#4-定义-host)
-  - [5. 定义 User](#5-定义-user)
-  - [6. 场景树结构](#6-场景树结构)
+  - [4. 定义 User](#4-定义-user)
+  - [5. 场景树结构](#5-场景树结构)
 - [核心概念](#核心概念)
-  - [四种角色类型](#四种角色类型)
+  - [三种角色类型](#三种角色类型)
   - [服务生命周期](#服务生命周期)
 - [角色详解](#角色详解)
-  - [单例服务](#单例服务)
-  - [Host (宿主)](#host-宿主)
+  - [Host (服务提供者)](#host-服务提供者)
   - [User (消费者)](#user-消费者)
   - [Scope (容器)](#scope-容器)
+- [使用 [Provide] 提供服务](#使用-provide-提供服务)
+  - [属性提供者](#属性提供者)
+  - [方法提供者](#方法提供者)
+  - [异步提供者](#异步提供者)
+  - [WaitFor 机制](#waitfor-机制)
 - [生命周期管理](#生命周期管理)
-  - [单例生命周期](#单例生命周期)
+  - [服务生命周期](#服务生命周期-1)
   - [Scope 层级](#scope-层级)
   - [依赖注入时序](#依赖注入时序)
-  - [Host + User 与循环依赖](#host--user-与循环依赖)
+  - [Host 使用 Inject](#host-使用-inject)
 - [类型约束](#类型约束)
-  - [角色类型约束](#角色类型约束-1)
+  - [角色类型约束](#角色类型约束)
   - [注入类型约束](#注入类型约束)
-  - [服务实现类型约束](#服务实现类型约束)
   - [暴露类型约束](#暴露类型约束)
   - [其他约束](#其他约束)
 - [API 参考](#api-参考)
@@ -48,11 +50,12 @@
   - [服务释放](#服务释放)
   - [避免循环依赖](#避免循环依赖)
   - [接口优先原则](#接口优先原则)
-  - [Host + User 组合使用](#host--user-组合使用)
+  - [Host 注入和提供服务](#host-注入和提供服务)
   - [使用服务工厂](#使用服务工厂)
+- [从 1.0.0-rc.3 迁移指南](#从-100-rc3-迁移指南)
 - [诊断代码](#诊断代码)
 - [许可证](#许可证)
-- [附录：需要显式声明_Notification方法](#附录：需要显式声明_Notification方法)
+- [附录：需要显式声明 _Notification 方法](#附录需要显式声明-_notification-方法)
 - [Todo List](#todo-list)
 
 ---
@@ -64,21 +67,22 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 - **场景树即容器层级**：利用 Godot 的场景树结构实现作用域 (Scope) 层级
 - **Node 生命周期集成**：服务的创建和销毁与 Node 的进入/退出场景树事件绑定
 - **编译时安全**：通过 Source Generator 在编译期完成依赖分析和代码生成，提供完整的编译时错误检查
+- **基于提供者的架构**：服务通过 Host 使用 `[Provide]` 特性提供，提供更大的灵活性和控制力
 
 ---
 
-## 安装软件包
+## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="x.x.x" />
+<PackageReference Include="GodotSharpDI" Version="1.1.0" />
 ```
-⚠️ **确保项目中同时添加了 GodotSharp 软件包** ：生成的代码依赖 Godot.Node 和 Godot.GD 。
+⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
 ---
 
 ## 快速开始
 
-### 1. 定义服务
+### 1. 定义服务接口
 
 ```csharp
 // 定义服务接口
@@ -88,79 +92,66 @@ public interface IPlayerStats
     int Mana { get; set; }
 }
 
-// 实现服务
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
+public interface IGameState
 {
-    public int Health { get; set; } = 100;
-    public int Mana { get; set; } = 50;
+    GameState CurrentState { get; set; }
 }
 ```
 
-### 2. 定义服务工厂
+### 2. 定义带服务提供者的 Host
 
 ```csharp
-// 定义服务接口
-public interface IEnemySpawner
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    Enemy SpawnEnemy();
+    // 将自身作为 IGameState 服务提供
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
+    
+    // 提供 IPlayerStats 服务
+    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
+    public IPlayerStats CreatePlayerStats()
+    {
+        return new PlayerStatsService { Health = 100, Mana = 50 };
+    }
+    
+    public GameState CurrentState { get; set; }
+    
+    // 在所有依赖解析后调用
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("GameManager 已就绪，所有依赖已解析");
+        }
+    }
+    
+    // Godot 生命周期集成所需
+    public override partial void _Notification(int what);
 }
 
-// 实现服务工厂
-[Singleton(typeof(IEnemySpawner))]
-public partial class EnemyFactory : IEnemySpawner
+// 服务实现（不再需要 [Singleton]）
+public class PlayerStatsService : IPlayerStats
 {
-    private IPlayerStats _playerStats;
-    
-    // 从构造函数注入依赖
-    [InjectConstructor]
-    public EnemyFactory(IPlayerStats playerStats)
-    {
-        _playerStats = playerStats;
-    }
-    
-    public Enemy SpawnEnemy()
-    {
-        // 向动态对象传递依赖
-        return new Enemy(_playerStats);
-    }
+    public int Health { get; set; }
+    public int Mana { get; set; }
 }
 ```
 
 ### 3. 定义 Scope
 
 ```csharp
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(EnemyFactory)],
-    Hosts = [typeof(GameManager)]
-)]
+[Modules(Hosts = [typeof(GameManager)])]
 public partial class GameScope : Node, IScope
 {
     // 框架自动生成 IScope 实现
     
-    // 需要集成 Godot 生命周期
+    // Godot 生命周期集成所需
     public override partial void _Notification(int what);
 }
 ```
 
-### 4. 定义 Host
-
-```csharp
-[Host]
-public partial class GameManager : Node, IGameState
-{
-    // 将自己暴露为 IGameState 服务
-    [Singleton(typeof(IGameState))]
-    private GameManager Self => this;
-    
-    public GameState CurrentState { get; set; }
-    
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-```
-
-### 5. 定义 User
+### 4. 定义 User
 
 ```csharp
 [User]
@@ -169,7 +160,7 @@ public partial class PlayerUI : Control, IDependenciesResolved
     [Inject] private IPlayerStats _stats;
     [Inject] private IGameState _gameState;
     
-    // 所有依赖解析完成后调用
+    // 在所有依赖解析后调用
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
         if (isAllDependenciesReady)
@@ -182,209 +173,110 @@ public partial class PlayerUI : Control, IDependenciesResolved
         }
     }
     
-    // 需要集成 Godot 生命周期
+    private void UpdateUI()
+    {
+        GD.Print($"生命值: {_stats.Health}, 法力值: {_stats.Mana}");
+        GD.Print($"游戏状态: {_gameState.CurrentState}");
+    }
+    
+    // Godot 生命周期集成所需
     public override partial void _Notification(int what);
 }
 ```
 
-### 6. 场景树结构
+### 5. 场景树结构
 
 ```
-GameScope (IScope
-├── GameManager (Host)
-└── PlayerUI (User) ← 自动接收注入
+GameScope (IScope)
+├── GameManager (Host) ← 提供服务
+└── PlayerUI (User) ← 消费服务
 ```
 
 ---
 
 ## 核心概念
 
-### 四种角色类型
+### 三种角色类型
 
-| 角色 | 说明 | 约束 |
+| 角色 | 描述 | 约束 |
 |------|------|------|
-| **单例服务** | 纯逻辑服务，在 Scope 内唯一，由 Scope 创建和管理，Scope 销毁时释放 | 必须是非 Node 的 class |
-| **Host** | 场景级资源提供者，将 Node 资源桥接到 DI 世界 | 必须是 Node |
+| **Host** | 服务提供者，连接 Node 资源与 DI 世界，通过 `[Provide]` 成员提供服务 | 必须是 Node |
 | **User** | 依赖消费者，接收注入 | 必须是 Node |
 | **Scope** | DI 容器，管理服务生命周期 | 必须是 Node，实现 IScope |
+
+**1.1.0 的重要变化**：移除了 `[Singleton]` 特性和独立的服务类。服务现在直接通过 Host 使用 `[Provide]` 特性提供，提供更灵活统一的架构。
 
 ---
 
 ## 角色详解
 
-### 单例服务
+### Host (服务提供者)
 
 #### 职责
 
-标记为 [Singleton] 的类型是纯逻辑服务，封装业务逻辑和数据处理，**不依赖 Godot Node 系统**。
+Host 是 Godot Node 系统与 DI 系统之间的桥梁，通过 `[Provide]` 成员提供服务。
 
-#### 生命周期标记
+#### 服务提供方式
 
-```csharp
-// Singleton: Scope 内唯一实例
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-```
+Host 可以通过以下方式提供服务：
 
-#### 构造函数注入
-
-单例服务通过构造函数注入依赖：
+1. **属性** - 简单的同步服务提供
+2. **方法** - 灵活的带参数服务创建
+3. **异步方法** - 支持异步初始化
 
 ```csharp
-[Singleton(typeof(ICombatSystem))]
-public partial class CombatSystem : ICombatSystem
+[Host]
+public partial class ServiceHost : Node
 {
-    private readonly IPlayerStats _stats;
-    private readonly IWeaponFactory _weapons;
+    // 属性提供者
+    [Provide(ExposedTypes = [typeof(IConfig)])]
+    public IConfig Config => new ConfigService();
     
-    public CombatSystem(IPlayerStats stats, IWeaponFactory weapons)
+    // 方法提供者
+    [Provide(ExposedTypes = [typeof(IDatabase)])]
+    public IDatabase CreateDatabase()
     {
-        _stats = stats;
-        _weapons = weapons;
+        return new DatabaseService("connection-string");
     }
-}
-```
-
-**构造函数选择规则**:
-
-1. 使用标记为 `[InjectConstructor]` 的构造函数
-2. 只有一个构造函数时则作为默认构造函数，无论是否标记为 `[InjectConstructor]` 
-3. 如果有多个构造函数，必须指定唯一的 `[InjectConstructor]`
-
-```csharp
-[Singleton(typeof(IService))]
-public partial class MyService : IService
-{
-    // 多个构造函数时,必须指定
-    [InjectConstructor]
-    public MyService(IDep1 dep1) { }
     
-    public MyService(IDep1 dep1, IDep2 dep2) { }
-}
-```
-
-#### 暴露类型
-
-通过 [Singleton] 参数指定暴露的服务类型：
-
-```csharp
-// 暴露单个接口
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-
-// 暴露多个接口
-[Singleton(typeof(IReader), typeof(IWriter))]
-public partial class FileService : IReader, IWriter { }
-
-// 不指定参数时,暴露类本身 (不推荐)
-[Singleton]  // 暴露 ConfigService 类型
-public partial class ConfigService { }
-```
-
-> ⚠️ **最佳实践**： 始终暴露接口而非具体类，以保持松耦合和可测试性。
-
----
-
-### Host (宿主)
-
-#### 职责
-
-Host 是 Godot Node 系统与 DI 系统之间的桥梁，它将 Node 管理的资源暴露为可注入的服务。
-
-#### 静态性约束
-
-Host 是 Scope 的**静态**组成部分，不是动态服务提供者。
-
-**❌ 不应该：**
-
-* 在运行时 reparent 
-* 动态添加/移除 Host 
-* 期望 Host 在不同 Scope 间迁移
-
-**✅ 应该：**
-
-* 将 Host 视为 Scope 节点树的固定部分
-* 在场景设计时确定 Host 的位置
-* 将 Host 作为 Scope 的场景树子节点，由 Scope 销毁时清理
-* 如需动态服务，应使用服务工厂模式（参考 **[使用服务工厂](#使用服务工厂)** 小节）
-
-> 这样的约束让 Scope 在其作用域内具有单例特性。与传统全局单例相比，Scope 能够主动限制自己的影响范围——通过场景树的层级关系自然划分服务边界。这使得场景结构更加灵活且可控，User 可以在场景树的各个层级方便地获取所需依赖，而不会产生全局污染。
->
-> 简而言之，将 Scope 和 Host 视为场景树中稳定的“锚定点”，Host 是 Scope 用于拆分逻辑和管理资源的“功能模块”。
-
-#### 典型使用模式
-
-**模式 1： Host 暴露自身**
-
-```csharp
-[Host]
-public partial class ChunkManager : Node3D, IChunkGetter, IChunkLoader
-{
-    [Singleton(typeof(IChunkGetter), typeof(IChunkLoader))]
-    private ChunkManager Self => this;
+    // 异步提供者
+    [Provide(ExposedTypes = [typeof(IAsyncService)])]
+    public async Task<IAsyncService> InitializeAsync()
+    {
+        var service = new AsyncService();
+        await service.InitializeAsync();
+        return service;
+    }
     
-    // Node 管理的资源
-    private Dictionary<Vector3I, Chunk> _chunks = new();
-    
-    // 实现接口
-    public Chunk GetChunk(Vector3I pos) => _chunks.GetValueOrDefault(pos);
-    public void LoadChunk(Vector3I pos) { /* ... */ }
-    
-    // 需要集成 Godot 生命周期
+    // Godot 生命周期集成所需
     public override partial void _Notification(int what);
 }
 ```
 
-这是 Host 最典型的使用方式：Node 自身实现服务接口，并将自己暴露给 DI 系统。
+#### Host 作为服务消费者
 
-**模式 2： Host 持有并暴露其他对象**
+Host 也可以通过添加 `[Inject]` 成员来作为服务消费者：
 
 ```csharp
 [Host]
-public partial class WorldManager : Node
+public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    [Singleton(typeof(IWorldConfig))]
-    private WorldConfig _config = new();
+    // 消费服务
+    [Inject] private IConfig _config;
     
-    [Singleton(typeof(IWorldState))]
-    private WorldState _state = new();
+    // 提供服务
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
     
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-
-public class WorldConfig : IWorldConfig { /* ... */ }
-public class WorldState : IWorldState { /* ... */ }
-```
-
-Host 可以持有和管理其他对象，并将它们暴露为服务。**这些对象的生命周期由 Host 控制。**
-
-```csharp
-// ❌ 错误：标记为 [Singleton]的类型只能由 Scope 持有
-[Singleton(typeof(IConfig))]
-public partial class ConfigService : IConfig { }
-
-[Host]
-public partial class BadHost : Node
-{
-    [Singleton(typeof(IConfig))]
-    private ConfigService _config = new();  // 编译错误 GDI_M050
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // 使用注入的依赖进行初始化
+            InitializeGame();
+        }
+    }
     
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-
-// ✅ 正确：使用注入而非持有
-[Host, User]
-public partial class GoodHost : Node
-{
-    [Singleton(typeof(ISelf))]
-    private ISelf Self => this;
-    
-    [Inject]
-    private IConfig _config;  // 通过注入获取 Service
-    
-    // 需要集成 Godot 生命周期
     public override partial void _Notification(int what);
 }
 ```
@@ -395,136 +287,34 @@ public partial class GoodHost : Node
 
 #### 职责
 
-User 是依赖消费者，通过字段或属性注入接收服务依赖。
+User 是服务消费者，接收注入的依赖。
 
-#### User 自动注入依赖
-
-```csharp
-[User]
-public partial class PlayerController : CharacterBody3D, IDependenciesResolved
-{
-    [Inject] private IPlayerStats _stats;
-    [Inject] private ICombatSystem _combat;
-    
-    // 当所有依赖解析完成后自动调用
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
-    {
-        if (isAllDependenciesReady)
-        {
-            GD.Print("所有服务已就绪，可以开始游戏逻辑");
-        }
-    }
-    
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-```
-
-> User 会在进入场景树时自动触发注入，无需手动操作。
->
-
-#### IDependenciesResolved 接口
-
-User 类型可以实现 `IDependenciesResolved` 接口，`OnDependenciesResolved(bool isAllDependenciesReady)` 在所有 `[Inject]` 成员解析完成后被立即调用。
-
-```csharp
-public interface IDependenciesResolved
-{
-    void OnDependenciesResolved(bool isAllDependenciesReady);
-}
-```
-
-**参数说明**：
-- `isAllDependenciesReady`：如果为 `true`，表示所有依赖都成功注入；如果为 `false`，表示至少有一个依赖注入失败。
-
-> ⚠️ **`OnDependenciesResolved()` 始终在 `_Ready()` 之后被调用**，因为 User 在 `NotificationReady` 处开始依赖解析。
-
-**示例**：
+#### 依赖注入
 
 ```csharp
 [User]
-public partial class UIManager : Control, IDependenciesResolved
+public partial class PlayerController : Node, IDependenciesResolved
 {
     [Inject] private IPlayerStats _stats;
-    [Inject] private IGameState _gameState;
+    [Inject] private IInputService _input;
+    [Inject] private IPhysicsService _physics;
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
         if (isAllDependenciesReady)
         {
-            // 所有依赖已就绪，可以安全地访问它们
-            _stats.OnHealthChanged += UpdateHealthBar;
-            _gameState.OnStateChanged += UpdateGameState;
-            
-            // 初始 UI 更新
-            UpdateHealthBar(_stats.Health);
-            UpdateGameState(_gameState.CurrentState);
+            // 所有依赖就绪
+            InitializeController();
         }
         else
         {
-            GD.PrintErr("部分依赖注入失败，请检查服务配置");
+            GD.PrintErr("部分依赖注入失败");
         }
-    }
-    
-    // 需要集成 Godot 生命周期
-    public override partial void _Notification(int what);
-}
-```
-
-#### 依赖注入失败回调
-
-从 **v1.0.0-rc.3** 版本开始，可以为单个注入成员设置失败回调，以更精细地处理依赖注入失败的情况。
-
-**使用方式**：
-
-```csharp
-[User]
-public partial class PlayerUI : Control, IDependenciesResolved
-{
-    // 普通注入
-    [Inject]
-    private IPlayerStats PlayerStats { get; set; }
-    
-    // 启用失败回调的注入
-    [Inject(FailureCallback = true)]
-    private IGameManager GameManager { get; set; }
-    
-    // 所有依赖解析完成后调用
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
-    {
-        if (isAllDependenciesReady)
-        {
-            GD.Print("所有依赖注入成功");
-        }
-        else
-        {
-            GD.Print("部分依赖注入失败");
-        }
-    }
-    
-    // 为 GameManager 生成的失败回调（partial 方法）
-    partial void OnGameManagerInjectionFailed(string error)
-    {
-        GD.PrintErr($"GameManager 注入失败: {error}");
-        // 可以在这里实现降级逻辑或显示错误提示
     }
     
     public override partial void _Notification(int what);
 }
 ```
-
-**特性参数**：
-- `FailureCallback`：设置为 `true` 时，将为该成员生成 `OnXxxInjectionFailed(string error)` 失败回调方法。
-
-**生成的代码**：
-
-对于每个标记了 `[Inject(FailureCallback = true)]` 的成员，源生成器会：
-1. 生成一个 `IsXxxInjectionReady` 布尔字段，用于检查该依赖是否已成功注入
-2. 生成一个 `partial void OnXxxInjectionFailed(string error)` 方法声明，并且需要在用户代码中实现它
-
-> ⚠️ **`IsXxxInjectionReady`只有在 `_Ready()` 之后才可能是 true**，因为 User 在 `NotificationReady` 处开始依赖解析。
-
-> ⚠️ **`OnXxxInjectionFailed(string error)` 始终在 `_Ready()` 之后、 `OnDependenciesResolved()` 之前被调用。**
 
 ---
 
@@ -532,479 +322,712 @@ public partial class PlayerUI : Control, IDependenciesResolved
 
 #### 职责
 
-Scope 是 DI 容器，负责：
+Scope 是 DI 容器，管理服务生命周期并协调依赖注入。
 
-1. 创建和管理 单例服务实例
-2. 收集 Host 所提供的服务实例
-3. 处理依赖解析请求
-4. 管理自己创建的服务实例的生命周期
-
-#### 静态性约束
-
-Scope 是场景树中的**静态服务容器**，具有明确的作用域边界。
-
-**❌ 不应该：**
-
-- 在运行时动态创建/销毁 Scope（除非整个子场景需要卸载）
-- 期望 Scope 在场景树中频繁移动位置
-- 将 Scope 用作临时的服务缓存或动态服务池
-- 在运行时改变 Scope 的父子关系来"切换"服务作用域
-
-**✅ 应该：**
-
-- 将 Scope 视为场景树结构的**固定骨架节点**
-- 在场景设计阶段确定 Scope 的层级和位置
-- Scope 的生命周期与其对应的场景区域同步
-- Scope 随其场景节点一起创建和销毁
-- 如需动态服务，应在 Scope 内注册服务工厂（参考 **[使用服务工厂](#使用服务工厂)** 小节）
-
-> 这样的约束让 Scope 在其作用域内具有单例特性。与传统全局单例相比，Scope 能够主动限制自己的影响范围——通过场景树的层级关系自然划分服务边界。这使得场景结构更加灵活且可控，User 可以在场景树的各个层级方便地获取所需依赖，而不会产生全局污染。
->
-> 简而言之，将 Scope 视为场景树中稳定的"锚定点"，它定义了服务的可见范围，而 Host 则是 Scope 用于拆分逻辑和管理资源的"功能模块"。
-
-> **Host vs Scope 的静态性**
->
-> | 维度           | Host                | Scope              |
-> | -------------- | ------------------- | ------------------ |
-> | **本质**       | Scope 的组成部分    | 场景树的结构节点   |
-> | **作用域**     | 无独立作用域        | 定义服务作用域边界 |
-> | **静态性含义** | 不能在 Scope 间迁移 | 不能频繁创建/销毁  |
-> | **生命周期**   | 随 Scope 销毁       | 随场景区域生命周期 |
-
-#### 定义 Scope
+#### 声明
 
 ```csharp
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(CombatSystem)],
-    Hosts = [typeof(GameManager), typeof(WorldManager)]
-)]
+[Modules(Hosts = [typeof(GameManager), typeof(ServiceHost)])]
 public partial class GameScope : Node, IScope
 {
-    // 框架自动生成所有 IScope 实现
-    
-    // 需要集成 Godot 生命周期
+    // 框架生成所有实现
     public override partial void _Notification(int what);
 }
 ```
 
-**Modules 参数说明**：
+#### Scope 层级
 
-| 参数 | 说明 | 约束 |
-|------|------|------|
-| `Services` | Scope 创建和管理的 服务类型列表 | 必须是服务（有 [Singleton]） |
-| `Hosts` | Scope 期望接收的 Host 类型列表 | 必须是 Host（有 [Host]） |
+```
+RootScope (IScope)
+├── Host1 (Host)
+├── User1 (User)
+└── SubScope (IScope)
+    ├── Host2 (Host)
+    └── User2 (User)
+```
+
+父 Scope 提供的服务可以被子 Scope 访问。
+
+---
+
+## 使用 [Provide] 提供服务
+
+### 属性提供者
+
+最简单的服务提供方式：
+
+```csharp
+[Host]
+public partial class ConfigHost : Node
+{
+    [Provide(ExposedTypes = [typeof(IConfig)])]
+    public IConfig Config => new ConfigService();
+    
+    // 可以暴露多个类型
+    [Provide(ExposedTypes = [typeof(IReader), typeof(IWriter)])]
+    public FileService FileService => new FileService();
+    
+    public override partial void _Notification(int what);
+}
+```
+
+### 方法提供者
+
+更灵活的服务创建：
+
+```csharp
+[Host]
+public partial class FactoryHost : Node
+{
+    [Inject] private IConfig _config;
+    
+    [Provide(ExposedTypes = [typeof(IDatabase)])]
+    public IDatabase CreateDatabase()
+    {
+        // 可以使用注入的依赖
+        var connectionString = _config.GetConnectionString();
+        return new DatabaseService(connectionString);
+    }
+    
+    [Provide(ExposedTypes = [typeof(ICache)])]
+    public ICache CreateCache()
+    {
+        // 可以实现复杂的初始化逻辑
+        var cache = new CacheService();
+        cache.Initialize();
+        return cache;
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+### 异步提供者
+
+支持异步初始化，并通过 `CallDeferred` 自动确保线程安全：
+
+```csharp
+[Host]
+public partial class AsyncHost : Node
+{
+    [Provide(ExposedTypes = [typeof(IResourceLoader)])]
+    public async Task<IResourceLoader> LoadResourcesAsync()
+    {
+        var loader = new ResourceLoader();
+        await loader.LoadAsync();
+        return loader;
+    }
+    
+    [Provide(ExposedTypes = [typeof(INetworkService)])]
+    public async Task<INetworkService> ConnectAsync()
+    {
+        var service = new NetworkService();
+        await service.ConnectAsync();
+        return service;
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+**线程安全**：当异步提供者完成时（可能在后台线程上），框架会自动使用 Godot 的 `CallDeferred` 机制将结果编组回主线程。这确保所有服务注册都在 Godot 的主线程上进行，防止崩溃并确保线程安全。
+
+**内部实现机制**：
+```csharp
+// 你编写这样的代码：
+[Provide(ExposedTypes = [typeof(IDatabase)])]
+public async Task<IDatabase> ConnectAsync() { ... }
+
+// 框架生成这样的代码：
+private static async Task ProvideAsync_ConnectAsync_IDatabase(Task<IDatabase> task, IScope scope)
+{
+    try
+    {
+        var result = await task; // 可能在后台线程上完成
+        
+        // 自动使用 CallDeferred 返回主线程
+        Callable.From(() =>
+        {
+            scope.ProvideService<IDatabase>(result);
+        }).CallDeferred();
+    }
+    catch (Exception ex)
+    {
+        Callable.From(() =>
+        {
+            scope.ProvideService<IDatabase>(null, ex.Message);
+        }).CallDeferred();
+    }
+}
+```
+
+### WaitFor 机制
+
+**1.1.0 新功能**：服务可以等待其他服务就绪后再提供。
+
+#### 核心概念
+
+在使用 `WaitFor` 时，理解以下两个重要概念的区别：
+
+| 概念 | 说明 | 对应状态 |
+|-----|------|---------|
+| **依赖解析完成** | 框架已尝试解析依赖并调用了回调 | `OnDependencyResolved<T>()` 被调用 |
+| **依赖真正就绪** | 依赖成功解析且实例可用 | `IsXxxInjectionReady = true` |
+
+⚠️ **重要**：`WaitFor` 只保证依赖解析已尝试，不保证依赖一定成功注入！
+
+#### 基础示例
+
+```csharp
+[Host]
+public partial class DependentHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // 框架会自动生成以下属性（在生成的代码中）：
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // 立即提供的服务（无需等待任何依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        return new MetricsService();
+    }
+    
+    // 等待 _config 注入后才提供
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        // ⚠️ WaitFor 只保证解析已尝试，需要检查是否真正成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 依赖未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        // 安全：此时 _config 保证不为 null
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // 等待 _logger 和 _config 注入后才提供
+    [Provide(ExposedTypes = [typeof(IRepository)], WaitFor = [nameof(_config), nameof(_logger)])]
+    public IRepository CreateRepository()
+    {
+        // 检查两个依赖的状态
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 依赖未就绪，使用默认配置");
+            return new Repository(new DefaultConfig(), _logger);
+        }
+        
+        if (!IsLoggerInjectionReady || _logger == null)
+        {
+            GD.PrintErr("Logger 依赖未就绪，使用 null logger");
+            return new Repository(_config, new NullLogger());
+        }
+        
+        // 安全：两个依赖都已就绪
+        return new Repository(_config, _logger);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("所有依赖都成功注入");
+        }
+        else
+        {
+            GD.PrintErr("部分依赖注入失败");
+            
+            // 检查具体哪个依赖失败
+            if (!IsConfigInjectionReady)
+            {
+                GD.PrintErr("Config 注入失败");
+            }
+            if (!IsLoggerInjectionReady)
+            {
+                GD.PrintErr("Logger 注入失败");
+            }
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### 复杂依赖链示例
+
+```csharp
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    [Inject] private IAuthService? _authService;
+    
+    // 生成的就绪标志（可在代码中使用）：
+    // private bool IsConfigInjectionReady { get; set; } = false;
+    // private bool IsLoggerInjectionReady { get; set; } = false;
+    // private bool IsAuthServiceInjectionReady { get; set; } = false;
+    // private bool IsAllDependenciesReady => 
+    //     IsConfigInjectionReady && IsLoggerInjectionReady && IsAuthServiceInjectionReady;
+    
+    // 第一层：基础服务（无依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        // 不依赖任何注入，立即提供
+        return new MetricsService();
+    }
+    
+    // 第二层：等待单个依赖
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // 虽然 WaitFor 了 _config，仍需检查是否成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        var connectionString = _config.DatabaseConnectionString;
+        var db = new DatabaseService(connectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    // 第三层：等待多个依赖
+    [Provide(
+        ExposedTypes = [typeof(IUserRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public async Task<IUserRepository> CreateUserRepositoryAsync()
+    {
+        // 所有 WaitFor 的依赖都已尝试解析
+        // 注意：仍需处理依赖可能失败的情况
+        
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        if (!hasLogger)
+        {
+            GD.PrintErr("Logger 未就绪，将使用 null logger");
+        }
+        
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        if (!hasConfig)
+        {
+            GD.PrintErr("Config 未就绪，使用默认配置");
+        }
+        
+        // 通过依赖注入获取其他服务（如 IDatabase）
+        // 或直接创建降级版本
+        return await UserRepository.CreateAsync(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    // 第四层：等待所有依赖
+    [Provide(
+        ExposedTypes = [typeof(ISecureRepository)],
+        WaitFor = [nameof(_authService), nameof(_logger), nameof(_config)]
+    )]
+    public ISecureRepository CreateSecureRepository()
+    {
+        // 检查所有依赖的就绪状态
+        if (!IsAllDependenciesReady)
+        {
+            // 有依赖失败，记录详情
+            if (!IsAuthServiceInjectionReady)
+                GD.PrintErr("AuthService 未就绪");
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("Logger 未就绪");
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config 未就绪");
+                
+            // 返回降级版本或抛出异常
+            throw new InvalidOperationException("无法创建 SecureRepository：关键依赖未就绪");
+        }
+        
+        // 所有依赖都已就绪，安全创建
+        return new SecureRepository(_authService!, _logger!, _config!);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖注入失败，某些服务可能降级运行");
+        }
+        else
+        {
+            GD.Print("所有依赖成功注入");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### WaitFor 规则
+
+1. **等待目标**：
+   - ✅ 只能等待 `[Inject]` 成员（例如：`nameof(_config)`）
+   - ❌ 不能等待 `[Provide]` 成员（编译时错误）
+   - ❌ 不能等待不存在的成员（编译时错误）
+
+2. **执行顺序**：
+   - WaitFor 创建依赖拓扑排序
+   - 无 WaitFor 的服务立即开始提供
+   - 有 WaitFor 的服务在依赖解析完成后才提供
+
+3. **失败处理**：
+   - 即使依赖失败，WaitFor 也会继续
+   - 使用 `IsXxxInjectionReady` 检查依赖状态
+   - 在 `OnDependenciesResolved` 中处理失败情况
+
+4. **循环检测**：
+   - 循环 WaitFor 依赖在编译时检测
+   - 例如：A WaitFor B, B WaitFor A（编译错误）
+
+5. **异步支持**：
+   - WaitFor 同时支持同步和异步提供者
+   - 异步提供者的完成会通知后续依赖
+
+#### 最佳实践
+
+1. **始终检查依赖状态**
+   ```csharp
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       if (!IsConfigInjectionReady || _config == null)
+       {
+           // 处理失败情况：使用默认值、抛出异常或返回降级版本
+           return new ServiceWithDefaults();
+       }
+       return new Service(_config);
+   }
+   ```
+
+2. **实现 IDependenciesResolved**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (!isAllDependenciesReady)
+       {
+           // 记录或处理依赖失败
+           LogDependencyStatus();
+       }
+   }
+   
+   private void LogDependencyStatus()
+   {
+       if (!IsConfigInjectionReady)
+           GD.PrintErr("Config injection failed");
+       if (!IsLoggerInjectionReady)
+           GD.PrintErr("Logger injection failed");
+   }
+   ```
+
+3. **避免过长的依赖链**
+   - 保持依赖层级在 2-3 层
+   - 过长的链会增加失败风险和调试难度
+
+4. **考虑使用可空类型**
+   ```csharp
+   [Inject] private IConfig? _config;  // 使用可空类型
+   
+   [Provide(WaitFor = [nameof(_config)])]
+   public IService CreateService()
+   {
+       // 编译器会提醒检查 null
+       return new Service(_config ?? new DefaultConfig());
+   }
+   ```
 
 ---
 
 ## 生命周期管理
 
-### 单例生命周期
+### 服务生命周期
 
-#### 创建时机
-单例服务在以下时机创建：
-1. **Scope 就绪时**：当 Scope 的 `NotificationReady` 事件触发时，[Modules] 中指定的所有服务都会被创建
-2. **按需创建**：当依赖请求到来且服务尚未创建时
+1. **创建**：服务在以下情况创建：
+   - Scope 进入场景树
+   - Host 注册其提供者
+   - User 请求注入
 
-#### 销毁时机
-单例服务在以下时机销毁：
-1. **Scope 销毁时**：当 Scope 的 `NotificationPredelete` 事件触发时
-2. **IDisposable 支持**：实现 `IDisposable` 的服务会调用其 `Dispose()` 方法
-```csharp
-[Singleton(typeof(IResourceManager))]
-public partial class ResourceManager : IResourceManager, IDisposable
-{
-    public void Dispose()
-    {
-        // 释放资源
-    }
-}
-```
+2. **销毁**：服务在以下情况销毁：
+   - 提供服务的 Scope 退出场景树
+   - 所有服务自动销毁
 
----
+### Scope 层级
 
-### Scope 层级结构
-
-Scope 通过场景树结构形成层级关系：
 ```
 RootScope
-├── GameManager (Host)
-├── GlobalServices...
-│
-└── LevelScope
-    ├── LevelManager (Host)
-    ├── LevelServices...
-    │
-    └── Player
-        └── PlayerUI (User)
+├── 服务 A（来自 RootScope）
+└── ChildScope
+    ├── 服务 A（从父级继承）
+    └── 服务 B（仅在子级）
 ```
 
-#### 服务可见性规则
-| 服务位置 | 可访问范围 |
-|-----------------|----------------|
-| RootScope | 所有后代 Scope |
-| GameScope | GameScope 和 LevelScope |
-| LevelScope | 仅 LevelScope |
-
-**示例**：
-```csharp
-// RootScope
-[Modules(Services = [typeof(ConfigService)])]
-public partial class RootScope : Node, IScope { }
-
-// GameScope 可以访问 ConfigService
-[Modules(Services = [typeof(PlayerService)])]
-public partial class GameScope : Node, IScope { }
-
-// LevelScope 可以访问 ConfigService 和 PlayerService
-[Modules(Services = [typeof(EnemyService)])]
-public partial class LevelScope : Node, IScope { }
-```
-
-> **层级规则**：
->
-> - Scope 在场景树中向上搜索以找到其父 Scope
-> - 如果在当前 Scope 中未找到服务，则在父 Scope 中搜索
-> - 服务生命周期绑定到其定义的 Scope
-
----
+子 Scope 从父 Scope 继承服务，但也可以覆盖它们。
 
 ### 依赖注入时序
 
-#### 单例服务创建时序
+#### 标准注入流程（无 WaitFor）
+
 ```
-Scope 节点就绪 (NotificationReady)
-    ↓
-Scope.InstantiateScopeSingletons()
-    ↓
-对于 Modules.Services 中的每个服务：
-    ↓
-    Service.CreateService()
-    ↓
-    对于每个构造函数参数：
-        ↓
-        Scope.ResolveDependency<T>()
-    ↓
-    所有依赖都已解析？
-    ↓
-    是
-    ↓
-    scope.ProvideService<T>(service)
-    ↓
-    通知等待队列
+1. Node.EnterTree
+   ↓
+2. 查找父 Scope
+   ↓
+3. 并发解析所有 [Inject] 依赖
+   │
+   ├─ 依赖 A: 成功 → IsAInjectionReady = true
+   ├─ 依赖 B: 成功 → IsBInjectionReady = true
+   └─ 依赖 C: 失败 → IsCInjectionReady = false
+   ↓
+4. 所有依赖解析完成后调用 OnDependenciesResolved(false)
+   ↓
+5. 并发提供所有 [Provide] 服务
 ```
 
-#### User 的注入时序
+#### WaitFor 注入流程（1.1.0 新增）
+
 ```
-User Node 准备完毕 (NotificationReady)
- ↓
-GetServiceScope() ← 向上查找最近的 IScope
- ↓
-ResolveUserDependencies(scope)
- ↓
-scope.ResolveDependency<T>(callback) ← 每个 [Inject] 成员
- ↓
-等待服务就绪或立即回调
- ↓
-OnDependenciesResolved(isAllDependenciesReady) ← 所有依赖解析完成（如果实现 IDependenciesResolved）
+1. Node.EnterTree
+   ↓
+2. 查找父 Scope
+   ↓
+3. 阶段 1: 并发解析所有 [Inject] 依赖（不阻塞服务提供）
+   │
+   ├─ 依赖 A: 成功 → IsAInjectionReady = true
+   ├─ 依赖 B: 失败 → IsBInjectionReady = false
+   └─ 依赖 C: 成功 → IsCInjectionReady = true
+   ↓
+4. 阶段 2: 提供服务（独立于依赖注入）
+   │
+   ├─ 服务 X (无 WaitFor): 立即提供
+   │
+   ├─ 服务 Y (WaitFor = [A, X]): 
+   │  ├─ 监听 A 的解析
+   │  ├─ 监听 X 的提供
+   │  └─ 全部完成后 → 提供服务 Y
+   │
+   └─ 服务 Z (WaitFor = [B, Y]):
+      ├─ 监听 B 的解析（失败但继续）
+      ├─ 监听 Y 的提供
+      └─ 全部完成后 → 提供服务 Z
+         （需检查 IsBInjectionReady）
+   ↓
+5. 所有依赖解析完成后调用 OnDependenciesResolved(false)
 ```
 
-#### Host 的服务注册时序
-```
-Host Node 准备完毕 (NotificationReady)
- ↓
-GetServiceScope() ← 向上查找最近的 IScope
- ↓
-ProvideHostServices(scope)
- ↓
-scope.ProvideService<T>(this.Member) ← 每个 [Singleton] 成员
- ↓
-通知等待队列
-```
+#### 关键概念
 
----
+1. **依赖解析完成 vs 依赖就绪**
+   - **解析完成**：框架尝试获取依赖并调用了回调（可能成功或失败）
+   - **依赖就绪**：`IsXxxInjectionReady = true` 且实例不为 null
 
-### Host + User 与循环依赖
+2. **WaitFor 的行为**
+   - WaitFor 等待依赖**解析完成**，不等待**解析成功**
+   - 即使依赖失败，WaitFor 也会继续执行
+   - 使用 `IsXxxInjectionReady` 检查依赖是否真正可用
 
-在 GodotSharpDI 中，一个类型可以同时标记为 `[Host, User]`,即既提供服务又消费服务。为了避免误判循环依赖,需要明确 Host 与 User 在生命周期和注入时序上的区别。
+3. **并发 vs 串行**
+   - 无 WaitFor：所有操作并发执行
+   - 有 WaitFor：创建依赖图，按拓扑顺序执行
 
-#### Host 与 User 的注入时序差异
-
-**Host (服务提供者)**
-
-- 在 **EnterTree** 阶段注册其 `[Singleton]` 成员提供的服务
-- 注册服务时**不会触发任何依赖注入**
-- 不会触发自身的 User 注入
-- 不会触发其他 User 的注入
-
-**User (服务消费者)**
-
-- 在 **EnterTree** 阶段附着到最近的 Scope
-- 立即对所有 `[Inject]` 成员发起依赖解析
-- 如果服务尚未注册,则加入等待队列
-- 在服务注册或 Scope Ready 时被回调注入
-- 所有依赖解析完成后触发 `OnDependenciesResolved(isAllDependenciesReady)`
-
-**结论**
-
-> **Host 的服务注册阶段不参与依赖注入链。**
-> **User 的依赖注入只在 Node 进入场景树后、或服务注册完成后触发。**
-
-这条规则保证了 Host+User 不会因为"自提供、自消费"而形成循环依赖。
-
-#### 示例 1: Host+User 自注入不是循环依赖
+#### 示例时序
 
 ```csharp
-public interface IMyService { }
-
-[Host, User]
-public partial class MyService : Node, IMyService
+[Host]
+public partial class ExampleHost : Node, IDependenciesResolved
 {
-    [Singleton(typeof(IMyService))]
-    private MyService Self => this;
-
-    [Inject]
-    private IMyService _self;
+    [Inject] private IConfig? _config;    // T1: 开始解析
+    [Inject] private ILogger? _logger;    // T1: 开始解析（并发）
     
-    // 需要集成 Godot 生命周期
+    [Provide(ExposedTypes = [typeof(IMetrics)])]  
+    public IMetrics CreateMetrics()       // T1: 立即开始提供
+    {
+        return new Metrics();
+    }
+    
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()     // T2: 等待 _config 解析完成
+    {
+        // T2 执行时机：_config 解析完成（无论成功或失败）
+        if (!IsConfigInjectionReady)
+        {
+            return new InMemoryDatabase();
+        }
+        return new Database(_config!);
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)], 
+        WaitFor = [nameof(_logger), nameof(_config)]
+    )]
+    public IRepository CreateRepository() // T3: 等待 _logger 和 _config
+    {
+        // T3 执行时机：_logger 和 _config 都解析完成
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        
+        return new Repository(
+            config: hasConfig ? _config : new DefaultConfig(),
+            logger: hasLogger ? _logger : new NullLogger()
+        );
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        // 在 T4 调用：所有 Inject 依赖都已解析完成
+        // 此时可能部分 Provide 服务仍在异步执行
+    }
+}
+
+// 时间线：
+// T1: _config 开始解析, _logger 开始解析, CreateMetrics 开始提供
+// T2: _config 解析完成 → CreateDatabase 开始提供
+// T3: _logger 和 _config 都解析完成 → CreateRepository 开始提供  
+// T4: _config 和 _logger 都解析完成 → OnDependenciesResolved 被调用
+```
+
+### Host 使用 Inject
+
+**1.1.0 新特性**：Host 可以直接使用 `[Inject]` 注入依赖，无需同时标记为 `[User]`。
+
+⚠️ **重要**：Host、User、Scope 三个角色**不能共存**在同一个类上。
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
+{
+    // Host 可以直接注入依赖（无需 [User] 特性）
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
+    
+    // Host 同时提供服务
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
+    
+    public GameState CurrentState { get; set; }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // 所有依赖就绪，可以安全初始化
+            // IsConfigInjectionReady 和 IsSaveSystemInjectionReady 都为 true
+            LoadLastSave();
+        }
+        else
+        {
+            // 部分依赖失败，使用降级模式
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("Config 未就绪，使用默认配置");
+            if (!IsSaveSystemInjectionReady)
+                GD.PrintErr("SaveSystem 未就绪，无法加载存档");
+        }
+    }
+    
+    private void LoadLastSave()
+    {
+        // 此时可以安全使用 _config 和 _saveSystem
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
 
-**依赖关系**
+**特点**：
+- Host 可以注入依赖用于提供者方法
+- Host 可以使用 WaitFor 等待注入完成
+- Host 可以实现 IDependenciesResolved 接收通知
+- 不需要额外的 `[User]` 特性
 
-- Host 部分提供 `IMyService`
-- User 部分消费 `IMyService`
-
-**为什么不是循环依赖?**
-
-1. Host 注册 `Self` 时**不会触发** `_self` **的注入**
-2. `_self` 的注入发生在 User 注入阶段 (EnterTree → AttachToScope)
-3. 此时 `IMyService` 已经注册,因此注入成功
-4. 整个过程没有构造函数链路,也没有形成依赖闭环
-
-**结论**
-
-> **Host+User 自注入是合法的,不属于循环依赖。**
-
-#### 示例 2: Host 提供服务 + 自身消费另一个 Service 也不是循环依赖
+**在提供者中使用注入依赖**：
 
 ```csharp
-public interface IServiceA { }
-public interface IServiceB { }
-
-[Singleton(typeof(IServiceA))]
-public partial class ServiceA : IServiceA
+[Host]
+public partial class ServiceFactory : Node
 {
-    public ServiceA(IServiceB b) { }
-}
-
-[Host, User]
-public partial class HostUser : Node, IServiceB
-{
-    [Singleton(typeof(IServiceB))]
-    private HostUser Self => this;
-
-    [Inject]
-    private IServiceA _serviceA;
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
     
-    // 需要集成 Godot 生命周期
+    // 等待依赖注入后再提供服务
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        // 安全使用注入的配置
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    [Provide(
+        ExposedTypes = [typeof(IRepository)],
+        WaitFor = [nameof(_config), nameof(_logger)]
+    )]
+    public IRepository CreateRepository()
+    {
+        // 检查多个依赖
+        if (!IsAllDependenciesReady)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // 所有依赖都就绪
+        return new Repository(_config!, _logger!);
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
-
-**依赖关系**
-
-- `HostUser` (Host) 提供 `IServiceB`
-- `ServiceA` 构造函数依赖 `IServiceB` → 注入 `HostUser`
-- `HostUser` (User) 依赖 `IServiceA`
-
-**为什么不是循环依赖?**
-
-1. HostUser 注册 `IServiceB` 时**不会触发** `_serviceA` **的注入**
-2. ServiceA 构造函数解析 `IServiceB` → 得到 HostUser
-3. ServiceA 构造完成后，HostUser 的 `_serviceA` 在 User 注入阶段被赋值
-4. 整个链路中没有构造函数环路
-
-**依赖图如下**：
-
-```
-ServiceA → IServiceB (HostUser)
-HostUser(User) → IServiceA
-```
-
-这是一个"菱形依赖"，不是循环。
-
-**结论**
-
-> **Host 提供服务 + 自身作为 User 消费其他服务是合法的,不属于循环依赖。**
-
-#### 循环依赖检测的适用范围
-
-GodotSharpDI 的循环依赖检测仅针对:
-
-- **Service → Service 的构造函数依赖链**
-
-不包括：
-
-- User 的 `[Inject]` 成员
-- Host 的 `[Singleton]` 成员
-- Host+User 的自注入
-- Host 与 User 之间的交叉依赖
-
-原因：
-
-> **User 注入发生在所有 Service 构造完成之后,不参与构造时的依赖闭环。**
-
-因此，只有以下情况会被判定为循环依赖：
-
-```csharp
-[Singleton(typeof(IA))]
-class A : IA { public A(IB b) {} }
-
-[Singleton(typeof(IB))]
-class B : IB { public B(IA a) {} }
-```
-
-#### 总结
-
-| 情况 | 是否循环依赖 | 原因 |
-|------|-------------|------|
-| Host+User 自注入 | ❌ | Host 注册不触发注入,User 注入在之后 |
-| Host 提供服务 + 自身作为 User 注入 | ❌ | 注入时序分离，不形成构造函数环 |
-| Service ↔ Service 构造函数互相依赖 | ✔️ | 构造函数闭环 |
-
-最终规则：
-
-> **只要依赖链不在 Service 构造函数之间形成闭环，就不是循环依赖。Host+User 的注入时序天然避免构造函数循环。**
 
 ---
 
 ## 类型约束
 
-> **术语说明**：
-> - **Host + User**：同时标记了 Host 和 User 特性的节点
-> - **非Node class**：不继承 Godot.Node 的普通 C# 类
-> - **普通 Node**：继承 Node 但未标记特殊角色的节点
+### 角色类型约束
 
-### 单例服务详细约束
+| 角色 | 允许的基类型 | 禁止 |
+|------|-------------|------|
+| **Host** | Node 及其子类 | 泛型类型 |
+| **User** | Node 及其子类 | 泛型类型 |
+| **Scope** | 必须实现 IScope | 泛型类型 |
 
-**基本约束**
+### 注入类型约束
 
-| 约束项 | 要求 | 原因 |
-|--------|------|------|
-| 类型 | 必须是 class | 需要实例化 |
-| 继承 | 不能是 Node | Node 生命周期由 Godot 控制，与 DI 容器冲突 |
-| 修饰符 | 不能是 abstract 或 static | 需要实例化 |
-| 泛型 | 不允许开放泛型 | 开放泛型类型（如 List<T>）无法实例化或作为稳定的服务标识。封闭泛型类型（如 List<int>）是允许的 |
-| 声明 | 必须是 partial | 源生成器需要扩展类 |
+- **推荐**：注入接口（例如：`IService`）
+- **警告**：注入具体的 Host 类型
+- **错误**：注入 User 类型、Scope 类型或常规 Node 类型
 
-**暴露类型约束**
+### 暴露类型约束
 
-| 类型 | 是否允许 | 说明 |
-|------|----------|------|
-| 已实现的 interface | ✅ | **推荐** |
-| 已继承的 class | ⚠️        | 允许但不推荐 |
-| 未实现的 interface | ❌ | 无意义 |
-| 未继承的 class | ❌ | 无意义 |
-| 泛型 | ❌ 开放泛型 | 开放泛型类型（如 IList<T>）不能作为稳定的服务标识。封闭泛型类型（如 IList<int>）是允许的 |
+- **推荐**：暴露接口
+- **允许**：暴露 Host 类型本身
+- **必须实现**：提供者必须实现或返回暴露的类型
 
-**构造函数约束**
+### 其他约束
 
-| 约束 | 要求 |
-|------|------|
-| 可见性 | 至少有一个非静态构造函数 |
-| 多构造函数 | 必须用 [InjectConstructor] 指定 |
-
-**构造函数参数类型约束**
-
-| 类型 | 是否允许 | 说明 |
-|------|----------|------|
-| interface | ✅ | **推荐方式** |
-| 非Node class | ⚠️        | 允许但不推荐 |
-| Host / Host + User | ⚠️ | 允许但不推荐，应该依赖 Host 所暴露的接口 |
-| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
-| User | ❌ | 无静态约束，无法保证生命周期 |
-| Scope | ❌ | 容器不能作为服务 |
-| 泛型 | ❌ 开放泛型 | 开放泛型类型（如 List<T>）无法实例化或作为稳定的服务标识。封闭泛型类型（如 List<int>）是允许的 |
-| 其他类型 | ❌ | 不支持 |
-
----
-
-### Host 详细约束
-
-**基本约束**
-
-| 约束项        | 要求                                                         | 原因                                                         |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| 类型          | 必须是 class                                                 | 需要实例化                                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                                     |
-| 泛型          | 不允许开放泛型                                               | 开放泛型类型（如 Node<T>）不能使用。封闭泛型类型（如 Node<int>）是允许的 |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法                 |
-
-**Host Singleton 成员类型约束**
-
-| 类型 | 是否允许 | 说明 |
-|------|----------|------|
-| 非Node class | ✅ | **推荐** |
-| Host / Host + User（自身类型） | ✅ | 可以将自己暴露为服务 |
-| Host / Host + User（非自身类型） | ❌ | 不允许 Host 互相嵌套 |
-| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
-| User | ❌ | 无静态约束，无法保证生命周期 |
-| Scope | ❌ | 不允许嵌套容器 |
-| 泛型 | ❌ 开放泛型 | 开放泛型类型（如 List<T>）无法实例化或作为稳定的服务标识。封闭泛型类型（如 List<int>）是允许的 |
-| 其他类型 | ❌ | 不支持 |
-
-**Host Singleton 成员暴露类型约束**
-
-| 类型 | 是否允许 | 说明 |
-|------|----------|------|
-| 已实现的 interface | ✅ | **推荐** |
-| 已继承 class | ⚠️        | 允许但不推荐 |
-| 未实现的 interface | ❌ | 无意义 |
-| 未继承的 class | ❌ | 无意义 |
-| 泛型 | ❌ 开放泛型 | 开放泛型类型（如 IList<T>）不能作为稳定的服务标识。封闭泛型类型（如 IList<int>）是允许的 |
-
----
-
-### User 详细约束
-
-**基本约束**
-
-| **约束项**    | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 泛型 | 不允许开放泛型 | 开放泛型类型（如 Node<T>）不能使用。封闭泛型类型（如 Node<int>）是允许的 |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
-
-**User Inject 成员类型约束**
-
-| 类型 | 是否允许 | 说明 |
-|------|----------|------|
-| interface | ✅ | **推荐方式** |
-| 非Node class | ⚠️        | 允许但不推荐 |
-| Host / Host + User | ⚠️ | 允许但不推荐，应该依赖 Host 所暴露的接口 |
-| 普通 Node | ❌ | 无静态约束，无法保证生命周期 |
-| User | ❌ | 无静态约束，无法保证生命周期 |
-| Scope | ❌ | 容器不能作为服务 |
-| 泛型 | ❌ 开放泛型 | 开放泛型类型（如 List<T>）无法实例化或作为稳定的服务标识。封闭泛型类型（如 List<int>）是允许的 |
-| 其他类型 | ❌ | 不支持 |
-
----
-
-### Scope 详细约束
-
-| **约束项**    | 要求                                                         | 原因                                         |
-| ------------- | ------------------------------------------------------------ | -------------------------------------------- |
-| 类型          | 必须是 class                                                 | 需要实例化                                   |
-| 继承          | 必须继承自 Node                                              | 需要与场景树生命周期集成                     |
-| 接口          | 必须实现 IScope                                              | 提供服务注册 API                             |
-| 泛型 | 不允许开放泛型 | 开放泛型类型（如 Node<T>）不能使用。封闭泛型类型（如 Node<int>）是允许的 |
-| Modules       | 必须指定 [Modules]                                           | 定义服务组合                                 |
-| 声明          | 必须是 partial                                               | 源生成器需要扩展类                           |
-| _Notification | 必须声明 `public override partial void _Notification(int what);` | Godot 只识别附加脚本文件中定义的生命周期方法 |
+- 每个 `[Provide]` 成员必须至少有一个暴露类型
+- WaitFor 目标必须是有效的 `[Inject]` 或 `[Provide]` 成员
+- 循环 WaitFor 依赖是编译时错误
 
 ---
 
@@ -1012,332 +1035,413 @@ class B : IB { public B(IA a) {} }
 
 ### 特性
 
-#### [Singleton]
-
-标记一个类为 Singleton 生命周期的服务，或标记 Host 成员为暴露的服务。
+#### `[Host]`
+标记 Node 为服务提供者。
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(
-    AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
-    Inherited = false,
-    AllowMultiple = false
-)]
-public sealed class SingletonAttribute : Attribute
+[Host]
+public partial class ServiceHost : Node
 {
-    public Type[] ExposedTypes { get; }
-    
-    public SingletonAttribute(params Type[] exposedTypes) { }
+    public override partial void _Notification(int what);
 }
 ```
-**使用场景**：
 
-1. 在 Service 类上：将类标记为单例服务
-2. 在 Host 成员上：将成员暴露为服务
+#### `[User]`
+标记 Node 为服务消费者。
+
+```csharp
+[User]
+public partial class ServiceUser : Node
+{
+    [Inject] private IService _service;
+    public override partial void _Notification(int what);
+}
+```
+
+#### `[Provide(ExposedTypes = [...], WaitFor = [...])]`
+标记属性或方法为服务提供者。
 
 **参数**：
-
-* `serviceTypes`：要暴露的服务类型（接口或基类）
-* 为空时：Service 类暴露自身；Host 成员暴露其自身类型
-* 
-#### [Host]
-
-标记一个类为 Host (服务提供者)。
+- `ExposedTypes`：此服务将注册为的类型数组
+- `WaitFor`：（可选）提供前要等待的成员名称数组
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
+[Provide(ExposedTypes = [typeof(IService)])]
+public IService Service => new ServiceImpl();
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class HostAttribute : Attribute { }
-```
-
-#### [User]
-
-标记一个类为 User (服务消费者)。
-
-```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class UserAttribute : Attribute { }
-```
-
-#### [Inject]
-
-标记一个字段或属性为注入目标。
-
-```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
-public sealed class InjectAttribute : Attribute 
+[Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+public IDatabase CreateDatabase()
 {
-    public bool FailureCallback { get; set; }
+    return new DatabaseService(_config.ConnectionString);
 }
 ```
 
-**使用规则**：
-
-* 只能用于 User 或 Host+User 类型
-* 成员必须可写（字段不能是 readonly，属性必须有 setter）
-* 不能是 static
-
-**属性**：
-
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `FailureCallback` | bool | false | 启用后，将为该成员生成失败回调方法 `OnXxxInjectionFailed(string error)` |
-
-**生成的成员**（v1.0.0-rc.3+）：
-
-对于每个 `[Inject]` 成员，源生成器会生成：
-- `IsXxxInjectionReady`：布尔字段，指示该依赖是否已成功注入
-- `OnXxxInjectionFailed(string error)`：失败回调方法（仅当 `FailureCallback = true` 时生成）
-
-#### [InjectConstructor]
-
-指定服务使用的构造函数。
+#### `[Inject]`
+标记字段或属性以进行依赖注入。
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Constructor)]
-public sealed class InjectConstructorAttribute : Attribute { }
+[Inject] private IService _service;
+[Inject] private IConfig Config { get; set; }
 ```
 
-**使用规则**：
-
-* 只能用于单例服务类型
-* 当存在多个构造函数时必须使用
-* 必须唯一（只能标记一个构造函数）
-
-#### ModulesAttribute
-
-声明 Scope 管理的服务和期望的 Host。
+#### `[Modules(Hosts = [...])]`
+定义哪些 Host 属于 Scope。
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class ModulesAttribute : Attribute
-{
-    public Type[] Services { get; set; }
-    public Type[] Hosts { get; set; }
-}
+[Modules(Hosts = [typeof(Host1), typeof(Host2)])]
+public partial class GameScope : Node, IScope { }
 ```
-
-**参数**：
-
-| 参数 | 说明 |
-|------|------|
-| `Services` | Scope 创建和管理的 Service 类型列表 |
-| `Hosts` | Scope 期望接收的 Host 类型列表 |
-
----
 
 ### 接口
 
-#### IScope
-
-DI 容器接口。
+#### `IScope`
+必须由 Scope 类型实现。框架生成实现。
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
-public interface IScope
+public partial class GameScope : Node, IScope
 {
-    void ProvideService<T>(T instance) where T : notnull;
-    void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
+    // 框架生成实现
 }
 ```
 
-方法：
+#### `IDependenciesResolved`
 
-| 方法                   | 描述     | 何时使用                     |
-| ---------------------- | -------- | ---------------------------- |
-| `ProvideService<T>`    | 提供服务 | 由框架自动调用，无需手动调用 |
-| `ResolveDependency<T>` | 请求依赖 | 由框架自动调用，无需手动调用 |
-
-> ⚠️ 重要提示：这些方法由框架管理，不应手动调用。框架会在 User、Host 和 Service 代码中生成适当的调用。
-
-#### IDependenciesResolved
-
-依赖解析通知接口。
+可选接口，用于接收依赖解析通知。
 
 ```csharp
-namespace GodotSharpDI.Abstractions;
-
 public interface IDependenciesResolved
 {
     void OnDependenciesResolved(bool isAllDependenciesReady);
 }
 ```
 
-**使用规则**：
+#### 参数说明
 
-* 只能由 User 或 Host+User 类型实现
-* 在所有 [Inject] 成员解析完成后立即调用
-* 适用于依赖注入服务的初始化逻辑
-* `isAllDependenciesReady` 参数指示是否所有依赖都成功注入
+- **`isAllDependenciesReady`**：
+  - `true`：所有 `[Inject]` 成员都成功注入
+  - `false`：至少有一个 `[Inject]` 成员注入失败
 
-> **注意**：从 v1.0.0-rc.3 版本开始，`IServicesReady` 已重命名为 `IDependenciesResolved`，方法签名也有变化。
+#### 生成的辅助属性
 
----
+框架为每个 `[Inject]` 成员自动生成就绪标志，这些属性在生成的 `*.DI.g.cs` 文件中：
+
+```csharp
+// 用户代码
+[Host]
+public partial class MyHost : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // ... 其他代码
+}
+
+// 生成的代码（在 MyHost.DI.Host.g.cs 中）
+partial class MyHost
+{
+    // 为每个 Inject 成员生成的就绪标志
+    [MemberNotNullWhen(true, nameof(_config))]
+    private bool IsConfigInjectionReady { get; set; } = false;
+    
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsLoggerInjectionReady { get; set; } = false;
+    
+    // 综合就绪标志
+    [MemberNotNullWhen(true, nameof(_config))]
+    [MemberNotNullWhen(true, nameof(_logger))]
+    private bool IsAllDependenciesReady => 
+        IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
+    
+    // 未解析依赖追踪
+    private readonly HashSet<Type> _unresolvedDependencies = new()
+    {
+        typeof(IConfig),
+        typeof(ILogger),
+    };
+    
+    // 依赖解析回调
+    private void OnDependencyResolved<T>()
+    {
+        _unresolvedDependencies.Remove(typeof(T));
+        if (_unresolvedDependencies.Count == 0)
+        {
+            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+        }
+    }
+}
+```
+
+#### 使用示例
+
+##### 基础用法
+
+```csharp
+[Host]
+public partial class GameManager : Node, IGameState, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _playerStats;
+    [Inject] private IGameConfig? _config;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("所有依赖就绪，游戏可以开始");
+            StartGame();
+        }
+        else
+        {
+            GD.PrintErr("依赖注入失败，无法启动游戏");
+            ShowErrorScreen();
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### 细粒度状态检查
+
+```csharp
+[User]
+public partial class PlayerUI : Control, IDependenciesResolved
+{
+    [Inject] private IPlayerStats? _stats;
+    [Inject] private IInventory? _inventory;
+    [Inject] private IAchievements? _achievements;
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            // 所有依赖都成功，启用完整功能
+            EnableAllFeatures();
+        }
+        else
+        {
+            // 部分依赖失败，启用降级模式
+            EnableDegradedMode();
+            
+            // 检查具体哪些依赖可用
+            if (IsStatsInjectionReady)
+            {
+                UpdateStatsDisplay(_stats!);  // ! 操作符安全，因为 IsStatsInjectionReady = true
+            }
+            else
+            {
+                GD.PrintErr("Stats 服务不可用");
+            }
+            
+            if (IsInventoryInjectionReady)
+            {
+                UpdateInventoryDisplay(_inventory!);
+            }
+            else
+            {
+                HideInventoryPanel();
+            }
+            
+            if (IsAchievementsInjectionReady)
+            {
+                ShowAchievements(_achievements!);
+            }
+            else
+            {
+                DisableAchievementsButton();
+            }
+        }
+    }
+    
+    private void EnableAllFeatures()
+    {
+        // 所有功能都可用
+        UpdateStatsDisplay(_stats!);
+        UpdateInventoryDisplay(_inventory!);
+        ShowAchievements(_achievements!);
+    }
+    
+    private void EnableDegradedMode()
+    {
+        // 部分功能降级运行
+        GD.Print("UI 运行在降级模式");
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+##### 结合 WaitFor 使用
+
+```csharp
+[Host]
+public partial class DataManager : Node, IDependenciesResolved
+{
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // 生成的属性可用于检查：
+    // private bool IsConfigInjectionReady { get; set; }
+    // private bool IsLoggerInjectionReady { get; set; }
+    
+    // 等待 _config 注入后才提供数据库服务
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public async Task<IDatabase> CreateDatabaseAsync()
+    {
+        // WaitFor 保证 _config 的解析已尝试，但需要检查是否成功
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            // Config 注入失败，使用内存数据库
+            GD.PrintErr("Config 未就绪，使用内存数据库");
+            return new InMemoryDatabase();
+        }
+        
+        // Config 成功注入，使用配置的数据库
+        var db = new DatabaseService(_config.ConnectionString);
+        await db.InitializeAsync();
+        return db;
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (!isAllDependenciesReady)
+        {
+            GD.PrintErr("部分依赖注入失败：");
+            
+            if (!IsConfigInjectionReady)
+                GD.PrintErr("  - Config 注入失败，将使用默认配置");
+                
+            if (!IsLoggerInjectionReady)
+                GD.PrintErr("  - Logger 注入失败，日志功能将被禁用");
+        }
+        else
+        {
+            GD.Print("所有依赖成功注入");
+        }
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
+
+#### 调用时机
+
+`OnDependenciesResolved` 在以下时机被调用：
+
+1. **所有 `[Inject]` 依赖都已尝试解析**（成功或失败）
+2. **在节点的 `_Notification(NotificationEnterTree)` 之后**
+3. **在任何 `[Provide]` 服务被实际使用之前**
+
+#### 最佳实践
+
+1. **总是检查 `isAllDependenciesReady` 参数**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       if (isAllDependenciesReady)
+       {
+           // 正常流程
+       }
+       else
+       {
+           // 降级或错误处理
+       }
+   }
+   ```
+
+2. **使用生成的 `IsXxxInjectionReady` 进行细粒度检查**
+   ```csharp
+   if (!IsConfigInjectionReady)
+   {
+       GD.PrintErr("Config 注入失败");
+       // 使用默认配置
+   }
+   ```
+
+3. **结合空值检查提高安全性**
+   ```csharp
+   if (IsStatsInjectionReady && _stats != null)
+   {
+       // 安全使用 _stats
+       DisplayStats(_stats);
+   }
+   ```
+
+4. **记录依赖状态用于调试**
+   ```csharp
+   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   {
+       GD.Print($"Dependencies ready: {isAllDependenciesReady}");
+       GD.Print($"  Config: {IsConfigInjectionReady}");
+       GD.Print($"  Logger: {IsLoggerInjectionReady}");
+   }
+   ```
+
+#### 注意事项
+
+⚠️ **重要**：
+- `IsXxxInjectionReady` 属性和 `IsAllDependenciesReady` 属性会在有 `[Inject]` 成员时生成，无论是否实现了 `IDependenciesResolved` 接口
+- 这些属性是私有的，只能在类内部使用
+- **`[MemberNotNullWhen(true, ...)]` 特性的作用**：当 `IsXxxInjectionReady` 为 `true` 时，编译器会确保对应的可空成员不为 `null`，这意味着在检查 `IsXxxInjectionReady` 后，可以安全地使用非空断言运算符（`!`）或直接访问成员，无需额外的 null 检查
+- 即使依赖注入失败，`OnDependenciesResolved` 也会被调用（参数为 `false`）
+
+**使用 `IsXxxInjectionReady` 的好处**：
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    [Inject] private IConfig? _config;
+    
+    // 生成：
+    // [MemberNotNullWhen(true, nameof(_config))]
+    // private bool IsConfigInjectionReady { get; set; }
+    
+    [Provide(ExposedTypes = [typeof(IService)], WaitFor = [nameof(_config)])]
+    public IService CreateService()
+    {
+        if (IsConfigInjectionReady)
+        {
+            // ✅ 编译器知道 _config 不为 null
+            // 可以直接使用，无需 null 检查
+            return new Service(_config.ConnectionString);
+            
+            // 或者使用非空断言
+            return new Service(_config!.ConnectionString);
+        }
+        
+        // _config 可能为 null 的处理
+        return new ServiceWithDefaults();
+    }
+}
+```
 
 ### 生成的代码
 
-#### 节点声明周期相关方法
+对于每个角色，框架生成：
 
-对于标记为 `[Host]` 、 `[User]` 或 `[Scope]` 的类型，框架生成：
+- **Host**：提供者注册、服务创建逻辑
+- **User**：注入逻辑、依赖解析
+- **Scope**：服务容器、生命周期管理
 
-```csharp
-// Scope 引用
-private IScope? _parentScope;
-
-// 获取最近的 Scope
-private IScope? GetParentScope();
-
-// 生命周期通知处理
-public override void _Notification(int what);
-```
-
-#### User 生成的方法
-
-对于标记为 `[User]` 的类型，框架生成：
-
-```csharp
-// 解析用户依赖
-private void ResolveUserDependencies();
-```
-
-#### Host 生成的方法
-
-对于标记为 `[Host]` 的类型，框架生成：
-
-```csharp
-// 向 Scope 提供服务 
-private void ProvideHostServices();
-```
-
-#### 单例服务生成的方法
-
-对于标记为 `[Singleton]` 的单例服务，框架生成工厂方法：
-
-```csharp
-// 创建服务实例
-public static void CreateService(
-    IScope scope,
-    Action<object, IScope> onCreated
-);
-```
-
-#### Scope 生成的内容
-
-对于实现 `IScope` 的类型，框架生成完整的容器实现：
-
-```csharp
-// 静态集合
-private static readonly HashSet<Type> ServiceTypes;
-
-// 实例字段
-private readonly Dictionary<Type, object> _services;
-private readonly Dictionary<Type, List<Action<object>>> _waiters;
-private readonly HashSet<IDisposable> _disposableSingletons;
-
-// 容器相关方法
-private void InstantiateScopeSingletons();
-private void DisposeScopeSingletons();
-private void CheckWaitList();
-
-// IScope 实现
-void IScope.ProvideService<T>(T instance);
-void IScope.ResolveDependency<T>(Action<T> onResolved);
-```
-
----
+所有生成的代码在 `*.DI.g.cs` 文件中。
 
 ### 场景树集成
 
-#### 生命周期事件
-
-**EnterTree（从上到下）**
-
-```
-1. Scope EnterTree
-   └→ 清理 _parentScope 缓存
-
-2. Host EnterTree
-   └→ 清理 _parentScope 缓存
-
-3. User EnterTree
-   └→ 清理 _parentScope 缓存
-```
-
-**Ready（从下到上）**
-
-```
-1. Host Ready
-   └→ 提供 Host Service ⭐
-
-2. User Ready
-   └→ 解析依赖 ⭐
-   └→ OnDependenciesResolved(isAllDependenciesReady) ⭐
-
-3. Scope Ready
-   └→ 创建所有 Scope Service ⭐
-   └→ 检查等待队列是否为空 ⭐
-```
-
-**ExitTree（从下到上）**
-
-```
-1. User ExitTree
-   └→ 清理 _parentScope 缓存
-
-2. Host ExitTree
-   └→ 清理 _parentScope 缓存
-
-3. Scope ExitTree
-   └→ 清理 _parentScope 缓存
-```
-
-**Predelete**
-
-```
-1. User Predelete
-   └→ (不需要额外操作)
-
-2. Host Predelete
-   └→ (不需要额外操作)
-
-3. Scope ExitTree
-   └→ 释放所有单例 ⭐
-```
-
-#### 场景树查找
-
-获取 Scope 的逻辑：
+框架通过 `_Notification` 与 Godot 的生命周期集成：
 
 ```csharp
-private IScope? GetParentScope()
+public override partial void _Notification(int what)
 {
-    if (_parentScope is not null)
-        return _parentScope;
-    
-    var parent = GetParent();
-    while (parent is not null)
+    base._Notification(what);
+    switch ((long)what)
     {
-        if (parent is IScope scope)
-        {
-            _parentScope = scope;
-            return _parentScope;
-        }
-        parent = parent.GetParent();
+        case NotificationEnterTree:
+            AttachToScope();
+            break;
+        case NotificationExitTree:
+            DetachFromScope();
+            break;
     }
-    
-    GD.PushError("没有找到最近的 Parent Scope");
-    return null;
 }
 ```
 
@@ -1347,356 +1451,418 @@ private IScope? GetParentScope()
 
 ### Scope 粒度设计
 
-```csharp
-// ✅ 好的设计: 按功能/生命周期划分 Scope
-RootScope          // 全局服务
-├── MainMenuScope  // 主菜单服务
-└── GameScope      // 游戏服务
-    └── LevelScope // 关卡服务
+基于功能模块设计 Scope：
 
-// ❌ 避免: 过多或过少的 Scope
-// 过多: 每个 Node 一个 Scope (过度设计)
-// 过少: 整个游戏一个 Scope (无法隔离)
 ```
-
----
+GameRoot (Scope)
+├── GlobalServices (Host) - Config, SaveSystem
+├── MainMenu (Scope)
+│   └── MenuServices (Host) - UIManager
+└── GameLevel (Scope)
+    ├── LevelServices (Host) - PhysicsEngine
+    └── PlayerServices (Host) - PlayerStats
+```
 
 ### 服务释放
 
+为需要清理的服务实现 `IDisposable`：
+
 ```csharp
-// ✅ 实现 IDisposable 进行清理
-[Singleton(typeof(IResourceLoader))]
-public partial class ResourceLoader : IResourceLoader, IDisposable
+public class DatabaseService : IDatabase, IDisposable
 {
-    private List<Resource> _loadedResources = new();
-    
     public void Dispose()
     {
-        foreach (var res in _loadedResources)
-        {
-            res.Free();  // 释放 Godot 资源
-        }
-        _loadedResources.Clear();
+        // 清理资源
+        Connection?.Close();
     }
 }
-```
 
----
+[Host]
+public partial class DataHost : Node
+{
+    [Provide(ExposedTypes = [typeof(IDatabase)])]
+    public IDatabase CreateDatabase()
+    {
+        return new DatabaseService();
+    }
+    
+    public override partial void _Notification(int what);
+}
+```
 
 ### 避免循环依赖
 
+**编译时检测**：框架检测循环 WaitFor 链。注意：WaitFor 只能等待 `[Inject]` 成员，因此循环依赖通常发生在相互依赖的注入服务中：
+
 ```csharp
-// ❌ 循环依赖
-[Singleton(typeof(IA))]
-public partial class A : IA
+// ❌ 概念示例 - 如果两个 Host 相互注入对方提供的服务并等待
+// Host A 注入来自 Host B 的服务，并等待它
+[Host]
+public partial class HostA : Node
 {
-    public A(IB b) { }  // A 依赖 B
+    [Inject] private IServiceB? _serviceB;
+    
+    // 提供服务 A，但等待 _serviceB 注入
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateA() => new ServiceA(_serviceB);
 }
 
-[Singleton(typeof(IB))]
-public partial class B : IB
+// Host B 注入来自 Host A 的服务，并等待它
+[Host]
+public partial class HostB : Node
 {
-    public B(IA a) { }  // B 依赖 A → 循环！
-}
-
-// ✅ 打破循环：使用事件或回调
-[Singleton(typeof(IA))]
-public partial class A : IA
-{
-    public event Action<int> OnValueChanged;
-}
-
-[Singleton(typeof(IB))]
-public partial class B : IB
-{
-    public B(IA a)
-    {
-        a.OnValueChanged += HandleValueChanged;
-    }
+    [Inject] private IServiceA? _serviceA;
+    
+    // 提供服务 B，但等待 _serviceA 注入 - 这将导致运行时死锁
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB() => new ServiceB(_serviceA);
 }
 ```
 
----
+**解决方案**：重构依赖关系，避免相互等待：
+
+```csharp
+// ✅ 正确方法 - 只有一个方向等待
+[Host]
+public partial class HostA : Node
+{
+    // 不等待任何依赖，立即提供
+    [Provide(ExposedTypes = [typeof(IServiceA)])]
+    public IServiceA CreateA() => new ServiceA();
+}
+
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+    
+    // 等待 _serviceA，但 ServiceA 不依赖 ServiceB
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB()
+    {
+        if (_serviceA == null)
+            return new ServiceB(new NullServiceA());
+        return new ServiceB(_serviceA);
+    };
+```
 
 ### 接口优先原则
 
-```csharp
-// ✅ 推荐：暴露接口
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats { }
-
-// ⚠️ 不推荐：暴露具体类
-[Singleton(typeof(ConfigService))]
-public partial class ConfigService { }
-
-```
+始终暴露接口而不是具体类型：
 
 ```csharp
+// ❌ 不推荐
+[Provide(ExposedTypes = [typeof(DatabaseService)])]
+public DatabaseService CreateDatabase() => new DatabaseService();
+
 // ✅ 推荐
-
-// Host 暴露接口
-[Host]
-public partial class GameManager : Node, IGameManager
-{
-    [Singleton(typeof(IGameManager))]
-    private GameManager Self => this; // ✅ 推荐
-    
-    [Singleton(typeof(ICombatSystem))]
-    private CombatSystemImpl _combat = new(); // ✅ 推荐
-}
-
-// User 注入接口
-[User]
-public partial class Player : Node
-{
-    [Inject] private IGameManager _gameManager; // ✅ 推荐
-    [Inject] private ICombatSystem _combat; // ✅ 推荐
-}
-
-// ⚠️ 不推荐
-
-// Host 直接暴露类型
-[Host]
-public partial class GameManager : Node
-{
-    [Singleton] private GameManager Self => this; // ⚠️ 会产生警告 
-    [Singleton] private CombatSystemImpl _combat = new(); // ⚠️ 会产生警告 
-}
-
-// User 注入接口
-[User]
-public partial class Player : Node
-{
-    [Inject] private GameManager _state; // ⚠️ 会产生警告 
-}
+[Provide(ExposedTypes = [typeof(IDatabase)])]
+public IDatabase CreateDatabase() => new DatabaseService();
 ```
 
-**原因**:
+### Host 注入和提供服务
 
-- 接口提供更好的松耦合
-- 便于单元测试（使用 mock）
-- 更容易替换实现
-
----
-
-### Host + User 组合使用
-
-一个 Node 可以同时是 Host 和 User：
+Host 可以同时注入依赖和提供服务，无需 `[User]` 特性：
 
 ```csharp
-[Host, User]
+[Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // Host 部分: 暴露服务
-    [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
+    // Host 直接注入依赖
+    [Inject] private IConfig? _config;
+    [Inject] private ISaveSystem? _saveSystem;
     
-    // User 部分: 注入依赖
-    [Inject] private IConfig _config;
-    [Inject] private ISaveSystem _saveSystem;
+    // Host 提供服务
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public GameManager Self => this;
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
         if (isAllDependenciesReady)
         {
-            // 依赖已就绪,可以初始化
-            LoadLastSave();
+            InitializeWithDependencies();
         }
     }
     
-    // 需要集成 Godot 生命周期
+    private void InitializeWithDependencies()
+    {
+        // IsConfigInjectionReady 和 IsSaveSystemInjectionReady 都为 true
+        // 可以安全使用 _config 和 _saveSystem
+        var config = _config!;
+        var saveSystem = _saveSystem!;
+        // ...
+    }
+    
     public override partial void _Notification(int what);
 }
 ```
 
-这在需要同时提供服务和消费服务的 Node 上非常有用。
+**角色独占规则**：
+
+| 角色 | 可以组合 | 不可以组合 |
+|------|---------|-----------|
+| **Host** | 可单独使用 | 不能与 User 或 Scope 共存 |
+| **User** | 可单独使用 | 不能与 Host 或 Scope 共存 |
+| **Scope** | 必须单独使用 | 不能与任何其他角色共存 |
+
+**Host 的能力**：
+- ✅ 使用 `[Provide]` 提供服务
+- ✅ 使用 `[Inject]` 注入依赖
+- ✅ 使用 `WaitFor` 等待依赖
+- ✅ 实现 `IDependenciesResolved`
+- ❌ 不能同时标记 `[User]`
+- ❌ 不能同时标记 `[Scope]`
+
+### 使用服务工厂
+
+创建工厂服务来管理动态对象创建：
+
+```csharp
+public interface IEnemyFactory
+{
+    Enemy CreateEnemy(Vector3 position);
+}
+
+public class Enemy
+{
+    private readonly IPlayerStats _playerStats;
+    
+    public Enemy(IPlayerStats playerStats, Vector3 position)
+    {
+        _playerStats = playerStats;
+        Position = position;
+    }
+    
+    public Vector3 Position { get; }
+}
+
+[Host]
+public partial class GameHost : Node, IDependenciesResolved
+{
+    [Inject] private IPlayerStats _playerStats;
+    
+    [Provide(ExposedTypes = [typeof(IEnemyFactory)], WaitFor = [nameof(_playerStats)])]
+    public IEnemyFactory CreateEnemyFactory()
+    {
+        return new EnemyFactory(_playerStats);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    
+    public override partial void _Notification(int what);
+}
+
+public class EnemyFactory : IEnemyFactory
+{
+    private readonly IPlayerStats _playerStats;
+    
+    public EnemyFactory(IPlayerStats playerStats)
+    {
+        _playerStats = playerStats;
+    }
+    
+    public Enemy CreateEnemy(Vector3 position)
+    {
+        return new Enemy(_playerStats, position);
+    }
+}
+```
 
 ---
 
-## 使用服务工厂
+## 从 1.0.0-rc.3 迁移指南
 
-**工厂是单例服务：**
+### 为什么是 1.1.0 而不是 1.0.0？
 
+在发布 1.0.0-rc.3 后，我们发现了一个架构局限：`[Singleton]` 特性和独立的服务类虽然功能正常，但创造了不必要的复杂性并限制了灵活性。1.1.0 的新提供者架构提供了：
+
+- **更大的灵活性**：服务与 Host 内联定义
+- **更好的资源管理**：创建服务时直接访问 Node 资源
+- **异步支持**：原生支持异步服务初始化
+- **依赖排序**：WaitFor 机制用于复杂的初始化序列
+- **简化的架构**：减少一个学习概念（不再需要单独的 Service 类）
+
+鉴于这些变化的规模，我们决定增加到 1.1.0，而不是发布已知限制的 1.0.0。
+
+### 迁移步骤
+
+#### 1. 用 [Provide] 方法替换 [Singleton] 服务类
+
+**之前（1.0.0-rc.3）**：
 ```csharp
-[Singleton(typeof(IFactory))]
-public partial class MyFactory : IFactory
+// 独立的服务类
+[Singleton(typeof(IPlayerStats))]
+public partial class PlayerStatsService : IPlayerStats
 {
-    private readonly IDep _dep;
-    
-    public MyFactory(IDep dep)
-    {
-        _dep = dep;
-    }
-    
-    public Product Create(params...)
-    {
-        return new Product(_dep, params...);
-    }
+    public int Health { get; set; } = 100;
+    public int Mana { get; set; } = 50;
 }
+
+[Singleton(typeof(IDatabase))]
+public partial class DatabaseService : IDatabase
+{
+    [InjectConstructor]
+    public DatabaseService(IConfig config)
+    {
+        ConnectionString = config.ConnectionString;
+    }
+    
+    public string ConnectionString { get; }
+}
+
+[Modules(
+    Services = [typeof(PlayerStatsService), typeof(DatabaseService)],
+    Hosts = [typeof(GameManager)]
+)]
+public partial class GameScope : Node, IScope { }
 ```
 
-**产品是普通类：**
-
+**之后（1.1.0）**：
 ```csharp
-public class Product : IDisposable
+// 服务由 Host 提供
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
 {
-    private readonly IDep _dep;
+    [Inject] private IConfig _config;
     
-    public Product(IDep dep, ...)
+    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
+    public IPlayerStats CreatePlayerStats()
     {
-        _dep = dep;
+        return new PlayerStatsService { Health = 100, Mana = 50 };
     }
     
-    public void Dispose() { }
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    
+    public override partial void _Notification(int what);
 }
-```
 
-**使用：**
-```csharp
-[User]
-public partial class MyUser : Node
+// 服务实现（不需要特性）
+public class PlayerStatsService : IPlayerStats
 {
-    [Inject] private IFactory _factory;
-    
-    public void DoWork()
+    public int Health { get; set; }
+    public int Mana { get; set; }
+}
+
+public class DatabaseService : IDatabase
+{
+    public DatabaseService(string connectionString)
     {
-        using var product = _factory.Create(...);
-        product.Execute();
+        ConnectionString = connectionString;
     }
     
-    // 需要集成 Godot 生命周期
+    public string ConnectionString { get; }
+}
+
+// 简化的 Modules 特性
+[Modules(Hosts = [typeof(ServiceHost), typeof(GameManager)])]
+public partial class GameScope : Node, IScope
+{
     public override partial void _Notification(int what);
 }
 ```
 
-### 常见模式
+#### 2. 移除 [InjectConstructor] 特性
 
-#### 1. 简单工厂
+不再需要 `[InjectConstructor]` 特性。服务由提供者方法创建，您可以完全控制构造。
+
+#### 3. 更新 Modules 特性
+
+从 `[Modules]` 中移除 `Services` 参数：
+
 ```csharp
-[Singleton(typeof(IBulletFactory))]
-public partial class BulletFactory : IBulletFactory
+// 之前
+[Modules(
+    Services = [typeof(Service1), typeof(Service2)],
+    Hosts = [typeof(Host1)]
+)]
+
+// 之后
+[Modules(Hosts = [typeof(Host1)])]
+```
+
+#### 4. 使用 WaitFor 处理服务依赖
+
+如果您的服务依赖其他服务：
+
+```csharp
+[Host]
+public partial class ServiceHost : Node, IDependenciesResolved
 {
-    public Bullet Create() => new Bullet();
+    [Inject] private IConfig? _config;
+    [Inject] private ILogger? _logger;
+    
+    // Metrics 立即创建（无依赖）
+    [Provide(ExposedTypes = [typeof(IMetrics)])]
+    public IMetrics CreateMetrics()
+    {
+        return new MetricsService();
+    }
+    
+    // Database 等待 _config 注入
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // Repository 等待 _config 和 _logger 注入
+    [Provide(ExposedTypes = [typeof(IRepository)], 
+             WaitFor = [nameof(_config), nameof(_logger)])]
+    public IRepository CreateRepository()
+    {
+        // 检查依赖是否就绪
+        var hasConfig = IsConfigInjectionReady && _config != null;
+        var hasLogger = IsLoggerInjectionReady && _logger != null;
+        
+        if (!hasConfig || !hasLogger)
+        {
+            return new RepositoryWithDefaults();
+        }
+        
+        // 两个依赖都就绪，注入的服务也可通过 scope 获取
+        return new Repository(_config, _logger);
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
 }
 ```
 
-#### 2. 对象池
-```csharp
-[Singleton(typeof(IPooledFactory))]
-public partial class PooledFactory : IPooledFactory
-{
-    private ObjectPool _pool = new();
-    
-    public Item Get() => _pool.Get();
-    public void Return(Item item) => _pool.Return(item);
-}
-```
+### 重大变化总结
 
-#### 3. 依赖传递
-```csharp
-[Singleton(typeof(IComplexFactory))]
-public partial class ComplexFactory : IComplexFactory
-{
-    private readonly IPhysics _physics;
-    private readonly IAudio _audio;
-    
-    public ComplexFactory(IPhysics physics, IAudio audio)
-    {
-        _physics = physics;
-        _audio = audio;
-    }
-    
-    public ComplexObject Create(params...)
-    {
-        return new ComplexObject(_physics, _audio, params...);
-    }
-}
-```
-
-#### 4. 拓展：ECS 集成示例
-
-```csharp
-// System 是 单例服务
-
-[Singleton(typeof(IMovementSystem))]
-public partial class MovementSystem : IMovementSystem { ... }
-
-[Singleton(typeof(IWorld))]
-public partial class GameWorld : IWorld
-{
-    public GameWorld(IMovementSystem movement) { ... }
-    public void Update(double delta) { ... }
-}
-
-[Singleton(typeof(IProjectileSystem))]
-public partial class ProjectileSystem : IProjectileSystem
-{
-    private readonly IPhysics _physics;
-    private readonly IWorld _world;
-    
-    public ProjectileSystem(IPhysics physics, IWorld world)
-    {
-        _physics = physics;
-        _world = world;
-    }
-    
-    // 创建 Entity（ECS 方式）
-    public void SpawnProjectile(Vector3 pos, Vector3 vel)
-    {
-        var entity = _world.CreateEntity();
-        entity.Set(new Position { Value = pos });
-        entity.Set(new Velocity { Value = vel });
-    }
-    
-    // 或者使用工厂创建普通对象
-    public Projectile CreateProjectile(Vector3 pos, Vector3 vel)
-    {
-        return new Projectile(_physics, pos, vel);
-    }
-}
-
-// Entity 是纯数据（ECS 推荐）
-public struct ProjectileEntity
-{
-    public Vector3 Position;
-    public Vector3 Velocity;
-}
-
-// 或者普通类对象（传统方式）
-public class Projectile : IDisposable
-{
-    private readonly IPhysics _physics;
-    public Vector3 Position { get; set; }
-    public Vector3 Velocity { get; set; }
-    
-    public Projectile(IPhysics physics, Vector3 pos, Vector3 vel)
-    {
-        _physics = physics;
-        Position = pos;
-        Velocity = vel;
-    }
-    
-    public void Update(double delta) { }
-    public void Dispose() { }
-}
-```
+| 功能 | 1.0.0-rc.3 | 1.1.0 |
+|------|------------|------------|
+| 服务声明 | 类上的 `[Singleton]` | Host 成员上的 `[Provide]` |
+| 构造函数注入 | `[InjectConstructor]` | 使用提供者方法参数 |
+| Modules 特性 | `Services = [...]` | 已移除，仅 `Hosts = [...]` |
+| 服务依赖 | 构造函数参数 | `WaitFor` 机制 |
+| 异步支持 | 不支持 | `Task<T>` 返回类型 |
 
 ---
 
 ## 诊断代码
 
-框架提供完整的编译时错误检查。完整诊断代码列表请参阅 [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md)。
+框架提供全面的编译时错误检查。完整的诊断代码列表，请参考 [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md)。
 
-**诊断代码分类**：
+**诊断代码类别**：
 
-| 前缀 | 类别 | 说明 |
+| 前缀 | 类别 | 描述 |
 |------|------|------|
-| GDI_C | Class | 类级别错误 |
-| GDI_M | Member | 成员级别错误 |
-| GDI_S | Constructor | 构造函数级别错误 |
-| GDI_D | Dependency Graph | 依赖图错误 |
-| GDI_E | Internal Error | 内部错误 |
-| GDI_U | User Behavior | 用户行为警告 |
+| GDI_C | 类 | 类级错误 |
+| GDI_M | 成员 | 成员级错误 |
+| GDI_D | 依赖图 | 依赖图错误 |
+| GDI_E | 内部错误 | 内部错误 |
+| GDI_U | 用户行为 | 用户行为警告 |
 
 ---
 
@@ -1704,44 +1870,44 @@ public class Projectile : IDisposable
 
 MIT License
 
-## 附录：需要显式声明_Notification方法
+## 附录：需要显式声明 _Notification 方法
 
-**从 1.0.0-rc.1 版本开始**，所有 Host、User 和 Scope 类型**必须**在节点绑定的 C# 脚本中显式定义 `_Notification` 方法：
+所有 Host、User 和 Scope 类型**必须**在附加到节点的 C# 脚本文件中显式定义 `_Notification` 方法：
 
 ```csharp
 public override partial void _Notification(int what);
 ```
 
-### 为什么要这样做？
+### 为什么需要这样做？
 
-- 在 Godot 中将 C# 脚本附加到节点时，引擎会在节点和该特定脚本文件之间创建绑定
-- Godot 的脚本绑定机制只扫描附加的脚本文件以查找虚方法重写
-- 源代码生成的文件（*.g.cs）通过 `partial` 编译到同一个类中，但 Godot 不会扫描这些文件来查找生命周期方法
-- 因此，像 `_Notification` 这样的生命周期钩子必须在节点脚本中声明为 `partial` 方法
+- 当您将 C# 脚本附加到 Godot 中的节点时，引擎会在节点和该特定脚本文件之间创建绑定
+- Godot 的脚本绑定机制仅扫描附加的脚本文件以查找虚拟方法覆盖
+- 源生成的文件（*.g.cs）通过 `partial` 编译到同一类中，但 Godot 不会扫描这些文件以查找生命周期方法
+- 因此，像 `_Notification` 这样的生命周期钩子必须在用户的源文件中声明为 `partial` 方法
 
 ### IDE 支持
 
-IDE（Visual Studio、Rider）会提供自动修复：
+IDE（Visual Studio、Rider）将提供自动修复：
 
-1. 如果忘记添加此方法，会产生 **GDI_C080** 错误
+1. 如果您忘记添加此方法，您会看到 **GDI_C080** 错误
 2. 在错误上按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
-3. 选择“添加 _Notification 方法声明”以自动生成正确的声明
+3. 选择"添加 _Notification 方法声明"以自动生成正确的声明
 
 ### 示例：
 
 ```csharp
-// GameManager.cs（附加到节点）
+// 您的源文件：GameManager.cs（附加到节点）
 [Host]
 public partial class GameManager : Node
 {
-    // 必需：Godot 需要看到这个声明
+    // 必需：Godot 需要看到此声明
     public override partial void _Notification(int what);
 
-    [Singleton(typeof(IGameState))]
-    private IGameState Self => this;
+    [Provide(ExposedTypes = [typeof(IGameState)])]
+    public IGameState Self => this;
 }
 
-// 生成的文件：GameManager.DI.g.cs（不被 Godot 扫描）
+// 生成的文件：GameManager.DI.g.cs（Godot 不扫描）
 partial class GameManager
 {
     // 框架提供实现
@@ -1754,33 +1920,37 @@ partial class GameManager
                 AttachToScope();
                 break;
             case NotificationExitTree:
-                UnattachToScope();
+                DetachFromScope();
                 break;
         }
     }
 }
 ```
 
-
 ## Todo List
 
-### 1. 文档与示例
+### 1. 文档和示例
 
-- [ ] 完善中英文双语支持
-- [ ] 添加示例项目（从 Godot 实际运行 GodotSharpDI.Sample）
-- [ ] 增强生成代码的注释覆盖率
+- [ ] 完善双语（中英文）文档
+- [ ] 添加完整的示例项目
+- [ ] 创建视频教程
+- [ ] 增强生成代码中的注释覆盖率
 
 ### 2. 测试
 
 - [ ] 添加运行时集成测试
-- [ ] 添加生成器、分析器、代码修复器的集成测试
+- [ ] 添加生成器、分析器、代码修复程序集成测试
+- [ ] 添加 WaitFor 机制测试
 
 ### 3. 功能
 
-- [x] 实现依赖回调的等待计时和超时处理
-- [ ] 支持异步（使用 CallDeferred）
+- [x] 实现依赖 WaitFor 机制
+- [x] 支持异步服务提供者
+- [ ] 支持异步操作（使用 CallDeferred）
+- [ ] 添加服务生命周期配置选项
 
 ### 4. 诊断
 
 - [x] 诊断生成器内部错误（GDI_E）
-
+- [ ] 添加更详细的 WaitFor 循环检测
+- [ ] 改进带代码示例的错误消息

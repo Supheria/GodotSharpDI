@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
@@ -8,49 +10,10 @@ namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
 /// 节点构建器集合
-/// 职责：为各种角色类型构建对应的节点
+/// 职责:为各种角色类型构建对应的节点
 /// </summary>
 internal static class NodeBuilders
 {
-    /// <summary>
-    /// 构建 Service 节点
-    /// </summary>
-    public static ImmutableArray<TypeNode> BuildServiceNodes(
-        ImmutableArray<ValidatedTypeInfo> services,
-        ServiceProviderMap serviceProviders,
-        CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-
-        foreach (var service in services)
-        {
-            try
-            {
-                var node = BuildServiceNode(service, symbols);
-                nodes.Add(node);
-            }
-            catch (Exception ex)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.NodeBuildFailed,
-                        service.Location,
-                        "Service",
-                        service.Symbol.Name,
-                        ex.Message
-                    )
-                );
-            }
-        }
-
-        return nodes.ToImmutable();
-    }
-
-    /// <summary>
-    /// 构建 Host 节点
-    /// </summary>
     public static ImmutableArray<TypeNode> BuildHostNodes(
         ImmutableArray<ValidatedTypeInfo> hosts,
         ImmutableArray<Diagnostic>.Builder diagnostics
@@ -82,9 +45,6 @@ internal static class NodeBuilders
         return nodes.ToImmutable();
     }
 
-    /// <summary>
-    /// 构建 User 节点
-    /// </summary>
     public static ImmutableArray<TypeNode> BuildUserNodes(
         ImmutableArray<ValidatedTypeInfo> users,
         ImmutableArray<Diagnostic>.Builder diagnostics
@@ -117,47 +77,13 @@ internal static class NodeBuilders
     }
 
     /// <summary>
-    /// 构建 HostAndUser 节点
-    /// </summary>
-    public static ImmutableArray<TypeNode> BuildHostAndUserNodes(
-        ImmutableArray<ValidatedTypeInfo> hostAndUsers,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        var nodes = ImmutableArray.CreateBuilder<TypeNode>();
-
-        foreach (var hostAndUser in hostAndUsers)
-        {
-            try
-            {
-                var node = BuildHostAndUserNode(hostAndUser);
-                nodes.Add(node);
-            }
-            catch (Exception ex)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.NodeBuildFailed,
-                        hostAndUser.Location,
-                        "HostAndUser",
-                        hostAndUser.Symbol.Name,
-                        ex.Message
-                    )
-                );
-            }
-        }
-
-        return nodes.ToImmutable();
-    }
-
-    /// <summary>
     /// 构建 Scope 节点
     /// </summary>
     public static ImmutableArray<ScopeNode> BuildScopeNodes(
         ImmutableArray<ValidatedTypeInfo> scopes,
-        ServiceProviderMap serviceProviders,
         CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
+        ImmutableArray<Diagnostic>.Builder diagnostics,
+        ServiceIndexes indexes
     )
     {
         var nodes = ImmutableArray.CreateBuilder<ScopeNode>();
@@ -166,7 +92,7 @@ internal static class NodeBuilders
         {
             try
             {
-                var node = BuildScopeNode(scope, symbols, diagnostics);
+                var node = BuildScopeNode(scope, symbols, diagnostics, indexes);
                 if (node != null)
                 {
                     nodes.Add(node);
@@ -189,56 +115,87 @@ internal static class NodeBuilders
         return nodes.ToImmutable();
     }
 
-    // ============================================================
-    // 私有构建方法 - 每个角色一个
-    // ============================================================
-
-    private static TypeNode BuildServiceNode(ValidatedTypeInfo service, CachedSymbols symbols)
+    private static TypeNode BuildHostNode(ValidatedTypeInfo host)
     {
         var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
+        var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+        // 新增：收集服务暴露类型到实现类型的映射
+        var serviceImplMap = ImmutableDictionary.CreateBuilder<INamedTypeSymbol, INamedTypeSymbol>(
+            SymbolEqualityComparer.Default
+        );
 
-        // 收集构造函数依赖
-        if (service.Constructor != null)
+        // 收集 Inject 成员依赖
+        foreach (var member in host.Members)
         {
-            foreach (var param in service.Constructor.Parameters)
+            if (member.IsInjectMember)
             {
                 dependencies.Add(
                     new DependencyEdge(
-                        TargetType: param.Type,
-                        Location: param.Location,
-                        Source: DependencySource.Constructor
+                        TargetType: member.MemberType,
+                        Location: member.Location,
+                        Source: DependencySource.InjectMember
                     )
                 );
             }
         }
 
-        // 获取暴露的服务类型
-        var providedServices = GetServiceExposedTypes(service, symbols);
-
-        return new TypeNode(
-            ValidatedTypeInfo: service,
-            Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: providedServices
-        );
-    }
-
-    private static TypeNode BuildHostNode(ValidatedTypeInfo host)
-    {
-        var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-
-        // 收集 Host 提供的服务
+        // 收集 Provide 成员的 WaitFor 依赖
         foreach (var member in host.Members)
         {
-            if (member.IsSingletonMember)
+            if (member.IsProvideMember && member.HasWaitFor)
             {
+                // 获取该Provide成员提供的第一个服务类型（用于标识这个成员）
+                var providedType = member.ExposedTypes.FirstOrDefault();
+
+                foreach (var waitForFieldName in member.WaitFor)
+                {
+                    // 查找 WaitFor 引用的字段
+                    var waitForField = host.Members.FirstOrDefault(m =>
+                        m.Symbol.Name == waitForFieldName
+                    );
+
+                    if (waitForField != null && waitForField.IsInjectMember)
+                    {
+                        dependencies.Add(
+                            new DependencyEdge(
+                                TargetType: waitForField.MemberType,
+                                Location: member.Location,
+                                Source: DependencySource.WaitForMember,
+                                SourceMemberName: member.Symbol.Name, // 记录源成员名称
+                                SourceProvidedType: providedType // 记录源成员提供的服务类型
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
+        // 收集 Provides 成员提供的服务，同时建立暴露类型到实现类型的映射
+        foreach (var member in host.Members)
+        {
+            if (member.IsProvideMember)
+            {
+                // 添加所有暴露类型
                 providedServices.AddRange(member.ExposedTypes);
+
+                // 建立映射：暴露类型 -> 实现类型
+                // member.MemberType 是该成员返回的实际实现类型
+                var implementationType = member.MemberType;
+
+                foreach (var exposedType in member.ExposedTypes)
+                {
+                    // 如果暴露类型和实现类型不同，建立映射
+                    // （如果相同，也可以添加映射以保持一致性）
+                    serviceImplMap[exposedType] = implementationType;
+                }
             }
         }
 
         return new TypeNode(
             ValidatedTypeInfo: host,
-            Dependencies: ImmutableArray<DependencyEdge>.Empty,
-            ProvidedServices: providedServices.ToImmutable()
+            Dependencies: dependencies.ToImmutable(),
+            ProvidedServices: providedServices.ToImmutable(),
+            ServiceImplementationMap: serviceImplMap.ToImmutable()
         );
     }
 
@@ -264,61 +221,31 @@ internal static class NodeBuilders
         return new TypeNode(
             ValidatedTypeInfo: user,
             Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty
-        );
-    }
-
-    private static TypeNode BuildHostAndUserNode(ValidatedTypeInfo hostAndUser)
-    {
-        var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-        var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
-
-        // 同时收集提供的服务和依赖
-        foreach (var member in hostAndUser.Members)
-        {
-            if (member.IsSingletonMember)
-            {
-                providedServices.AddRange(member.ExposedTypes);
-            }
-            if (member.IsInjectMember)
-            {
-                dependencies.Add(
-                    new DependencyEdge(
-                        TargetType: member.MemberType,
-                        Location: member.Location,
-                        Source: DependencySource.InjectMember
-                    )
-                );
-            }
-        }
-
-        return new TypeNode(
-            ValidatedTypeInfo: hostAndUser,
-            Dependencies: dependencies.ToImmutable(),
-            ProvidedServices: providedServices.ToImmutable()
+            ProvidedServices: ImmutableArray<INamedTypeSymbol>.Empty,
+            ServiceImplementationMap: ImmutableDictionary<INamedTypeSymbol, INamedTypeSymbol>.Empty
         );
     }
 
     private static ScopeNode? BuildScopeNode(
         ValidatedTypeInfo scope,
         CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
+        ImmutableArray<Diagnostic>.Builder diagnostics,
+        ServiceIndexes indexes
     )
     {
         if (scope.ModulesInfo == null)
             return null;
 
-        var services = scope.ModulesInfo.Services;
         var hosts = scope.ModulesInfo.Hosts;
-
-        // 验证 Services
-        ValidateScopeServices(scope, services, symbols, diagnostics);
 
         // 验证 Hosts
         ValidateScopeHosts(scope, hosts, symbols, diagnostics);
 
+        // 验证 Scope 内的服务类型冲突
+        ValidateScopeServiceConflicts(scope, hosts, indexes, diagnostics);
+
         // 检查是否为空
-        if (services.IsEmpty && hosts.IsEmpty)
+        if (hosts.IsEmpty)
         {
             diagnostics.Add(
                 DiagnosticBuilder.Create(
@@ -329,82 +256,7 @@ internal static class NodeBuilders
             );
         }
 
-        return new ScopeNode(
-            ValidatedTypeInfo: scope,
-            InstantiateServices: services,
-            ExpectHosts: hosts
-        );
-    }
-
-    // ============================================================
-    // 辅助方法
-    // ============================================================
-
-    private static ImmutableArray<INamedTypeSymbol> GetServiceExposedTypes(
-        ValidatedTypeInfo service,
-        CachedSymbols symbols
-    )
-    {
-        var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-
-        try
-        {
-            var attr = service.Symbol.GetAttribute(symbols.SingletonAttribute);
-
-            if (attr != null)
-            {
-                foreach (var arg in attr.ConstructorArguments)
-                {
-                    if (arg.Kind == TypedConstantKind.Array)
-                    {
-                        foreach (var item in arg.Values)
-                        {
-                            if (item.Value is INamedTypeSymbol type)
-                                builder.Add(type);
-                        }
-                    }
-                }
-            }
-
-            if (builder.Count == 0)
-            {
-                builder.Add(service.Symbol);
-            }
-        }
-        catch
-        {
-            if (builder.Count == 0)
-            {
-                builder.Add(service.Symbol);
-            }
-        }
-
-        return builder.ToImmutable();
-    }
-
-    private static void ValidateScopeServices(
-        ValidatedTypeInfo scope,
-        ImmutableArray<INamedTypeSymbol> services,
-        CachedSymbols symbols,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        foreach (var type in services)
-        {
-            var hasLifetime = type.HasAttribute(symbols.SingletonAttribute);
-
-            if (!hasLifetime)
-            {
-                diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeModulesServiceMustBeService,
-                        scope.Location,
-                        scope.Symbol.Name,
-                        type.ToDisplayString()
-                    )
-                );
-            }
-        }
+        return new ScopeNode(ValidatedTypeInfo: scope, ExpectHosts: hosts);
     }
 
     private static void ValidateScopeHosts(
@@ -431,4 +283,95 @@ internal static class NodeBuilders
             }
         }
     }
+
+    /// <summary>
+    /// 验证 Scope 内的服务类型冲突
+    /// 重构版：直接使用索引，逻辑更清晰
+    /// </summary>
+    private static void ValidateScopeServiceConflicts(
+        ValidatedTypeInfo scope,
+        ImmutableArray<INamedTypeSymbol> hosts,
+        ServiceIndexes indexes,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        // 收集该Scope内所有Host提供的服务
+        var scopeServices = new Dictionary<ITypeSymbol, List<ServiceProvider>>(
+            SymbolEqualityComparer.Default
+        );
+
+        foreach (var hostType in hosts)
+        {
+            // 查找Host节点
+            if (!indexes.HostTypeToNode.TryGetValue(hostType, out var hostNode))
+                continue;
+
+            // 收集该Host提供的所有服务
+            foreach (var providedService in hostNode.ProvidedServices)
+            {
+                if (!scopeServices.ContainsKey(providedService))
+                {
+                    scopeServices[providedService] = new List<ServiceProvider>();
+                }
+
+                var memberName = FindProviderMemberName(hostNode, providedService);
+                scopeServices[providedService]
+                    .Add(new ServiceProvider(hostType, hostNode, memberName));
+            }
+        }
+
+        // 检测冲突：如果一个服务有多个提供者，报告错误
+        foreach (var kvp in scopeServices)
+        {
+            var serviceType = kvp.Key;
+            var providers = kvp.Value;
+
+            if (providers.Count > 1)
+            {
+                // 构建提供者列表字符串
+                var providerDescriptions = providers
+                    .Select(p => $"{p.HostType.ToDisplayString()}.{p.MemberName}")
+                    .ToList();
+
+                var providersText = string.Join(", ", providerDescriptions);
+
+                diagnostics.Add(
+                    DiagnosticBuilder.Create(
+                        DiagnosticDescriptors.ScopeServiceTypeConflict,
+                        scope.Location,
+                        scope.Symbol.Name,
+                        serviceType.ToDisplayString(),
+                        providersText
+                    )
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// 查找提供特定服务类型的成员名称
+    /// </summary>
+    private static string FindProviderMemberName(TypeNode hostNode, ITypeSymbol exposedType)
+    {
+        foreach (var member in hostNode.ValidatedTypeInfo.Members)
+        {
+            if (member.IsProvideMember)
+            {
+                foreach (var exposed in member.ExposedTypes)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(exposed, exposedType))
+                    {
+                        return member.Symbol.Name;
+                    }
+                }
+            }
+        }
+
+        return "<unknown>";
+    }
+
+    /// <summary>
+    /// 服务提供者信息
+    /// </summary>
+    private record ServiceProvider(ITypeSymbol HostType, TypeNode HostNode, string MemberName);
 }

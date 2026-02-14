@@ -104,14 +104,11 @@ internal static class NodeLifeCycleGenerator
                     switch (validatedType.Role)
                     {
                         case TypeRole.Host:
-                            f.AppendLine("ProvideHostServices();");
+                            f.AppendLine("ProvideServices();");
+                            f.AppendLine("ResolveDependencies();");
                             break;
                         case TypeRole.User:
-                            f.AppendLine("ResolveUserDependencies();");
-                            break;
-                        case TypeRole.HostAndUser:
-                            f.AppendLine("ProvideHostServices();");
-                            f.AppendLine("ResolveUserDependencies();");
+                            f.AppendLine("ResolveDependencies();");
                             break;
                         case TypeRole.Scope:
                             f.AppendLine("StartDependencyMonitoring();");
@@ -135,7 +132,6 @@ internal static class NodeLifeCycleGenerator
                     switch (validatedType.Role)
                     {
                         case TypeRole.Scope:
-                            f.AppendLine("DisposeScopeSingletons();");
                             f.AppendLine("StopDependencyMonitoring();");
                             f.AppendLine("ReportUnresolvedDependencies();");
                             break;

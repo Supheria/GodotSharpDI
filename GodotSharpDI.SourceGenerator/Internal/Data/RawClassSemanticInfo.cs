@@ -9,7 +9,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 internal sealed record RawClassSemanticInfo(
     INamedTypeSymbol Symbol,
     Location Location,
-    bool HasSingletonAttribute,
     bool HasHostAttribute,
     bool HasUserAttribute,
     bool HasModulesAttribute,
@@ -17,6 +16,5 @@ internal sealed record RawClassSemanticInfo(
     bool ImplementsIDependenciesResolved,
     bool IsNode,
     bool IsPartial,
-    ImmutableArray<ISymbol> Members,
-    ImmutableArray<IMethodSymbol> Constructors
+    ImmutableArray<ISymbol> Members
 );

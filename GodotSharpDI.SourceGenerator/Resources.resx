@@ -51,8 +51,8 @@
         <value>Scope '{0}' must inherit from Godot.Node</value>
     </data>
 
-    <data name="C_IDependenciesResolvedNeedUser" xml:space="preserve">
-        <value>Type '{0}' implements IDependenciesResolved but is not marked with [User]</value>
+    <data name="C_IDependenciesResolvedInvalid" xml:space="preserve">
+        <value>Type '{0}' implements IDependenciesResolved but is not marked with [User] or [Host]</value>
     </data>
 
     <data name="C_ScopeMissingModules" xml:space="preserve">
@@ -66,15 +66,6 @@
     <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
         <value>Service '{0}' must be a non-abstract, non-static class type</value>
     </data>
-
-    <data name="C_ServiceExposedTypeShouldBeInterface" xml:space="preserve">
-        <value>Service '{0}' exposed type '{1}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
-    </data>
-
-    <data name="C_ServiceExposedTypeNotImplemented" xml:space="preserve">
-        <value>Service '{0}' has exposed type '{1}', but which is not implemented</value>
-    </data>
-
     <data name="C_MissingNotificationMethod" xml:space="preserve">
         <value>Type '{0}' must define 'public override partial void _Notification(int what);' in the script file attached to Node. This method is required for DI framework lifecycle management</value>
     </data>
@@ -87,24 +78,24 @@
     <!-- M — Member-level Diagnostics -->
     <!-- ============================================================ -->
 
-    <data name="M_MemberHasSingletonButNotInHost" xml:space="preserve">
-        <value>Type '{0}' must be marked as [Host] to use [Singleton] on members</value>
+    <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
+        <value>Type '{0}' must be marked as [Singleton] or [Host] to use [Provide] on members</value>
     </data>
 
-    <data name="M_MemberHasInjectButNotInUser" xml:space="preserve">
-        <value>Type '{0}' must be marked as [User] to use [Inject] on members</value>
+    <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
+        <value>Type '{0}' must be marked as [Service], [Host] or [User] to use [Inject] on members</value>
     </data>
 
-    <data name="M_MemberConflictWithSingletonAndInject" xml:space="preserve">
-        <value>[Singleton] and [Inject] cannot be applied to the same member '{0}'</value>
+    <data name="M_MemberConflictWithProvideAndInject" xml:space="preserve">
+        <value>[Provide] and [Inject] cannot be applied to the same member '{0}'</value>
     </data>
 
     <data name="M_InjectMemberNotAssignable" xml:space="preserve">
         <value>[Inject] member '{0}' must be writable (field must not be readonly, property must have setter)</value>
     </data>
 
-    <data name="M_SingletonPropertyNotAccessible" xml:space="preserve">
-        <value>[Singleton] property '{0}' must have a getter</value>
+    <data name="M_ProvidePropertyNotAccessible" xml:space="preserve">
+        <value>[Provide] property '{0}' must have a getter</value>
     </data>
 
     <data name="M_InjectMemberIsStatic" xml:space="preserve">
@@ -131,20 +122,15 @@
         <value>[Inject] member '{0}' has type '{1}' which is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
     </data>
 
-    <data name="M_SingletonMemberIsStatic" xml:space="preserve">
-        <value>[Singleton] member '{0}' cannot be static</value>
+    <data name="M_ProvideMemberIsStatic" xml:space="preserve">
+        <value>[Provide] member '{0}' cannot be static</value>
     </data>
 
     <data name="M_SingletonMemberTypeIsInvalid" xml:space="preserve">
         <value>[Singleton] member '{0}' has type '{1}', which is not a valid type. Singleton member types must be interfaces or concrete classes (non-abstract, non-static)</value>
     </data>
-
-    <data name="M_SingletonMemberIsServiceType" xml:space="preserve">
-        <value>[Singleton] member '{0}' has type '{1}', which is already marked as a Service ([Singleton]). Host should not hold Service instances directly</value>
-    </data>
-
-    <data name="M_SingletonMemberIsHostType" xml:space="preserve">
-        <value>[Singleton] member '{0}' has type '{1}', which is a [Host] type. Host can only expose itself through [Singleton] members, not other Host types</value>
+    <data name="M_ProvideMemberIsHostType" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is a Host type. Host can only expose itself through [Provide] members, not other Host types</value>
     </data>
 
     <data name="M_SingletonMemberIsUserType" xml:space="preserve">
@@ -178,43 +164,6 @@
     <!-- ============================================================ -->
     <!-- S — Constructor-level Diagnostics -->
     <!-- ============================================================ -->
-
-    <data name="S_NoNonStaticConstructor" xml:space="preserve">
-        <value>Service '{0}' must define at least one non-static constructor</value>
-    </data>
-
-    <data name="S_AmbiguousConstructor" xml:space="preserve">
-        <value>Service '{0}' has multiple constructors, should specify unique [InjectConstructor]</value>
-    </data>
-
-    <data name="S_InjectConstructorAttributeIsInvalid" xml:space="preserve">
-        <value>Type '{0}' is not a Service but uses [InjectConstructor]</value>
-    </data>
-
-    <data name="S_InjectConstructorParameterTypeInvalid" xml:space="preserve">
-        <value>Constructor parameter '{0}' has type '{1}', which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static, non-Node)</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsHostType" xml:space="preserve">
-        <value>Constructor parameter '{0}' has type '{1}', which is a [Host] type. While allowed, injecting Host types is not recommended - consider injecting an interface instead</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsUserType" xml:space="preserve">
-        <value>Constructor parameter '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsScopeType" xml:space="preserve">
-        <value>Constructor parameter '{0}' has type '{1}', which is an IScope type and cannot be injected</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsRegularNode" xml:space="preserve">
-        <value>Constructor parameter '{0}' has type '{1}', which is a regular Node (not marked with DI attributes) and cannot be injected</value>
-    </data>
-
-    <data name="S_InjectCtorParamTypeShouldBeInterface" xml:space="preserve">
-        <value>Constructor parameter '{0}' has type '{1}' which is a concrete class. Consider using an interface instead for better testability</value>
-    </data>
-
     <!-- ============================================================ -->
     <!-- D — Dependency Graph Diagnostics -->
     <!-- ============================================================ -->
@@ -239,8 +188,8 @@
         <value>Service '{0}' has constructor parameter of type '{1}', which is not a Service</value>
     </data>
 
-    <data name="D_ServiceTypeConflict" xml:space="preserve">
-        <value>Service type '{0}' is registered by multiple providers: {1}. Each service type must have exactly one provider within a Scope</value>
+    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
+        <value>In Scope '{0}', Service type '{1}' is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope</value>
     </data>
 
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
@@ -324,9 +273,6 @@
     <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
         <value>Service cannot be unbound generic type '{0}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
     </data>
-    <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>Service '{0}' cannot expose unbound generic type '{1}'. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed</value>
-    </data>
     <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
         <value>[Singleton] member '{0}' cannot expose unbound generic type '{1}'. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed</value>
     </data>
@@ -335,9 +281,6 @@
     </data>
     <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
         <value>[Inject] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
-    </data>
-    <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
-        <value>Constructor parameter '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
     </data>
     <data name="C_HostCannotBeGenericType" xml:space="preserve">
         <value>Host cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
@@ -359,5 +302,14 @@
 
     <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
         <value>Implement {0} method</value>
+    </data>
+    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
+        <value>[Provide] method '{0}' cannot return void</value>
+    </data>
+    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
+        <value>[Provide] method '{0}' must be parameterless</value>
+    </data>
+    <data name="S_ServiceHasNoPublicParameterlessConstructor" xml:space="preserve">
+        <value>Service ‘{0}’ must have public parameterless constructor</value>
     </data>
 </root>

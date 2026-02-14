@@ -8,33 +8,39 @@ namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 /// </summary>
 internal sealed class CachedSymbols
 {
-    public INamedTypeSymbol? SingletonAttribute { get; }
+    // DI
     public INamedTypeSymbol? HostAttribute { get; }
     public INamedTypeSymbol? UserAttribute { get; }
     public INamedTypeSymbol? InjectAttribute { get; }
-    public INamedTypeSymbol? InjectConstructorAttribute { get; }
+    public INamedTypeSymbol? ProvideAttribute { get; }
     public INamedTypeSymbol? ModulesAttribute { get; }
     public INamedTypeSymbol? IScope { get; }
     public INamedTypeSymbol? IDependenciesResolved { get; }
     public INamedTypeSymbol? GodotNode { get; }
+
+    // System
     public INamedTypeSymbol? IDisposable { get; }
+    public INamedTypeSymbol? GenericTask { get; }
+    public INamedTypeSymbol? GenericValueTask { get; }
 
     public CachedSymbols(Compilation compilation)
     {
-        SingletonAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.SingletonAttribute);
+        // DI
+        ProvideAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ProvideAttribute);
         HostAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.HostAttribute);
         UserAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.UserAttribute);
         InjectAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.InjectAttribute);
-        InjectConstructorAttribute = compilation.GetTypeByMetadataName(
-            TypeNamesFull.InjectConstructorAttribute
-        );
         ModulesAttribute = compilation.GetTypeByMetadataName(TypeNamesFull.ModulesAttribute);
         IScope = compilation.GetTypeByMetadataName(TypeNamesFull.IScope);
         IDependenciesResolved = compilation.GetTypeByMetadataName(
             TypeNamesFull.IDependenciesResolved
         );
         GodotNode = compilation.GetTypeByMetadataName(TypeNamesFull.GodotNode);
-        IDisposable = compilation.GetTypeByMetadataName("System.IDisposable");
+
+        // System
+        IDisposable = compilation.GetTypeByMetadataName(TypeNamesFull.IDisposable);
+        GenericTask = compilation.GetTypeByMetadataName(TypeNamesFull.GenericTask);
+        GenericValueTask = compilation.GetTypeByMetadataName(TypeNamesFull.GenericValueTask);
     }
 
     public bool IsNode(ITypeSymbol type)
@@ -74,8 +80,18 @@ internal sealed class CachedSymbols
         return type.HasAttribute(UserAttribute);
     }
 
-    public bool IsServiceType(ITypeSymbol type)
+    /// <summary>
+    /// 检查类型是否是 Task&lt;T&gt; (ValueTask&lt;T&gt;)
+    /// </summary>
+    public bool IsAsyncType(ITypeSymbol type)
     {
-        return type.HasAttribute(SingletonAttribute);
+        if (type is not INamedTypeSymbol named)
+            return false;
+
+        // 比较原始定义（不受泛型参数影响）
+        var original = named.OriginalDefinition;
+
+        return SymbolEqualityComparer.Default.Equals(original, GenericTask)
+            || SymbolEqualityComparer.Default.Equals(original, GenericValueTask);
     }
 }

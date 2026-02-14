@@ -15,19 +15,6 @@ internal static class SourceEmitter
     /// </summary>
     public static void GenerateAll(SourceProductionContext context, DiGraph graph)
     {
-        // 生成 Service 工厂
-        foreach (var node in graph.ServiceNodes)
-        {
-            try
-            {
-                ServiceGenerator.Generate(context, node);
-            }
-            catch (Exception ex)
-            {
-                ReportCodeGenerationError(context, "Service", node.ValidatedTypeInfo, ex);
-            }
-        }
-
         // 生成 Host 代码
         foreach (var node in graph.HostNodes)
         {
@@ -51,19 +38,6 @@ internal static class SourceEmitter
             catch (Exception ex)
             {
                 ReportCodeGenerationError(context, "User", node.ValidatedTypeInfo, ex);
-            }
-        }
-
-        // 生成 HostAndUser 代码
-        foreach (var node in graph.HostAndUserNodes)
-        {
-            try
-            {
-                HostAndUserGenerator.Generate(context, node);
-            }
-            catch (Exception ex)
-            {
-                ReportCodeGenerationError(context, "HostAndUser", node.ValidatedTypeInfo, ex);
             }
         }
 

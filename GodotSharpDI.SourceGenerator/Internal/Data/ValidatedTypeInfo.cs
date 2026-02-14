@@ -13,6 +13,5 @@ internal sealed record ValidatedTypeInfo(
     bool ImplementsIDependenciesResolved,
     bool IsNode,
     ImmutableArray<MemberInfo> Members,
-    ConstructorInfo? Constructor,
     ModulesInfo? ModulesInfo
 );

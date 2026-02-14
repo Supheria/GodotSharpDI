@@ -177,11 +177,6 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
 
         // 5. 分阶段图构建
         // 5.1 按角色分类收集（减少全局 Collect）
-        var serviceTypes = classValidationResults
-            .Where(static r => r.TypeInfo?.Role == TypeRole.Service)
-            .Select(static (r, _) => r.TypeInfo!)
-            .Collect();
-
         var hostTypes = classValidationResults
             .Where(static r => r.TypeInfo?.Role == TypeRole.Host)
             .Select(static (r, _) => r.TypeInfo!)
@@ -192,33 +187,20 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
             .Select(static (r, _) => r.TypeInfo!)
             .Collect();
 
-        var hostAndUserTypes = classValidationResults
-            .Where(static r => r.TypeInfo?.Role == TypeRole.HostAndUser)
-            .Select(static (r, _) => r.TypeInfo!)
-            .Collect();
-
         var scopeTypes = classValidationResults
             .Where(static r => r.TypeInfo?.Role == TypeRole.Scope)
             .Select(static (r, _) => r.TypeInfo!)
             .Collect();
 
         // 5.2 组合所有类型信息
-        var allTypesProvider = serviceTypes
-            .Combine(hostTypes)
+        var allTypesProvider = hostTypes
             .Combine(userTypes)
-            .Combine(hostAndUserTypes)
             .Combine(scopeTypes)
             .Select(
                 static (tuple, _) =>
                 {
-                    var ((((services, hosts), users), hostAndUsers), scopes) = tuple;
-                    return (
-                        Services: services,
-                        Hosts: hosts,
-                        Users: users,
-                        HostAndUsers: hostAndUsers,
-                        Scopes: scopes
-                    );
+                    var ((hosts, users), scopes) = tuple;
+                    return (Hosts: hosts, Users: users, Scopes: scopes);
                 }
             );
 
@@ -246,22 +228,14 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                         }
 
                         // 如果没有任何类型，返回空结果
-                        if (
-                            types.Services.IsEmpty
-                            && types.Hosts.IsEmpty
-                            && types.Users.IsEmpty
-                            && types.HostAndUsers.IsEmpty
-                            && types.Scopes.IsEmpty
-                        )
+                        if (types.Hosts.IsEmpty && types.Users.IsEmpty && types.Scopes.IsEmpty)
                         {
                             return DiGraphBuildResult.Empty;
                         }
 
                         // 合并所有类型
                         var allClasses = types
-                            .Services.Concat(types.Hosts)
-                            .Concat(types.Users)
-                            .Concat(types.HostAndUsers)
+                            .Hosts.Concat(types.Users)
                             .Concat(types.Scopes)
                             .Select(t => new ClassValidationResult(
                                 t,

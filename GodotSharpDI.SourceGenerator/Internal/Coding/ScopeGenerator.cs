@@ -47,9 +47,6 @@ internal static class ScopeGenerator
             GenerateStaticMethods(f, node, graph);
             f.AppendLine();
 
-            GenerateDisposeScopeSingletons(f, node.ValidatedTypeInfo);
-            f.AppendLine();
-
             GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
         }
         f.EndClassDeclaration();
@@ -65,7 +62,6 @@ internal static class ScopeGenerator
         f.BeginBlock();
         {
             f.AppendLine("NotCreated,  // 未创建");
-            f.AppendLine("Creating,    // 创建中");
             f.AppendLine("Created,     // 已创建");
             f.AppendLine("Failed       // 创建失败");
         }
@@ -92,8 +88,7 @@ internal static class ScopeGenerator
         f.AppendLine("private sealed record DependencyWaitInfo(");
         f.BeginLevel();
         {
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}> Callback,");
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.String}> FailureCallback,");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}> ResultCallback,");
             f.AppendLine($"{GlobalNames.Long} RequestTicks,");
             f.AppendLine($"{GlobalNames.String} RequestorType,");
             f.AppendLine($"{GlobalNames.String} ScopeChain,");
@@ -105,13 +100,7 @@ internal static class ScopeGenerator
 
     private static void GenerateDelegates(CodeFormatter f)
     {
-        // ServiceFactory 委托
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine(
-            $"private delegate void ServiceFactory({GlobalNames.IScope} scope, "
-                + $"{GlobalNames.Action}<{GlobalNames.Object}> onCreated, "
-                + $"{GlobalNames.String}? dependencyChain);"
-        );
+        // ServiceFactory 委托已移除 - Service 由 Scope 直接创建和管理
     }
 
     private static void GenerateStaticCollections(CodeFormatter f)
@@ -120,13 +109,6 @@ internal static class ScopeGenerator
         f.AppendHiddenMemberCommentAndAttribute("服务类型映射表：暴露类型 -> 实现类型");
         f.AppendLine(
             $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> ServiceImplementationMap = CreateServiceImplementationMap();"
-        );
-        f.AppendLine();
-
-        // ServiceFactories
-        f.AppendHiddenMemberCommentAndAttribute("单例服务创建工厂集合（使用实现类型作为键值）");
-        f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory> ServiceFactories = CreateServiceFactories();"
         );
     }
 
@@ -146,12 +128,6 @@ internal static class ScopeGenerator
         );
         f.AppendLine();
 
-        // _disposableSingletons
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.IDisposable}> _disposableSingletons = new();"
-        );
-
         // _dependencyCheckTimer
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.GodotTimer}? _dependencyCheckTimer;");
@@ -159,45 +135,35 @@ internal static class ScopeGenerator
 
     private static void GenerateStaticMethods(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
-        var serviceImplementationMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
+        // 收集该 Scope 需要的所有实现类型
+        var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+
+        // 收集该 Scope 的服务暴露类型到实现类型的映射
+        var scopeServiceImplMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
             SymbolEqualityComparer.Default
         );
-        var implTypes = new List<INamedTypeSymbol>();
 
-        // 从 Services 的服务中收集
-        foreach (var serviceType in node.InstantiateServices)
-        {
-            if (graph.ServiceNodeMap.TryGetValue(serviceType, out var serviceNode))
-            {
-                implTypes.Add(serviceType);
-
-                // 添加所有暴露类型到实现类型的映射
-                foreach (var exposedType in serviceNode.ProvidedServices)
-                {
-                    serviceImplementationMap.Add(exposedType, serviceType);
-                }
-            }
-        }
-
-        // 从 Hosts 的 Host 中收集
+        // 遍历该 Scope 的所有 Host
         foreach (var hostType in node.ExpectHosts)
         {
-            if (
-                graph.HostNodeMap.TryGetValue(hostType, out var hostNode)
-                || graph.HostAndUserNodeMap.TryGetValue(hostType, out hostNode)
-            )
+            if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
             {
-                implTypes.Add(hostType);
-
-                // 添加 Host 或 HostAndUser 提供的所有服务类型
-                foreach (var exposedType in hostNode.ProvidedServices)
+                // 收集该 Host 提供的服务映射
+                foreach (var kvp in hostNode.ServiceImplementationMap)
                 {
-                    serviceImplementationMap.Add(exposedType, hostType);
+                    var exposedType = kvp.Key;
+                    var implementationType = kvp.Value;
+
+                    // 添加到 Scope 的服务映射
+                    scopeServiceImplMap[exposedType] = implementationType;
+
+                    // 添加实现类型到集合
+                    implementationTypes.Add(implementationType);
                 }
             }
         }
 
-        // CreateServiceCache
+        // CreateServiceCache - 以实现类型作为键
         f.AppendHiddenMethodCommentAndAttribute("初始化所有服务缓存（以实现类型作为键值）");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> CreateServiceCache()"
@@ -205,115 +171,43 @@ internal static class ScopeGenerator
         f.BeginBlock();
         {
             f.AppendLine(
-                $"var serviceImplementationMap = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry>();"
+                $"var cache = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry>();"
             );
             f.AppendLine();
 
-            foreach (var type in implTypes)
+            foreach (var implType in implementationTypes)
             {
-                f.AppendLine(
-                    $"serviceImplementationMap[typeof({type.ToFullyQualifiedName()})] = new();"
-                );
+                f.AppendLine($"cache[typeof({implType.ToFullyQualifiedName()})] = new();");
             }
             f.AppendLine();
 
-            f.AppendLine("return serviceImplementationMap;");
+            f.AppendLine("return cache;");
         }
         f.EndBlock();
 
-        // CreateServiceImplementationMap
-        f.AppendHiddenMethodCommentAndAttribute("添加已包含的所有暴露类型所对应的实现类型");
+        // CreateServiceImplementationMap - 暴露类型到实现类型的映射
+        f.AppendHiddenMethodCommentAndAttribute("创建服务暴露类型到实现类型的映射表");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> CreateServiceImplementationMap()"
         );
         f.BeginBlock();
         {
             f.AppendLine(
-                $"var serviceImplementationMap = new {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}>();"
+                $"var map = new {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}>();"
             );
             f.AppendLine();
 
-            foreach (var kvp in serviceImplementationMap)
+            foreach (var kvp in scopeServiceImplMap)
             {
+                var exposedType = kvp.Key;
+                var implType = kvp.Value;
                 f.AppendLine(
-                    $"serviceImplementationMap[typeof({kvp.Key.ToFullyQualifiedName()})] = typeof({kvp.Value.ToFullyQualifiedName()});"
+                    $"map[typeof({exposedType.ToFullyQualifiedName()})] = typeof({implType.ToFullyQualifiedName()});"
                 );
             }
             f.AppendLine();
 
-            f.AppendLine("return serviceImplementationMap;");
-        }
-        f.EndBlock();
-
-        // CreateServiceFactories
-        f.AppendHiddenMethodCommentAndAttribute("注册所有 Scope 约束的服务工厂（按需创建）");
-        f.AppendLine(
-            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory> CreateServiceFactories()"
-        );
-        f.BeginBlock();
-        {
-            f.AppendLine(
-                $"var serviceFactories = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceFactory>();"
-            );
-            f.AppendLine();
-
-            foreach (var serviceType in node.InstantiateServices)
-            {
-                if (!graph.ServiceNodeMap.ContainsKey(serviceType))
-                {
-                    continue;
-                }
-
-                // 通过实现类型注册工厂
-                var implType = serviceType.ToFullyQualifiedName();
-                f.AppendLine($"serviceFactories[typeof({implType})] = {implType}.CreateService;");
-            }
-            f.AppendLine();
-
-            f.AppendLine("return serviceFactories;");
-        }
-        f.EndBlock();
-    }
-
-    private static void GenerateDisposeScopeSingletons(
-        CodeFormatter f,
-        ValidatedTypeInfo validatedType
-    )
-    {
-        // DisposeScopeSingletons
-        f.AppendHiddenMethodCommentAndAttribute("释放所有 Scope 约束的单例服务实例");
-        f.AppendLine("private void DisposeScopeSingletons()");
-        f.BeginBlock();
-        {
-            f.AppendLine("foreach (var disposable in _disposableSingletons)");
-            f.BeginBlock();
-            {
-                f.BeginTryCatch();
-                {
-                    f.AppendLine("disposable.Dispose();");
-                }
-                f.CatchBlock("ex");
-                {
-                    f.BeginStringBuilderAppend("errorMsg", true);
-                    {
-                        f.StringBuilderAppendLine(
-                            $"[{ShortNames.GodotSharpDI}] 单例服务释放资源失败"
-                        );
-                        f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                        f.StringBuilderAppendLine("  服务类型: {disposable.GetType().Name}");
-                        f.StringBuilderAppendLine("  异常: {ex.Message}");
-                    }
-                    f.EndStringBuilderAppend();
-                    f.AppendLine();
-
-                    f.PushError("errorMsg.ToString()");
-                }
-                f.EndTryCatch();
-            }
-            f.EndBlock();
-
-            f.AppendLine("_disposableSingletons.Clear();");
-            f.AppendLine("ServiceCache.Clear();");
+            f.AppendLine("return map;");
         }
         f.EndBlock();
     }
@@ -407,7 +301,7 @@ internal static class ScopeGenerator
                             f.EndStringBuilderAppend();
                             f.AppendLine();
 
-                            f.PushWarning("message");
+                            f.PrintError("message");
                         }
                         f.EndBlock();
                     }
@@ -478,7 +372,7 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.PushError("message");
+            f.PrintError("message");
         }
         f.EndBlock();
     }

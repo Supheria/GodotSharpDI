@@ -51,8 +51,8 @@
         <value>Scope '{0}' 必须继承自 Godot.Node</value>
     </data>
 
-    <data name="C_IDependenciesResolvedNeedUser" xml:space="preserve">
-        <value>类型 '{0}' 实现了 IDependenciesResolved 但未标记 [User]</value>
+    <data name="C_IDependenciesResolvedInvalid" xml:space="preserve">
+        <value>类型 '{0}' 实现了 IDependenciesResolved 但未标记 [User] 或 [Host]</value>
     </data>
 
     <data name="C_ScopeMissingModules" xml:space="preserve">
@@ -66,15 +66,6 @@
     <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
         <value>服务 '{0}' 必须是非抽象、非静态的 class 类型</value>
     </data>
-
-    <data name="C_ServiceExposedTypeShouldBeInterface" xml:space="preserve">
-        <value>服务 '{0}' 暴露类型 '{1}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
-    </data>
-
-    <data name="C_ServiceExposedTypeNotImplemented" xml:space="preserve">
-        <value>服务 '{0}' 有暴露类型 '{1}'，但未实现该类型</value>
-    </data>
-
     <data name="C_MissingNotificationMethod" xml:space="preserve">
         <value>类型 '{0}' 必须在附加到 Node 的脚本文件中定义 'public override partial void _Notification(int what);'。DI 框架需要此方法进行生命周期管理</value>
     </data>
@@ -87,24 +78,24 @@
     <!-- M — 成员级别诊断 -->
     <!-- ============================================================ -->
 
-    <data name="M_MemberHasSingletonButNotInHost" xml:space="preserve">
-        <value>类型 '{0}' 必须标记为 [Host] 才能在成员上使用 [Singleton]</value>
+    <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
+        <value>类型 '{0}' 必须标记为 [Singleton] 或者 [Host] 才能在成员上使用 [Provide]</value>
     </data>
 
-    <data name="M_MemberHasInjectButNotInUser" xml:space="preserve">
-        <value>类型 '{0}' 必须标记为 [User] 才能在成员上使用 [Inject]</value>
+    <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
+        <value>类型 '{0}' 必须标记为 [Service], [Host] 或者 [User] 才能在成员上使用 [Inject]</value>
     </data>
 
-    <data name="M_MemberConflictWithSingletonAndInject" xml:space="preserve">
-        <value>[Singleton] 和 [Inject] 不能同时应用于同一成员 '{0}'</value>
+    <data name="M_MemberConflictWithProvideAndInject" xml:space="preserve">
+        <value>[Provide] 和 [Inject] 不能同时应用于同一成员 '{0}'</value>
     </data>
 
     <data name="M_InjectMemberNotAssignable" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 必须可写（字段不能是 readonly，属性必须有 setter）</value>
     </data>
 
-    <data name="M_SingletonPropertyNotAccessible" xml:space="preserve">
-        <value>[Singleton] 属性 '{0}' 必须有 getter</value>
+    <data name="M_ProvidePropertyNotAccessible" xml:space="preserve">
+        <value>[Provide] 属性 '{0}' 必须有 getter</value>
     </data>
 
     <data name="M_InjectMemberTypeIsInvalid" xml:space="preserve">
@@ -134,13 +125,8 @@
     <data name="M_SingletonMemberTypeIsInvalid" xml:space="preserve">
         <value>[Singleton] 成员 '{0}' 的类型 '{1}' 不是有效类型。Singleton 成员类型必须是接口或具体类（非抽象、非静态）</value>
     </data>
-
-    <data name="M_SingletonMemberIsServiceType" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 已标记为服务 ([Singleton])。Host 不应直接持有服务实例</value>
-    </data>
-
-    <data name="M_SingletonMemberIsHostType" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是 [Host] 类型。Host 只能通过 [Singleton] 成员暴露自身，不能暴露其他 Host 类型</value>
+    <data name="M_ProvideMemberIsHostType" xml:space="preserve">
+        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是 Host 类型。Host 只能通过 [Provide] 成员暴露自身，不能暴露其他 Host 类型</value>
     </data>
 
     <data name="M_SingletonMemberIsUserType" xml:space="preserve">
@@ -174,43 +160,6 @@
     <!-- ============================================================ -->
     <!-- S — 构造函数级别诊断 -->
     <!-- ============================================================ -->
-
-    <data name="S_NoNonStaticConstructor" xml:space="preserve">
-        <value>服务 '{0}' 必须定义至少一个非静态构造函数</value>
-    </data>
-
-    <data name="S_AmbiguousConstructor" xml:space="preserve">
-        <value>服务 '{0}' 有多个构造函数，应使用 [InjectConstructor] 指定唯一的构造函数</value>
-    </data>
-
-    <data name="S_InjectConstructorAttributeIsInvalid" xml:space="preserve">
-        <value>类型 '{0}' 不是服务，但使用了 [InjectConstructor]</value>
-    </data>
-
-    <data name="S_InjectConstructorParameterTypeInvalid" xml:space="preserve">
-        <value>构造函数参数 '{0}' 的类型 '{1}' 不是有效的可注入类型。可注入类型必须是接口或具体类（非抽象、非静态、非 Node）</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsHostType" xml:space="preserve">
-        <value>构造函数参数 '{0}' 的类型 '{1}' 是 [Host] 类型。虽然允许，但不推荐注入 Host 类型 - 建议注入接口</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsUserType" xml:space="preserve">
-        <value>构造函数参数 '{0}' 的类型 '{1}' 是 [User] 类型，不能被注入</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsScopeType" xml:space="preserve">
-        <value>构造函数参数 '{0}' 的类型 '{1}' 是 IScope 类型，不能被注入</value>
-    </data>
-
-    <data name="S_InjectCtorParamIsRegularNode" xml:space="preserve">
-        <value>构造函数参数 '{0}' 的类型 '{1}' 是普通 Node（未标记 DI 特性），不能被注入</value>
-    </data>
-
-    <data name="S_InjectCtorParamTypeShouldBeInterface" xml:space="preserve">
-        <value>构造函数参数 '{0}' 的类型 '{1}' 是具体类。建议使用接口以获得更好的可测试性</value>
-    </data>
-
     <!-- ============================================================ -->
     <!-- D — 依赖图诊断 -->
     <!-- ============================================================ -->
@@ -235,8 +184,8 @@
         <value>服务 '{0}' 的构造函数参数类型 '{1}' 不是服务</value>
     </data>
 
-    <data name="D_ServiceTypeConflict" xml:space="preserve">
-        <value>服务类型 '{0}' 由多个提供者注册: {1}。每个服务类型在 Scope 中必须只有一个提供者</value>
+    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
+        <value>在 Scope '{0}' 中，服务类型 '{1}' 由多个提供者注册： {2}。每个服务类型在 Scope 中必须只有一个提供者</value>
     </data>
 
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
@@ -316,17 +265,14 @@
         <value>不要手动设置注入准备字段 '{0}'（在 '{1}' 上）。此字段由 DI 框架管理，会在依赖成功注入时自动设置</value>
     </data>
     
-    <data name="M_SingletonMemberIsStatic" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 不能是静态的</value>
+    <data name="M_ProvideMemberIsStatic" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能是静态的</value>
     </data>
     <data name="C_ServiceCannotBeNode" xml:space="preserve">
         <value>服务 '{0}' 不能继承自 Godot.Node</value>
     </data>
     <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
         <value>服务不能是开放泛型类型 '{0}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。请定义一个具体类</value>
-    </data>
-    <data name="C_ServiceExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>服务 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
     </data>
     <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
         <value>[Singleton] 成员 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
@@ -336,9 +282,6 @@
     </data>
     <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
-    </data>
-    <data name="S_InjectCtorParamTypeCannotBeGeneric" xml:space="preserve">
-        <value>构造函数参数 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
     </data>
     <data name="C_HostCannotBeGenericType" xml:space="preserve">
         <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
@@ -360,5 +303,14 @@
 
     <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
         <value>实现 {0} 方法</value>
+    </data>
+    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
+        <value>[Provide] 方法的返回值不能是 void</value>
+    </data>
+    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
+        <value>[Provide] 方法的必须是无参方法</value>
+    </data>
+    <data name="S_ServiceHasNoPublicParameterlessConstructor" xml:space="preserve">
+        <value>服务 '{0}' 必须有公共的无参构造函数</value>
     </data>
 </root>

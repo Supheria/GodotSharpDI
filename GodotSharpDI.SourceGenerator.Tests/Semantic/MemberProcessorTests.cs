@@ -100,37 +100,6 @@ namespace Test
     }
 
     [Fact]
-    public void Process_SingletonFieldInHost_ReturnsSingletonMember()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-using Godot;
-
-namespace Test
-{
-    public interface IMyService { }
-    public class MyServiceImpl : IMyService { }
-
-    [Host]
-    public partial class MyHost : Node
-    {
-        [Singleton(typeof(IMyService))]
-        private MyServiceImpl _service = new();
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "MyHost");
-
-        // Assert
-        Assert.NotNull(result.TypeInfo);
-        Assert.Single(result.TypeInfo.Members);
-        Assert.Equal(MemberKind.SingletonField, result.TypeInfo.Members[0].Kind);
-        Assert.Single(result.TypeInfo.Members[0].ExposedTypes);
-    }
-
-    [Fact]
     public void Process_SingletonPropertyWithoutGetter_ReportsDiagnostic()
     {
         // Arrange

@@ -5,6 +5,6 @@ internal enum MemberKind
     None,
     InjectField,
     InjectProperty,
-    SingletonField,
-    SingletonProperty,
+    ProvideProperty,
+    ProvideMethod,
 }

@@ -6,7 +6,4 @@ namespace GodotSharpDI.SourceGenerator.Internal.Data;
 /// <summary>
 /// 模块信息
 /// </summary>
-internal sealed record ModulesInfo(
-    ImmutableArray<INamedTypeSymbol> Services,
-    ImmutableArray<INamedTypeSymbol> Hosts
-);
+internal sealed record ModulesInfo(ImmutableArray<INamedTypeSymbol> Hosts);

@@ -43,13 +43,10 @@ internal sealed class ClassValidator
         // 4. 处理成员
         var members = ProcessMembers(role);
 
-        // 5. 处理构造函数
-        var constructor = ProcessConstructor(role);
-
-        // 6. 处理 Modules
+        // 5. 处理 Modules
         var modulesInfo = ProcessModules();
 
-        return CreateSuccessResult(role, members, constructor, modulesInfo);
+        return CreateSuccessResult(role, members, modulesInfo);
     }
 
     private bool ValidatePartial()
@@ -73,17 +70,6 @@ internal sealed class ClassValidator
         // Scope
         if (_raw.ImplementsIScope)
         {
-            if (_raw.HasSingletonAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        ShortNames.Singleton
-                    )
-                );
-            }
             if (_raw.HasHostAttribute)
             {
                 _diagnostics.Add(
@@ -121,39 +107,19 @@ internal sealed class ClassValidator
             );
         }
 
-        // Service
-        if (_raw.HasSingletonAttribute)
-        {
-            if (_raw.HasHostAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        ShortNames.Singleton
-                    )
-                );
-            }
-            if (_raw.HasUserAttribute)
-            {
-                _diagnostics.Add(
-                    DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.UserInvalidAttribute,
-                        _raw.Location,
-                        _raw.Symbol.Name,
-                        ShortNames.Singleton
-                    )
-                );
-            }
-
-            return TypeRole.Service;
-        }
-
-        // Host + User
+        // Host 和 User 不应该同时使用
         if (_raw.HasHostAttribute && _raw.HasUserAttribute)
         {
-            return TypeRole.HostAndUser;
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.HostInvalidAttribute,
+                    _raw.Location,
+                    _raw.Symbol.Name,
+                    "User (Host 和 User 不应同时使用)"
+                )
+            );
+            // 优先作为 Host 处理
+            return TypeRole.Host;
         }
 
         // Host only
@@ -183,12 +149,6 @@ internal sealed class ClassValidator
         return processor.Process();
     }
 
-    private ConstructorInfo? ProcessConstructor(TypeRole role)
-    {
-        var processor = new ConstructorProcessor(_raw, role, _symbols, _diagnostics);
-        return processor.Process();
-    }
-
     private ModulesInfo? ProcessModules()
     {
         if (!_raw.HasModulesAttribute)
@@ -199,10 +159,10 @@ internal sealed class ClassValidator
             .FirstOrDefault(a =>
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, _symbols.ModulesAttribute)
             );
-        var services = AttributeHelper.GetTypesFromAttribute(modulesAttr, ShortNames.Services);
+
         var hosts = AttributeHelper.GetTypesFromAttribute(modulesAttr, ShortNames.Hosts);
 
-        return new ModulesInfo(services, hosts);
+        return new ModulesInfo(hosts);
     }
 
     private ClassValidationResult CreateFailureResult()
@@ -213,7 +173,6 @@ internal sealed class ClassValidator
     private ClassValidationResult CreateSuccessResult(
         TypeRole role,
         ImmutableArray<MemberInfo> members,
-        ConstructorInfo? constructor,
         ModulesInfo? modulesInfo
     )
     {
@@ -224,7 +183,6 @@ internal sealed class ClassValidator
             ImplementsIDependenciesResolved: _raw.ImplementsIDependenciesResolved,
             IsNode: _raw.IsNode,
             Members: members,
-            Constructor: constructor,
             ModulesInfo: modulesInfo
         );
 

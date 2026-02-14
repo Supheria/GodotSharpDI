@@ -2,7 +2,6 @@
 
 public static class ShortNames
 {
-    public const string Singleton = "Singleton";
     public const string Host = "Host";
     public const string User = "User";
     public const string GodotSharpDI = "GodotSharpDI";
@@ -10,11 +9,16 @@ public static class ShortNames
     //
     // Modules arguments
     //
-    public const string Services = "Services";
     public const string Hosts = "Hosts";
 
     //
-    // SingletonAttribute arguments
+    // InjectAttribute arguments
+    //
+    public const string FailureCallback = "FailureCallback";
+
+    //
+    // ProvideAttribute arguments
     //
     public const string ExposedTypes = "ExposedTypes";
+    public const string WaitFor = "WaitFor";
 }
