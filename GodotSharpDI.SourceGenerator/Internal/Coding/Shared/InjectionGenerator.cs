@@ -27,10 +27,22 @@ internal static class InjectionGenerator
             if (!injectMembers.IsEmpty)
             {
                 // 如果有带 FailureCallback 的成员，生成 partial 方法声明
-                var membersWithCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
-                if (membersWithCallback.Length > 0)
+                var membersWithFailureCallback = injectMembers
+                    .Where(m => m.HasFailureCallback)
+                    .ToArray();
+                if (membersWithFailureCallback.Length > 0)
                 {
-                    GenerateFailureCallbackDeclarations(f, membersWithCallback);
+                    GenerateFailureCallbackDeclarations(f, membersWithFailureCallback);
+                    f.AppendLine();
+                }
+
+                // 如果有带 ReadyCallback 的成员，生成 partial 方法声明
+                var membersWithReadyCallback = injectMembers
+                    .Where(m => m.HasReadyCallback)
+                    .ToArray();
+                if (membersWithReadyCallback.Length > 0)
+                {
+                    GenerateReadyCallbackDeclarations(f, membersWithReadyCallback);
                     f.AppendLine();
                 }
 
@@ -132,6 +144,21 @@ internal static class InjectionGenerator
         }
     }
 
+    private static void GenerateReadyCallbackDeclarations(
+        CodeFormatter f,
+        MemberInfo[] injectMembers
+    )
+    {
+        // OnXxxInjectionReady
+        foreach (var member in injectMembers)
+        {
+            var methodName = NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
+            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入成功时的回调</summary>");
+            f.AppendLine($"partial void {methodName}();");
+            f.AppendLine();
+        }
+    }
+
     private static void GenerateResolveDependencies(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
@@ -175,6 +202,14 @@ internal static class InjectionGenerator
                                     memberName,
                                     memberType
                                 );
+
+                                // 如果有就绪回调，调用它
+                                if (member.HasReadyCallback)
+                                {
+                                    var callbackMethodName =
+                                        NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
+                                    f.AppendLine($"{callbackMethodName}();");
+                                }
                             }
                             f.CatchBlock("ex");
                             {

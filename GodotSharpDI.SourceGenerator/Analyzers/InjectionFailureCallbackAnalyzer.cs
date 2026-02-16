@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
-/// 分析器：检测缺失的注入失败回调方法实现
+/// 分析器：检测缺失的注入回调方法实现（FailureCallback 和 ReadyCallback）
 /// 增强版：添加异常处理，防止分析器崩溃
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -17,9 +17,13 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
 {
     private const string InjectAttributeName = "GodotSharpDI.Abstractions.InjectAttribute";
     private const string UserAttributeName = "GodotSharpDI.Abstractions.UserAttribute";
+    private const string HostAttributeName = "GodotSharpDI.Abstractions.HostAttribute";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DiagnosticDescriptors.MissingInjectionFailureCallbackImplementation);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.MissingInjectionFailureCallbackImplementation,
+            DiagnosticDescriptors.MissingInjectionReadyCallbackImplementation
+        );
 
     public override void Initialize(AnalysisContext context)
     {
@@ -66,14 +70,14 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
         if (!HasUserAttribute(typeSymbol))
             return;
 
-        // 收集所有标记了 [Inject(FailureCallback = true)] 的成员
-        var membersWithCallback = typeSymbol
+        // 收集所有标记了 [Inject] 的成员
+        var allInjectMembers = typeSymbol
             .GetMembers()
             .Where(m => m is IFieldSymbol or IPropertySymbol)
-            .Where(m => HasInjectWithFailureCallback(m))
+            .Where(m => HasInjectAttribute(m))
             .ToArray();
 
-        if (membersWithCallback.Length == 0)
+        if (allInjectMembers.Length == 0)
             return;
 
         // 收集类中所有的 partial 方法
@@ -83,12 +87,22 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
             .Where(m => m.IsPartialDefinition || m.PartialImplementationPart != null)
             .ToArray();
 
-        // 检查每个需要回调的成员
-        foreach (var member in membersWithCallback)
+        // 检查每个 Inject 成员
+        foreach (var member in allInjectMembers)
         {
             try
             {
-                AnalyzeMemberCallback(context, member, partialMethods, typeSymbol);
+                // 检查 FailureCallback
+                if (HasInjectWithFailureCallback(member))
+                {
+                    AnalyzeMemberFailureCallback(context, member, partialMethods, typeSymbol);
+                }
+
+                // 检查 ReadyCallback
+                if (HasInjectWithReadyCallback(member))
+                {
+                    AnalyzeMemberReadyCallback(context, member, partialMethods, typeSymbol);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -103,9 +117,9 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
     }
 
     /// <summary>
-    /// 分析单个成员的回调实现
+    /// 分析单个成员的失败回调实现
     /// </summary>
-    private static void AnalyzeMemberCallback(
+    private static void AnalyzeMemberFailureCallback(
         SymbolAnalysisContext context,
         ISymbol member,
         IMethodSymbol[] partialMethods,
@@ -157,6 +171,60 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
         }
     }
 
+    /// <summary>
+    /// 分析单个成员的就绪回调实现
+    /// </summary>
+    private static void AnalyzeMemberReadyCallback(
+        SymbolAnalysisContext context,
+        ISymbol member,
+        IMethodSymbol[] partialMethods,
+        INamedTypeSymbol typeSymbol
+    )
+    {
+        var expectedMethodName = NamingHelper.GetReadyCallbackMethodName(member.Name);
+
+        // 检查是否存在对应的 partial 方法实现
+        var hasImplementation = partialMethods.Any(m =>
+        {
+            try
+            {
+                // 必须有相同的方法名
+                if (m.Name != expectedMethodName)
+                    return false;
+
+                // 必须有实现部分
+                if (m.PartialImplementationPart == null)
+                    return false;
+
+                // 检查签名是否匹配: partial void OnXxxInjectionReady()
+                if (m.ReturnsVoid && m.Parameters.Length == 0)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+            catch
+            {
+                // 检查失败，保守处理：认为不匹配
+                return false;
+            }
+        });
+
+        if (!hasImplementation)
+        {
+            // 报告诊断 - 使用成员的位置
+            var diagnostic = Diagnostic.Create(
+                DiagnosticDescriptors.MissingInjectionReadyCallbackImplementation,
+                member.Locations.FirstOrDefault() ?? typeSymbol.Locations.FirstOrDefault(),
+                member.Name,
+                expectedMethodName
+            );
+
+            context.ReportDiagnostic(diagnostic);
+        }
+    }
+
     private static bool HasUserAttribute(INamedTypeSymbol typeSymbol)
     {
         try
@@ -169,7 +237,36 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
                     {
                         var attrClass = attr.AttributeClass;
                         return attrClass != null
-                            && attrClass.ToDisplayString() == UserAttributeName;
+                            && (
+                                attrClass.ToDisplayString() == UserAttributeName
+                                || attrClass.ToDisplayString() == HostAttributeName
+                            );
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                });
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasInjectAttribute(ISymbol member)
+    {
+        try
+        {
+            return member
+                .GetAttributes()
+                .Any(attr =>
+                {
+                    try
+                    {
+                        var attrClass = attr.AttributeClass;
+                        return attrClass != null
+                            && attrClass.ToDisplayString() == InjectAttributeName;
                     }
                     catch
                     {
@@ -212,6 +309,53 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
                 try
                 {
                     if (namedArg.Key == "FailureCallback" && namedArg.Value.Value is bool value)
+                    {
+                        return value;
+                    }
+                }
+                catch
+                {
+                    // 继续检查下一个参数
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool HasInjectWithReadyCallback(ISymbol member)
+    {
+        try
+        {
+            var injectAttr = member
+                .GetAttributes()
+                .FirstOrDefault(attr =>
+                {
+                    try
+                    {
+                        var attrClass = attr.AttributeClass;
+                        return attrClass != null
+                            && attrClass.ToDisplayString() == InjectAttributeName;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                });
+
+            if (injectAttr == null)
+                return false;
+
+            // 检查 ReadyCallback 属性
+            foreach (var namedArg in injectAttr.NamedArguments)
+            {
+                try
+                {
+                    if (namedArg.Key == "ReadyCallback" && namedArg.Value.Value is bool value)
                     {
                         return value;
                     }

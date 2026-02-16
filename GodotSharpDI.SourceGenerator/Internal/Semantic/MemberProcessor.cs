@@ -223,11 +223,12 @@ internal sealed class MemberProcessor
 
         // 验证 Inject 成员
         bool hasFailureCallback = false;
+        bool hasReadyCallback = false;
         if (hasInject)
         {
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
-            // 读取 FailureCallback 属性
+            // 读取 FailureCallback 和 ReadyCallback 属性
             // TODO: move this method into AttributeHelper
             var injectAttr = member.GetAttribute(_symbols.InjectAttribute);
             foreach (var namedArg in injectAttr!.NamedArguments)
@@ -238,7 +239,13 @@ internal sealed class MemberProcessor
                 )
                 {
                     hasFailureCallback = failureCallbackValue;
-                    break;
+                }
+                else if (
+                    namedArg.Key == ShortNames.ReadyCallback
+                    && namedArg.Value.Value is bool readyCallbackValue
+                )
+                {
+                    hasReadyCallback = readyCallbackValue;
                 }
             }
         }
@@ -297,6 +304,7 @@ internal sealed class MemberProcessor
             MemberType: memberType,
             ExposedTypes: exposedTypes,
             HasFailureCallback: hasFailureCallback,
+            HasReadyCallback: hasReadyCallback,
             WaitFor: waitFor,
             IsAsync: isAsync,
             UsesProvide: hasProvide

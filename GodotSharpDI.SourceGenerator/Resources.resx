@@ -303,6 +303,12 @@
     <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
         <value>Implement {0} method</value>
     </data>
+    <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
+        <value>Implement {0} method</value>
+    </data>
+    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
+        <value>Member '{0}' is marked with [Inject(ReadyCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle successful injections</value>
+    </data>
     <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
         <value>[Provide] method '{0}' cannot return void</value>
     </data>

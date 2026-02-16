@@ -76,6 +76,24 @@ internal static class NamingHelper
     }
 
     /// <summary>
+    /// 将成员名转换为就绪回调方法名
+    /// 规则：
+    /// 1. 忽略前导下划线
+    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
+    /// 3. 添加 "On" 前缀和 "InjectionReady" 后缀
+    /// </summary>
+    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
+    /// <returns>就绪回调方法名，如 "OnMyFieldInjectionReady"</returns>
+    public static string GetReadyCallbackMethodName(string memberName)
+    {
+        var pascalCase = ToPascalCase(memberName);
+        if (string.IsNullOrEmpty(pascalCase))
+            return "OnInjectionReady";
+
+        return $"On{pascalCase}InjectionReady";
+    }
+
+    /// <summary>
     /// 将成员名转换为注入准备标识字段名
     /// 规则：
     /// 1. 忽略前导下划线

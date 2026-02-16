@@ -14,7 +14,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace GodotSharpDI.SourceGenerator.CodeFixes;
 
 /// <summary>
-/// 为缺失的注入失败回调方法提供代码修复
+/// 为缺失的注入回调方法提供代码修复（FailureCallback 和 ReadyCallback）
 /// 增强版：添加异常处理，防止 CodeFix 崩溃
 /// </summary>
 [ExportCodeFixProvider(
@@ -25,7 +25,10 @@ namespace GodotSharpDI.SourceGenerator.CodeFixes;
 public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
 {
     public override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create("GDI_U004"); // MissingInjectionFailureCallbackImplementation
+        ImmutableArray.Create(
+            "GDI_U004", // MissingInjectionFailureCallbackImplementation
+            "GDI_U006" // MissingInjectionReadyCallbackImplementation
+        );
 
     public override FixAllProvider GetFixAllProvider()
     {
@@ -62,22 +65,48 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             if (classDeclaration == null)
                 return;
 
-            // 注册代码修复
-            var title = string.Format(Resources.CodeFix_InjectionFailureCallback, methodName);
-            context.RegisterCodeFix(
-                CodeAction.Create(
-                    title: title,
-                    createChangedDocument: c =>
-                        AddFailureCallbackImplementationAsync(
-                            context.Document,
-                            classDeclaration,
-                            methodName,
-                            c
-                        ),
-                    equivalenceKey: title
-                ),
-                diagnostic
-            );
+            // 根据诊断ID确定回调类型
+            var isFailureCallback = diagnostic.Id == "GDI_U004";
+            var isReadyCallback = diagnostic.Id == "GDI_U006";
+
+            if (isFailureCallback)
+            {
+                // 注册失败回调的代码修复
+                var title = string.Format(Resources.CodeFix_InjectionFailureCallback, methodName);
+                context.RegisterCodeFix(
+                    CodeAction.Create(
+                        title: title,
+                        createChangedDocument: c =>
+                            AddFailureCallbackImplementationAsync(
+                                context.Document,
+                                classDeclaration,
+                                methodName,
+                                c
+                            ),
+                        equivalenceKey: title
+                    ),
+                    diagnostic
+                );
+            }
+            else if (isReadyCallback)
+            {
+                // 注册就绪回调的代码修复
+                var title = string.Format(Resources.CodeFix_InjectionReadyCallback, methodName);
+                context.RegisterCodeFix(
+                    CodeAction.Create(
+                        title: title,
+                        createChangedDocument: c =>
+                            AddReadyCallbackImplementationAsync(
+                                context.Document,
+                                classDeclaration,
+                                methodName,
+                                c
+                            ),
+                        equivalenceKey: title
+                    ),
+                    diagnostic
+                );
+            }
         }
         catch (OperationCanceledException)
         {
@@ -149,6 +178,42 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
 
             // 创建 partial 方法实现
             var method = CreateFailureCallbackMethod(methodName);
+
+            // 找到合适的插入位置
+            var newClassDeclaration = classDeclaration.AddMembers(method);
+
+            // 替换旧的类声明
+            var newRoot = root.ReplaceNode(classDeclaration, newClassDeclaration);
+
+            return document.WithSyntaxRoot(newRoot);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // 修复失败，返回原文档
+            return document;
+        }
+    }
+
+    private async Task<Document> AddReadyCallbackImplementationAsync(
+        Document document,
+        ClassDeclarationSyntax classDeclaration,
+        string methodName,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+
+            if (root == null)
+                return document;
+
+            // 创建 partial 方法实现
+            var method = CreateReadyCallbackMethod(methodName);
 
             // 找到合适的插入位置
             var newClassDeclaration = classDeclaration.AddMembers(method);
@@ -255,6 +320,75 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                         )
                     )
                 )
+                .WithBody(SyntaxFactory.Block());
+        }
+    }
+
+    private static MethodDeclarationSyntax CreateReadyCallbackMethod(string methodName)
+    {
+        try
+        {
+            // 创建方法体
+            var statements = SyntaxFactory.List(
+                new StatementSyntax[]
+                {
+                    // GD.Print("Injection ready");
+                    SyntaxFactory.ExpressionStatement(
+                        SyntaxFactory
+                            .InvocationExpression(
+                                SyntaxFactory.MemberAccessExpression(
+                                    SyntaxKind.SimpleMemberAccessExpression,
+                                    SyntaxFactory.IdentifierName("GD"),
+                                    SyntaxFactory.IdentifierName("Print")
+                                )
+                            )
+                            .WithArgumentList(
+                                SyntaxFactory.ArgumentList(
+                                    SyntaxFactory.SingletonSeparatedList(
+                                        SyntaxFactory.Argument(
+                                            SyntaxFactory.LiteralExpression(
+                                                SyntaxKind.StringLiteralExpression,
+                                                SyntaxFactory.Literal("Dependency injection ready")
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                    ),
+                }
+            );
+
+            // 创建方法：partial void OnXxxInjectionReady() { ... }
+            var method = SyntaxFactory
+                .MethodDeclaration(
+                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
+                    SyntaxFactory.Identifier(methodName)
+                )
+                .WithModifiers(
+                    SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword))
+                )
+                .WithParameterList(SyntaxFactory.ParameterList())
+                .WithBody(SyntaxFactory.Block(statements))
+                .WithLeadingTrivia(
+                    SyntaxFactory.ElasticCarriageReturnLineFeed,
+                    SyntaxFactory.ElasticWhitespace("    ")
+                )
+                .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
+
+            return method;
+        }
+        catch (Exception)
+        {
+            // 如果创建方法失败，返回一个最简单的空方法
+            return SyntaxFactory
+                .MethodDeclaration(
+                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
+                    methodName
+                )
+                .WithModifiers(
+                    SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword))
+                )
+                .WithParameterList(SyntaxFactory.ParameterList())
                 .WithBody(SyntaxFactory.Block());
         }
     }

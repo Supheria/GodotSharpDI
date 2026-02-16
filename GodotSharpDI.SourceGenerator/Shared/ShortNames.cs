@@ -15,6 +15,7 @@ public static class ShortNames
     // InjectAttribute arguments
     //
     public const string FailureCallback = "FailureCallback";
+    public const string ReadyCallback = "ReadyCallback";
 
     //
     // ProvideAttribute arguments

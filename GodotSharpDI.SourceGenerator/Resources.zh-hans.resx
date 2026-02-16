@@ -304,6 +304,12 @@
     <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
         <value>实现 {0} 方法</value>
     </data>
+    <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
+        <value>实现 {0} 方法</value>
+    </data>
+    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
+        <value>成员 '{0}' 标记了 [Inject(ReadyCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入成功的情况</value>
+    </data>
     <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
         <value>[Provide] 方法的返回值不能是 void</value>
     </data>

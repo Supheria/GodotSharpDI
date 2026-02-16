@@ -231,6 +231,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Implement {0} method.
+        /// </summary>
+        internal static string CodeFix_InjectionReadyCallback {
+            get {
+                return ResourceManager.GetString("CodeFix_InjectionReadyCallback", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Add _Notification method declaration.
         /// </summary>
         internal static string CodeFix_Notification {
@@ -686,6 +695,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string U_MissingInjectionFailureCallbackImplementation {
             get {
                 return ResourceManager.GetString("U_MissingInjectionFailureCallbackImplementation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Member '{0}' is marked with [Inject(ReadyCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle successful injections.
+        /// </summary>
+        internal static string U_MissingInjectionReadyCallbackImplementation {
+            get {
+                return ResourceManager.GetString("U_MissingInjectionReadyCallbackImplementation", resourceCulture);
             }
         }
     }
