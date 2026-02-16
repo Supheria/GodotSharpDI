@@ -20,10 +20,10 @@ public interface IGameState2
 [Host]
 public sealed partial class GameManager7 : Node, IGameState, IGameState2
 {
-    [Inject]
+    [Inject(FailureCallback = true, ReadyCallback = true)]
     private PlayerStatsCenter _playerStatsCenter;
 
-    [Inject(FailureCallback = true, ReadyCallback = true)]
+    [Inject]
     private PlayerStatsService3 _playerStatsService;
 
     [Provide(
@@ -55,13 +55,13 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
         var a = 0;
     }
 
-    partial void OnPlayerStatsServiceInjectionReady()
-    {
-        GD.Print("Dependency injection ready");
-    }
-
-    partial void OnPlayerStatsServiceInjectionFailed(string error)
+    partial void OnPlayerStatsCenterInjectionFailed(string error)
     {
         GD.PushError(error);
+    }
+
+    partial void OnPlayerStatsCenterInjectionReady()
+    {
+        GD.Print("Dependency injection ready");
     }
 }

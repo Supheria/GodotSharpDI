@@ -11,7 +11,7 @@ namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
 /// 分析器：检测对框架生成的成员（方法、字段、属性）的手动访问
-/// 增强版：添加异常处理，防止分析器崩溃
+/// 使用 CachedSymbols 优化符号查找
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
@@ -65,11 +65,6 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     private static readonly ImmutableHashSet<string> ForbiddenPropertyNames =
         ImmutableHashSet<string>.Empty;
 
-    /// <summary>
-    /// IScope 的完全限定名称
-    /// </summary>
-    private const string IScopeFullName = "GodotSharpDI.Abstractions.IScope";
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.ManualCallGeneratedMethod,
@@ -83,23 +78,40 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        // 注册语法节点分析 - 每个都添加异常保护
-        context.RegisterSyntaxNodeAction(
-            ctx => SafeAnalyze(ctx, AnalyzeInvocation),
-            SyntaxKind.InvocationExpression
-        );
-        context.RegisterSyntaxNodeAction(
-            ctx => SafeAnalyze(ctx, AnalyzeMemberAccess),
-            SyntaxKind.SimpleMemberAccessExpression
-        );
-        context.RegisterSyntaxNodeAction(
-            ctx => SafeAnalyze(ctx, AnalyzeIdentifierName),
-            SyntaxKind.IdentifierName
-        );
-        context.RegisterSyntaxNodeAction(
-            ctx => SafeAnalyze(ctx, AnalyzeAssignment),
-            SyntaxKind.SimpleAssignmentExpression
-        );
+        // 使用 CompilationStartAction 初始化 CachedSymbols
+        context.RegisterCompilationStartAction(compilationContext =>
+        {
+            try
+            {
+                var cachedSymbols = new CachedSymbols(compilationContext.Compilation);
+
+                // 如果 IScope 不存在，说明项目没有使用 GodotSharpDI
+                if (cachedSymbols.IScope == null)
+                    return;
+
+                // 注册语法节点分析
+                compilationContext.RegisterSyntaxNodeAction(
+                    ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeInvocation),
+                    SyntaxKind.InvocationExpression
+                );
+                compilationContext.RegisterSyntaxNodeAction(
+                    ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeMemberAccess),
+                    SyntaxKind.SimpleMemberAccessExpression
+                );
+                compilationContext.RegisterSyntaxNodeAction(
+                    ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeIdentifierName),
+                    SyntaxKind.IdentifierName
+                );
+                compilationContext.RegisterSyntaxNodeAction(
+                    ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeAssignment),
+                    SyntaxKind.SimpleAssignmentExpression
+                );
+            }
+            catch (Exception)
+            {
+                // 初始化失败，静默忽略
+            }
+        });
     }
 
     /// <summary>
@@ -107,12 +119,13 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private static void SafeAnalyze(
         SyntaxNodeAnalysisContext context,
-        Action<SyntaxNodeAnalysisContext> analyze
+        CachedSymbols cachedSymbols,
+        Action<SyntaxNodeAnalysisContext, CachedSymbols> analyze
     )
     {
         try
         {
-            analyze(context);
+            analyze(context, cachedSymbols);
         }
         catch (OperationCanceledException)
         {
@@ -123,11 +136,10 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         {
             // 分析器不应该崩溃
             // 静默忽略错误，因为分析器失败不应该阻止编译
-            // 如果需要调试，可以在这里添加日志
         }
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context, CachedSymbols cachedSymbols)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
 
@@ -145,7 +157,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
             return;
 
         // 检查是否是对生成方法的调用
-        if (!IsGeneratedMethodCall(methodSymbol, context.SemanticModel))
+        if (!IsGeneratedMethodCall(methodSymbol, cachedSymbols, context.SemanticModel))
             return;
 
         // 获取调用表达式（this.Method() 或 obj.Method()）
@@ -162,7 +174,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(diagnostic);
     }
 
-    private static void AnalyzeMemberAccess(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeMemberAccess(SyntaxNodeAnalysisContext context, CachedSymbols cachedSymbols)
     {
         var memberAccess = (MemberAccessExpressionSyntax)context.Node;
 
@@ -186,7 +198,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         );
     }
 
-    private static void AnalyzeIdentifierName(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeIdentifierName(SyntaxNodeAnalysisContext context, CachedSymbols cachedSymbols)
     {
         var identifier = (IdentifierNameSyntax)context.Node;
 
@@ -222,7 +234,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         AnalyzeMemberSymbol(context, symbolInfo.Symbol, identifier.GetLocation(), accessedOn);
     }
 
-    private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context)
+    private static void AnalyzeAssignment(SyntaxNodeAnalysisContext context, CachedSymbols cachedSymbols)
     {
         var assignment = (AssignmentExpressionSyntax)context.Node;
 
@@ -433,6 +445,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
 
     private static bool IsGeneratedMethodCall(
         IMethodSymbol methodSymbol,
+        CachedSymbols cachedSymbols,
         SemanticModel semanticModel
     )
     {
@@ -466,14 +479,14 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
 
                 if (containingType.TypeKind == TypeKind.Interface)
                 {
-                    if (IsIScopeMethod(containingType, methodSymbol.Name))
+                    if (IsIScopeMethod(cachedSymbols, containingType, methodSymbol.Name))
                     {
                         return true;
                     }
                 }
                 else
                 {
-                    if (ImplementsIScope(containingType))
+                    if (cachedSymbols.ImplementsIScope(containingType))
                     {
                         if (IsExplicitInterfaceImplementation(methodSymbol))
                         {
@@ -503,23 +516,14 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool ImplementsIScope(ITypeSymbol type)
+    private static bool IsIScopeMethod(CachedSymbols cachedSymbols, ITypeSymbol interfaceType, string methodName)
     {
         try
         {
-            return type.AllInterfaces.Any(i => i.ToDisplayString() == IScopeFullName);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+            if (cachedSymbols.IScope == null)
+                return false;
 
-    private static bool IsIScopeMethod(ITypeSymbol interfaceType, string methodName)
-    {
-        try
-        {
-            if (interfaceType.ToDisplayString() != IScopeFullName)
+            if (!SymbolEqualityComparer.Default.Equals(interfaceType, cachedSymbols.IScope))
                 return false;
 
             return methodName == "ResolveDependency"

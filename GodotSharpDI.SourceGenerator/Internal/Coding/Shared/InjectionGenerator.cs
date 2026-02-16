@@ -27,9 +27,7 @@ internal static class InjectionGenerator
             if (!injectMembers.IsEmpty)
             {
                 // 如果有带 FailureCallback 的成员，生成 partial 方法声明
-                var membersWithFailureCallback = injectMembers
-                    .Where(m => m.HasFailureCallback)
-                    .ToArray();
+                var membersWithFailureCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
                 if (membersWithFailureCallback.Length > 0)
                 {
                     GenerateFailureCallbackDeclarations(f, membersWithFailureCallback);
@@ -37,9 +35,7 @@ internal static class InjectionGenerator
                 }
 
                 // 如果有带 ReadyCallback 的成员，生成 partial 方法声明
-                var membersWithReadyCallback = injectMembers
-                    .Where(m => m.HasReadyCallback)
-                    .ToArray();
+                var membersWithReadyCallback = injectMembers.Where(m => m.HasReadyCallback).ToArray();
                 if (membersWithReadyCallback.Length > 0)
                 {
                     GenerateReadyCallbackDeclarations(f, membersWithReadyCallback);
@@ -202,12 +198,13 @@ internal static class InjectionGenerator
                                     memberName,
                                     memberType
                                 );
-
+                                
                                 // 如果有就绪回调，调用它
                                 if (member.HasReadyCallback)
                                 {
-                                    var callbackMethodName =
-                                        NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
+                                    var callbackMethodName = NamingHelper.GetReadyCallbackMethodName(
+                                        member.Symbol.Name
+                                    );
                                     f.AppendLine($"{callbackMethodName}();");
                                 }
                             }

@@ -20,7 +20,6 @@ public sealed partial class PlayerUI3 : Control
     [Inject]
     private IGameState gameState
     {
-        get => new GameManager7();
         set => GD.Print("PlayerUI inject Game State");
     }
 
@@ -34,22 +33,22 @@ public sealed partial class PlayerUI3 : Control
         GD.Print("PlayerUI is ready before services ready");
     }
 
-    // void IDependenciesResolved.OnDependenciesResolved(bool isAllDependenciesReady)
-    // {
-    //     if (isAllDependenciesReady)
-    //     {
-    //         GD.Print("PlayerUI updated after dependencies ready");
-    //     }
-    //     else
-    //     {
-    //         GD.Print("PlayerUI updated after some dependencies failed");
-    //     }
-    //
-    //     if (IsAllDependenciesReady)
-    //     {
-    //         // var a = PlayerStats.Health;
-    //     }
-    // }
+    void IDependenciesResolved.OnDependenciesResolved(bool isAllDependenciesReady)
+    {
+        if (isAllDependenciesReady)
+        {
+            GD.Print("PlayerUI updated after dependencies ready");
+        }
+        else
+        {
+            GD.Print("PlayerUI updated after some dependencies failed");
+        }
+
+        if (IsAllDependenciesReady)
+        {
+            // var a = PlayerStats.Health;
+        }
+    }
 
     public override partial void _Notification(int what);
 

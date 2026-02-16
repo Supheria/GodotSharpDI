@@ -27,7 +27,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create(
             "GDI_U004", // MissingInjectionFailureCallbackImplementation
-            "GDI_U006" // MissingInjectionReadyCallbackImplementation
+            "GDI_U006"  // MissingInjectionReadyCallbackImplementation
         );
 
     public override FixAllProvider GetFixAllProvider()

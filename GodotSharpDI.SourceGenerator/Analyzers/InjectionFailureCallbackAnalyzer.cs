@@ -10,15 +10,11 @@ namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
 /// 分析器：检测缺失的注入回调方法实现（FailureCallback 和 ReadyCallback）
-/// 增强版：添加异常处理，防止分析器崩溃
+/// 使用 CachedSymbols 优化符号查找
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
 {
-    private const string InjectAttributeName = "GodotSharpDI.Abstractions.InjectAttribute";
-    private const string UserAttributeName = "GodotSharpDI.Abstractions.UserAttribute";
-    private const string HostAttributeName = "GodotSharpDI.Abstractions.HostAttribute";
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.MissingInjectionFailureCallbackImplementation,
@@ -30,11 +26,28 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        // 使用安全包装器注册分析
-        context.RegisterSymbolAction(
-            ctx => SafeAnalyze(ctx, AnalyzeNamedType),
-            SymbolKind.NamedType
-        );
+        // 使用 CompilationStartAction 初始化 CachedSymbols
+        context.RegisterCompilationStartAction(compilationContext =>
+        {
+            try
+            {
+                var cachedSymbols = new CachedSymbols(compilationContext.Compilation);
+
+                // 如果 UserAttribute 或 HostAttribute 不存在，说明项目没有使用 GodotSharpDI
+                if (cachedSymbols.UserAttribute == null && cachedSymbols.HostAttribute == null)
+                    return;
+
+                // 注册符号分析，传递 CachedSymbols
+                compilationContext.RegisterSymbolAction(
+                    ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeNamedType),
+                    SymbolKind.NamedType
+                );
+            }
+            catch (Exception)
+            {
+                // 初始化失败，静默忽略
+            }
+        });
     }
 
     /// <summary>
@@ -42,12 +55,13 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private static void SafeAnalyze(
         SymbolAnalysisContext context,
-        Action<SymbolAnalysisContext> analyze
+        CachedSymbols cachedSymbols,
+        Action<SymbolAnalysisContext, CachedSymbols> analyze
     )
     {
         try
         {
-            analyze(context);
+            analyze(context, cachedSymbols);
         }
         catch (OperationCanceledException)
         {
@@ -58,23 +72,22 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
         {
             // 分析器不应该崩溃
             // 静默忽略错误，因为分析器失败不应该阻止编译
-            // 如果需要调试，可以在这里添加日志
         }
     }
 
-    private static void AnalyzeNamedType(SymbolAnalysisContext context)
+    private static void AnalyzeNamedType(SymbolAnalysisContext context, CachedSymbols cachedSymbols)
     {
         var typeSymbol = (INamedTypeSymbol)context.Symbol;
 
-        // 只检查标记了 [User] 的类
-        if (!HasUserAttribute(typeSymbol))
+        // 只检查标记了 [User] 或 [Host] 的类
+        if (!cachedSymbols.IsUserType(typeSymbol) && !cachedSymbols.IsHostType(typeSymbol))
             return;
 
         // 收集所有标记了 [Inject] 的成员
         var allInjectMembers = typeSymbol
             .GetMembers()
             .Where(m => m is IFieldSymbol or IPropertySymbol)
-            .Where(m => HasInjectAttribute(m))
+            .Where(m => cachedSymbols.HasInjectAttribute(m))
             .ToArray();
 
         if (allInjectMembers.Length == 0)
@@ -93,13 +106,13 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
             try
             {
                 // 检查 FailureCallback
-                if (HasInjectWithFailureCallback(member))
+                if (cachedSymbols.HasInjectWithFailureCallback(member))
                 {
                     AnalyzeMemberFailureCallback(context, member, partialMethods, typeSymbol);
                 }
 
                 // 检查 ReadyCallback
-                if (HasInjectWithReadyCallback(member))
+                if (cachedSymbols.HasInjectWithReadyCallback(member))
                 {
                     AnalyzeMemberReadyCallback(context, member, partialMethods, typeSymbol);
                 }
@@ -222,155 +235,6 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
             );
 
             context.ReportDiagnostic(diagnostic);
-        }
-    }
-
-    private static bool HasUserAttribute(INamedTypeSymbol typeSymbol)
-    {
-        try
-        {
-            return typeSymbol
-                .GetAttributes()
-                .Any(attr =>
-                {
-                    try
-                    {
-                        var attrClass = attr.AttributeClass;
-                        return attrClass != null
-                            && (
-                                attrClass.ToDisplayString() == UserAttributeName
-                                || attrClass.ToDisplayString() == HostAttributeName
-                            );
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool HasInjectAttribute(ISymbol member)
-    {
-        try
-        {
-            return member
-                .GetAttributes()
-                .Any(attr =>
-                {
-                    try
-                    {
-                        var attrClass = attr.AttributeClass;
-                        return attrClass != null
-                            && attrClass.ToDisplayString() == InjectAttributeName;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool HasInjectWithFailureCallback(ISymbol member)
-    {
-        try
-        {
-            var injectAttr = member
-                .GetAttributes()
-                .FirstOrDefault(attr =>
-                {
-                    try
-                    {
-                        var attrClass = attr.AttributeClass;
-                        return attrClass != null
-                            && attrClass.ToDisplayString() == InjectAttributeName;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-
-            if (injectAttr == null)
-                return false;
-
-            // 检查 FailureCallback 属性
-            foreach (var namedArg in injectAttr.NamedArguments)
-            {
-                try
-                {
-                    if (namedArg.Key == "FailureCallback" && namedArg.Value.Value is bool value)
-                    {
-                        return value;
-                    }
-                }
-                catch
-                {
-                    // 继续检查下一个参数
-                }
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool HasInjectWithReadyCallback(ISymbol member)
-    {
-        try
-        {
-            var injectAttr = member
-                .GetAttributes()
-                .FirstOrDefault(attr =>
-                {
-                    try
-                    {
-                        var attrClass = attr.AttributeClass;
-                        return attrClass != null
-                            && attrClass.ToDisplayString() == InjectAttributeName;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-
-            if (injectAttr == null)
-                return false;
-
-            // 检查 ReadyCallback 属性
-            foreach (var namedArg in injectAttr.NamedArguments)
-            {
-                try
-                {
-                    if (namedArg.Key == "ReadyCallback" && namedArg.Value.Value is bool value)
-                    {
-                        return value;
-                    }
-                }
-                catch
-                {
-                    // 继续检查下一个参数
-                }
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
         }
     }
 }
