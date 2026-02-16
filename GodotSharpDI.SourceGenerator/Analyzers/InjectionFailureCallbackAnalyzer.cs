@@ -33,8 +33,8 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
             {
                 var cachedSymbols = new CachedSymbols(compilationContext.Compilation);
 
-                // 如果 UserAttribute 不存在，说明项目没有使用 GodotSharpDI
-                if (cachedSymbols.UserAttribute == null)
+                // 如果 UserAttribute 或 HostAttribute 不存在，说明项目没有使用 GodotSharpDI
+                if (cachedSymbols.UserAttribute == null && cachedSymbols.HostAttribute == null)
                     return;
 
                 // 注册符号分析，传递 CachedSymbols
@@ -79,8 +79,8 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
     {
         var typeSymbol = (INamedTypeSymbol)context.Symbol;
 
-        // 只检查标记了 [User] 的类
-        if (!cachedSymbols.IsUserType(typeSymbol))
+        // 只检查标记了 [User] 或 [Host] 的类
+        if (!cachedSymbols.IsUserType(typeSymbol) && !cachedSymbols.IsHostType(typeSymbol))
             return;
 
         // 收集所有标记了 [Inject] 的成员

@@ -20,7 +20,7 @@ public interface IGameState2
 [Host]
 public sealed partial class GameManager7 : Node, IGameState, IGameState2
 {
-    [Inject]
+    [Inject(ReadyCallback = true)]
     private PlayerStatsCenter _playerStatsCenter;
 
     [Inject]
