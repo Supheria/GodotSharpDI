@@ -63,7 +63,7 @@ internal static class GraphValidator
 
             // 使用 CircularDependencyDetector 检测循环
             var detector = new CircularDependencyDetector(
-                indexes.HostTypeToNode.ToImmutableDictionary(),
+                indexes.HostTypeToNode.ToImmutableDictionary(SymbolEqualityComparer.Default),
                 serviceTypeToProvider
             );
 
