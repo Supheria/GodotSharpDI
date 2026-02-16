@@ -1,3 +1,237 @@
+# v1.1.1
+
+## 🎯 新功能
+
+### ⚡ 注入回调
+
+**1.1.1 新功能**：通过 `FailureCallback` 和 `ReadyCallback` 机制增强注入处理。
+
+#### FailureCallback（失败回调，已恢复）
+
+之前版本的 `FailureCallback` 功能已完全恢复并增强：
+
+```csharp
+[User]
+public partial class NetworkManager : Node
+{
+    [Inject(FailureCallback = true)]
+    private INetworkService _networkService;
+    
+    partial void OnNetworkServiceInjectionFailed(string error)
+    {
+        GD.PrintErr($"网络服务不可用: {error}");
+        EnableOfflineMode();  // 优雅降级
+    }
+}
+```
+
+**使用场景**：
+- 需要降级策略的关键服务
+- 可能失败的网络或外部依赖
+- 具有替代实现的可选服务
+
+#### ReadyCallback（就绪回调，新增）
+
+新的回调机制，在注入成功时触发：
+
+```csharp
+[User]
+public partial class GameUI : Control
+{
+    [Inject(ReadyCallback = true)]
+    private IGameState _gameState;
+    
+    partial void OnGameStateInjectionReady()
+    {
+        GD.Print("游戏状态就绪");
+        _gameState.Initialize();  // 可以立即安全使用
+    }
+}
+```
+
+**使用场景**：
+- 注入后需要立即初始化的服务
+- 协调多个服务间的初始化
+- 服务可用时触发 UI 更新
+
+#### 组合使用
+
+两种回调可以一起使用：
+
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true, ReadyCallback = true)]
+    private IDatabaseService _database;
+    
+    partial void OnDatabaseInjectionReady()
+    {
+        _database.MigrateSchema();
+        LoadInitialData();
+    }
+    
+    partial void OnDatabaseInjectionFailed(string error)
+    {
+        GD.PrintErr($"数据库不可用: {error}");
+        UseFallbackDataSource();
+    }
+}
+```
+
+---
+
+### 🔍 智能分析器和代码修复器
+
+**1.1.1 新功能**：为注入回调提供全面的 IDE 支持。
+
+#### 分析器
+
+- **GDI_U004**：检测缺失的 `FailureCallback` 实现
+- **GDI_U006**：检测缺失的 `ReadyCallback` 实现
+
+分析器会自动检测当你标记 `[Inject]` 成员带有回调但忘记实现对应方法的情况。
+
+**错误消息**：
+```
+GDI_U004: 成员 '_myService' 标记了 [Inject(FailureCallback = true)]，
+但未实现所需的回调方法 'OnMyServiceInjectionFailed'。
+请实现此 partial 方法以处理注入失败的情况。
+
+GDI_U006: 成员 '_gameState' 标记了 [Inject(ReadyCallback = true)]，
+但未实现所需的回调方法 'OnGameStateInjectionReady'。
+请实现此 partial 方法以处理注入成功的情况。
+```
+
+#### 代码修复器
+
+通过 IDE 快速操作一键生成代码：
+
+1. 分析器检测到缺失的回调实现
+2. 按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
+3. 选择"实现 {方法名} 方法"
+4. 框架生成正确的方法签名
+
+**生成的代码**：
+
+对于 `FailureCallback`：
+```csharp
+partial void OnMyServiceInjectionFailed(string error)
+{
+    GD.PushError(error);
+}
+```
+
+对于 `ReadyCallback`：
+```csharp
+partial void OnMyServiceInjectionReady()
+{
+    GD.Print("依赖注入就绪");
+}
+```
+
+---
+
+## 🔨 Bug 修复
+
+### 分析器中的 Host 注入支持
+
+**已修复**：`InjectionFailureCallbackAnalyzer` 现在正确支持 `[Host]` 类中的 `[Inject]` 成员。
+
+**之前**：
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true)]  // ❌ 分析器不检查这个
+    private IConfig _config;
+}
+```
+
+**之后**：
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true)]  // ✅ 分析器现在检查这个
+    private IConfig _config;
+    
+    partial void OnConfigInjectionFailed(string error)
+    {
+        // 必须实现
+    }
+}
+```
+
+---
+
+## 📝 API 变更
+
+### InjectAttribute
+
+**增强**：添加了 `ReadyCallback` 参数
+
+```csharp
+public sealed class InjectAttribute : Attribute
+{
+    public bool FailureCallback { get; set; }  // 从之前版本恢复
+    public bool ReadyCallback { get; set; }     // 1.1.1 新增
+    // ... 其他成员
+}
+```
+
+### 生成的代码
+
+**新增**：对于带有回调的 `[Inject]` 成员，框架现在生成：
+
+1. **回调方法声明**：
+```csharp
+partial void On{成员名}InjectionFailed(string error);
+partial void On{成员名}InjectionReady();
+```
+
+2. **回调调用**（在生成的依赖解析代码中）：
+```csharp
+if (result.IsSuccess)
+{
+    try
+    {
+        _myService ??= (IMyService)result.Instance!;
+        IsMyServiceInjectionReady = true;
+        OnMyServiceInjectionReady();  // ← 新增
+    }
+    catch (Exception ex)
+    {
+        // 错误处理
+    }
+}
+else
+{
+    OnMyServiceInjectionFailed(result.ErrorMessage ?? "Unknown error");  // ← 已恢复
+}
+```
+
+---
+
+## 📚 文档
+
+**新增**：注入回调的全面文档：
+- 在 README.md 中添加了"Injection Callbacks"章节
+- 在 README.zh-CN.md 中添加了"注入回调"章节
+- 详细的使用示例和最佳实践
+- IDE 集成指南
+
+---
+
+## ✅ 兼容性
+
+- ✅ 与 1.1.0 完全向后兼容
+- ✅ 所有现有代码继续工作
+- ✅ 新功能是可选的（回调默认为 `false`）
+- ✅ 没有破坏性变更
+
+---
+
 # v1.1.0
 
 ---

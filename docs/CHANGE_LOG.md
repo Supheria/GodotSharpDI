@@ -1,3 +1,237 @@
+# v1.1.1
+
+## 🎯 New Features
+
+### ⚡ Injection Callbacks
+
+**New in 1.1.1**: Enhanced injection handling with `FailureCallback` and `ReadyCallback` mechanisms.
+
+#### FailureCallback (Restored)
+
+The `FailureCallback` feature from previous versions has been fully restored and enhanced:
+
+```csharp
+[User]
+public partial class NetworkManager : Node
+{
+    [Inject(FailureCallback = true)]
+    private INetworkService _networkService;
+    
+    partial void OnNetworkServiceInjectionFailed(string error)
+    {
+        GD.PrintErr($"Network service unavailable: {error}");
+        EnableOfflineMode();  // Graceful degradation
+    }
+}
+```
+
+**Use Cases**:
+- Critical services that need fallback strategies
+- Network or external dependencies that may fail
+- Optional services with alternative implementations
+
+#### ReadyCallback (New)
+
+New callback mechanism that triggers when injection succeeds:
+
+```csharp
+[User]
+public partial class GameUI : Control
+{
+    [Inject(ReadyCallback = true)]
+    private IGameState _gameState;
+    
+    partial void OnGameStateInjectionReady()
+    {
+        GD.Print("Game state ready");
+        _gameState.Initialize();  // Safe to use immediately
+    }
+}
+```
+
+**Use Cases**:
+- Services requiring immediate initialization after injection
+- Coordinating initialization across multiple services
+- Triggering UI updates when services become available
+
+#### Combined Usage
+
+Both callbacks can be used together:
+
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true, ReadyCallback = true)]
+    private IDatabaseService _database;
+    
+    partial void OnDatabaseInjectionReady()
+    {
+        _database.MigrateSchema();
+        LoadInitialData();
+    }
+    
+    partial void OnDatabaseInjectionFailed(string error)
+    {
+        GD.PrintErr($"Database unavailable: {error}");
+        UseFallbackDataSource();
+    }
+}
+```
+
+---
+
+### 🔍 Smart Analyzers and Code Fixers
+
+**New in 1.1.1**: Comprehensive IDE support for injection callbacks.
+
+#### Analyzers
+
+- **GDI_U004**: Detects missing `FailureCallback` implementations
+- **GDI_U006**: Detects missing `ReadyCallback` implementations
+
+The analyzers automatically detect when you mark an `[Inject]` member with callbacks but forget to implement the corresponding methods.
+
+**Error Messages**:
+```
+GDI_U004: Member '_myService' is marked with [Inject(FailureCallback = true)] 
+but the required callback method 'OnMyServiceInjectionFailed' is not implemented.
+Please implement this partial method to handle injection failures.
+
+GDI_U006: Member '_gameState' is marked with [Inject(ReadyCallback = true)] 
+but the required callback method 'OnGameStateInjectionReady' is not implemented.
+Please implement this partial method to handle successful injections.
+```
+
+#### Code Fixers
+
+One-click code generation through IDE quick actions:
+
+1. Analyzer detects missing callback implementation
+2. Press `Ctrl+.` (VS) or `Alt+Enter` (Rider)
+3. Select "Implement {MethodName} method"
+4. Framework generates the correct method signature
+
+**Generated Code**:
+
+For `FailureCallback`:
+```csharp
+partial void OnMyServiceInjectionFailed(string error)
+{
+    GD.PushError(error);
+}
+```
+
+For `ReadyCallback`:
+```csharp
+partial void OnMyServiceInjectionReady()
+{
+    GD.Print("Dependency injection ready");
+}
+```
+
+---
+
+## 🔨 Bug Fixes
+
+### Host Injection Support in Analyzers
+
+**Fixed**: `InjectionFailureCallbackAnalyzer` now correctly supports `[Inject]` members in `[Host]` classes.
+
+**Before**:
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true)]  // ❌ Analyzer didn't check this
+    private IConfig _config;
+}
+```
+
+**After**:
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true)]  // ✅ Analyzer now checks this
+    private IConfig _config;
+    
+    partial void OnConfigInjectionFailed(string error)
+    {
+        // Required implementation
+    }
+}
+```
+
+---
+
+## 📝 API Changes
+
+### InjectAttribute
+
+**Enhanced**: Added `ReadyCallback` parameter
+
+```csharp
+public sealed class InjectAttribute : Attribute
+{
+    public bool FailureCallback { get; set; }  // Restored from previous versions
+    public bool ReadyCallback { get; set; }     // New in 1.1.1
+    // ... other members
+}
+```
+
+### Generated Code
+
+**New**: For `[Inject]` members with callbacks, the framework now generates:
+
+1. **Callback Method Declarations**:
+```csharp
+partial void On{MemberName}InjectionFailed(string error);
+partial void On{MemberName}InjectionReady();
+```
+
+2. **Callback Invocations** (in generated dependency resolution code):
+```csharp
+if (result.IsSuccess)
+{
+    try
+    {
+        _myService ??= (IMyService)result.Instance!;
+        IsMyServiceInjectionReady = true;
+        OnMyServiceInjectionReady();  // ← New
+    }
+    catch (Exception ex)
+    {
+        // error handling
+    }
+}
+else
+{
+    OnMyServiceInjectionFailed(result.ErrorMessage ?? "Unknown error");  // ← Restored
+}
+```
+
+---
+
+## 📚 Documentation
+
+**New**: Comprehensive documentation for injection callbacks:
+- Added "Injection Callbacks" section to README.md
+- Added "注入回调" section to README.zh-CN.md
+- Detailed usage examples and best practices
+- IDE integration guide
+
+---
+
+## ✅ Compatibility
+
+- ✅ Fully backward compatible with 1.1.0
+- ✅ All existing code continues to work
+- ✅ New features are optional (callbacks default to `false`)
+- ✅ No breaking changes
+
+---
+
 # v1.1.0
 
 ---

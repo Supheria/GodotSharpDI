@@ -20,7 +20,7 @@ public interface IGameState2
 [Host]
 public sealed partial class GameManager7 : Node, IGameState, IGameState2
 {
-    [Inject(FailureCallback = true, ReadyCallback = true)]
+    [Inject]
     private PlayerStatsCenter _playerStatsCenter;
 
     [Inject]
@@ -34,11 +34,9 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
     {
         return this;
     }
-
     //
     [Provide(ExposedTypes = [typeof(IGameState), typeof(IGameState2)])]
     public GameManager7 Self => this;
-
     //
     [Provide(ExposedTypes = [typeof(PlayerStatsService3)])]
     public Task<PlayerStatsService3> GetPlayerStatsService3()
@@ -53,15 +51,5 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
         var a = 0;
-    }
-
-    partial void OnPlayerStatsCenterInjectionFailed(string error)
-    {
-        GD.PushError(error);
-    }
-
-    partial void OnPlayerStatsCenterInjectionReady()
-    {
-        GD.Print("Dependency injection ready");
     }
 }
