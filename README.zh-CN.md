@@ -42,6 +42,7 @@
   - [其他约束](#其他约束)
 - [API 参考](#api-参考)
   - [特性](#特性)
+  - [注入回调](#注入回调)
   - [接口](#接口)
   - [生成的代码](#生成的代码)
   - [场景树集成](#场景树集成)
@@ -74,7 +75,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.1.0" />
+<PackageReference Include="GodotSharpDI" Version="1.1.1" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -255,18 +256,45 @@ public partial class ServiceHost : Node
 
 #### Host 作为服务消费者
 
+**1.1.1 新功能**：Host 现在可以使用 `[Inject]` 成员，并完整支持回调（FailureCallback 和 ReadyCallback）。
+
 Host 也可以通过添加 `[Inject]` 成员来作为服务消费者：
 
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // 消费服务
-    [Inject] private IConfig _config;
+    // 使用回调消费服务（1.1.1 新功能）
+    [Inject(ReadyCallback = true, FailureCallback = true)]
+    private IConfig? _config;
     
     // 提供服务
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
+    
+    // 使用 WaitFor 确保在提供数据库服务前 _config 已注入
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // 注入回调（1.1.1 新功能）
+    partial void OnConfigInjectionReady()
+    {
+        GD.Print("配置加载成功");
+        ApplyConfiguration();
+    }
+    
+    partial void OnConfigInjectionFailed(string error)
+    {
+        GD.PrintErr($"配置加载失败: {error}");
+        UseDefaultConfiguration();
+    }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
@@ -280,6 +308,12 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     public override partial void _Notification(int what);
 }
 ```
+
+**优势**：
+- Host 可以从同一 Scope 中的其他 Host 消费服务
+- 完整的回调支持，实现更好的错误处理
+- 与 `WaitFor` 机制无缝集成
+- 支持复杂的服务依赖图
 
 ---
 
@@ -315,6 +349,85 @@ public partial class PlayerController : Node, IDependenciesResolved
     public override partial void _Notification(int what);
 }
 ```
+
+#### 注入回调
+
+**1.1.1 新功能**：`FailureCallback` 和 `ReadyCallback` 实现对注入的精细控制。
+
+##### FailureCallback - 处理注入失败
+
+```csharp
+[User]
+public partial class NetworkManager : Node, IDependenciesResolved
+{
+    [Inject(FailureCallback = true)]
+    private INetworkService? _networkService;
+    
+    // 注入失败时自动调用
+    partial void OnNetworkServiceInjectionFailed(string error)
+    {
+        GD.PrintErr($"网络服务不可用: {error}");
+        EnableOfflineMode();  // 降级策略
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
+
+##### ReadyCallback - 注入成功后初始化
+
+```csharp
+[User]
+public partial class GameUI : Control, IDependenciesResolved
+{
+    [Inject(ReadyCallback = true)]
+    private IGameState? _gameState;
+    
+    // 注入成功时自动调用
+    partial void OnGameStateInjectionReady()
+    {
+        GD.Print("游戏状态服务已就绪");
+        _gameState!.Initialize();
+        UpdateUI();
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
+
+##### 组合使用
+
+```csharp
+[User]
+public partial class DatabaseManager : Node, IDependenciesResolved
+{
+    [Inject(FailureCallback = true, ReadyCallback = true)]
+    private IDatabaseService? _database;
+    
+    partial void OnDatabaseInjectionReady()
+    {
+        _database!.MigrateSchema();
+        LoadInitialData();
+    }
+    
+    partial void OnDatabaseInjectionFailed(string error)
+    {
+        GD.PrintErr($"数据库连接失败: {error}");
+        UseFallbackDataSource();
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
+
+**关键特性**：
+- **FailureCallback**：通过 `string error` 参数提供错误信息
+- **ReadyCallback**：无参数，在注入成功后立即调用
+- **可选实现**：Partial 方法 - 仅在需要时实现
+- **IDE 支持**：智能分析器检测缺失的实现并提供一键修复（GDI_U004，GDI_U006）
 
 ---
 
@@ -1076,13 +1189,58 @@ public IDatabase CreateDatabase()
 }
 ```
 
-#### `[Inject]`
+#### `[Inject(FailureCallback = ..., ReadyCallback = ...)]`
 标记字段或属性以进行依赖注入。
 
+**参数**：
+- `FailureCallback`（可选，默认: `false`）：为注入失败生成回调方法
+- `ReadyCallback`（可选，默认: `false`）：为注入成功生成回调方法
+
+**基本用法**：
 ```csharp
 [Inject] private IService _service;
 [Inject] private IConfig Config { get; set; }
 ```
+
+**使用回调**：
+```csharp
+// 注入失败回调
+[Inject(FailureCallback = true)]
+private INetworkService _network;
+
+partial void OnNetworkInjectionFailed(string error)
+{
+    GD.PrintErr($"网络服务不可用: {error}");
+    EnableOfflineMode();
+}
+
+// 注入就绪回调
+[Inject(ReadyCallback = true)]
+private IGameState _gameState;
+
+partial void OnGameStateInjectionReady()
+{
+    GD.Print("游戏状态就绪");
+    _gameState.Initialize();
+}
+
+// 同时使用两种回调
+[Inject(FailureCallback = true, ReadyCallback = true)]
+private IDatabaseService _database;
+
+partial void OnDatabaseInjectionReady()
+{
+    _database.MigrateSchema();
+}
+
+partial void OnDatabaseInjectionFailed(string error)
+{
+    GD.PrintErr($"数据库连接失败: {error}");
+    UseFallbackDataSource();
+}
+```
+
+**参见**: [注入回调](#注入回调) 了解详细文档。
 
 #### `[Modules(Hosts = [...])]`
 定义哪些 Host 属于 Scope。
@@ -1091,6 +1249,233 @@ public IDatabase CreateDatabase()
 [Modules(Hosts = [typeof(Host1), typeof(Host2)])]
 public partial class GameScope : Node, IScope { }
 ```
+
+---
+
+### 注入回调
+
+**1.1.1 新功能**：GodotSharpDI 提供回调机制来处理注入成功和失败事件。
+
+#### 概述
+
+注入回调允许你：
+- 使用 `FailureCallback` **优雅处理注入失败**
+- 使用 `ReadyCallback` **在注入成功后执行初始化**
+- **实现降级策略**，当关键服务不可用时
+- **基于注入就绪状态控制初始化顺序**
+
+#### FailureCallback（失败回调）
+
+当 `[Inject]` 成员标记为 `FailureCallback = true` 时，框架会生成一个 partial 方法，你可以实现它来处理注入失败：
+
+```csharp
+[User]
+public partial class PlayerController : Node
+{
+    [Inject(FailureCallback = true)]
+    private INetworkService _networkService;
+    
+    // 框架生成此声明：
+    // partial void OnNetworkServiceInjectionFailed(string error);
+    
+    // 你来实现它：
+    partial void OnNetworkServiceInjectionFailed(string error)
+    {
+        GD.PrintErr($"网络服务注入失败: {error}");
+        
+        // 实现降级策略
+        EnableOfflineMode();
+        ShowOfflineNotification();
+    }
+}
+```
+
+**生成的方法签名**：
+```csharp
+partial void On{成员名}InjectionFailed(string error)
+```
+
+**使用场景**：
+- 需要优雅降级的关键服务
+- 可能失败的网络或外部依赖
+- 带有降级实现的可选服务
+
+#### ReadyCallback（就绪回调）
+
+当 `[Inject]` 成员标记为 `ReadyCallback = true` 时，框架会生成一个 partial 方法，在注入成功时调用：
+
+```csharp
+[User]
+public partial class GameUI : Control
+{
+    [Inject(ReadyCallback = true)]
+    private IGameState _gameState;
+    
+    // 框架生成此声明：
+    // partial void OnGameStateInjectionReady();
+    
+    // 你来实现它：
+    partial void OnGameStateInjectionReady()
+    {
+        GD.Print("游戏状态服务就绪");
+        
+        // 可以立即安全使用
+        _gameState.Initialize();
+        UpdateUI();
+    }
+}
+```
+
+**生成的方法签名**：
+```csharp
+partial void On{成员名}InjectionReady()
+```
+
+**使用场景**：
+- 注入后需要立即初始化的服务
+- 协调多个服务间的初始化
+- 服务可用时触发 UI 更新
+
+#### 组合使用
+
+两种回调可以一起使用以实现全面的错误处理：
+
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true, ReadyCallback = true)]
+    private IDatabaseService _database;
+    
+    partial void OnDatabaseInjectionReady()
+    {
+        // 成功路径
+        _database.MigrateSchema();
+        LoadInitialData();
+    }
+    
+    partial void OnDatabaseInjectionFailed(string error)
+    {
+        // 失败路径
+        GD.PrintErr($"数据库不可用: {error}");
+        UseFallbackDataSource();
+    }
+}
+```
+
+#### 回调执行顺序
+
+对于单个 `[Inject]` 成员，回调执行遵循以下顺序：
+
+1. **框架尝试注入**
+2. **成功时**：调用 `OnXxxInjectionReady()`（如果 `ReadyCallback = true`）
+3. **失败时**：调用 `OnXxxInjectionFailed(error)`（如果 `FailureCallback = true`）
+4. **最后**：所有注入完成后调用 `IDependenciesResolved.OnDependenciesResolved(bool)`
+
+#### IDE 支持
+
+框架提供编译时分析和自动代码生成：
+
+**分析器**：
+- 检测 `FailureCallback = true` 但未实现回调方法的情况
+- 检测 `ReadyCallback = true` 但未实现回调方法的情况
+- 显示清晰的错误消息和所需的精确方法签名
+
+**代码修复**（快速操作）：
+- 在错误上按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
+- 选择"实现 {方法名} 方法"
+- 框架自动生成正确的方法签名
+
+**示例**：
+```csharp
+// 1. 你编写：
+[Inject(ReadyCallback = true)]
+private IService _service;
+
+// 2. 分析器显示错误：
+// "成员 '_service' 标记了 [Inject(ReadyCallback = true)]，
+//  但未实现所需的回调方法 'OnServiceInjectionReady'"
+
+// 3. 你按 Ctrl+. 并选择"实现 OnServiceInjectionReady 方法"
+
+// 4. 框架生成：
+partial void OnServiceInjectionReady()
+{
+    GD.Print("依赖注入就绪");
+}
+
+// 5. 你自定义实现
+```
+
+#### 最佳实践
+
+**1. 对关键服务使用 FailureCallback**：
+```csharp
+[Inject(FailureCallback = true)]
+private INetworkService _network;
+
+partial void OnNetworkInjectionFailed(string error)
+{
+    // 总是为关键服务提供降级方案
+    EnableOfflineMode();
+}
+```
+
+**2. 对需要初始化的服务使用 ReadyCallback**：
+```csharp
+[Inject(ReadyCallback = true)]
+private IConfigService _config;
+
+partial void OnConfigInjectionReady()
+{
+    // 注入后立即初始化
+    ApplyConfiguration();
+}
+```
+
+**3. 对重要服务同时使用两种回调**：
+```csharp
+[Inject(FailureCallback = true, ReadyCallback = true)]
+private IDatabaseService _db;
+
+partial void OnDbInjectionReady()
+{
+    _db.MigrateSchema();
+}
+
+partial void OnDbInjectionFailed(string error)
+{
+    UseInMemoryDatabase();
+}
+```
+
+**4. 协调多个服务**：
+```csharp
+[User]
+public partial class GameBootstrap : Node
+{
+    [Inject(ReadyCallback = true)] private IConfig _config;
+    [Inject(ReadyCallback = true)] private IDatabase _db;
+    [Inject(ReadyCallback = true)] private IAssets _assets;
+    
+    private int _readyCount = 0;
+    
+    partial void OnConfigInjectionReady() => CheckAllReady();
+    partial void OnDbInjectionReady() => CheckAllReady();
+    partial void OnAssetsInjectionReady() => CheckAllReady();
+    
+    private void CheckAllReady()
+    {
+        if (++_readyCount == 3)
+        {
+            GD.Print("所有服务就绪，启动游戏");
+            StartGame();
+        }
+    }
+}
+```
+
+---
 
 ### 接口
 

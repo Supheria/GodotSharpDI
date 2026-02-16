@@ -81,6 +81,56 @@ internal sealed class CachedSymbols
     }
 
     /// <summary>
+    /// 检查成员是否有 Inject 特性
+    /// </summary>
+    public bool HasInjectAttribute(ISymbol member)
+    {
+        return member.HasAttribute(InjectAttribute);
+    }
+
+    /// <summary>
+    /// 检查成员是否有 Inject 特性且 FailureCallback = true
+    /// </summary>
+    public bool HasInjectWithFailureCallback(ISymbol member)
+    {
+        var injectAttr = member.GetAttribute(InjectAttribute);
+        if (injectAttr == null)
+            return false;
+
+        // 检查 FailureCallback 属性
+        foreach (var namedArg in injectAttr.NamedArguments)
+        {
+            if (namedArg.Key == "FailureCallback" && namedArg.Value.Value is bool value)
+            {
+                return value;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 检查成员是否有 Inject 特性且 ReadyCallback = true
+    /// </summary>
+    public bool HasInjectWithReadyCallback(ISymbol member)
+    {
+        var injectAttr = member.GetAttribute(InjectAttribute);
+        if (injectAttr == null)
+            return false;
+
+        // 检查 ReadyCallback 属性
+        foreach (var namedArg in injectAttr.NamedArguments)
+        {
+            if (namedArg.Key == "ReadyCallback" && namedArg.Value.Value is bool value)
+            {
+                return value;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// 检查类型是否是 Task&lt;T&gt; (ValueTask&lt;T&gt;)
     /// </summary>
     public bool IsAsyncType(ITypeSymbol type)

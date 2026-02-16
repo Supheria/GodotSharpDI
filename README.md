@@ -42,6 +42,7 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Other Constraints](#other-constraints)
 - [API Reference](#api-reference)
   - [Attributes](#attributes)
+  - [Injection Callbacks](#injection-callbacks)
   - [Interfaces](#interfaces)
   - [Generated Code](#generated-code)
   - [Scene Tree Integration](#scene-tree-integration)
@@ -74,7 +75,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.1.0" />
+<PackageReference Include="GodotSharpDI" Version="1.1.1" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -255,18 +256,45 @@ public partial class ServiceHost : Node
 
 #### Host as Service Consumer
 
+**New in 1.1.1**: Hosts can now use `[Inject]` members with full callback support (FailureCallback and ReadyCallback).
+
 Hosts can also be service consumers by adding `[Inject]` members:
 
 ```csharp
 [Host]
 public partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // Consume services
-    [Inject] private IConfig _config;
+    // Consume services with callbacks (New in 1.1.1)
+    [Inject(ReadyCallback = true, FailureCallback = true)]
+    private IConfig? _config;
     
     // Provide services
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
+    
+    // Use WaitFor to ensure _config is injected before providing database
+    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
+    public IDatabase CreateDatabase()
+    {
+        if (!IsConfigInjectionReady || _config == null)
+        {
+            return new InMemoryDatabase();
+        }
+        return new DatabaseService(_config.ConnectionString);
+    }
+    
+    // Injection callbacks (New in 1.1.1)
+    partial void OnConfigInjectionReady()
+    {
+        GD.Print("Config loaded successfully");
+        ApplyConfiguration();
+    }
+    
+    partial void OnConfigInjectionFailed(string error)
+    {
+        GD.PrintErr($"Failed to load config: {error}");
+        UseDefaultConfiguration();
+    }
     
     public void OnDependenciesResolved(bool isAllDependenciesReady)
     {
@@ -280,6 +308,12 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     public override partial void _Notification(int what);
 }
 ```
+
+**Benefits**:
+- Host can consume services from other Hosts in the same Scope
+- Full callback support for better error handling
+- Seamless integration with `WaitFor` mechanism
+- Enables complex service dependency graphs
 
 ---
 
@@ -315,6 +349,85 @@ public partial class PlayerController : Node, IDependenciesResolved
     public override partial void _Notification(int what);
 }
 ```
+
+#### Injection Callbacks
+
+**New in 1.1.1**: Both `FailureCallback` and `ReadyCallback` for fine-grained injection control.
+
+##### FailureCallback - Handle Injection Failures
+
+```csharp
+[User]
+public partial class NetworkManager : Node, IDependenciesResolved
+{
+    [Inject(FailureCallback = true)]
+    private INetworkService? _networkService;
+    
+    // Automatically called when injection fails
+    partial void OnNetworkServiceInjectionFailed(string error)
+    {
+        GD.PrintErr($"Network service unavailable: {error}");
+        EnableOfflineMode();  // Fallback strategy
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
+
+##### ReadyCallback - Initialize After Successful Injection
+
+```csharp
+[User]
+public partial class GameUI : Control, IDependenciesResolved
+{
+    [Inject(ReadyCallback = true)]
+    private IGameState? _gameState;
+    
+    // Automatically called when injection succeeds
+    partial void OnGameStateInjectionReady()
+    {
+        GD.Print("Game state service ready");
+        _gameState!.Initialize();
+        UpdateUI();
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
+
+##### Combined Usage
+
+```csharp
+[User]
+public partial class DatabaseManager : Node, IDependenciesResolved
+{
+    [Inject(FailureCallback = true, ReadyCallback = true)]
+    private IDatabaseService? _database;
+    
+    partial void OnDatabaseInjectionReady()
+    {
+        _database!.MigrateSchema();
+        LoadInitialData();
+    }
+    
+    partial void OnDatabaseInjectionFailed(string error)
+    {
+        GD.PrintErr($"Database connection failed: {error}");
+        UseFallbackDataSource();
+    }
+    
+    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public override partial void _Notification(int what);
+}
+```
+
+**Key Features**:
+- **FailureCallback**: Provides error message via `string error` parameter
+- **ReadyCallback**: Parameterless, called immediately after successful injection
+- **Optional Implementation**: Partial methods - implement only when needed
+- **IDE Support**: Smart analyzers detect missing implementations and offer one-click fixes (GDI_U004, GDI_U006)
 
 ---
 
@@ -1076,13 +1189,58 @@ public IDatabase CreateDatabase()
 }
 ```
 
-#### `[Inject]`
+#### `[Inject(FailureCallback = ..., ReadyCallback = ...)]`
 Marks a field or property for dependency injection.
 
+**Parameters**:
+- `FailureCallback` (optional, default: `false`): Generate a callback method for injection failures
+- `ReadyCallback` (optional, default: `false`): Generate a callback method for successful injections
+
+**Basic Usage**:
 ```csharp
 [Inject] private IService _service;
 [Inject] private IConfig Config { get; set; }
 ```
+
+**With Callbacks**:
+```csharp
+// Injection failure callback
+[Inject(FailureCallback = true)]
+private INetworkService _network;
+
+partial void OnNetworkInjectionFailed(string error)
+{
+    GD.PrintErr($"Network service unavailable: {error}");
+    EnableOfflineMode();
+}
+
+// Injection ready callback
+[Inject(ReadyCallback = true)]
+private IGameState _gameState;
+
+partial void OnGameStateInjectionReady()
+{
+    GD.Print("Game state ready");
+    _gameState.Initialize();
+}
+
+// Both callbacks
+[Inject(FailureCallback = true, ReadyCallback = true)]
+private IDatabaseService _database;
+
+partial void OnDatabaseInjectionReady()
+{
+    _database.MigrateSchema();
+}
+
+partial void OnDatabaseInjectionFailed(string error)
+{
+    GD.PrintErr($"Database connection failed: {error}");
+    UseFallbackDataSource();
+}
+```
+
+**See**: [Injection Callbacks](#injection-callbacks) for detailed documentation.
 
 #### `[Modules(Hosts = [...])]`
 Defines which Hosts belong to a Scope.
@@ -1091,6 +1249,233 @@ Defines which Hosts belong to a Scope.
 [Modules(Hosts = [typeof(Host1), typeof(Host2)])]
 public partial class GameScope : Node, IScope { }
 ```
+
+---
+
+### Injection Callbacks
+
+**New in 1.1.1**: GodotSharpDI provides callback mechanisms to handle injection success and failure events.
+
+#### Overview
+
+Injection callbacks allow you to:
+- **Handle injection failures gracefully** with `FailureCallback`
+- **Perform initialization after successful injection** with `ReadyCallback`
+- **Implement fallback strategies** when critical services are unavailable
+- **Control initialization order** based on injection readiness
+
+#### FailureCallback
+
+When an `[Inject]` member is marked with `FailureCallback = true`, the framework generates a partial method that you can implement to handle injection failures:
+
+```csharp
+[User]
+public partial class PlayerController : Node
+{
+    [Inject(FailureCallback = true)]
+    private INetworkService _networkService;
+    
+    // Framework generates this declaration:
+    // partial void OnNetworkServiceInjectionFailed(string error);
+    
+    // You implement it:
+    partial void OnNetworkServiceInjectionFailed(string error)
+    {
+        GD.PrintErr($"Network service failed to inject: {error}");
+        
+        // Implement fallback strategy
+        EnableOfflineMode();
+        ShowOfflineNotification();
+    }
+}
+```
+
+**Generated Method Signature**:
+```csharp
+partial void On{MemberName}InjectionFailed(string error)
+```
+
+**Use Cases**:
+- Critical services that need graceful degradation
+- Network or external dependencies that may fail
+- Optional services with fallback implementations
+
+#### ReadyCallback
+
+When an `[Inject]` member is marked with `ReadyCallback = true`, the framework generates a partial method called when the injection succeeds:
+
+```csharp
+[User]
+public partial class GameUI : Control
+{
+    [Inject(ReadyCallback = true)]
+    private IGameState _gameState;
+    
+    // Framework generates this declaration:
+    // partial void OnGameStateInjectionReady();
+    
+    // You implement it:
+    partial void OnGameStateInjectionReady()
+    {
+        GD.Print("Game state service ready");
+        
+        // Safe to use immediately
+        _gameState.Initialize();
+        UpdateUI();
+    }
+}
+```
+
+**Generated Method Signature**:
+```csharp
+partial void On{MemberName}InjectionReady()
+```
+
+**Use Cases**:
+- Services requiring immediate initialization after injection
+- Coordinating initialization across multiple services
+- Triggering UI updates when services become available
+
+#### Combined Usage
+
+Both callbacks can be used together for comprehensive error handling:
+
+```csharp
+[Host]
+public partial class GameManager : Node
+{
+    [Inject(FailureCallback = true, ReadyCallback = true)]
+    private IDatabaseService _database;
+    
+    partial void OnDatabaseInjectionReady()
+    {
+        // Success path
+        _database.MigrateSchema();
+        LoadInitialData();
+    }
+    
+    partial void OnDatabaseInjectionFailed(string error)
+    {
+        // Failure path
+        GD.PrintErr($"Database unavailable: {error}");
+        UseFallbackDataSource();
+    }
+}
+```
+
+#### Callback Execution Order
+
+For a single `[Inject]` member, the callback execution follows this order:
+
+1. **Injection attempted** by the framework
+2. **On Success**: `OnXxxInjectionReady()` called (if `ReadyCallback = true`)
+3. **On Failure**: `OnXxxInjectionFailed(error)` called (if `FailureCallback = true`)
+4. **Finally**: `IDependenciesResolved.OnDependenciesResolved(bool)` called after all injections complete
+
+#### IDE Support
+
+The framework provides compile-time analysis and automatic code generation:
+
+**Analyzer**:
+- Detects when `FailureCallback = true` but callback method not implemented
+- Detects when `ReadyCallback = true` but callback method not implemented
+- Shows clear error messages with the exact method signature needed
+
+**Code Fix** (Quick Actions):
+- Press `Ctrl+.` (VS) or `Alt+Enter` (Rider) on the error
+- Select "Implement {MethodName} method"
+- Framework automatically generates the correct method signature
+
+**Example**:
+```csharp
+// 1. You write:
+[Inject(ReadyCallback = true)]
+private IService _service;
+
+// 2. Analyzer shows error:
+// "Member '_service' is marked with [Inject(ReadyCallback = true)] 
+//  but the required callback method 'OnServiceInjectionReady' is not implemented"
+
+// 3. You press Ctrl+. and select "Implement OnServiceInjectionReady method"
+
+// 4. Framework generates:
+partial void OnServiceInjectionReady()
+{
+    GD.Print("Dependency injection ready");
+}
+
+// 5. You customize the implementation
+```
+
+#### Best Practices
+
+**1. Use FailureCallback for Critical Services**:
+```csharp
+[Inject(FailureCallback = true)]
+private INetworkService _network;
+
+partial void OnNetworkInjectionFailed(string error)
+{
+    // Always provide fallback for critical services
+    EnableOfflineMode();
+}
+```
+
+**2. Use ReadyCallback for Initialization**:
+```csharp
+[Inject(ReadyCallback = true)]
+private IConfigService _config;
+
+partial void OnConfigInjectionReady()
+{
+    // Initialize immediately after injection
+    ApplyConfiguration();
+}
+```
+
+**3. Combine Both for Important Services**:
+```csharp
+[Inject(FailureCallback = true, ReadyCallback = true)]
+private IDatabaseService _db;
+
+partial void OnDbInjectionReady()
+{
+    _db.MigrateSchema();
+}
+
+partial void OnDbInjectionFailed(string error)
+{
+    UseInMemoryDatabase();
+}
+```
+
+**4. Coordinate Multiple Services**:
+```csharp
+[User]
+public partial class GameBootstrap : Node
+{
+    [Inject(ReadyCallback = true)] private IConfig _config;
+    [Inject(ReadyCallback = true)] private IDatabase _db;
+    [Inject(ReadyCallback = true)] private IAssets _assets;
+    
+    private int _readyCount = 0;
+    
+    partial void OnConfigInjectionReady() => CheckAllReady();
+    partial void OnDbInjectionReady() => CheckAllReady();
+    partial void OnAssetsInjectionReady() => CheckAllReady();
+    
+    private void CheckAllReady()
+    {
+        if (++_readyCount == 3)
+        {
+            GD.Print("All services ready, starting game");
+            StartGame();
+        }
+    }
+}
+```
+
+---
 
 ### Interfaces
 

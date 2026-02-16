@@ -9,28 +9,45 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
-/// 分析器：检测缺失的注入失败回调方法实现
-/// 增强版：添加异常处理，防止分析器崩溃
+/// 分析器：检测缺失的注入回调方法实现（FailureCallback 和 ReadyCallback）
+/// 使用 CachedSymbols 优化符号查找
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
 {
-    private const string InjectAttributeName = "GodotSharpDI.Abstractions.InjectAttribute";
-    private const string UserAttributeName = "GodotSharpDI.Abstractions.UserAttribute";
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(DiagnosticDescriptors.MissingInjectionFailureCallbackImplementation);
+        ImmutableArray.Create(
+            DiagnosticDescriptors.MissingInjectionFailureCallbackImplementation,
+            DiagnosticDescriptors.MissingInjectionReadyCallbackImplementation
+        );
 
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        // 使用安全包装器注册分析
-        context.RegisterSymbolAction(
-            ctx => SafeAnalyze(ctx, AnalyzeNamedType),
-            SymbolKind.NamedType
-        );
+        // 使用 CompilationStartAction 初始化 CachedSymbols
+        context.RegisterCompilationStartAction(compilationContext =>
+        {
+            try
+            {
+                var cachedSymbols = new CachedSymbols(compilationContext.Compilation);
+
+                // 如果 UserAttribute 不存在，说明项目没有使用 GodotSharpDI
+                if (cachedSymbols.UserAttribute == null)
+                    return;
+
+                // 注册符号分析，传递 CachedSymbols
+                compilationContext.RegisterSymbolAction(
+                    ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeNamedType),
+                    SymbolKind.NamedType
+                );
+            }
+            catch (Exception)
+            {
+                // 初始化失败，静默忽略
+            }
+        });
     }
 
     /// <summary>
@@ -38,12 +55,13 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private static void SafeAnalyze(
         SymbolAnalysisContext context,
-        Action<SymbolAnalysisContext> analyze
+        CachedSymbols cachedSymbols,
+        Action<SymbolAnalysisContext, CachedSymbols> analyze
     )
     {
         try
         {
-            analyze(context);
+            analyze(context, cachedSymbols);
         }
         catch (OperationCanceledException)
         {
@@ -54,26 +72,25 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
         {
             // 分析器不应该崩溃
             // 静默忽略错误，因为分析器失败不应该阻止编译
-            // 如果需要调试，可以在这里添加日志
         }
     }
 
-    private static void AnalyzeNamedType(SymbolAnalysisContext context)
+    private static void AnalyzeNamedType(SymbolAnalysisContext context, CachedSymbols cachedSymbols)
     {
         var typeSymbol = (INamedTypeSymbol)context.Symbol;
 
         // 只检查标记了 [User] 的类
-        if (!HasUserAttribute(typeSymbol))
+        if (!cachedSymbols.IsUserType(typeSymbol))
             return;
 
-        // 收集所有标记了 [Inject(FailureCallback = true)] 的成员
-        var membersWithCallback = typeSymbol
+        // 收集所有标记了 [Inject] 的成员
+        var allInjectMembers = typeSymbol
             .GetMembers()
             .Where(m => m is IFieldSymbol or IPropertySymbol)
-            .Where(m => HasInjectWithFailureCallback(m))
+            .Where(m => cachedSymbols.HasInjectAttribute(m))
             .ToArray();
 
-        if (membersWithCallback.Length == 0)
+        if (allInjectMembers.Length == 0)
             return;
 
         // 收集类中所有的 partial 方法
@@ -83,12 +100,22 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
             .Where(m => m.IsPartialDefinition || m.PartialImplementationPart != null)
             .ToArray();
 
-        // 检查每个需要回调的成员
-        foreach (var member in membersWithCallback)
+        // 检查每个 Inject 成员
+        foreach (var member in allInjectMembers)
         {
             try
             {
-                AnalyzeMemberCallback(context, member, partialMethods, typeSymbol);
+                // 检查 FailureCallback
+                if (cachedSymbols.HasInjectWithFailureCallback(member))
+                {
+                    AnalyzeMemberFailureCallback(context, member, partialMethods, typeSymbol);
+                }
+
+                // 检查 ReadyCallback
+                if (cachedSymbols.HasInjectWithReadyCallback(member))
+                {
+                    AnalyzeMemberReadyCallback(context, member, partialMethods, typeSymbol);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -103,9 +130,9 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
     }
 
     /// <summary>
-    /// 分析单个成员的回调实现
+    /// 分析单个成员的失败回调实现
     /// </summary>
-    private static void AnalyzeMemberCallback(
+    private static void AnalyzeMemberFailureCallback(
         SymbolAnalysisContext context,
         ISymbol member,
         IMethodSymbol[] partialMethods,
@@ -157,76 +184,57 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool HasUserAttribute(INamedTypeSymbol typeSymbol)
+    /// <summary>
+    /// 分析单个成员的就绪回调实现
+    /// </summary>
+    private static void AnalyzeMemberReadyCallback(
+        SymbolAnalysisContext context,
+        ISymbol member,
+        IMethodSymbol[] partialMethods,
+        INamedTypeSymbol typeSymbol
+    )
     {
-        try
-        {
-            return typeSymbol
-                .GetAttributes()
-                .Any(attr =>
-                {
-                    try
-                    {
-                        var attrClass = attr.AttributeClass;
-                        return attrClass != null
-                            && attrClass.ToDisplayString() == UserAttributeName;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-        }
-        catch
-        {
-            return false;
-        }
-    }
+        var expectedMethodName = NamingHelper.GetReadyCallbackMethodName(member.Name);
 
-    private static bool HasInjectWithFailureCallback(ISymbol member)
-    {
-        try
+        // 检查是否存在对应的 partial 方法实现
+        var hasImplementation = partialMethods.Any(m =>
         {
-            var injectAttr = member
-                .GetAttributes()
-                .FirstOrDefault(attr =>
-                {
-                    try
-                    {
-                        var attrClass = attr.AttributeClass;
-                        return attrClass != null
-                            && attrClass.ToDisplayString() == InjectAttributeName;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-
-            if (injectAttr == null)
-                return false;
-
-            // 检查 FailureCallback 属性
-            foreach (var namedArg in injectAttr.NamedArguments)
+            try
             {
-                try
-                {
-                    if (namedArg.Key == "FailureCallback" && namedArg.Value.Value is bool value)
-                    {
-                        return value;
-                    }
-                }
-                catch
-                {
-                    // 继续检查下一个参数
-                }
-            }
+                // 必须有相同的方法名
+                if (m.Name != expectedMethodName)
+                    return false;
 
-            return false;
-        }
-        catch
+                // 必须有实现部分
+                if (m.PartialImplementationPart == null)
+                    return false;
+
+                // 检查签名是否匹配: partial void OnXxxInjectionReady()
+                if (m.ReturnsVoid && m.Parameters.Length == 0)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+            catch
+            {
+                // 检查失败，保守处理：认为不匹配
+                return false;
+            }
+        });
+
+        if (!hasImplementation)
         {
-            return false;
+            // 报告诊断 - 使用成员的位置
+            var diagnostic = Diagnostic.Create(
+                DiagnosticDescriptors.MissingInjectionReadyCallbackImplementation,
+                member.Locations.FirstOrDefault() ?? typeSymbol.Locations.FirstOrDefault(),
+                member.Name,
+                expectedMethodName
+            );
+
+            context.ReportDiagnostic(diagnostic);
         }
     }
 }

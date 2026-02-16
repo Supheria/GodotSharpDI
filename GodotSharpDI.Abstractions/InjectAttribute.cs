@@ -6,4 +6,5 @@ namespace GodotSharpDI.Abstractions;
 public sealed class InjectAttribute : Attribute
 {
     public bool FailureCallback { get; set; }
+    public bool ReadyCallback { get; set; }
 }
