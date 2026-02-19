@@ -24,7 +24,8 @@ public class DiGraphIndexTests
     [Fact]
     public void HostNodeMap_ContainsAllHostNodes()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IA { } public interface IB { } public interface IC { }
@@ -46,8 +47,9 @@ namespace Test {
 
         foreach (var node in graph.HostNodes)
         {
-            Assert.True(graph.HostNodeMap.TryGetValue(
-                node.ValidatedTypeInfo.Symbol, out var mapped));
+            Assert.True(
+                graph.HostNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mapped)
+            );
             Assert.Same(node, mapped);
         }
     }
@@ -55,7 +57,8 @@ namespace Test {
     [Fact]
     public void UserNodes_NotInHostNodeMap()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot;
 namespace Test {
     public interface IFoo { }
@@ -77,7 +80,8 @@ namespace Test {
     [Fact]
     public void HostNode_ProvidedServices_ReflectsExposedTypes()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IServiceA { } public interface IServiceB { }
@@ -101,7 +105,8 @@ namespace Test {
     [Fact]
     public void HostNodeMap_SymbolEqualityComparison_WorksAcrossCompilation()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IServiceA { } public class ImplA : IServiceA { }
@@ -124,7 +129,8 @@ namespace Test {
     [Fact]
     public void MixedDiTypes_CorrectlySegregatedIntoNodes()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IService { }
@@ -150,7 +156,8 @@ namespace Test {
     [Fact]
     public void HostWithWaitFor_DependencyEdges_Recorded()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IA { } public interface IB { }
@@ -175,11 +182,12 @@ namespace Test {
     //  辅助
     // ============================================================
 
-    private static DiGraphBuildResult BuildGraph(string source)
-        => BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+    private static DiGraphBuildResult BuildGraph(string source) =>
+        BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
 
     private static DiGraphBuildResult BuildGraphFromCompilation(
-        Microsoft.CodeAnalysis.Compilation compilation)
+        Microsoft.CodeAnalysis.Compilation compilation
+    )
     {
         var symbols = new CachedSymbols(compilation);
         var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();

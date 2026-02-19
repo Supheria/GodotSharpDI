@@ -10,19 +10,16 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
 /// <summary>
-/// Provide 方法/属性的签名验证测试
-///
-/// 架构背景：
-/// 旧架构有独立的 [Singleton] 服务类和构造器注入（InjectConstructor），
-/// 新架构已移除，服务全部通过 [Host] 的 [Provide] 成员（属性/方法）暴露。
-/// 本文件测试 [Provide] 方法/属性的签名合法性验证。
+/// [Provide] 方法/属性签名合法性验证测试
+/// 所有 [Host] 测试源都包含 _Notification 声明，避免 GDI_C080 干扰断言。
 /// </summary>
 public class ProvideMemberSignatureTests
 {
     [Fact]
     public void Provide_OnMethod_WithReturnType_Valid()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -35,13 +32,14 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
+        public override partial void _Notification(int what);
+
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
         public MyImpl CreateService() => new MyImpl();
     }
 }";
         var (result, _) = GetValidationResult(source, "MyHost");
         Assert.NotNull(result.TypeInfo);
-        // 应该有一个 ProvideMethod 类型成员
         Assert.Single(result.TypeInfo!.Members.Where(m => m.IsProvideMember));
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
     }
@@ -49,7 +47,8 @@ namespace Test
     [Fact]
     public void Provide_OnMethod_ReturnsVoid_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -59,6 +58,8 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
+        public override partial void _Notification(int what);
+
         [Provide(ExposedTypes = new Type[] { })]
         public void BadMethod() { }
     }
@@ -70,7 +71,8 @@ namespace Test
     [Fact]
     public void Provide_OnMethod_WithParameters_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -83,6 +85,8 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
+        public override partial void _Notification(int what);
+
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
         public MyImpl CreateService(int param) => new MyImpl();
     }
@@ -94,7 +98,8 @@ namespace Test
     [Fact]
     public void Provide_OnProperty_WithoutGetter_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -107,6 +112,8 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
+        public override partial void _Notification(int what);
+
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
         public MyImpl Service { set { } }
     }
@@ -118,7 +125,8 @@ namespace Test
     [Fact]
     public void Provide_OnProperty_WithGetter_Valid()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -131,6 +139,8 @@ namespace Test
     [Host]
     public partial class MyHost : Node, IMyService
     {
+        public override partial void _Notification(int what);
+
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
         public MyHost Self => this;
     }
@@ -143,7 +153,8 @@ namespace Test
     [Fact]
     public void Provide_StaticMethod_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -156,6 +167,8 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
+        public override partial void _Notification(int what);
+
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
         public static MyImpl CreateService() => new MyImpl();
     }
@@ -167,8 +180,10 @@ namespace Test
     [Fact]
     public void Provide_OnNonHostClass_ReportsDiagnostic()
     {
-        // [Provide] 用在没有 [Host] 的普通类上
-        var source = @"
+        // [Provide] 用在没有 [Host] 的普通类上 —— 无 DI 属性的类不被 RawClassSemanticInfoFactory 处理，
+        // raw.Info 可能为 null（直接忽略），或 TypeInfo 为 null（TypeRole.None 分类失败）。
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using System;
 
@@ -183,17 +198,31 @@ namespace Test
         public MyImpl Create() => new MyImpl();
     }
 }";
-        var (result, _) = GetValidationResult(source, "PlainClass");
-        // PlainClass TypeRole.None → 诊断为空（直接忽略），或报 GDI_M010
-        // 取决于 ClassValidator 是否会处理 TypeRole.None 的类的成员
-        // 实际上 TypeRole.None 时 TypeInfo 为 null
+        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var tree = compilation.SyntaxTrees.First();
+        var root = tree.GetRoot();
+        var classDecl = root.DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .First(c => c.Identifier.Text == "PlainClass");
+
+        var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
+
+        if (raw.Info == null)
+        {
+            // 无 DI 属性的类被跳过，是预期行为
+            return;
+        }
+
+        var symbols = new CachedSymbols(compilation);
+        var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
         Assert.Null(result.TypeInfo);
     }
 
     [Fact]
     public void Inject_WithReadyCallback_PropertyParsedCorrectly()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -204,6 +233,8 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
+        public override partial void _Notification(int what);
+
         [Inject(ReadyCallback = true)]
         private IMyService _service { get; set; }
     }
@@ -219,7 +250,8 @@ namespace Test
     [Fact]
     public void Inject_WithFailureCallback_PropertyParsedCorrectly()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -230,6 +262,8 @@ namespace Test
     [User]
     public partial class MyUser : Node
     {
+        public override partial void _Notification(int what);
+
         [Inject(FailureCallback = true)]
         private IMyService _service;
     }
@@ -247,7 +281,9 @@ namespace Test
     // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(
-        string source, string className)
+        string source,
+        string className
+    )
     {
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var tree = compilation.SyntaxTrees.First();

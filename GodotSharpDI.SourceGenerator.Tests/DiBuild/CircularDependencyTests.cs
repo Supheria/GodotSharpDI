@@ -30,7 +30,8 @@ public class CircularDependencyTests
     public void Detect_SameHost_TwoProvide_WaitForEachOther_ReportsCycle()
     {
         // A 等待 B 注入，B 等待 A 注入 → 死锁
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -67,7 +68,8 @@ namespace Test
     public void Detect_SameHost_ThreeProvide_WaitForChain_ReportsCycle()
     {
         // A waitFor B, B waitFor C, C waitFor A (三节点环)
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -106,7 +108,8 @@ namespace Test
     public void Detect_SameHost_DirectSelfWaitFor_ReportsCycle()
     {
         // [Provide(ExposedTypes=[IServiceA], WaitFor=[_serviceA])] 自等待
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -137,7 +140,8 @@ namespace Test
     public void Detect_LinearWaitFor_Chain_NoCycle()
     {
         // A 无等待，C waitFor A，B waitFor C → 正常有向无环图
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -175,7 +179,8 @@ namespace Test
     public void Detect_MultipleWaitFor_NoCycle()
     {
         // B 同时等待 A 和 C，A、C 均无等待 → 无环
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -213,7 +218,8 @@ namespace Test
     public void Detect_MultipleIndependentHosts_NoCycle()
     {
         // 两个独立 Host 各自无环，且不存在跨 Host 等待
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -254,7 +260,8 @@ namespace Test
         // Host 提供 IGameState（WaitFor=[_playerStatsService]）
         // 且同时提供 PlayerStatsService3
         // WaitFor 指向另一个 Provide 成员的注入类型 ≠ 自环，不应报 GDI_D010
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -302,7 +309,8 @@ namespace Test
     public void Detect_HostExposesSelfAndWaitsForAnotherProvide_NoCycle()
     {
         // 进一步验证：Host 暴露自身实现类型，WaitFor 指向同 Host 提供的另一服务
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -359,7 +367,9 @@ namespace Test
         sb.AppendLine("public Service0 Create0() => new Service0();");
         for (int i = 1; i < count; i++)
         {
-            sb.AppendLine($"[Provide(ExposedTypes = new Type[] {{ typeof(IService{i}) }}, WaitFor = new string[] {{ nameof(_s{i - 1}) }})]");
+            sb.AppendLine(
+                $"[Provide(ExposedTypes = new Type[] {{ typeof(IService{i}) }}, WaitFor = new string[] {{ nameof(_s{i - 1}) }})]"
+            );
             sb.AppendLine($"public Service{i} Create{i}() => new Service{i}();");
         }
 
@@ -370,8 +380,10 @@ namespace Test
         var result = BuildGraph(sb.ToString());
         sw.Stop();
 
-        Assert.True(sw.ElapsedMilliseconds < 1000,
-            $"Detection took too long: {sw.ElapsedMilliseconds}ms");
+        Assert.True(
+            sw.ElapsedMilliseconds < 1000,
+            $"Detection took too long: {sw.ElapsedMilliseconds}ms"
+        );
         Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
     }
 

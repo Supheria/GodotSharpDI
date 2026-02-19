@@ -35,7 +35,8 @@ public class CrossHostDeadlockTests
         // HostA provides IServiceA, waits for IServiceB
         // HostB provides IServiceB, waits for IServiceA
         // → 跨 Host 死锁
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -77,7 +78,8 @@ namespace Test
         // 应包含两个服务名
         Assert.True(
             msg.Contains("IServiceA") || msg.Contains("IServiceB"),
-            $"Expected IServiceA or IServiceB in message: {msg}");
+            $"Expected IServiceA or IServiceB in message: {msg}"
+        );
     }
 
     [Fact]
@@ -87,7 +89,8 @@ namespace Test
         // HostB provides IB, waits for IC
         // HostC provides IC, waits for IA
         // → 三节点跨 Host 环
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -143,7 +146,8 @@ namespace Test
         // HostA provides IA (no WaitFor)
         // HostB provides IB, waits for IA
         // → 单向等待，无环
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -182,7 +186,8 @@ namespace Test
         // HostB provides IB (no WaitFor)
         // HostC provides IC, waits for IA and IB
         // → 钻石形无环图
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -228,7 +233,8 @@ namespace Test
     public void SameHost_WaitForCycle_ReportsD010_NotD011()
     {
         // 同一 Host 内的循环 → GDI_D010（非 GDI_D011）
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -264,7 +270,8 @@ namespace Test
     {
         // HostA 等待 IUnregistered，但没有任何 Host 提供它
         // 这是运行时问题，不是编译期死锁
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -295,7 +302,8 @@ namespace Test
         // 两组互不相关的跨 Host 死锁同时存在 → 两组都应报告 GDI_D011
         // 组1：HostA(IA) ↔ HostB(IB)
         // 组2：HostC(IC) ↔ HostD(ID)
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -353,7 +361,8 @@ namespace Test
     {
         // SingleHost 内部有 WaitFor 循环 → GDI_D010
         // HostA ↔ HostB 跨 Host 循环   → GDI_D011
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;

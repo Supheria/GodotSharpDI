@@ -23,7 +23,8 @@ public class ExposedTypeValidationTests
     [Fact]
     public void HostProvide_ExposesInterfaceNotImplementedByMemberType_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -42,16 +43,21 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "ChunkManager");
-        Assert.Contains(result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter"));
-        Assert.Contains(result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator"));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter")
+        );
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator")
+        );
     }
 
     [Fact]
     public void HostProvide_ExposesOneInterfaceNotImplemented_ReportsSingleDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -70,16 +76,21 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "ChunkManager");
-        Assert.DoesNotContain(result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter"));
-        Assert.Contains(result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator"));
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter")
+        );
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator")
+        );
     }
 
     [Fact]
     public void HostProvide_ExposesAllImplementedInterfaces_NoDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -108,7 +119,8 @@ namespace Test
     public void HostProvide_FieldObject_ExposesInterfaceNotImplemented_ReportsDiagnostic()
     {
         // Host 字段对象不实现指定接口
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -126,14 +138,17 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "WorldManager");
-        Assert.Contains(result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IWorldConfig"));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IWorldConfig")
+        );
     }
 
     [Fact]
     public void HostProvide_FieldObject_ExposesImplementedInterface_NoDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -158,7 +173,8 @@ namespace Test
     public void HostProvide_ExposesConcreteClass_NotMatching_ReportsDiagnostic()
     {
         // 成员类型 ConfigB，暴露类型 ConfigA（无继承关系）
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -176,15 +192,18 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "MyHost");
-        Assert.Contains(result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("ConfigA"));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("ConfigA")
+        );
     }
 
     [Fact]
     public void HostProvide_ExposesBaseClassOfMemberType_NoDiagnostic()
     {
         // 成员类型 DerivedConfig 继承 BaseConfig → 暴露 BaseConfig 合法
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -209,7 +228,8 @@ namespace Test
     public void HostProvide_ExposedTypeIsConcreteClass_NotInterface_ReportsWarning()
     {
         // GDI_M061 = Warning（暴露类型应该是接口）
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -234,7 +254,9 @@ namespace Test
     // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(
-        string source, string className)
+        string source,
+        string className
+    )
     {
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var tree = compilation.SyntaxTrees.First();

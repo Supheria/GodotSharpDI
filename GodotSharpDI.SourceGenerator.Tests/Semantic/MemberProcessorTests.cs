@@ -24,7 +24,8 @@ public class MemberProcessorTests
     [Fact]
     public void Process_InjectFieldInUser_ReturnsInjectFieldMember()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -48,7 +49,8 @@ namespace Test
     [Fact]
     public void Process_InjectPropertyInUser_ReturnsInjectPropertyMember()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -72,7 +74,8 @@ namespace Test
     [Fact]
     public void Process_InjectPropertyWithoutSetter_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -95,7 +98,10 @@ namespace Test
     public void Process_InjectMemberNotInUserOrHost_ReportsDiagnostic()
     {
         // [Inject] 用在没有 [User]/[Host] 的普通类上
-        var source = @"
+        // RawClassSemanticInfoFactory 对无 DI 属性的类返回 null，
+        // 或 ClassPipeline 将其分类为 TypeRole.None → TypeInfo = null（不处理）
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 
 namespace Test
@@ -108,15 +114,32 @@ namespace Test
         private IMyService _other;
     }
 }";
-        var (result, _) = GetValidationResult(source, "PlainClass");
-        // PlainClass TypeRole.None → ClassValidator 直接返回空诊断，TypeInfo = null
+        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var tree = compilation.SyntaxTrees.First();
+        var root = tree.GetRoot();
+        var classDecl = root.DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .First(c => c.Identifier.Text == "PlainClass");
+
+        var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
+
+        // 非 DI 类：Info 可能为 null（直接忽略），或 TypeInfo 为 null（分类失败）
+        if (raw.Info == null)
+        {
+            // 预期行为：无 DI 属性的类不被处理，直接通过
+            return;
+        }
+
+        var symbols = new CachedSymbols(compilation);
+        var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
         Assert.Null(result.TypeInfo);
     }
 
     [Fact]
     public void Process_StaticInjectMember_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -138,7 +161,8 @@ namespace Test
     [Fact]
     public void Process_InjectHostType_ReportsWarning()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -168,7 +192,8 @@ namespace Test
     [Fact]
     public void Process_InjectUserType_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -194,7 +219,8 @@ namespace Test
     [Fact]
     public void Process_InjectScopeType_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -226,7 +252,8 @@ namespace Test
     [Fact]
     public void Process_ProvidePropertyInHost_ReturnsProvideMember()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -251,7 +278,8 @@ namespace Test
     [Fact]
     public void Process_ProvidePropertyWithoutGetter_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -275,7 +303,8 @@ namespace Test
     [Fact]
     public void Process_ProvideMemberAndInjectOnSameMember_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -300,7 +329,8 @@ namespace Test
     public void Process_ProvideMemberNotInHost_ReportsDiagnostic()
     {
         // [Provide] 用在 [User] 类（非 Host）
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -324,7 +354,8 @@ namespace Test
     [Fact]
     public void Process_StaticProvideMember_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -349,7 +380,8 @@ namespace Test
     public void Process_ProvideMemberIsAnotherHostType_ReportsDiagnostic()
     {
         // [Provide] 成员返回另一个 [Host] 类型（非自身）→ GDI_M052
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -374,7 +406,8 @@ namespace Test
     public void Process_ExposedTypeIsConcreteClass_ReportsWarning()
     {
         // 暴露类型是具体类而非接口 → GDI_M061 Warning
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -391,14 +424,17 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "MyHost");
-        Assert.Contains(result.Diagnostics, d =>
-            d.Id == "GDI_M061" && d.Severity == DiagnosticSeverity.Warning);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M061" && d.Severity == DiagnosticSeverity.Warning
+        );
     }
 
     [Fact]
     public void Process_HostWithoutProvideMember_ReportsWarning()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -410,14 +446,17 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "MyHost");
-        Assert.Contains(result.Diagnostics, d =>
-            d.Id == "GDI_M070" && d.Severity == DiagnosticSeverity.Warning);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M070" && d.Severity == DiagnosticSeverity.Warning
+        );
     }
 
     [Fact]
     public void Process_UserWithoutInjectMember_ReportsWarning()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -429,8 +468,10 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "MyUser");
-        Assert.Contains(result.Diagnostics, d =>
-            d.Id == "GDI_M071" && d.Severity == DiagnosticSeverity.Warning);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Id == "GDI_M071" && d.Severity == DiagnosticSeverity.Warning
+        );
     }
 
     // ============================================================
@@ -440,7 +481,8 @@ namespace Test
     [Fact]
     public void Process_ProvideWithWaitFor_ParsedCorrectly()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -473,7 +515,8 @@ namespace Test
     [Fact]
     public void Process_WaitForReferencesNonExistentField_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -499,7 +542,9 @@ namespace Test
     // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(
-        string source, string className)
+        string source,
+        string className
+    )
     {
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var tree = compilation.SyntaxTrees.First();

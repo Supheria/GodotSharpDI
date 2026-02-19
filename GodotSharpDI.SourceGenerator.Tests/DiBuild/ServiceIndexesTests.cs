@@ -27,7 +27,8 @@ public class ServiceIndexesTests
     [Fact]
     public void DuplicateServiceProviders_TwoHosts_SameService_IsPopulated()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -56,8 +57,9 @@ namespace Test
 
         Assert.NotEmpty(indexes.DuplicateServiceProviders);
 
-        var dup = indexes.DuplicateServiceProviders
-            .FirstOrDefault(kvp => kvp.Key.Name == "IMyService");
+        var dup = indexes.DuplicateServiceProviders.FirstOrDefault(kvp =>
+            kvp.Key.Name == "IMyService"
+        );
         Assert.NotNull(dup.Key);
         Assert.Equal(2, dup.Value.Length);
     }
@@ -65,7 +67,8 @@ namespace Test
     [Fact]
     public void DuplicateServiceProviders_UniqueServices_IsEmpty()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -98,7 +101,8 @@ namespace Test
     [Fact]
     public void DuplicateServiceProviders_ThreeProviders_CountsAllThree()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -130,7 +134,8 @@ namespace Test
     public void ServiceTypeToWaitForDeps_SimpleWaitFor_IsMapped()
     {
         // HostA 提供 IServiceA，等待 IServiceB 注入
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -154,8 +159,9 @@ namespace Test
         var indexes = BuildIndexes(source);
 
         // IServiceA 的 WaitFor 依赖应包含 IServiceB
-        var entry = indexes.ServiceTypeToWaitForDeps
-            .FirstOrDefault(kvp => kvp.Key.Name == "IServiceA");
+        var entry = indexes.ServiceTypeToWaitForDeps.FirstOrDefault(kvp =>
+            kvp.Key.Name == "IServiceA"
+        );
         Assert.NotNull(entry.Key);
 
         var depNames = entry.Value.Select(t => t.Name).ToList();
@@ -166,7 +172,8 @@ namespace Test
     public void ServiceTypeToWaitForDeps_NoWaitFor_NotInMap()
     {
         // 没有 WaitFor 的 Provide 成员不应出现在 ServiceTypeToWaitForDeps 中
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -191,7 +198,8 @@ namespace Test
     public void ServiceTypeToWaitForDeps_MultipleWaitFor_AllDepsListed()
     {
         // Provide 等待两个 Inject 字段 → WaitForDeps 应包含两个类型
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -215,8 +223,7 @@ namespace Test
 }";
         var indexes = BuildIndexes(source);
 
-        var entry = indexes.ServiceTypeToWaitForDeps
-            .FirstOrDefault(kvp => kvp.Key.Name == "IC");
+        var entry = indexes.ServiceTypeToWaitForDeps.FirstOrDefault(kvp => kvp.Key.Name == "IC");
         Assert.NotNull(entry.Key);
         Assert.Equal(2, entry.Value.Count);
 
@@ -229,7 +236,8 @@ namespace Test
     public void ServiceTypeToWaitForDeps_CrossHostCycle_BothServicesInMap()
     {
         // 两个 Host 形成跨 Host 循环等待 → 两个服务都在 ServiceTypeToWaitForDeps 中
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -269,7 +277,8 @@ namespace Test
     {
         // WaitFor 引用了一个非 [Inject] 字段（GDI_M081 Warning）
         // 非 Inject 字段没有确定的服务类型 → 不应出现在依赖图中
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -291,13 +300,13 @@ namespace Test
         var indexes = BuildIndexes(source);
 
         // IServiceA 要么不在 map 中（非 Inject 字段被过滤），要么其依赖集为空
-        if (indexes.ServiceTypeToWaitForDeps.TryGetValue(
-            indexes.ServiceTypeToWaitForDeps.Keys.FirstOrDefault(k => k.Name == "IServiceA")!,
-            out var deps))
+        // 使用 null-safe 查找避免 FirstOrDefault 返回 null 后强制解引用
+        var key = indexes.ServiceTypeToWaitForDeps.Keys.FirstOrDefault(k => k.Name == "IServiceA");
+        if (key != null && indexes.ServiceTypeToWaitForDeps.TryGetValue(key, out var deps))
         {
             Assert.Empty(deps);
         }
-        // 若根本不在 map 中则也满足要求
+        // 若根本不在 map 中则也满足要求（非 Inject 字段正确被过滤）
     }
 
     // ============================================================
@@ -307,7 +316,8 @@ namespace Test
     [Fact]
     public void ServiceTypeToProviders_SingleHost_MapsServiceToHost()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -326,8 +336,9 @@ namespace Test
 }";
         var indexes = BuildIndexes(source);
 
-        var providers = indexes.ServiceTypeToProviders
-            .First(kvp => kvp.Key.Name == "IMyService").Value;
+        var providers = indexes
+            .ServiceTypeToProviders.First(kvp => kvp.Key.Name == "IMyService")
+            .Value;
         Assert.Single(providers);
         Assert.Equal("MyHost", providers[0].ValidatedTypeInfo.Symbol.Name);
     }
@@ -335,7 +346,8 @@ namespace Test
     [Fact]
     public void HasProvider_ExistingService_ReturnsTrue()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -349,8 +361,8 @@ namespace Test
         [Provide(ExposedTypes = new Type[] { typeof(IFoo) })] public Foo Get() => new Foo();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var indexes = BuildIndexes(source);
+        // 必须使用同一编译实例，跨编译的 ITypeSymbol 无法通过 SymbolEqualityComparer 匹配
+        var (indexes, compilation) = BuildIndexesWithCompilation(source);
         var fooSymbol = compilation.GetTypeByMetadataName("Test.IFoo");
         Assert.NotNull(fooSymbol);
         Assert.True(indexes.HasProvider(fooSymbol!));
@@ -359,7 +371,8 @@ namespace Test
     [Fact]
     public void HasProvider_MissingService_ReturnsFalse()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -374,8 +387,7 @@ namespace Test
         [Provide(ExposedTypes = new Type[] { typeof(IFoo) })] public Foo Get() => new Foo();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var indexes = BuildIndexes(source);
+        var (indexes, compilation) = BuildIndexesWithCompilation(source);
         var barSymbol = compilation.GetTypeByMetadataName("Test.IBar");
         Assert.NotNull(barSymbol);
         Assert.False(indexes.HasProvider(barSymbol!));
@@ -385,9 +397,26 @@ namespace Test
     //  辅助
     // ============================================================
 
-    private static ServiceIndexes BuildIndexes(string source)
+    /// <summary>
+    /// 构建索引并同时返回编译实例，供需要跨符号比较的测试使用。
+    /// SymbolEqualityComparer 只在同一编译内有效，跨编译必须使用同一实例。
+    /// </summary>
+    private static (
+        ServiceIndexes Indexes,
+        Microsoft.CodeAnalysis.Compilation Compilation
+    ) BuildIndexesWithCompilation(string source)
     {
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        return (BuildIndexesFromCompilation(compilation), compilation);
+    }
+
+    private static ServiceIndexes BuildIndexes(string source) =>
+        BuildIndexesFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+
+    private static ServiceIndexes BuildIndexesFromCompilation(
+        Microsoft.CodeAnalysis.Compilation compilation
+    )
+    {
         var symbols = new CachedSymbols(compilation);
         var hosts = ImmutableArray.CreateBuilder<ValidatedTypeInfo>();
         var users = ImmutableArray.CreateBuilder<ValidatedTypeInfo>();
@@ -398,10 +427,12 @@ namespace Test
             foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
             {
                 var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info == null) continue;
+                if (raw.Info == null)
+                    continue;
 
                 var result = ClassPipeline.ValidateAndClassify(raw.Info, symbols);
-                if (result.TypeInfo == null) continue;
+                if (result.TypeInfo == null)
+                    continue;
 
                 if (result.TypeInfo.Role == TypeRole.Host)
                     hosts.Add(result.TypeInfo);

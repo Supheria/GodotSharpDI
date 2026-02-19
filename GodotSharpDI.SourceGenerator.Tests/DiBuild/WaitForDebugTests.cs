@@ -30,7 +30,8 @@ public class WaitForIntegrationTests
     [Fact]
     public void WaitFor_SingleDependency_ParsedIntoMemberInfo()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -59,20 +60,23 @@ namespace Test
         Assert.NotNull(hostNode);
 
         // 应该有一个 WaitFor 依赖边
-        var waitForEdges = hostNode!.Dependencies
-            .Where(d => d.Source == DependencySource.WaitForMember)
+        var waitForEdges = hostNode!
+            .Dependencies.Where(d => d.Source == DependencySource.WaitForMember)
             .ToList();
         Assert.NotEmpty(waitForEdges);
 
         _output.WriteLine($"WaitFor edges: {waitForEdges.Count}");
         foreach (var edge in waitForEdges)
-            _output.WriteLine($"  {edge.SourceProvidedType?.Name} → waitFor → {edge.TargetType.Name}");
+            _output.WriteLine(
+                $"  {edge.SourceProvidedType?.Name} → waitFor → {edge.TargetType.Name}"
+            );
     }
 
     [Fact]
     public void WaitFor_MultipleTargets_AllParsed()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -99,8 +103,8 @@ namespace Test
         var hostNode = result.Graph!.HostNodes.FirstOrDefault();
         Assert.NotNull(hostNode);
 
-        var waitForEdges = hostNode!.Dependencies
-            .Where(d => d.Source == DependencySource.WaitForMember)
+        var waitForEdges = hostNode!
+            .Dependencies.Where(d => d.Source == DependencySource.WaitForMember)
             .ToList();
         // 两个 WaitFor 目标 → 两条依赖边
         Assert.Equal(2, waitForEdges.Count);
@@ -115,7 +119,8 @@ namespace Test
     [Fact]
     public void WaitFor_Cycle_DiagnosticsContainServiceNames()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -157,7 +162,8 @@ namespace Test
     [Fact]
     public void WaitFor_ValidConfiguration_ZeroDiagnostics()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -183,8 +189,8 @@ namespace Test
 }";
         var result = BuildGraph(source);
 
-        var errorDiags = result.Diagnostics
-            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+        var errorDiags = result
+            .Diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
             .ToList();
 
         _output.WriteLine($"\n=== Total diagnostics: {result.Diagnostics.Length} ===");

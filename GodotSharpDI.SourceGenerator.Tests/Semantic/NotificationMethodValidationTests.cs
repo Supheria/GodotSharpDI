@@ -20,7 +20,8 @@ public sealed class NotificationMethodValidationTests
     [Fact]
     public void Host_WithoutNotificationMethod_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -46,7 +47,8 @@ public interface ITestService { }
     [Fact]
     public void Host_WithNotificationMethod_NoDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -75,7 +77,8 @@ public interface ITestService { }
     [Fact]
     public void User_WithoutNotificationMethod_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -100,7 +103,8 @@ public interface ITestService { }
     [Fact]
     public void User_WithNotificationMethod_NoDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -128,7 +132,8 @@ public interface ITestService { }
     [Fact]
     public void Scope_WithoutNotificationMethod_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -152,7 +157,8 @@ public partial class TestScope : Node, IScope
     [Fact]
     public void Scope_WithNotificationMethod_NoDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -179,7 +185,8 @@ public partial class TestScope : Node, IScope
     [Fact]
     public void NotificationMethod_MissingPublic_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -207,7 +214,8 @@ public interface ITestService { }
     [Fact]
     public void NotificationMethod_MissingOverride_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -235,7 +243,8 @@ public interface ITestService { }
     [Fact]
     public void NotificationMethod_MissingPartial_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -264,7 +273,8 @@ public interface ITestService { }
     [Fact]
     public void NotificationMethod_WrongParameterType_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -296,7 +306,8 @@ public interface ITestService { }
     [Fact]
     public void HostAndUser_WithoutNotificationMethod_ReportsDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -327,7 +338,8 @@ public interface IAnotherService { }
     [Fact]
     public void HostAndUser_WithNotificationMethod_NoDiagnostic()
     {
-        var source = @"
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 using System;
@@ -361,7 +373,10 @@ public interface IAnotherService { }
     [Fact]
     public void NotificationMethod_WithCorrectSignature_GeneratesImplementation()
     {
-        var source = @"
+        // 验证：_Notification 签名正确时，生成器接受该类并产生 DI 文件
+        // 注：GDI_D050（无 Provider）是图验证级错误，与 _Notification 签名无关
+        var source =
+            @"
 using Godot;
 using GodotSharpDI.Abstractions;
 
@@ -378,9 +393,12 @@ public interface ITestService { }
 ";
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
 
+        // 核心断言：正确的 _Notification 签名不应触发 GDI_C080/C081
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
-        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C081");
 
+        // 生成器应为该类产生 DI 文件
         var sources = TestCompilationHelper.GetGeneratedSources(compilation);
         Assert.Contains(sources, s => s.HintName.Contains("TestUser") && s.HintName.Contains("DI"));
     }

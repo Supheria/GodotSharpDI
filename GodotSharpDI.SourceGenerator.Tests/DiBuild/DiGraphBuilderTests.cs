@@ -32,7 +32,8 @@ public class DiGraphBuilderTests
     [Fact]
     public void Build_SingleHost_ReturnsOneHostNode()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IMyService { }
@@ -41,7 +42,8 @@ namespace Test {
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
         public Impl Create() => new Impl();
     }
-}");
+}"
+        );
         Assert.NotNull(result.Graph);
         Assert.Single(result.Graph!.HostNodes);
         Assert.Equal("MyHost", result.Graph.HostNodes[0].ValidatedTypeInfo.Symbol.Name);
@@ -50,14 +52,16 @@ namespace Test {
     [Fact]
     public void Build_SingleUser_ReturnsOneUserNode()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot;
 namespace Test {
     public interface IMyService { }
     [User] public partial class MyUser : Node {
         [Inject] private IMyService _service;
     }
-}");
+}"
+        );
         Assert.NotNull(result.Graph);
         Assert.Single(result.Graph!.UserNodes);
         Assert.Equal("MyUser", result.Graph.UserNodes[0].ValidatedTypeInfo.Symbol.Name);
@@ -66,7 +70,8 @@ namespace Test {
     [Fact]
     public void Build_MultipleHosts_AllIncluded()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IA { } public interface IB { }
@@ -77,7 +82,8 @@ namespace Test {
     [Host] public partial class HostB : Node {
         [Provide(ExposedTypes = new Type[] { typeof(IB) })] public B CreateB() => new B();
     }
-}");
+}"
+        );
         Assert.NotNull(result.Graph);
         Assert.Equal(2, result.Graph!.HostNodes.Length);
         Assert.Contains(result.Graph.HostNodes, n => n.ValidatedTypeInfo.Symbol.Name == "HostA");
@@ -87,7 +93,8 @@ namespace Test {
     [Fact]
     public void Build_HostWithMultipleExposedTypes_TracksAll()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IA { } public interface IB { }
@@ -95,7 +102,8 @@ namespace Test {
         [Provide(ExposedTypes = new Type[] { typeof(IA), typeof(IB) })]
         public MyHost GetSelf() => this;
     }
-}");
+}"
+        );
         Assert.NotNull(result.Graph);
         var node = result.Graph!.HostNodes.FirstOrDefault();
         Assert.NotNull(node);
@@ -105,7 +113,8 @@ namespace Test {
     [Fact]
     public void Build_ValidGraph_NoErrors()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IServiceA { } public class ImplA : IServiceA { }
@@ -116,7 +125,8 @@ namespace Test {
     [User] public partial class MyUser : Node {
         [Inject] private IServiceA _service;
     }
-}");
+}"
+        );
         Assert.NotNull(result.Graph);
         Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
     }
@@ -124,7 +134,8 @@ namespace Test {
     [Fact]
     public void Build_HostNodeMap_ContainsAllHosts()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IA { } public interface IB { }
@@ -135,13 +146,15 @@ namespace Test {
     [Host] public partial class HostB : Node {
         [Provide(ExposedTypes = new Type[] { typeof(IB) })] public B CreateB() => new B();
     }
-}");
+}"
+        );
         Assert.NotNull(result.Graph);
         Assert.Equal(result.Graph!.HostNodes.Length, result.Graph.HostNodeMap.Count);
         foreach (var node in result.Graph.HostNodes)
         {
             Assert.True(
-                result.Graph.HostNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mapped));
+                result.Graph.HostNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mapped)
+            );
             Assert.Same(node, mapped);
         }
     }
@@ -149,7 +162,8 @@ namespace Test {
     [Fact]
     public void Build_HostNodeMap_FastLookupBySymbol()
     {
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IServiceA { } public class ImplA : IServiceA { }
@@ -172,7 +186,8 @@ namespace Test {
     [Fact]
     public void Build_DuplicateService_ReportsGDI_D041()
     {
-        var result = BuildGraph(@"
+        var result = BuildGraph(
+            @"
 using GodotSharpDI.Abstractions; using Godot; using System;
 namespace Test {
     public interface IMyService { }
@@ -183,7 +198,8 @@ namespace Test {
     [Host] public partial class HostB : Node {
         [Provide(ExposedTypes = new Type[] { typeof(IMyService) })] public ImplB Create() => new ImplB();
     }
-}");
+}"
+        );
         Assert.Contains(result.Diagnostics, d => d.Id == "GDI_D041");
     }
 
@@ -191,11 +207,12 @@ namespace Test {
     //  辅助
     // ============================================================
 
-    private static DiGraphBuildResult BuildGraph(string source)
-        => BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+    private static DiGraphBuildResult BuildGraph(string source) =>
+        BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
 
     private static DiGraphBuildResult BuildGraphFromCompilation(
-        Microsoft.CodeAnalysis.Compilation compilation)
+        Microsoft.CodeAnalysis.Compilation compilation
+    )
     {
         var symbols = new CachedSymbols(compilation);
         var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();

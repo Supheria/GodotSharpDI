@@ -27,7 +27,8 @@ public class DuplicateServiceRegistrationTests
     public void TwoHosts_BothProvide_SameInterface_ReportsWarning()
     {
         // Arrange - 两个 Host 都声明提供 IMyService
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -54,8 +55,8 @@ namespace Test
 }";
         var result = BuildGraph(source);
 
-        var warnings = result.Diagnostics
-            .Where(d => d.Id == "GDI_D041" && d.Severity == DiagnosticSeverity.Warning)
+        var warnings = result
+            .Diagnostics.Where(d => d.Id == "GDI_D041" && d.Severity == DiagnosticSeverity.Warning)
             .ToList();
         Assert.NotEmpty(warnings);
         // 至少有一个警告包含服务类型名
@@ -66,7 +67,8 @@ namespace Test
     public void ThreeHosts_AllProvide_SameInterface_ReportsWarningWithAllProviders()
     {
         // Arrange - 三个 Host 都提供同一接口
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -112,7 +114,8 @@ namespace Test
     {
         // Arrange - HostA 提供 IServiceA + ICommon，HostB 提供 IServiceB + ICommon
         //           只有 ICommon 应该触发 GDI_D041
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -165,7 +168,8 @@ namespace Test
     public void OneHost_ProvideService_NoWarning()
     {
         // Arrange - 只有一个 Host 提供该服务
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -190,7 +194,8 @@ namespace Test
     public void TwoHosts_DifferentServices_NoWarning()
     {
         // Arrange - 两个 Host 各提供不同服务，无重复
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -224,7 +229,8 @@ namespace Test
     public void GDI_D041_IsWarning_NotError_CanBeSuppressed()
     {
         // GDI_D041 应该是 Warning，而不是 Error（允许故意覆盖）
-        var source = @"
+        var source =
+            @"
 using GodotSharpDI.Abstractions;
 using Godot;
 using System;
@@ -254,8 +260,7 @@ namespace Test
         var gdi041Diags = result.Diagnostics.Where(d => d.Id == "GDI_D041").ToList();
         Assert.NotEmpty(gdi041Diags);
         // 所有 GDI_D041 均为 Warning，不能是 Error
-        Assert.All(gdi041Diags, d =>
-            Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
+        Assert.All(gdi041Diags, d => Assert.Equal(DiagnosticSeverity.Warning, d.Severity));
     }
 
     // ============================================================

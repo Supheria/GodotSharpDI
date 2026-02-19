@@ -73,7 +73,18 @@ internal sealed class CrossHostCircularDependencyDetector
         }
         while (!SymbolEqualityComparer.Default.Equals(w2, v));
 
-        if (scc.Count > 1) _cycles.Add(scc); // 多节点环 = 跨 Host 死锁
+        if (scc.Count <= 1) return; // 单节点无循环
+
+        // 检查是否所有服务都由「同一个」Host 提供
+        // 若是，则属于同 Host 内 WaitFor 环（GDI_D010 已处理），不应报 GDI_D011
+        var distinctHosts = scc
+            .SelectMany(s => _indexes.FindProviders(s))
+            .Select(n => n.ValidatedTypeInfo.Symbol)
+            .Distinct(SymbolEqualityComparer.Default)
+            .Count();
+
+        if (distinctHosts > 1)
+            _cycles.Add(scc);
     }
 
     private ImmutableArray<Diagnostic> BuildDiagnostics()
