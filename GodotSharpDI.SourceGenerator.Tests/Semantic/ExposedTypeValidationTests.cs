@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Internal.Semantic;
@@ -9,193 +9,24 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
 /// <summary>
-/// 测试 Service 和 Host 暴露类型验证
+/// Host [Provide] 成员的暴露类型验证测试
+///
+/// 注意：旧架构有独立的 [Singleton] 服务类及其 ExposedTypes 验证。
+/// 新架构服务类型验证全部通过 [Host] 的 [Provide] 成员进行。
 /// </summary>
 public class ExposedTypeValidationTests
 {
-    #region Service 暴露类型测试
+    // ============================================================
+    //  [Provide] 成员暴露类型 - 接口验证
+    // ============================================================
 
     [Fact]
-    public void Service_ExposesInterfaceNotImplemented_ReportsDiagnostic()
+    public void HostProvide_ExposesInterfaceNotImplementedByMemberType_ReportsDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    public interface IDataReader { }
-    public interface IDataWriter { }
-
-    [Singleton(typeof(IDataWriter), typeof(IDataReader))]
-    public partial class DataBase
-    {
-        // DataBase 没有实现 IDataWriter 和 IDataReader
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "DataBase");
-
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataWriter")
-        );
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataReader")
-        );
-    }
-
-    [Fact]
-    public void Service_ExposesOneInterfaceNotImplemented_ReportsDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    public interface IDataReader { }
-    public interface IDataWriter { }
-
-    [Singleton(typeof(IDataWriter), typeof(IDataReader))]
-    public partial class DataBase : IDataWriter
-    {
-        // DataBase 实现了 IDataWriter，但没有实现 IDataReader
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "DataBase");
-
-        // Assert
-        Assert.DoesNotContain(
-            result.Diagnostics,
-            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataWriter")
-        );
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_C071" && d.GetMessage().Contains("IDataReader")
-        );
-    }
-
-    [Fact]
-    public void Service_ExposesAllImplementedInterfaces_NoDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    public interface IDataReader { }
-    public interface IDataWriter { }
-
-    [Singleton(typeof(IDataWriter), typeof(IDataReader))]
-    public partial class DataBase : IDataWriter, IDataReader
-    {
-        // DataBase 实现了所有暴露的接口
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "DataBase");
-
-        // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C070");
-    }
-
-    [Fact]
-    public void Service_ExposesClassNotInheritFrom_ReportsDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    public class BaseConfig { }
-    public class OtherClass { }
-
-    [Singleton(typeof(BaseConfig))]
-    public partial class MyConfig : OtherClass
-    {
-        // MyConfig 继承自 OtherClass，不是 BaseConfig
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "MyConfig");
-
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_C070" && d.GetMessage().Contains("BaseConfig")
-        );
-    }
-
-    [Fact]
-    public void Service_ExposesSelfClass_NoDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    [Singleton(typeof(MyService))]
-    public partial class MyService
-    {
-        // 暴露自己
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "MyService");
-
-        // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C071");
-    }
-
-    [Fact]
-    public void Service_ExposesBaseClass_NoDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-namespace Test
-{
-    public class BaseService { }
-
-    [Singleton(typeof(BaseService))]
-    public partial class DerivedService : BaseService
-    {
-        // 暴露基类
-    }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "DerivedService");
-
-        // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_C062");
-    }
-
-    #endregion
-
-    #region Host 成员暴露类型测试
-
-    [Fact]
-    public void HostMember_ExposesInterfaceNotImplemented_ReportsDiagnostic()
-    {
-        // Arrange
-        var source =
-            @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
@@ -205,33 +36,25 @@ namespace Test
     [Host]
     public partial class ChunkManager : Node
     {
-        [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
-        private ChunkManager Self => this;
         // ChunkManager 没有实现 IChunkGetter 和 IChunkGenerator
+        [Provide(ExposedTypes = new Type[] { typeof(IChunkGetter), typeof(IChunkGenerator) })]
+        private ChunkManager Self => this;
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "ChunkManager");
-
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter")
-        );
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator")
-        );
+}";
+        var (result, _) = GetValidationResult(source, "ChunkManager");
+        Assert.Contains(result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter"));
+        Assert.Contains(result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator"));
     }
 
     [Fact]
-    public void HostMember_ExposesOneInterfaceNotImplemented_ReportsDiagnostic()
+    public void HostProvide_ExposesOneInterfaceNotImplemented_ReportsSingleDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
@@ -241,33 +64,25 @@ namespace Test
     [Host]
     public partial class ChunkManager : Node, IChunkGetter
     {
-        [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
+        // 实现了 IChunkGetter，但没有实现 IChunkGenerator
+        [Provide(ExposedTypes = new Type[] { typeof(IChunkGetter), typeof(IChunkGenerator) })]
         private ChunkManager Self => this;
-        // ChunkManager 实现了 IChunkGetter，但没有实现 IChunkGenerator
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "ChunkManager");
-
-        // Assert
-        Assert.DoesNotContain(
-            result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter")
-        );
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator")
-        );
+}";
+        var (result, _) = GetValidationResult(source, "ChunkManager");
+        Assert.DoesNotContain(result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGetter"));
+        Assert.Contains(result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IChunkGenerator"));
     }
 
     [Fact]
-    public void HostMember_ExposesAllImplementedInterfaces_NoDiagnostic()
+    public void HostProvide_ExposesAllImplementedInterfaces_NoDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
@@ -277,85 +92,76 @@ namespace Test
     [Host]
     public partial class ChunkManager : Node, IChunkGetter, IChunkGenerator
     {
-        [Singleton(typeof(IChunkGetter), typeof(IChunkGenerator))]
+        [Provide(ExposedTypes = new Type[] { typeof(IChunkGetter), typeof(IChunkGenerator) })]
         private ChunkManager Self => this;
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "ChunkManager");
-
-        // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_M070");
+}";
+        var (result, _) = GetValidationResult(source, "ChunkManager");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_M060");
     }
 
+    // ============================================================
+    //  [Provide] 成员暴露类型 - 非 Host 成员（子对象）
+    // ============================================================
+
     [Fact]
-    public void HostMember_ExposesOtherObjectInterface_ReportsDiagnosticWhenNotImplemented()
+    public void HostProvide_FieldObject_ExposesInterfaceNotImplemented_ReportsDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
+        // Host 字段对象不实现指定接口
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
     public interface IWorldConfig { }
-    public class WorldConfig { }
+    public class WorldConfig { } // 未实现 IWorldConfig
 
     [Host]
     public partial class WorldManager : Node
     {
-        [Singleton(typeof(IWorldConfig))]
-        private WorldConfig _config = new();
-        // WorldConfig 没有实现 IWorldConfig
+        [Provide(ExposedTypes = new Type[] { typeof(IWorldConfig) })]
+        private WorldConfig _config = new WorldConfig();
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "WorldManager");
-
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IWorldConfig")
-        );
+}";
+        var (result, _) = GetValidationResult(source, "WorldManager");
+        Assert.Contains(result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("IWorldConfig"));
     }
 
     [Fact]
-    public void HostMember_ExposesOtherObjectInterface_NoDiagnosticWhenImplemented()
+    public void HostProvide_FieldObject_ExposesImplementedInterface_NoDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
     public interface IWorldConfig { }
-    public class WorldConfig : IWorldConfig { }
+    public class WorldConfig : IWorldConfig { } // 已实现
 
     [Host]
     public partial class WorldManager : Node
     {
-        [Singleton(typeof(IWorldConfig))]
-        private WorldConfig _config = new();
+        [Provide(ExposedTypes = new Type[] { typeof(IWorldConfig) })]
+        private WorldConfig _config = new WorldConfig();
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "WorldManager");
-
-        // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_M070");
+}";
+        var (result, _) = GetValidationResult(source, "WorldManager");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_M060");
     }
 
     [Fact]
-    public void HostMember_ExposesClassNotMatching_ReportsDiagnostic()
+    public void HostProvide_ExposesConcreteClass_NotMatching_ReportsDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
+        // 成员类型 ConfigB，暴露类型 ConfigA（无继承关系）
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
@@ -365,29 +171,23 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
-        [Singleton(typeof(ConfigA))]
-        private ConfigB _config = new();
-        // ConfigB 不是 ConfigA 且不继承自 ConfigA
+        [Provide(ExposedTypes = new Type[] { typeof(ConfigA) })]
+        private ConfigB _config = new ConfigB();
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "MyHost");
-
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_M060" && d.GetMessage().Contains("ConfigA")
-        );
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.Contains(result.Diagnostics,
+            d => d.Id == "GDI_M060" && d.GetMessage().Contains("ConfigA"));
     }
 
     [Fact]
-    public void HostMember_ExposesBaseClassOfMemberType_NoDiagnostic()
+    public void HostProvide_ExposesBaseClassOfMemberType_NoDiagnostic()
     {
-        // Arrange
-        var source =
-            @"
+        // 成员类型 DerivedConfig 继承 BaseConfig → 暴露 BaseConfig 合法
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
@@ -397,24 +197,44 @@ namespace Test
     [Host]
     public partial class MyHost : Node
     {
-        [Singleton(typeof(BaseConfig))]
-        private DerivedConfig _config = new();
-        // DerivedConfig 继承自 BaseConfig
+        [Provide(ExposedTypes = new Type[] { typeof(BaseConfig) })]
+        private DerivedConfig _config = new DerivedConfig();
     }
-}
-";
-        var (result, symbols) = GetValidationResult(source, "MyHost");
-
-        // Assert
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_M070");
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Id == "GDI_M060");
     }
 
-    #endregion
+    [Fact]
+    public void HostProvide_ExposedTypeIsConcreteClass_NotInterface_ReportsWarning()
+    {
+        // GDI_M061 = Warning（暴露类型应该是接口）
+        var source = @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public class MyConcreteService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide(ExposedTypes = new Type[] { typeof(MyConcreteService) })]
+        private MyConcreteService _service = new MyConcreteService();
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M061");
+    }
+
+    // ============================================================
+    //  辅助
+    // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(
-        string source,
-        string className
-    )
+        string source, string className)
     {
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var tree = compilation.SyntaxTrees.First();
@@ -428,7 +248,6 @@ namespace Test
 
         var symbols = new CachedSymbols(compilation);
         var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
-
         return (result, symbols);
     }
 }
