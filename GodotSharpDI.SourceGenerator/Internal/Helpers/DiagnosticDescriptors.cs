@@ -396,12 +396,27 @@ internal static class DiagnosticDescriptors
         Resources.D_CircularDependencyDetected
     );
 
+    public static readonly DiagnosticDescriptor CrossHostDeadlockDetected = DependencyGraph(
+        "011",
+        "Cross-Host WaitFor deadlock detected: {0}. " +
+        "Multiple Hosts form a circular wait chain that will deadlock at runtime. " +
+        "Break the cycle by removing one WaitFor dependency or restructuring service provision."
+    );
+
     public static readonly DiagnosticDescriptor ServiceConstructorParameterInvalid =
         DependencyGraph("020", Resources.D_ServiceConstructorParameterInvalid);
 
     public static readonly DiagnosticDescriptor ScopeServiceTypeConflict = DependencyGraph(
         "040",
         Resources.D_ScopeServiceTypeConflict
+    );
+
+    public static readonly DiagnosticDescriptor DuplicateServiceRegistration = DependencyGraph(
+        "041",
+        "Service '{0}' is provided by multiple Hosts: {1}. " +
+        "The first Host to call ProvideServices() wins. " +
+        "Use child Scope override or remove duplicate providers.",
+        DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor InjectMemberTypeIsNotExposed = DependencyGraph(

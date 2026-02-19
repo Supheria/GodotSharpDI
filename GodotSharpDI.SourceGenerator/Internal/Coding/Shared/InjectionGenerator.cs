@@ -72,7 +72,7 @@ internal static class InjectionGenerator
         {
             var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
             f.AppendLine(
-                $"/// <summary>成员 {member.Symbol.Name} 是否成功注入依赖的标识符</summary>"
+                $"/// <summary>Whether member {member.Symbol.Name} has been successfully injected</summary>"
             );
             f.AppendLine($"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]");
             f.AppendLine($"private {GlobalNames.Bool} {fieldName} {{ get; set; }} = false;");
@@ -118,7 +118,7 @@ internal static class InjectionGenerator
             fValue.AppendRaw(";");
         }
         fValue.EndLevel();
-        f.AppendLine("/// <summary>所有 Inject 成员是否都成功注入依赖的标识符</summary>");
+        f.AppendLine("/// <summary>Whether all Inject members have been successfully injected</summary>");
         f.AppendRaw(fAttribute.ToString());
         f.AppendLine($"private {GlobalNames.Bool} IsAllDependenciesReady =>");
         f.AppendRaw(fValue.ToString());
@@ -134,7 +134,7 @@ internal static class InjectionGenerator
         foreach (var member in injectMembers)
         {
             var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
-            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入失败时的回调</summary>");
+            f.AppendLine($"/// <summary>Callback when injection of member {member.Symbol.Name} fails</summary>");
             f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
             f.AppendLine();
         }
@@ -149,7 +149,7 @@ internal static class InjectionGenerator
         foreach (var member in injectMembers)
         {
             var methodName = NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
-            f.AppendLine($"/// <summary>成员 {member.Symbol.Name} 依赖注入成功时的回调</summary>");
+            f.AppendLine($"/// <summary>Callback when injection of member {member.Symbol.Name} succeeds</summary>");
             f.AppendLine($"partial void {methodName}();");
             f.AppendLine();
         }
@@ -166,14 +166,25 @@ internal static class InjectionGenerator
         f.AppendLine("private void ResolveDependencies()");
         f.BeginBlock();
         {
-            f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null)");
+            f.AppendLine($"var {GlobalNames.LocalScope} = GetParentScope();");
+            f.AppendLine($"if ({GlobalNames.LocalScope} is null)");
             f.BeginBlock();
             {
-                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.PrintError($"$\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
+            f.AppendLine();
+
+            // P3: 为每个 Inject 成员生成 TCS，供 WaitForPhase 复用
+            foreach (var m in injectMembersList)
+            {
+                var tcsName = NamingHelper.GetInjectionTcsName(m.Symbol.Name);
+                var mType = m.MemberType.ToFullyQualifiedName();
+                f.AppendLine(
+                    $"var {tcsName} = new global::System.Threading.Tasks" +
+                    $".TaskCompletionSource<{GlobalNames.ResolutionResult}>();");
+            }
             f.AppendLine();
 
             // 注入 [Inject] 成员
@@ -181,8 +192,9 @@ internal static class InjectionGenerator
             {
                 var memberType = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
+                var tcsName = NamingHelper.GetInjectionTcsName(memberName);
 
-                f.AppendLine($"scope.ResolveDependency<{memberType}>(");
+                f.AppendLine($"{GlobalNames.LocalScope}.ResolveDependency<{memberType}>(");
                 f.BeginLevel();
                 {
                     f.AppendLine("(result) =>");
@@ -198,7 +210,7 @@ internal static class InjectionGenerator
                                     memberName,
                                     memberType
                                 );
-                                
+
                                 // 如果有就绪回调，调用它
                                 if (member.HasReadyCallback)
                                 {
@@ -233,6 +245,9 @@ internal static class InjectionGenerator
                         }
                         f.EndBlock();
 
+                        // P3: 完成 TCS，让 WaitForPhase 可以通过 TCS.Task 等待注入结果
+                        f.AppendLine($"{tcsName}.TrySetResult(result);");
+
                         // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
@@ -256,11 +271,11 @@ internal static class InjectionGenerator
             {
                 f.BeginStringBuilderAppend("errorMessage", true);
                 {
-                    f.StringBuilderAppendLine("[GodotSharpDI] 依赖赋值失败");
-                    f.StringBuilderAppendLine($"  User 类型: {validatedType.Symbol.Name}");
-                    f.StringBuilderAppendLine("  成员: {memberName}");
-                    f.StringBuilderAppendLine("  成员类型: {memberType}");
-                    f.StringBuilderAppendLine("  异常: {exMsg}");
+                    f.StringBuilderAppendLine(GeneratedStrings.ErrInjectionAssignFailed);
+                    f.StringBuilderAppendLine($"  Type: {validatedType.Symbol.Name}");
+                    f.StringBuilderAppendLine("  Member: {memberName}");
+                    f.StringBuilderAppendLine("  Member Type: {memberType}");
+                    f.StringBuilderAppendLine("  Exception: {exMsg}");
                 }
                 f.EndStringBuilderAppend();
                 f.AppendLine();

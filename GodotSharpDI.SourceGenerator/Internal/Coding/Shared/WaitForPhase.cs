@@ -10,6 +10,8 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 /// <summary>
 /// 生成 WaitFor 依赖等待代码（重构版本）
 /// 每个 Provide 成员拥有独立的 _remaining 计数器
+/// P3: 复用 InjectionGenerator 生成的 TCS，避免双重 ResolveDependency 注册
+/// P1: requestorType 采用 "GDI_WF:{providerService}:{member}" 协议，供运行时死锁检测
 /// </summary>
 internal static class WaitForPhase
 {
@@ -20,8 +22,8 @@ internal static class WaitForPhase
         CodeFormatter f,
         MemberInfo provideMember,
         ImmutableArray<MemberInfo> allMembers,
-        string scopeField,
-        Action onAllResolved
+        string scopeField = GlobalNames.LocalScope,
+        Action? onAllResolved = null
     )
     {
         var waitForDeps = provideMember.WaitFor;
@@ -29,7 +31,7 @@ internal static class WaitForPhase
         if (waitForDeps.IsEmpty)
         {
             // 没有 WaitFor，直接调用回调
-            onAllResolved();
+            onAllResolved?.Invoke();
             return;
         }
 
@@ -37,71 +39,63 @@ internal static class WaitForPhase
         var remainingVarName = $"_{memberName}_waitForRemaining";
         var resolvedCallbackName = $"On{memberName}WaitForResolved";
 
-        f.AppendLine($"// 等待 {memberName} 的 WaitFor 依赖: {string.Join(", ", waitForDeps)}");
+        // P1-runtime: 取第一个暴露类型名作为 provider 标识
+        var providerSvcName = provideMember.ExposedTypes.IsEmpty
+            ? memberName
+            : provideMember.ExposedTypes[0].Name;
+
+        f.AppendLine($"// WaitFor deps for {memberName}: {string.Join(", ", waitForDeps)}");
         f.AppendLine($"var {remainingVarName} = {waitForDeps.Length};");
         f.AppendLine();
 
-        // 为每个依赖注册解析回调
+        // P3: 为每个 WaitFor 依赖复用 InjectionGenerator 生成的 TCS
         foreach (var depName in waitForDeps)
         {
             var depMember = allMembers.FirstOrDefault(m => m.Symbol.Name == depName);
             if (depMember == null)
             {
-                f.AppendLine($"// 错误: 找不到依赖字段 {depName}");
+                f.AppendLine($"// Error: WaitFor field '{depName}' not found");
                 continue;
             }
 
-            var depType = depMember.MemberType.ToFullyQualifiedName();
+            var tcsName = NamingHelper.GetInjectionTcsName(depName);
 
-            f.AppendLine($"// 监听依赖: {depName} ({depType})");
-            f.AppendLine($"{scopeField}.ResolveDependency<{depType}>(");
-            f.BeginLevel();
+            f.AppendLine($"// WaitFor: reuse injection TCS for '{depName}' (no duplicate ResolveDependency)");
+            f.AppendLine($"_ = {tcsName}.Task.ContinueWith(completedTask =>");
+            f.BeginBlock();
             {
-                f.AppendLine("(result) =>");
+                f.AppendLine("var result = completedTask.Result;");
+                f.AppendLine("if (result.IsSuccess)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("if (result.IsSuccess)");
+                    f.AppendLine($"if (--{remainingVarName} == 0)");
                     f.BeginBlock();
                     {
-                        DependencyResolveGenerator.GenerateSetInjectionReady(
-                            f,
-                            depName,
-                            depType
-                        );
-                        f.AppendLine($"if (--{remainingVarName} == 0)");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine($"_ = {resolvedCallbackName}();");
-                        }
-                        f.EndBlock();
-                    }
-                    f.EndBlock();
-                    f.AppendLine("else");
-                    f.BeginBlock();
-                    {
-                        f.AppendLine(
-                            $"{GlobalNames.GodotGD}.PrintErr($\"[{memberName}] WaitFor 依赖 '{depName}' 解析失败: {{result.ErrorMessage}}\");"
-                        );
-                        f.AppendLine($"if (--{remainingVarName} == 0)");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine($"_ = {resolvedCallbackName}();");
-                        }
-                        f.EndBlock();
+                        f.AppendLine($"_ = {resolvedCallbackName}();");
                     }
                     f.EndBlock();
                 }
-                f.EndBlock(",");
-
-                f.AppendLine($"requestorType: \"{memberName} (WaitFor)\"");
+                f.EndBlock();
+                f.AppendLine("else");
+                f.BeginBlock();
+                {
+                    f.AppendLine(
+                        $"{GlobalNames.GodotGD}.PrintErr($\"[{memberName}] WaitFor dependency " +
+                        $"'{depName}' failed: {{result.ErrorMessage}}\");"
+                    );
+                    f.AppendLine($"if (--{remainingVarName} == 0)");
+                    f.BeginBlock();
+                    {
+                        f.AppendLine($"_ = {resolvedCallbackName}();");
+                    }
+                    f.EndBlock();
+                }
+                f.EndBlock();
             }
-            f.EndLevel();
-            f.AppendLine(");");
+            f.EndBlock(",");
+            f.AppendLine("    TaskScheduler.FromCurrentSynchronizationContext());");
             f.AppendLine();
         }
-
-        // 不再在这里添加 return 和 local function 定义
-        // 而是返回一个委托，让调用者统一生成
     }
 
     /// <summary>
@@ -119,7 +113,7 @@ internal static class WaitForPhase
         f.AppendLine($"async {GlobalNames.Task} {resolvedCallbackName}()");
         f.BeginBlock();
         {
-            f.AppendLine($"// {memberName} 的所有 WaitFor 依赖已就绪，开始提供服务");
+            f.AppendLine($"// All WaitFor deps for {memberName} are ready");
             f.AppendLine();
             onAllResolved();
         }
@@ -127,3 +121,4 @@ internal static class WaitForPhase
         f.AppendLine();
     }
 }
+

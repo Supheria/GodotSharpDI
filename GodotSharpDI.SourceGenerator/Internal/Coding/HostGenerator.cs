@@ -77,11 +77,11 @@ internal static class HostGenerator
         f.AppendLine("private void ProvideServices()");
         f.BeginBlock();
         {
-            f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null)");
+            f.AppendLine($"var {GlobalNames.LocalScope} = GetParentScope();");
+            f.AppendLine($"if ({GlobalNames.LocalScope} is null)");
             f.BeginBlock();
             {
-                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -114,15 +114,15 @@ internal static class HostGenerator
     )
     {
         // 阶段 1: 注入依赖 (不等待完成,不阻塞后续流程)
-        f.AppendLine("// ━━━ 阶段 1: 注入依赖 (不阻塞服务提供) ━━━");
+        f.AppendLine(GeneratedStrings.Phase1Comment);
         foreach (var member in injectMembers)
         {
-            GenerateFieldInjectionWithTracking(f, member, "scope", validatedType.Symbol.Name);
+            GenerateFieldInjectionWithTracking(f, member, GlobalNames.LocalScope, validatedType.Symbol.Name);
         }
         f.AppendLine();
 
         // 阶段 2 & 3: 每个 Provide 成员独立处理
-        f.AppendLine("// ━━━ 阶段 2 & 3: 提供服务 (独立于依赖注入) ━━━");
+        f.AppendLine(GeneratedStrings.Phase23Comment);
         GenerateDirectProvision(f, validatedType.Members, provideMembers);
     }
 
@@ -158,7 +158,7 @@ internal static class HostGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine(
-                        $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{result.ErrorMessage}}\");"
+                        $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] Injection failed ({memberName}): {{result.ErrorMessage}}\");"
                     );
                     DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
                 }
@@ -187,7 +187,7 @@ internal static class HostGenerator
 
         foreach (var member in provideMembers)
         {
-            f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+            f.AppendLine(string.Format(GeneratedStrings.MemberSeparatorFmt, member.Symbol.Name));
 
             if (member.HasWaitFor)
             {
@@ -197,7 +197,7 @@ internal static class HostGenerator
                     ServiceProvisionPhase.GenerateMemberProvide(
                         f,
                         member,
-                        "scope",
+                        GlobalNames.LocalScope,
                         instancePrefix: "",
                         inAsyncContext: true
                     );
@@ -210,7 +210,7 @@ internal static class HostGenerator
                     f,
                     member,
                     allMembers,
-                    "scope",
+                    GlobalNames.LocalScope,
                     onAllResolved: callback
                 );
             }
@@ -220,7 +220,7 @@ internal static class HostGenerator
                 ServiceProvisionPhase.GenerateMemberProvide(
                     f,
                     member,
-                    "scope",
+                    GlobalNames.LocalScope,
                     instancePrefix: "",
                     inAsyncContext: false
                 );

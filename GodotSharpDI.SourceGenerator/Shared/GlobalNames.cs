@@ -39,4 +39,11 @@ public static class GlobalNames
     public const string IDependenciesResolved =
         "global::GodotSharpDI.Abstractions.IDependenciesResolved";
     public const string ResolutionResult = "global::GodotSharpDI.Abstractions.ResolutionResult";
+
+    // ─── Generated code local variable name conventions ─────────────────────
+    // 通过常量集中管理，确保所有生成器使用相同的局部变量名，避免字符串不一致
+    public const string LocalScope    = "scope";
+    public const string LocalInstance = "instance";
+    public const string LocalResult   = "result";
+    public const string LocalTask     = "task";
 }

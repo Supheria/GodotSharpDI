@@ -71,9 +71,9 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("var sb = CreateErrorMessageBuilder(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("title: \"无法提供服务\",");
+                    f.AppendLine("title: \"Cannot provide service\",");
                     f.AppendLine(
-                        "reason: $\"直到场景树的根节点都没有 Scope 包含此服务的实现类型：{implType.Name}\","
+                        "reason: $\"No Scope in scene tree contains implementation type: {implType.Name}\","
                     );
                     f.AppendLine("serviceImplType: implType.Name,");
                     f.AppendLine("requestorType: \"N/A\",");
@@ -157,8 +157,8 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var sb = CreateErrorMessageBuilder(");
             f.BeginLevel();
             {
-                f.AppendLine("title: \"重复提供服务\",");
-                f.AppendLine("reason: $\"服务 {implType.Name} 已经被提供过\",");
+                f.AppendLine("title: \"Duplicate service provision\",");
+                f.AppendLine("reason: $\"Service {implType.Name} has already been provided\",");
                 f.AppendLine("serviceImplType: implType.Name,");
                 f.AppendLine("requestorType: \"N/A\",");
                 f.AppendLine("scopeChain: \"N/A\",");
@@ -203,8 +203,8 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine("var sb = CreateErrorMessageBuilder(");
         f.BeginLevel();
         {
-            f.AppendLine("title: \"服务提供失败\",");
-            f.AppendLine("reason: result.ErrorMessage ?? \"未知原因\",");
+            f.AppendLine("title: \"Service provision failed\",");
+            f.AppendLine("reason: result.ErrorMessage ?? \"unknown reason\",");
             f.AppendLine("serviceImplType: implType.Name,");
             f.AppendLine("requestorType: waiter.RequestorType,");
             f.AppendLine("scopeChain: waiter.ScopeChain,");
@@ -224,7 +224,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("sb = CreateErrorMessageBuilder(");
             f.BeginLevel();
             {
-                f.AppendLine("title: \"执行依赖注入回调时出现异常\",");
+                f.AppendLine("title: \"Exception in dependency injection callback\",");
                 f.AppendLine("reason: ex.Message,");
                 f.AppendLine("serviceImplType: implType.Name,");
                 f.AppendLine("requestorType: waiter.RequestorType,");
@@ -250,7 +250,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var sb = CreateErrorMessageBuilder(");
             f.BeginLevel();
             {
-                f.AppendLine("title: \"执行依赖注入回调时出现异常\",");
+                f.AppendLine("title: \"Exception in dependency injection callback\",");
                 f.AppendLine("reason: ex.Message,");
                 f.AppendLine("serviceImplType: implType.Name,");
                 f.AppendLine("requestorType: waiter.RequestorType,");
@@ -337,8 +337,8 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine("var sb = CreateErrorMessageBuilder(");
         f.BeginLevel();
         {
-            f.AppendLine("title: $\"无法找到服务 {exposedType.Name}\",");
-            f.AppendLine("reason: \"直到场景树的根节点都没有 Scope 包含此服务\",");
+            f.AppendLine("title: $\"Cannot find service {exposedType.Name}\",");
+            f.AppendLine("reason: \"No Scope in scene tree contains this service\",");
             f.AppendLine("serviceImplType: \"N/A\",");
             f.AppendLine("requestorType: requestorType,");
             f.AppendLine("scopeChain: currentScopeChain,");
@@ -353,7 +353,7 @@ internal static class ScopeInterfaceGenerator
         f.BeginTryCatch();
         {
             f.AppendLine($"var failureResult = {GlobalNames.ResolutionResult}.Failure(");
-            f.AppendLine("    $\"依赖注入请求失败：无法找到服务 {exposedType.Name}\");");
+            f.AppendLine("    $\"依赖注入请求失败：Cannot find service {exposedType.Name}\");");
             f.AppendLine("onResult.Invoke(failureResult);");
         }
         f.CatchBlock("ex");
@@ -361,7 +361,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("sb = CreateErrorMessageBuilder(");
             f.BeginLevel();
             {
-                f.AppendLine("title: \"执行依赖注入回调时出现异常\",");
+                f.AppendLine("title: \"Exception in dependency injection callback\",");
                 f.AppendLine("reason: ex.Message,");
                 f.AppendLine("serviceImplType: \"N/A\",");
                 f.AppendLine("requestorType: requestorType,");
@@ -394,7 +394,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("var sb = CreateErrorMessageBuilder(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("title: \"执行依赖注入回调时出现异常\",");
+                    f.AppendLine("title: \"Exception in dependency injection callback\",");
                     f.AppendLine("reason: ex.Message,");
                     f.AppendLine("serviceImplType: implType.Name,");
                     f.AppendLine("requestorType: requestorType,");
@@ -420,8 +420,8 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var sb = CreateErrorMessageBuilder(");
             f.BeginLevel();
             {
-                f.AppendLine("title: $\"先前创建服务 {exposedType.Name} 时失败\",");
-                f.AppendLine("reason: cacheEntry.FailureReason ?? \"未知原因\",");
+                f.AppendLine("title: $\"Previous creation of service {exposedType.Name} failed\",");
+                f.AppendLine("reason: cacheEntry.FailureReason ?? \"unknown reason\",");
                 f.AppendLine("serviceImplType: implType.Name,");
                 f.AppendLine("requestorType: requestorType,");
                 f.AppendLine("scopeChain: currentScopeChain,");
@@ -429,7 +429,7 @@ internal static class ScopeInterfaceGenerator
             }
             f.EndLevel();
             f.AppendLine(");");
-            f.AppendLine("sb.AppendLine(\"  服务创建时已有的依赖链条:\");");
+            f.AppendLine("sb.AppendLine(\"  Prior dependency chains when service was created:\");");
             f.AppendLine("for (var i = 0; i < cacheEntry.FailureDependencyChains.Count; i++)");
             f.BeginBlock();
             {
@@ -445,7 +445,7 @@ internal static class ScopeInterfaceGenerator
             f.BeginTryCatch();
             {
                 f.AppendLine($"var failureResult = {GlobalNames.ResolutionResult}.Failure(");
-                f.AppendLine("    $\"依赖注入请求失败：先前创建服务 {exposedType.Name} 时失败\");");
+                f.AppendLine("    $\"依赖注入请求失败：Previous creation of service {exposedType.Name} failed\");");
                 f.AppendLine("onResult.Invoke(failureResult);");
             }
             f.CatchBlock("ex");
@@ -453,7 +453,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("sb = CreateErrorMessageBuilder(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("title: \"执行依赖注入回调时出现异常\",");
+                    f.AppendLine("title: \"Exception in dependency injection callback\",");
                     f.AppendLine("reason: ex.Message,");
                     f.AppendLine("serviceImplType: implType.Name,");
                     f.AppendLine("requestorType: requestorType,");
@@ -475,7 +475,7 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine("case ServiceState.NotCreated:");
         f.BeginBlock();
         {
-            f.AppendLine("// 服务未准备完成，加入等待队列（键是实现类型）");
+            f.AppendLine("// Service not yet ready, add to wait queue (key is impl type)");
             f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
             f.BeginBlock();
             {
@@ -483,6 +483,12 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("_waiters[implType] = waiterList;");
             }
             f.EndBlock();
+            f.AppendLine();
+
+            // P1-runtime: 追踪等待关系并执行 DFS 死锁检测
+            f.BeginDebugRegion();
+            f.AppendLine("TryTrackAndDetectDeadlock(requestorType, exposedType.Name);");
+            f.EndDebugRegion();
             f.AppendLine();
 
             f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
@@ -522,12 +528,12 @@ internal static class ScopeInterfaceGenerator
             f.BeginStringBuilderAppend("sb", true);
             {
                 f.StringBuilderAppendLine("[GodotSharpDI] {title}");
-                f.StringBuilderAppendLine("  原因: {reason}");
+                f.StringBuilderAppendLine("  Reason: {reason}");
                 f.StringBuilderAppendLine($"  当前 Scope: {validatedType.Symbol.Name}");
-                f.StringBuilderAppendLine("  服务的实现类型: {serviceImplType}");
-                f.StringBuilderAppendLine("  请求者类型: {requestorType}");
-                f.StringBuilderAppendLine("  当前 Scope 传递链: {scopeChain}");
-                f.StringBuilderAppendLine("  当前依赖链条: {dependencyChain}");
+                f.StringBuilderAppendLine("  Impl Type: {serviceImplType}");
+                f.StringBuilderAppendLine("  Requestor: {requestorType}");
+                f.StringBuilderAppendLine("  Scope Chain: {scopeChain}");
+                f.StringBuilderAppendLine("  Dependency Chain: {dependencyChain}");
             }
             f.EndStringBuilderAppend();
             f.AppendLine("return sb;");

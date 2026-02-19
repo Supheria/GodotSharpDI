@@ -94,6 +94,18 @@ internal static class NamingHelper
     }
 
     /// <summary>
+    /// 将成员名转换为注入结果 TCS 局部变量名
+    /// 例: "_config" → "__config_tcs"
+    /// </summary>
+    public static string GetInjectionTcsName(string memberName)
+    {
+        var pascal = ToPascalCase(memberName);
+        if (string.IsNullOrEmpty(pascal)) return "__tcs";
+        // 使用双下划线前缀避免与用户字段名冲突
+        return $"__{char.ToLower(pascal[0])}{pascal.Substring(1)}_tcs";
+    }
+
+    /// <summary>
     /// 将成员名转换为注入准备标识字段名
     /// 规则：
     /// 1. 忽略前导下划线
