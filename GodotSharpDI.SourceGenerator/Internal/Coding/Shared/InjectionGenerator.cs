@@ -45,6 +45,10 @@ internal static class InjectionGenerator
                 GenerateInjectionReadyProperties(f, injectMembers);
                 GenerateIsAllDependenciesReadyProperty(f, injectMembers);
 
+                // P3 Bug Fix: TCS 声明为实例字段而非局部变量，使 ProvideServices() 和
+                // ResolveDependencies() 两个独立方法都能访问同一 TCS 实例
+                GenerateInjectionTcsFields(f, injectMembers);
+
                 // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
                 if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
                 {
@@ -52,12 +56,69 @@ internal static class InjectionGenerator
                 }
             }
 
+            // 始终生成 ResetInjectionState，由 Lifecycle 在 NotificationEnterTree 中调用
+            GenerateResetInjectionState(f, injectMembers);
+
             // 生成 ResolveDependencies
             GenerateResolveDependencies(f, node.ValidatedTypeInfo, injectMembers);
         }
         f.EndClassDeclaration();
 
         context.AddSource($"{fileName}.DI.Inject.g.cs", f.ToString());
+    }
+
+    /// <summary>
+    /// 生成 TCS 实例字段，供 WaitForPhase 在 ProvideServices() 中跨方法访问。
+    /// 根本原因：TCS 原先声明为 ResolveDependencies() 的局部变量，但 WaitForPhase
+    /// 生成的代码在 ProvideServices() 中引用它们，两个独立方法无法共享局部变量，
+    /// 导致 error CS0103。改为实例字段后两个方法均可访问。
+    /// </summary>
+    public static void GenerateInjectionTcsFields(
+        CodeFormatter f,
+        ImmutableArray<MemberInfo> injectMembers
+    )
+    {
+        foreach (var member in injectMembers)
+        {
+            var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
+            f.AppendHiddenMemberCommentAndAttribute(
+                $"TaskCompletionSource for WaitFor synchronization of member {member.Symbol.Name}"
+            );
+            f.AppendLine(
+                $"private global::System.Threading.Tasks.TaskCompletionSource<{GlobalNames.ResolutionResult}>" +
+                $" {tcsName} = new();"
+            );
+            f.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// 生成 ResetInjectionState() 方法。节点重新进入场景树时（NotificationEnterTree）
+    /// 由 Lifecycle 调用，重置所有 TCS 和注入准备标识，防止旧的已完成 TCS 立即触发 WaitFor 回调。
+    /// 若没有 Inject 成员则生成空方法体（编译通过，调用无副作用）。
+    /// </summary>
+    public static void GenerateResetInjectionState(
+        CodeFormatter f,
+        ImmutableArray<MemberInfo> injectMembers
+    )
+    {
+        f.AppendHiddenMethodCommentAndAttribute("Reset injection state when re-entering the scene tree");
+        f.AppendLine("private void ResetInjectionState()");
+        f.BeginBlock();
+        {
+            foreach (var member in injectMembers)
+            {
+                var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
+                var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
+                f.AppendLine(
+                    $"{tcsName} = new global::System.Threading.Tasks" +
+                    $".TaskCompletionSource<{GlobalNames.ResolutionResult}>();"
+                );
+                f.AppendLine($"{readyField} = false;");
+            }
+        }
+        f.EndBlock();
+        f.AppendLine();
     }
 
     /// <summary>
@@ -176,16 +237,8 @@ internal static class InjectionGenerator
             f.EndBlock();
             f.AppendLine();
 
-            // P3: 为每个 Inject 成员生成 TCS，供 WaitForPhase 复用
-            foreach (var m in injectMembersList)
-            {
-                var tcsName = NamingHelper.GetInjectionTcsName(m.Symbol.Name);
-                var mType = m.MemberType.ToFullyQualifiedName();
-                f.AppendLine(
-                    $"var {tcsName} = new global::System.Threading.Tasks" +
-                    $".TaskCompletionSource<{GlobalNames.ResolutionResult}>();");
-            }
-            f.AppendLine();
+            // [P3 Fix] TCS 变量已改为实例字段（在 GenerateInjectionTcsFields 中生成），
+            // 此处不再重复声明局部变量，直接在回调中引用字段名即可。
 
             // 注入 [Inject] 成员
             foreach (var member in injectMembersList)

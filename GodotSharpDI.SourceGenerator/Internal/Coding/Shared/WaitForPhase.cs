@@ -93,7 +93,7 @@ internal static class WaitForPhase
                 f.EndBlock();
             }
             f.EndBlock(",");
-            f.AppendLine("    TaskScheduler.FromCurrentSynchronizationContext());");
+            f.AppendLine($"    global::System.Threading.Tasks.TaskScheduler.FromCurrentSynchronizationContext());");
             f.AppendLine();
         }
     }

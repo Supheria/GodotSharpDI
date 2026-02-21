@@ -20,7 +20,7 @@ public interface IGameState2
 [Host]
 public sealed partial class GameManager7 : Node, IGameState, IGameState2
 {
-    [Inject(ReadyCallback = true)]
+    [Inject]
     private PlayerStatsCenter _playerStatsCenter;
 
     [Inject]
@@ -34,9 +34,11 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
     {
         return this;
     }
+
     //
     [Provide(ExposedTypes = [typeof(IGameState), typeof(IGameState2)])]
     public GameManager7 Self => this;
+
     //
     [Provide(ExposedTypes = [typeof(PlayerStatsService3)])]
     public Task<PlayerStatsService3> GetPlayerStatsService3()

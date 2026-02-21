@@ -94,6 +94,12 @@ internal static class NodeLifeCycleGenerator
                 f.BeginBlock();
                 {
                     f.AppendLine("_parentScope = null;");
+                    // Host/User 需要重置 TCS 和注入准备标识，防止节点重新进入场景树时
+                    // 旧的已完成 TCS 立即触发 WaitFor 回调（Bug Fix #3）
+                    if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
+                    {
+                        f.AppendLine("ResetInjectionState();");
+                    }
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
