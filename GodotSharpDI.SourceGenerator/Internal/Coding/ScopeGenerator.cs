@@ -75,20 +75,17 @@ internal static class ScopeGenerator
         {
             f.AppendLine("public ServiceState State = ServiceState.NotCreated;");
             f.AppendLine($"public {GlobalNames.Object}? Instance = null;");
-            f.AppendLine($"public {GlobalNames.String}? FailureReason = null;");
-            f.AppendLine(
-                $"public {GlobalNames.List}<{GlobalNames.String}> FailureDependencyChains = new();"
-            );
         }
         f.EndBlock();
         f.AppendLine();
 
         // DependencyWaitInfo 记录
+        // ResultCallback: Action<object?> — null 表示注入失败，非 null 表示注入成功的实例
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine("private sealed record DependencyWaitInfo(");
         f.BeginLevel();
         {
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}> ResultCallback,");
+            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}?> ResultCallback,");
             f.AppendLine($"{GlobalNames.Long} RequestTicks,");
             f.AppendLine($"{GlobalNames.String} RequestorType,");
             f.AppendLine($"{GlobalNames.String} ScopeChain,");

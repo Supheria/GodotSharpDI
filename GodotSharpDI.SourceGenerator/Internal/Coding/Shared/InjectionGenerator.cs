@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
@@ -9,12 +9,8 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 internal static class InjectionGenerator
 {
-    /// <summary>
-    /// 生成 User 特定代码（ResolveUserDependencies）
-    /// </summary>
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        // 收集 Inject 成员
         var injectMembers = node
             .ValidatedTypeInfo.Members.Where(m => m.IsInjectMember)
             .ToImmutableArray();
@@ -23,19 +19,25 @@ internal static class InjectionGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            // 如果有 Inject 成员
+            // _diGeneration 字段无论是否有 Inject 成员都需要生成
+            // WaitForPhase 和异步 Provider 均依赖此字段
+            GenerateDiGenerationField(f);
+            f.AppendLine();
+
             if (!injectMembers.IsEmpty)
             {
-                // 如果有带 FailureCallback 的成员，生成 partial 方法声明
-                var membersWithFailureCallback = injectMembers.Where(m => m.HasFailureCallback).ToArray();
+                var membersWithFailureCallback = injectMembers
+                    .Where(m => m.HasFailureCallback)
+                    .ToArray();
                 if (membersWithFailureCallback.Length > 0)
                 {
                     GenerateFailureCallbackDeclarations(f, membersWithFailureCallback);
                     f.AppendLine();
                 }
 
-                // 如果有带 ReadyCallback 的成员，生成 partial 方法声明
-                var membersWithReadyCallback = injectMembers.Where(m => m.HasReadyCallback).ToArray();
+                var membersWithReadyCallback = injectMembers
+                    .Where(m => m.HasReadyCallback)
+                    .ToArray();
                 if (membersWithReadyCallback.Length > 0)
                 {
                     GenerateReadyCallbackDeclarations(f, membersWithReadyCallback);
@@ -45,21 +47,14 @@ internal static class InjectionGenerator
                 GenerateInjectionReadyProperties(f, injectMembers);
                 GenerateIsAllDependenciesReadyProperty(f, injectMembers);
 
-                // P3 Bug Fix: TCS 声明为实例字段而非局部变量，使 ProvideServices() 和
-                // ResolveDependencies() 两个独立方法都能访问同一 TCS 实例
+                // TCS 字段同时被 WaitForPhase 和 ResolveDependencies 引用
                 GenerateInjectionTcsFields(f, injectMembers);
 
-                // 如果实现了 IDependenciesResolved，生成依赖跟踪代码
                 if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
-                {
                     GenerateIDependenciesResolvedSpecific(f, injectMembers);
-                }
             }
 
-            // 始终生成 ResetInjectionState，由 Lifecycle 在 NotificationEnterTree 中调用
             GenerateResetInjectionState(f, injectMembers);
-
-            // 生成 ResolveDependencies
             GenerateResolveDependencies(f, node.ValidatedTypeInfo, injectMembers);
         }
         f.EndClassDeclaration();
@@ -67,11 +62,25 @@ internal static class InjectionGenerator
         context.AddSource($"{fileName}.DI.Inject.g.cs", f.ToString());
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // 公开方法（供其他 Generator 调用）
+    // ──────────────────────────────────────────────────────────────
+
     /// <summary>
-    /// 生成 TCS 实例字段，供 WaitForPhase 在 ProvideServices() 中跨方法访问。
-    /// 根本原因：TCS 原先声明为 ResolveDependencies() 的局部变量，但 WaitForPhase
-    /// 生成的代码在 ProvideServices() 中引用它们，两个独立方法无法共享局部变量，
-    /// 导致 error CS0103。改为实例字段后两个方法均可访问。
+    /// 生成 _diGeneration 字段。
+    /// 声明为 volatile，确保线程池中的 ContinueWith 也能读到最新值。
+    /// </summary>
+    public static void GenerateDiGenerationField(CodeFormatter f)
+    {
+        f.AppendHiddenMemberCommentAndAttribute(
+            "Generation counter – incremented on ExitTree/EnterTree to invalidate in-flight callbacks"
+        );
+        f.AppendLine("private volatile int _diGeneration = 0;");
+    }
+
+    /// <summary>
+    /// 生成 TCS 实例字段。
+    /// 类型为 TaskCompletionSource&lt;bool&gt;：true = 注入成功，false = 注入失败。
     /// </summary>
     public static void GenerateInjectionTcsFields(
         CodeFormatter f,
@@ -82,37 +91,42 @@ internal static class InjectionGenerator
         {
             var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
             f.AppendHiddenMemberCommentAndAttribute(
-                $"TaskCompletionSource for WaitFor synchronization of member {member.Symbol.Name}"
+                $"WaitFor synchronization TCS for {member.Symbol.Name} (true=success, false=failure)"
             );
             f.AppendLine(
-                $"private global::System.Threading.Tasks.TaskCompletionSource<{GlobalNames.ResolutionResult}>" +
-                $" {tcsName} = new();"
+                $"private global::System.Threading.Tasks.TaskCompletionSource<{GlobalNames.Bool}>"
+                    + $" {tcsName} = new();"
             );
             f.AppendLine();
         }
     }
 
     /// <summary>
-    /// 生成 ResetInjectionState() 方法。节点重新进入场景树时（NotificationEnterTree）
-    /// 由 Lifecycle 调用，重置所有 TCS 和注入准备标识，防止旧的已完成 TCS 立即触发 WaitFor 回调。
-    /// 若没有 Inject 成员则生成空方法体（编译通过，调用无副作用）。
+    /// 生成 ResetInjectionState() 方法。
+    /// 在 EnterTree / ExitTree 时调用：
+    ///   1. 递增 _diGeneration（使已有的异步回调失效）
+    ///   2. 重置各 TCS 和 ready 标识
     /// </summary>
     public static void GenerateResetInjectionState(
         CodeFormatter f,
         ImmutableArray<MemberInfo> injectMembers
     )
     {
-        f.AppendHiddenMethodCommentAndAttribute("Reset injection state when re-entering the scene tree");
+        f.AppendHiddenMethodCommentAndAttribute(
+            "Reset injection state on EnterTree/ExitTree to cancel in-flight async operations"
+        );
         f.AppendLine("private void ResetInjectionState()");
         f.BeginBlock();
         {
+            f.AppendLine("global::System.Threading.Interlocked.Increment(ref _diGeneration);");
+
             foreach (var member in injectMembers)
             {
                 var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
                 var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
                 f.AppendLine(
-                    $"{tcsName} = new global::System.Threading.Tasks" +
-                    $".TaskCompletionSource<{GlobalNames.ResolutionResult}>();"
+                    $"{tcsName} = new global::System.Threading.Tasks"
+                        + $".TaskCompletionSource<{GlobalNames.Bool}>();"
                 );
                 f.AppendLine($"{readyField} = false;");
             }
@@ -121,9 +135,6 @@ internal static class InjectionGenerator
         f.AppendLine();
     }
 
-    /// <summary>
-    /// 生成注入准备标识符字段 (IsXxxInjectionReady)
-    /// </summary>
     public static void GenerateInjectionReadyProperties(
         CodeFormatter f,
         ImmutableArray<MemberInfo> injectMembers
@@ -133,7 +144,7 @@ internal static class InjectionGenerator
         {
             var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
             f.AppendLine(
-                $"/// <summary>Whether member {member.Symbol.Name} has been successfully injected</summary>"
+                $"/// <summary>Whether {member.Symbol.Name} has been successfully injected</summary>"
             );
             f.AppendLine($"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]");
             f.AppendLine($"private {GlobalNames.Bool} {fieldName} {{ get; set; }} = false;");
@@ -141,9 +152,6 @@ internal static class InjectionGenerator
         }
     }
 
-    /// <summary>
-    /// 生成 IsAllDependenciesReady 属性
-    /// </summary>
     public static void GenerateIsAllDependenciesReadyProperty(
         CodeFormatter f,
         ImmutableArray<MemberInfo> injectMembers
@@ -155,74 +163,88 @@ internal static class InjectionGenerator
             return;
         }
 
-        var fAttribute = f.CreateFromCurrentLevel();
-        var fValue = f.CreateFromCurrentLevel();
-        fValue.BeginLevel();
+        var fAttr = f.CreateFromCurrentLevel();
+        var fVal = f.CreateFromCurrentLevel();
+        fVal.BeginLevel();
         {
             for (int i = 0; i < injectMembers.Length; i++)
             {
                 var member = injectMembers[i];
-                fAttribute.AppendLine(
+                fAttr.AppendLine(
                     $"[{GlobalNames.MemberNotNullWhen}(true, nameof({member.Symbol.Name}))]"
                 );
                 var fieldName = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
                 if (i > 0)
                 {
-                    fValue.AppendLine();
-                    fValue.AppendRaw($"&& {fieldName} == true", true);
+                    fVal.AppendLine();
+                    fVal.AppendRaw($"&& {fieldName}", true);
                 }
                 else
                 {
-                    fValue.AppendRaw($"{fieldName} == true", true);
+                    fVal.AppendRaw($"{fieldName}", true);
                 }
             }
-            fValue.AppendRaw(";");
+            fVal.AppendRaw(";");
         }
-        fValue.EndLevel();
-        f.AppendLine("/// <summary>Whether all Inject members have been successfully injected</summary>");
-        f.AppendRaw(fAttribute.ToString());
+        fVal.EndLevel();
+
+        f.AppendLine(
+            "/// <summary>Whether all Inject members have been successfully injected</summary>"
+        );
+        f.AppendRaw(fAttr.ToString());
         f.AppendLine($"private {GlobalNames.Bool} IsAllDependenciesReady =>");
-        f.AppendRaw(fValue.ToString());
+        f.AppendRaw(fVal.ToString());
         f.AppendLine();
     }
 
-    private static void GenerateFailureCallbackDeclarations(
-        CodeFormatter f,
-        MemberInfo[] injectMembers
-    )
+    // ──────────────────────────────────────────────────────────────
+    // 私有方法
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 生成 FailureCallback 的 partial 方法声明。
+    /// v1.3.0：ErrorMessage 已废弃，因此无 string 参数。
+    /// </summary>
+    private static void GenerateFailureCallbackDeclarations(CodeFormatter f, MemberInfo[] members)
     {
-        // OnXxxInjectionFailed
-        foreach (var member in injectMembers)
+        foreach (var member in members)
         {
             var methodName = NamingHelper.GetFailureCallbackMethodName(member.Symbol.Name);
-            f.AppendLine($"/// <summary>Callback when injection of member {member.Symbol.Name} fails</summary>");
-            f.AppendLine($"partial void {methodName}({GlobalNames.String} error);");
-            f.AppendLine();
-        }
-    }
-
-    private static void GenerateReadyCallbackDeclarations(
-        CodeFormatter f,
-        MemberInfo[] injectMembers
-    )
-    {
-        // OnXxxInjectionReady
-        foreach (var member in injectMembers)
-        {
-            var methodName = NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
-            f.AppendLine($"/// <summary>Callback when injection of member {member.Symbol.Name} succeeds</summary>");
+            f.AppendLine(
+                $"/// <summary>Called when injection of {member.Symbol.Name} fails</summary>"
+            );
             f.AppendLine($"partial void {methodName}();");
             f.AppendLine();
         }
     }
 
+    private static void GenerateReadyCallbackDeclarations(CodeFormatter f, MemberInfo[] members)
+    {
+        foreach (var member in members)
+        {
+            var methodName = NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
+            f.AppendLine(
+                $"/// <summary>Called when injection of {member.Symbol.Name} succeeds</summary>"
+            );
+            f.AppendLine($"partial void {methodName}();");
+            f.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// 生成 ResolveDependencies() 方法。
+    ///
+    /// 对每个 Inject 成员调用 scope.ResolveDependency&lt;T&gt;(instance =&gt; { ... })。
+    /// 回调参数 "instance" 类型为 TExposed?：
+    ///   null     → 解析失败
+    ///   非 null  → 解析成功，值即为实际服务实例
+    /// </summary>
     private static void GenerateResolveDependencies(
         CodeFormatter f,
         ValidatedTypeInfo validatedType,
         ImmutableArray<MemberInfo> injectMembersList
     )
     {
-        // ResolveUserDependencies
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void ResolveDependencies()");
         f.BeginBlock();
@@ -231,16 +253,14 @@ internal static class InjectionGenerator
             f.AppendLine($"if ({GlobalNames.LocalScope} is null)");
             f.BeginBlock();
             {
-                f.PrintError($"$\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\"");
+                f.PrintError(
+                    $"$\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\""
+                );
                 f.AppendLine("return;");
             }
             f.EndBlock();
             f.AppendLine();
 
-            // [P3 Fix] TCS 变量已改为实例字段（在 GenerateInjectionTcsFields 中生成），
-            // 此处不再重复声明局部变量，直接在回调中引用字段名即可。
-
-            // 注入 [Inject] 成员
             foreach (var member in injectMembersList)
             {
                 var memberType = member.MemberType.ToFullyQualifiedName();
@@ -250,10 +270,11 @@ internal static class InjectionGenerator
                 f.AppendLine($"{GlobalNames.LocalScope}.ResolveDependency<{memberType}>(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("(result) =>");
+                    // 参数名 "instance" 与 DependencyResolveGenerator.GenerateSetInjectionReady 对应
+                    f.AppendLine("instance =>");
                     f.BeginBlock();
                     {
-                        f.AppendLine("if (result.IsSuccess)");
+                        f.AppendLine("if (instance is not null)");
                         f.BeginBlock();
                         {
                             f.BeginTryCatch();
@@ -263,20 +284,17 @@ internal static class InjectionGenerator
                                     memberName,
                                     memberType
                                 );
-
-                                // 如果有就绪回调，调用它
                                 if (member.HasReadyCallback)
                                 {
-                                    var callbackMethodName = NamingHelper.GetReadyCallbackMethodName(
-                                        member.Symbol.Name
+                                    f.AppendLine(
+                                        $"{NamingHelper.GetReadyCallbackMethodName(memberName)}();"
                                     );
-                                    f.AppendLine($"{callbackMethodName}();");
                                 }
                             }
                             f.CatchBlock("ex");
                             {
                                 f.AppendLine(
-                                    $"PushError(ex.Message, \"{member.Symbol.Name}\", \"{member.MemberType.Name}\");"
+                                    $"PushError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\");"
                                 );
                             }
                             f.EndTryCatch();
@@ -285,23 +303,19 @@ internal static class InjectionGenerator
                         f.AppendLine("else");
                         f.BeginBlock();
                         {
-                            // 如果有失败回调，调用它
                             if (member.HasFailureCallback)
                             {
-                                var callbackMethodName = NamingHelper.GetFailureCallbackMethodName(
-                                    member.Symbol.Name
-                                );
                                 f.AppendLine(
-                                    $"{callbackMethodName}(result.ErrorMessage ?? \"Unknown error\");"
+                                    $"{NamingHelper.GetFailureCallbackMethodName(memberName)}();"
                                 );
                             }
                         }
                         f.EndBlock();
+                        f.AppendLine();
 
-                        // P3: 完成 TCS，让 WaitForPhase 可以通过 TCS.Task 等待注入结果
-                        f.AppendLine($"{tcsName}.TrySetResult(result);");
+                        // 通知 TCS 注入结果；WaitForPhase 通过 ContinueWith 等待此 TCS
+                        f.AppendLine($"{tcsName}.TrySetResult(instance is not null);");
 
-                        // 如果实现了 IDependenciesResolved,调用跟踪方法
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
                             DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
@@ -318,7 +332,7 @@ internal static class InjectionGenerator
             f.AppendLine("return;");
             f.AppendLine();
 
-            // PushError
+            // PushError 本地函数
             f.AppendLine("void PushError(string exMsg, string memberName, string memberType)");
             f.BeginBlock();
             {
@@ -339,21 +353,14 @@ internal static class InjectionGenerator
         f.EndBlock();
     }
 
-    /// <summary>
-    /// 仅生成 IDependenciesResolved 相关的字段和方法
-    /// (便捷方法,一次性生成所有内容)
-    /// </summary>
     private static void GenerateIDependenciesResolvedSpecific(
         CodeFormatter f,
         ImmutableArray<MemberInfo> injectMembers
     )
     {
         if (injectMembers.IsEmpty)
-        {
             return;
-        }
 
-        // _unresolvedDependencies
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
             $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
@@ -361,14 +368,11 @@ internal static class InjectionGenerator
         f.BeginBlock();
         {
             foreach (var member in injectMembers)
-            {
                 f.AppendLine($"typeof({member.MemberType.ToFullyQualifiedName()}),");
-            }
         }
         f.EndBlock(";");
         f.AppendLine();
 
-        // OnDependencyResolved
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine("private void OnDependencyResolved<T>()");
         f.BeginBlock();
