@@ -105,7 +105,9 @@ internal static class InjectionGenerator
     /// 生成 ResetInjectionState() 方法。
     /// 在 EnterTree / ExitTree 时调用：
     ///   1. 递增 _diGeneration（使已有的异步回调失效）
-    ///   2. 重置各 TCS 和 ready 标识
+    ///   2. 对旧 TCS 调用 TrySetResult(false)，确保所有 ContinueWith 回调不会永远挂起
+    ///      （回调执行时会检测 _diGeneration 不匹配并静默退出）
+    ///   3. 创建新 TCS 和重置 ready 标识
     /// </summary>
     public static void GenerateResetInjectionState(
         CodeFormatter f,
@@ -120,10 +122,23 @@ internal static class InjectionGenerator
         {
             f.AppendLine("global::System.Threading.Interlocked.Increment(ref _diGeneration);");
 
+            if (!injectMembers.IsEmpty)
+            {
+                f.AppendLine();
+                f.AppendLine("// Settle old TCS instances so any awaiting ContinueWith callbacks");
+                f.AppendLine(
+                    "// can complete and exit (they will check _diGeneration and discard)."
+                );
+                f.AppendLine("// This prevents Task leaks from TCS objects that would otherwise");
+                f.AppendLine("// never transition to a completed state.");
+            }
+
             foreach (var member in injectMembers)
             {
                 var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
                 var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
+                // 先终结旧 TCS，再创建新的
+                f.AppendLine($"{tcsName}.TrySetResult(false);");
                 f.AppendLine(
                     $"{tcsName} = new global::System.Threading.Tasks"
                         + $".TaskCompletionSource<{GlobalNames.Bool}>();"
