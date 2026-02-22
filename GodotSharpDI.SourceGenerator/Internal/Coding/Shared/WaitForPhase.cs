@@ -89,7 +89,19 @@ internal static class WaitForPhase
                         {
                             // FIX3：进入 Deferred 前再次校验
                             f.AppendLine($"if (_diGeneration != {capturedGenVarName}) return;");
-                            f.AppendLine($"_ = {resolvedCallbackName}();");
+                            f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
+                            f.BeginBlock();
+                            {
+                                f.AppendLine("if (t.IsFaulted)");
+                                f.BeginBlock();
+                                {
+                                    f.AppendLine(
+                                        $"{GlobalNames.GodotGD}.PrintErr("
+                                            + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{t.Exception?.GetBaseException().Message}}\");");
+                                }
+                                f.EndBlock();
+                            }
+                            f.EndBlock($", {GlobalNames.Task}Scheduler.Default);");
                         }
                         f.EndBlock(").CallDeferred();");
                     }
@@ -113,7 +125,19 @@ internal static class WaitForPhase
                         f.BeginBlock();
                         {
                             f.AppendLine($"if (_diGeneration != {capturedGenVarName}) return;");
-                            f.AppendLine($"_ = {resolvedCallbackName}();");
+                            f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
+                            f.BeginBlock();
+                            {
+                                f.AppendLine("if (t.IsFaulted)");
+                                f.BeginBlock();
+                                {
+                                    f.AppendLine(
+                                        $"{GlobalNames.GodotGD}.PrintErr("
+                                            + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{t.Exception?.GetBaseException().Message}}\");");
+                                }
+                                f.EndBlock();
+                            }
+                            f.EndBlock($", {GlobalNames.Task}Scheduler.Default);");
                         }
                         f.EndBlock(").CallDeferred();");
                     }

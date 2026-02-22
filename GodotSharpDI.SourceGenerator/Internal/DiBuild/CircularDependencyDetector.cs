@@ -330,7 +330,9 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 递归构建排序后的循环路径
+    /// 递归构建排序后的循环路径。
+    /// 修复：当某节点有多个出边且首选节点已访问时，尝试其余未访问出边，
+    /// 避免因 FirstOrDefault 误选已访问节点而导致路径提前截断。
     /// </summary>
     private void BuildOrderedPath(
         ITypeSymbol current,
@@ -346,10 +348,11 @@ internal sealed class CircularDependencyDetector
         visited.Add(current);
         path.Add(current);
 
-        // 找到循环中的下一个节点
-        var nextInCycle = graph[current].FirstOrDefault(dep => componentSet.Contains(dep));
+        // 优先选择尚未访问的循环内节点，避免提前截断路径
+        var nextInCycle = graph[current]
+            .FirstOrDefault(dep => componentSet.Contains(dep) && !visited.Contains(dep));
 
-        if (nextInCycle != null && !visited.Contains(nextInCycle))
+        if (nextInCycle != null)
         {
             BuildOrderedPath(nextInCycle, graph, componentSet, visited, path);
         }

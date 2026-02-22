@@ -75,7 +75,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.1.1" />
+<PackageReference Include="GodotSharpDI" Version="1.2.0" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -290,7 +290,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
         ApplyConfiguration();
     }
     
-    partial void OnConfigInjectionFailed(string error)
+    partial void OnConfigInjectionFailed()
     {
         GD.PrintErr($"配置加载失败: {error}");
         UseDefaultConfiguration();
@@ -364,7 +364,7 @@ public partial class NetworkManager : Node, IDependenciesResolved
     private INetworkService? _networkService;
     
     // 注入失败时自动调用
-    partial void OnNetworkServiceInjectionFailed(string error)
+    partial void OnNetworkServiceInjectionFailed()
     {
         GD.PrintErr($"网络服务不可用: {error}");
         EnableOfflineMode();  // 降级策略
@@ -412,7 +412,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
         LoadInitialData();
     }
     
-    partial void OnDatabaseInjectionFailed(string error)
+    partial void OnDatabaseInjectionFailed()
     {
         GD.PrintErr($"数据库连接失败: {error}");
         UseFallbackDataSource();
@@ -424,7 +424,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
 ```
 
 **关键特性**：
-- **FailureCallback**：通过 `string error` 参数提供错误信息
+- **FailureCallback**：无参数 — 注入失败时调用（通过 `IsXxxInjectionReady` 检查状态）
 - **ReadyCallback**：无参数，在注入成功后立即调用
 - **可选实现**：Partial 方法 - 仅在需要时实现
 - **IDE 支持**：智能分析器检测缺失的实现并提供一键修复（GDI_U004，GDI_U006）
@@ -1208,7 +1208,7 @@ public IDatabase CreateDatabase()
 [Inject(FailureCallback = true)]
 private INetworkService _network;
 
-partial void OnNetworkInjectionFailed(string error)
+partial void OnNetworkInjectionFailed()
 {
     GD.PrintErr($"网络服务不可用: {error}");
     EnableOfflineMode();
@@ -1233,7 +1233,7 @@ partial void OnDatabaseInjectionReady()
     _database.MigrateSchema();
 }
 
-partial void OnDatabaseInjectionFailed(string error)
+partial void OnDatabaseInjectionFailed()
 {
     GD.PrintErr($"数据库连接失败: {error}");
     UseFallbackDataSource();
@@ -1276,10 +1276,10 @@ public partial class PlayerController : Node
     private INetworkService _networkService;
     
     // 框架生成此声明：
-    // partial void OnNetworkServiceInjectionFailed(string error);
+    // partial void OnNetworkServiceInjectionFailed();
     
     // 你来实现它：
-    partial void OnNetworkServiceInjectionFailed(string error)
+    partial void OnNetworkServiceInjectionFailed()
     {
         GD.PrintErr($"网络服务注入失败: {error}");
         
@@ -1292,7 +1292,7 @@ public partial class PlayerController : Node
 
 **生成的方法签名**：
 ```csharp
-partial void On{成员名}InjectionFailed(string error)
+partial void On{成员名}InjectionFailed()
 ```
 
 **使用场景**：
@@ -1354,7 +1354,7 @@ public partial class GameManager : Node
         LoadInitialData();
     }
     
-    partial void OnDatabaseInjectionFailed(string error)
+    partial void OnDatabaseInjectionFailed()
     {
         // 失败路径
         GD.PrintErr($"数据库不可用: {error}");
@@ -1414,7 +1414,7 @@ partial void OnServiceInjectionReady()
 [Inject(FailureCallback = true)]
 private INetworkService _network;
 
-partial void OnNetworkInjectionFailed(string error)
+partial void OnNetworkInjectionFailed()
 {
     // 总是为关键服务提供降级方案
     EnableOfflineMode();
@@ -1443,7 +1443,7 @@ partial void OnDbInjectionReady()
     _db.MigrateSchema();
 }
 
-partial void OnDbInjectionFailed(string error)
+partial void OnDbInjectionFailed()
 {
     UseInMemoryDatabase();
 }

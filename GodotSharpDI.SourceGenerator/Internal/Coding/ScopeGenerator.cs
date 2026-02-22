@@ -35,9 +35,6 @@ internal static class ScopeGenerator
             GenerateDataModels(f);
             f.AppendLine();
 
-            GenerateDelegates(f);
-            f.AppendLine();
-
             GenerateStaticCollections(f);
             f.AppendLine();
 
@@ -95,11 +92,6 @@ internal static class ScopeGenerator
         f.AppendLine(");");
     }
 
-    private static void GenerateDelegates(CodeFormatter f)
-    {
-        // ServiceFactory 委托已移除 - Service 由 Scope 直接创建和管理
-    }
-
     private static void GenerateStaticCollections(CodeFormatter f)
     {
         // ServiceImplementationMap
@@ -144,6 +136,11 @@ internal static class ScopeGenerator
 
     private static void GenerateStaticMethods(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
+        // ServiceCache 以「实现类型（TImpl）」为键，而非暴露的接口类型。
+        // ServiceImplementationMap 负责从暴露类型（TExposed）映射到实现类型（TImpl）。
+        // 查找流程：ResolveDependency<TExposed> → ServiceImplementationMap[TExposed] → implType
+        //         → ServiceCache[implType] → instance
+        // 当暴露类型与实现类型相同时（如 Host 暴露自身），两者指向同一 Type key，行为正确。
         // 收集该 Scope 需要的所有实现类型
         var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
 

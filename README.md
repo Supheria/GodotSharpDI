@@ -75,7 +75,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.1.1" />
+<PackageReference Include="GodotSharpDI" Version="1.2.0" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -290,7 +290,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
         ApplyConfiguration();
     }
     
-    partial void OnConfigInjectionFailed(string error)
+    partial void OnConfigInjectionFailed()
     {
         GD.PrintErr($"Failed to load config: {error}");
         UseDefaultConfiguration();
@@ -364,7 +364,7 @@ public partial class NetworkManager : Node, IDependenciesResolved
     private INetworkService? _networkService;
     
     // Automatically called when injection fails
-    partial void OnNetworkServiceInjectionFailed(string error)
+    partial void OnNetworkServiceInjectionFailed()
     {
         GD.PrintErr($"Network service unavailable: {error}");
         EnableOfflineMode();  // Fallback strategy
@@ -412,7 +412,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
         LoadInitialData();
     }
     
-    partial void OnDatabaseInjectionFailed(string error)
+    partial void OnDatabaseInjectionFailed()
     {
         GD.PrintErr($"Database connection failed: {error}");
         UseFallbackDataSource();
@@ -424,7 +424,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
 ```
 
 **Key Features**:
-- **FailureCallback**: Provides error message via `string error` parameter
+- **FailureCallback**: Parameterless — called when injection fails (check `IsXxxInjectionReady` for status)
 - **ReadyCallback**: Parameterless, called immediately after successful injection
 - **Optional Implementation**: Partial methods - implement only when needed
 - **IDE Support**: Smart analyzers detect missing implementations and offer one-click fixes (GDI_U004, GDI_U006)
@@ -1208,7 +1208,7 @@ Marks a field or property for dependency injection.
 [Inject(FailureCallback = true)]
 private INetworkService _network;
 
-partial void OnNetworkInjectionFailed(string error)
+partial void OnNetworkInjectionFailed()
 {
     GD.PrintErr($"Network service unavailable: {error}");
     EnableOfflineMode();
@@ -1233,7 +1233,7 @@ partial void OnDatabaseInjectionReady()
     _database.MigrateSchema();
 }
 
-partial void OnDatabaseInjectionFailed(string error)
+partial void OnDatabaseInjectionFailed()
 {
     GD.PrintErr($"Database connection failed: {error}");
     UseFallbackDataSource();
@@ -1276,10 +1276,10 @@ public partial class PlayerController : Node
     private INetworkService _networkService;
     
     // Framework generates this declaration:
-    // partial void OnNetworkServiceInjectionFailed(string error);
+    // partial void OnNetworkServiceInjectionFailed();
     
     // You implement it:
-    partial void OnNetworkServiceInjectionFailed(string error)
+    partial void OnNetworkServiceInjectionFailed()
     {
         GD.PrintErr($"Network service failed to inject: {error}");
         
@@ -1292,7 +1292,7 @@ public partial class PlayerController : Node
 
 **Generated Method Signature**:
 ```csharp
-partial void On{MemberName}InjectionFailed(string error)
+partial void On{MemberName}InjectionFailed()
 ```
 
 **Use Cases**:
@@ -1354,7 +1354,7 @@ public partial class GameManager : Node
         LoadInitialData();
     }
     
-    partial void OnDatabaseInjectionFailed(string error)
+    partial void OnDatabaseInjectionFailed()
     {
         // Failure path
         GD.PrintErr($"Database unavailable: {error}");
@@ -1369,7 +1369,7 @@ For a single `[Inject]` member, the callback execution follows this order:
 
 1. **Injection attempted** by the framework
 2. **On Success**: `OnXxxInjectionReady()` called (if `ReadyCallback = true`)
-3. **On Failure**: `OnXxxInjectionFailed(error)` called (if `FailureCallback = true`)
+3. **On Failure**: `OnXxxInjectionFailed()` called (if `FailureCallback = true`)
 4. **Finally**: `IDependenciesResolved.OnDependenciesResolved(bool)` called after all injections complete
 
 #### IDE Support
@@ -1414,7 +1414,7 @@ partial void OnServiceInjectionReady()
 [Inject(FailureCallback = true)]
 private INetworkService _network;
 
-partial void OnNetworkInjectionFailed(string error)
+partial void OnNetworkInjectionFailed()
 {
     // Always provide fallback for critical services
     EnableOfflineMode();
@@ -1443,7 +1443,7 @@ partial void OnDbInjectionReady()
     _db.MigrateSchema();
 }
 
-partial void OnDbInjectionFailed(string error)
+partial void OnDbInjectionFailed()
 {
     UseInMemoryDatabase();
 }
@@ -1714,7 +1714,7 @@ public partial class DataManager : Node, IDependenciesResolved
 
 1. **All `[Inject]` dependencies have been attempted to resolve** (success or failure)
 2. **After the node's `_Notification(NotificationEnterTree)`**
-3. **Before any `[Provide]` services are actually used**
+3. **Before async `[Provide]` services have necessarily completed initialization** (async providers may still be running when this is called)
 
 #### Best Practices
 

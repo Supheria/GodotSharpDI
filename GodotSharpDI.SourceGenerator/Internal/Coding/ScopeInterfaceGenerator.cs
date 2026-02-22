@@ -115,6 +115,40 @@ internal static class ScopeInterfaceGenerator
                 f.EndLevel();
                 f.AppendLine(");");
                 f.PrintError("sb.ToString()");
+                f.AppendLine();
+                f.AppendLine("// 通知已在等待的 waiters：服务创建失败，传 null 给回调");
+                f.AppendLine("if (_waiters.Remove(implType, out var failedWaiters))");
+                f.BeginBlock();
+                {
+                    f.AppendLine("foreach (var waiter in failedWaiters)");
+                    f.BeginBlock();
+                    {
+                        f.BeginTryCatch();
+                        {
+                            f.AppendLine("waiter.ResultCallback.Invoke(null);");
+                        }
+                        f.CatchBlock("ex");
+                        {
+                            f.AppendLine("sb = CreateErrorMessageBuilder(");
+                            f.BeginLevel();
+                            {
+                                f.AppendLine("title: \"Exception in dependency injection callback (on failure)\",");
+                                f.AppendLine("reason: ex.Message,");
+                                f.AppendLine("serviceImplType: implType.Name,");
+                                f.AppendLine("requestorType: waiter.RequestorType,");
+                                f.AppendLine("scopeChain: waiter.ScopeChain,");
+                                f.AppendLine("dependencyChain: waiter.DependencyChain");
+                            }
+                            f.EndLevel();
+                            f.AppendLine(");");
+                            f.PrintError("sb.ToString()");
+                        }
+                        f.EndTryCatch();
+                    }
+                    f.EndBlock();
+                }
+                f.EndBlock();
+                f.AppendLine("return;");
             }
             f.EndBlock();
             f.AppendLine("else");

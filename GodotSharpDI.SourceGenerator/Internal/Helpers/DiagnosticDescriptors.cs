@@ -38,23 +38,6 @@ internal static class DiagnosticDescriptors
         );
     }
 
-    private static DiagnosticDescriptor Constructor(
-        string idNumber,
-        string content,
-        DiagnosticSeverity severity = DiagnosticSeverity.Error
-    )
-    {
-        var id = "GDI_S" + idNumber;
-        return new DiagnosticDescriptor(
-            id,
-            id,
-            content,
-            "GDI.Constructor",
-            severity,
-            isEnabledByDefault: true
-        );
-    }
-
     private static DiagnosticDescriptor DependencyGraph(
         string idNumber,
         string content,
@@ -175,28 +158,13 @@ internal static class DiagnosticDescriptors
         Resources.C_DiClassMustBePartial
     );
 
-    public static readonly DiagnosticDescriptor ServiceTypeIsInvalid = Class(
-        "060",
-        Resources.C_ServiceTypeIsInvalid
-    );
-
-    public static readonly DiagnosticDescriptor ServiceCannotBeNode = Class(
-        "061",
-        Resources.C_ServiceCannotBeNode
-    );
-
-    public static readonly DiagnosticDescriptor ServiceTypeCannotBeGeneric = Class(
-        "062",
-        Resources.C_ServiceTypeCannotBeGeneric
-    );
-
     public static readonly DiagnosticDescriptor MissingNotificationMethod = Class(
-        "080",
+        "060",
         Resources.C_MissingNotificationMethod
     );
 
     public static readonly DiagnosticDescriptor InvalidNotificationMethodSignature = Class(
-        "081",
+        "061",
         Resources.C_InvalidNotificationMethodSignature
     );
 
@@ -267,7 +235,7 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InjectMemberIsRegularNode = Member(
         "045",
-        Resources.M_InjectMemberIsStatic
+        Resources.M_InjectMemberIsRegularNode
     );
 
     public static readonly DiagnosticDescriptor InjectMemberTypeShouldBeInterface = Member(
@@ -286,11 +254,9 @@ internal static class DiagnosticDescriptors
         Resources.M_ProvideMemberIsStatic
     );
 
-    // TODO: change singleton member to provide member
-
-    public static readonly DiagnosticDescriptor SingletonMemberTypeIsInvalid = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberTypeIsInvalid = Member(
         "051",
-        Resources.M_SingletonMemberTypeIsInvalid
+        Resources.M_ProvideMemberTypeIsInvalid
     );
 
     public static readonly DiagnosticDescriptor ProvideMemberIsHostType = Member(
@@ -298,46 +264,45 @@ internal static class DiagnosticDescriptors
         Resources.M_ProvideMemberIsHostType
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberIsUserType = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberIsUserType = Member(
         "053",
-        Resources.M_SingletonMemberIsUserType
+        Resources.M_ProvideMemberIsUserType
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberIsScopeType = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberIsScopeType = Member(
         "054",
-        Resources.M_SingletonMemberIsScopeType
+        Resources.M_ProvideMemberIsScopeType
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberIsRegularNode = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberIsRegularNode = Member(
         "055",
-        Resources.M_SingletonMemberIsRegularNode
+        Resources.M_ProvideMemberIsRegularNode
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberTypeCannotBeGeneric = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberTypeCannotBeGeneric = Member(
         "056",
-        Resources.M_SingletonMemberTypeCannotBeGeneric
+        Resources.M_ProvideMemberTypeCannotBeGeneric
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeNotImplemented = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberExposedTypeNotImplemented = Member(
         "060",
-        Resources.M_SingletonMemberExposedTypeNotImplemented
+        Resources.M_ProvideMemberExposedTypeNotImplemented
     );
 
-    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeShouldBeInterface =
-        Member(
-            "061",
-            Resources.M_SingletonMemberExposedTypeShouldBeInterface,
-            DiagnosticSeverity.Warning
-        );
+    public static readonly DiagnosticDescriptor ProvideMemberExposedTypeShouldBeInterface = Member(
+        "061",
+        Resources.M_ProvideMemberExposedTypeShouldBeInterface,
+        DiagnosticSeverity.Warning
+    );
 
-    public static readonly DiagnosticDescriptor SingletonMemberExposedTypeCannotBeGeneric = Member(
+    public static readonly DiagnosticDescriptor ProvideMemberExposedTypeCannotBeGeneric = Member(
         "062",
-        Resources.M_SingletonMemberExposedTypeCannotBeGeneric
+        Resources.M_ProvideMemberExposedTypeCannotBeGeneric
     );
 
-    public static readonly DiagnosticDescriptor HostMissingSingletonMember = Member(
+    public static readonly DiagnosticDescriptor HostMissingProvideMember = Member(
         "070",
-        Resources.M_HostMissingSingletonMember,
+        Resources.M_HostMissingProvideMember,
         DiagnosticSeverity.Warning
     );
 
@@ -347,29 +312,20 @@ internal static class DiagnosticDescriptors
         DiagnosticSeverity.Warning
     );
 
-    // WaitFor 相关诊断
     public static readonly DiagnosticDescriptor WaitForFieldNotFound = Member(
         "080",
-        "WaitFor 引用的字段 '{0}' 在成员 '{1}' 中不存在"
+        Resources.M_WaitForFieldNotFound
     );
 
     public static readonly DiagnosticDescriptor WaitForFieldNotInjected = Member(
         "081",
-        "WaitFor 引用的字段 '{0}' 没有 [Inject] 特性，可能导致运行时错误",
-        DiagnosticSeverity.Warning
+        Resources.M_WaitForFieldNotInjected
     );
 
     public static readonly DiagnosticDescriptor WaitForCircularDependency = Member(
         "082",
-        "成员 '{0}' 的 WaitFor 依赖存在循环引用"
+        Resources.M_WaitForCircularDependency
     );
-
-    // ============================================================
-    // S — Constructor-level
-    // ============================================================
-
-    public static readonly DiagnosticDescriptor ServiceHasNoPublicParameterlessConstructor =
-        Constructor("001", Resources.S_ServiceHasNoPublicParameterlessConstructor);
 
     // ============================================================
     // D — Dependency Graph
@@ -379,11 +335,6 @@ internal static class DiagnosticDescriptors
         "001",
         Resources.D_ScopeModulesEmpty,
         DiagnosticSeverity.Warning
-    );
-
-    public static readonly DiagnosticDescriptor ScopeModulesServiceMustBeService = DependencyGraph(
-        "002",
-        Resources.D_ScopeModulesServiceMustBeService
     );
 
     public static readonly DiagnosticDescriptor ScopeModulesHostMustBeHost = DependencyGraph(
@@ -398,13 +349,8 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor CrossHostDeadlockDetected = DependencyGraph(
         "011",
-        "Cross-Host WaitFor deadlock detected: {0}. " +
-        "Multiple Hosts form a circular wait chain that will deadlock at runtime. " +
-        "Break the cycle by removing one WaitFor dependency or restructuring service provision."
+        Resources.D_CrossHostDeadlockDetected
     );
-
-    public static readonly DiagnosticDescriptor ServiceConstructorParameterInvalid =
-        DependencyGraph("020", Resources.D_ServiceConstructorParameterInvalid);
 
     public static readonly DiagnosticDescriptor ScopeServiceTypeConflict = DependencyGraph(
         "040",
@@ -413,9 +359,7 @@ internal static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor DuplicateServiceRegistration = DependencyGraph(
         "041",
-        "Service '{0}' is provided by multiple Hosts: {1}. " +
-        "The first Host to call ProvideServices() wins. " +
-        "Use child Scope override or remove duplicate providers.",
+        Resources.D_DuplicateServiceRegistration,
         DiagnosticSeverity.Warning
     );
 
@@ -459,12 +403,6 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor GraphBuildPhaseFailed = InternalError(
         "021",
         Resources.E_GraphBuildPhaseFailed
-    );
-
-    public static readonly DiagnosticDescriptor ServiceProviderRegistrationFailed = InternalError(
-        "030",
-        Resources.E_ServiceProviderRegistrationFailed,
-        DiagnosticSeverity.Warning
     );
 
     public static readonly DiagnosticDescriptor NodeBuildFailed = InternalError(

@@ -5,7 +5,7 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
 /// <summary>
-/// _Notification 方法的存在性与签名验证测试（GDI_C080 / GDI_C081）
+/// _Notification 方法的存在性与签名验证测试（GDI_C060 / GDI_C061）
 ///
 /// 所有 DI 类型（[Host] / [User] / [Modules]）必须声明：
 ///   public override partial void _Notification(int what);
@@ -40,7 +40,7 @@ public interface ITestService { }
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -67,7 +67,7 @@ public interface ITestService { }
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
 
     // ============================================================
@@ -96,7 +96,7 @@ public interface ITestService { }
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestUser")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestUser")
         );
     }
 
@@ -122,7 +122,7 @@ public interface ITestService { }
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
 
     // ============================================================
@@ -150,7 +150,7 @@ public partial class TestScope : Node, IScope
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestScope")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestScope")
         );
     }
 
@@ -175,11 +175,11 @@ public partial class TestScope : Node, IScope
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
 
     // ============================================================
-    //  签名错误场景（GDI_C081）
+    //  签名错误场景（GDI_C061）
     // ============================================================
 
     [Fact]
@@ -207,7 +207,7 @@ public interface ITestService { }
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C081" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C061" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -236,7 +236,7 @@ public interface ITestService { }
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C081" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C061" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -266,7 +266,7 @@ public interface ITestService { }
         // 非 partial 定义版本应触发缺失或签名错误
         Assert.Contains(
             diagnostics,
-            d => (d.Id == "GDI_C080" || d.Id == "GDI_C081") && d.GetMessage().Contains("TestHost")
+            d => (d.Id == "GDI_C060" || d.Id == "GDI_C061") && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -295,7 +295,7 @@ public interface ITestService { }
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -331,7 +331,7 @@ public interface IAnotherService { }
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestHostUser")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestHostUser")
         );
     }
 
@@ -363,7 +363,7 @@ public interface IAnotherService { }
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
 
     // ============================================================
@@ -393,10 +393,10 @@ public interface ITestService { }
 ";
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
 
-        // 核心断言：正确的 _Notification 签名不应触发 GDI_C080/C081
+        // 核心断言：正确的 _Notification 签名不应触发 GDI_C060/C081
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C081");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C061");
 
         // 生成器应为该类产生 DI 文件
         var sources = TestCompilationHelper.GetGeneratedSources(compilation);
