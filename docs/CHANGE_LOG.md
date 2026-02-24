@@ -1,3 +1,176 @@
+# v1.2.0
+
+## 🔨 Breaking Changes
+
+### FailureCallback Method Signature Changed
+
+The `FailureCallback` partial method no longer takes a `string error` parameter. The method is now **parameterless**.
+
+**Before (1.1.1)**:
+```csharp
+partial void OnNetworkServiceInjectionFailed(string error)
+{
+    GD.PrintErr($"Network service unavailable: {error}");
+    EnableOfflineMode();
+}
+```
+
+**After (1.2.0)**:
+```csharp
+partial void OnNetworkServiceInjectionFailed()
+{
+    GD.PrintErr("Network service unavailable");
+    EnableOfflineMode();
+}
+```
+
+**Migration**: Remove the `string error` parameter from all `OnXxxInjectionFailed` method implementations.
+
+---
+
+### IScope Interface API Changed
+
+The `ResolutionResult` struct has been removed. `IScope` now uses nullable types directly.
+
+**Before (1.1.1)**:
+```csharp
+void ProvideService<TImpl>(ResolutionResult result);
+void ResolveDependency<TExposed>(Action<ResolutionResult> onResult, string requestorType);
+```
+
+**After (1.2.0)**:
+```csharp
+void ProvideService<TImpl>(TImpl? instance);
+void ResolveDependency<TExposed>(Action<TExposed?> onResult, string requestorType);
+```
+
+**Impact**: This only affects users implementing `IScope` directly (very rare). If you only use `[Host]`, `[User]`, and `[Modules]`, no migration is needed.
+
+---
+
+## 🎯 New Features
+
+### 🔒 Cross-Host Deadlock Detection (GDI_D011)
+
+**New in 1.2.0**: Compile-time detection of cross-host `WaitFor` circular dependencies.
+
+When two or more `[Host]` nodes mutually wait for each other's provided services via `WaitFor`, this creates a deadlock at runtime. The framework now detects these cycles at **compile time** using Tarjan's SCC algorithm and reports `GDI_D011`.
+
+**Example of a deadlock**:
+```csharp
+// ❌ HostA provides IServiceA but waits for IServiceB injection
+[Host]
+public partial class HostA : Node
+{
+    [Inject] private IServiceB? _serviceB;
+
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateA() => new ServiceA();
+
+    public override partial void _Notification(int what);
+}
+
+// ❌ HostB provides IServiceB but waits for IServiceA injection
+// → IServiceA → IServiceB → IServiceA: cross-host deadlock!
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB() => new ServiceB();
+
+    public override partial void _Notification(int what);
+}
+```
+
+**Diagnostic**: `GDI_D011` (Error) – emitted on all hosts involved in the cycle, with the full cycle path in the message (e.g., `IServiceA -> IServiceB -> IServiceA`).
+
+**Difference from GDI_D010**:
+- `GDI_D010` – circular `WaitFor` within a **single Host**
+- `GDI_D011` – circular `WaitFor` **across different Hosts**
+
+**Solution**: Break the dependency cycle by removing one of the `WaitFor` references, or restructure which Host provides which service.
+
+---
+
+### ⚠️ Duplicate Service Registration Warning (GDI_D041)
+
+**New in 1.2.0**: A warning is issued when two or more `[Host]` nodes in the same scope expose the same service type.
+
+When multiple Hosts provide the same interface, the **first** registered Host wins at runtime. The second (and subsequent) registrations are silently ignored. `GDI_D041` makes this situation visible at compile time.
+
+```csharp
+// ❌ Both HostA and HostB expose IMyService → GDI_D041 warning
+[Host]
+public partial class HostA : Node
+{
+    [Provide(ExposedTypes = [typeof(IMyService)])]
+    public ImplA CreateA() => new ImplA();
+
+    public override partial void _Notification(int what);
+}
+
+[Host]
+public partial class HostB : Node
+{
+    [Provide(ExposedTypes = [typeof(IMyService)])]
+    public ImplB CreateB() => new ImplB();
+
+    public override partial void _Notification(int what);
+}
+```
+
+**Diagnostic**: `GDI_D041` (Warning) – reports the duplicated service type and all providers involved.
+
+**Note**: This is a warning (not an error), so the code still compiles. You can suppress it with `#pragma warning disable GDI_D041` if the overlap is intentional (e.g., a deliberate override pattern).
+
+---
+
+## 🛠️ Internal Improvements
+
+### Centralized Generated String Constants
+
+Added `GeneratedStrings.cs` – all runtime string literals used in generated code are now defined in one place, improving maintainability and preparing for future localization.
+
+### TCS-Based WaitFor Synchronization
+
+The `WaitFor` mechanism now uses `TaskCompletionSource<bool>` fields (`__xxx_tcs`) for dependency synchronization, replacing the previous event-based approach. This improves correctness when dependencies resolve across async boundaries.
+
+### Generation Counter (`_diGeneration`)
+
+A new `volatile int _diGeneration` field is generated for every DI node. It is incremented on `ExitTree` to invalidate in-flight async callbacks, preventing stale updates from a previous scene entry from being applied after a node re-enters the tree.
+
+---
+
+## 📊 Diagnostic Code Changes
+
+| Code | Category | Change |
+|------|----------|--------|
+| `GDI_C060` | Class | **Renumbered** from `GDI_C080` – Missing `_Notification` declaration |
+| `GDI_C061` | Class | **Renumbered** from `GDI_C081` – Incorrect `_Notification` signature |
+| `GDI_D011` | Dependency Graph | **New** – Cross-host WaitFor deadlock detected |
+| `GDI_D041` | Dependency Graph | **New** – Duplicate service registration (Warning) |
+| `GDI_E030` | Internal Error | **Removed** – Service provider registration failed |
+| `GDI_M051–M056` | Member | **Renamed** – `SingletonMember*` → `ProvideMember*` |
+| `GDI_M060,M062` | Member | **Renamed** – `SingletonMemberExposedType*` → `ProvideMemberExposedType*` |
+| `GDI_M061` | Member | **New** – `[Provide]` member exposed type should be interface (Warning) |
+| `GDI_M070` | Member | **Renamed** – `HostMissingSingletonMember` → `HostMissingProvideMember` |
+| `GDI_M080` | Member | **Moved to resources** – WaitFor references non-existent field |
+| `GDI_M081` | Member | **Moved to resources + severity** – WaitFor field not marked with [Inject]; upgraded Warning → **Error** |
+| `GDI_M082` | Member | **Moved to resources** – WaitFor circular dependency (was hardcoded string) |
+
+---
+
+## ✅ Compatibility
+
+- ⚠️ **Breaking**: `FailureCallback` partial method signature changed (remove `string error` param)
+- ⚠️ **Breaking**: `IScope` interface changed (remove `ResolutionResult`, use nullable types)
+- ✅ All other existing code continues to work without modification
+- ✅ New features (`GDI_D011`, `GDI_D041`) are purely additive diagnostics
+
+---
+
 # v1.1.1
 
 ## 🎯 New Features

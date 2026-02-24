@@ -53,6 +53,7 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Interface-First Principle](#interface-first-principle)
   - [Host Injecting and Providing Services](#host-injecting-and-providing-services)
   - [Using Service Factories](#using-service-factories)
+- [Migration Guide from 1.1.x to 1.2.0](#migration-guide-from-11x-to-120)
 - [Migration Guide from 1.0.0-rc.3](#migration-guide-from-100-rc3)
 - [Diagnostic Codes](#diagnostic-codes)
 - [License](#license)
@@ -292,7 +293,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     
     partial void OnConfigInjectionFailed()
     {
-        GD.PrintErr($"Failed to load config: {error}");
+        GD.PrintErr("Failed to load config");
         UseDefaultConfiguration();
     }
     
@@ -366,7 +367,7 @@ public partial class NetworkManager : Node, IDependenciesResolved
     // Automatically called when injection fails
     partial void OnNetworkServiceInjectionFailed()
     {
-        GD.PrintErr($"Network service unavailable: {error}");
+        GD.PrintErr($"Network service unavailable");
         EnableOfflineMode();  // Fallback strategy
     }
     
@@ -414,7 +415,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
     
     partial void OnDatabaseInjectionFailed()
     {
-        GD.PrintErr($"Database connection failed: {error}");
+        GD.PrintErr($"Database connection failed");
         UseFallbackDataSource();
     }
     
@@ -1210,7 +1211,7 @@ private INetworkService _network;
 
 partial void OnNetworkInjectionFailed()
 {
-    GD.PrintErr($"Network service unavailable: {error}");
+    GD.PrintErr("Network service unavailable");
     EnableOfflineMode();
 }
 
@@ -1235,7 +1236,7 @@ partial void OnDatabaseInjectionReady()
 
 partial void OnDatabaseInjectionFailed()
 {
-    GD.PrintErr($"Database connection failed: {error}");
+    GD.PrintErr("Database connection failed");
     UseFallbackDataSource();
 }
 ```
@@ -1281,7 +1282,7 @@ public partial class PlayerController : Node
     // You implement it:
     partial void OnNetworkServiceInjectionFailed()
     {
-        GD.PrintErr($"Network service failed to inject: {error}");
+        GD.PrintErr("Network service failed to inject");
         
         // Implement fallback strategy
         EnableOfflineMode();
@@ -1357,7 +1358,7 @@ public partial class GameManager : Node
     partial void OnDatabaseInjectionFailed()
     {
         // Failure path
-        GD.PrintErr($"Database unavailable: {error}");
+        GD.PrintErr("Database unavailable");
         UseFallbackDataSource();
     }
 }
@@ -1877,43 +1878,50 @@ public partial class DataHost : Node
 
 ### Avoiding Circular Dependencies
 
-**Compile-time Detection**: The framework detects circular WaitFor chains. Note: WaitFor can only wait for `[Inject]` members, so circular dependencies typically occur with mutually dependent injected services:
+**Compile-time Detection**: The framework detects two types of WaitFor cycles:
+
+- **GDI_D010** – circular WaitFor within the same Host
+- **GDI_D011** – circular WaitFor across different Hosts *(New in 1.2.0)*
+
+**Cross-Host Deadlock (GDI_D011)**:
 
 ```csharp
-// ❌ Conceptual example - if two Hosts mutually inject each other's provided services and wait
-// Host A injects service from Host B and waits for it
+// ❌ HostA provides IServiceA but waits for IServiceB injection
 [Host]
 public partial class HostA : Node
 {
     [Inject] private IServiceB? _serviceB;
     
-    // Provides service A, but waits for _serviceB injection
     [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
     public IServiceA CreateA() => new ServiceA(_serviceB);
+    
+    public override partial void _Notification(int what);
 }
 
-// Host B injects service from Host A and waits for it
+// ❌ HostB provides IServiceB but waits for IServiceA → cross-host deadlock → GDI_D011
 [Host]
 public partial class HostB : Node
 {
     [Inject] private IServiceA? _serviceA;
     
-    // Provides service B, but waits for _serviceA injection - this will cause runtime deadlock
     [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
     public IServiceB CreateB() => new ServiceB(_serviceA);
+    
+    public override partial void _Notification(int what);
 }
 ```
 
-**Solution**: Refactor dependency relationships to avoid mutual waiting:
+**Solution**: Refactor so that only one direction waits:
 
 ```csharp
 // ✅ Correct approach - only one direction waits
 [Host]
 public partial class HostA : Node
 {
-    // No wait for any dependency, provides immediately
     [Provide(ExposedTypes = [typeof(IServiceA)])]
     public IServiceA CreateA() => new ServiceA();
+    
+    public override partial void _Notification(int what);
 }
 
 [Host]
@@ -1921,14 +1929,15 @@ public partial class HostB : Node
 {
     [Inject] private IServiceA? _serviceA;
     
-    // Wait for _serviceA, but ServiceA doesn't depend on ServiceB
     [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
     public IServiceB CreateB()
     {
-        if (_serviceA == null)
-            return new ServiceB(new NullServiceA());
+        if (_serviceA == null) return new ServiceB(new NullServiceA());
         return new ServiceB(_serviceA);
-    };
+    }
+    
+    public override partial void _Notification(int what);
+}
 ```
 
 ### Interface-First Principle
@@ -2055,186 +2064,6 @@ public class EnemyFactory : IEnemyFactory
 
 ---
 
-## Migration Guide from 1.0.0-rc.3
-
-### Why 1.1.0 Instead of 1.0.0?
-
-After releasing 1.0.0-rc.3, we identified an architectural limitation: the `[Singleton]` attribute and standalone service classes, while functional, created unnecessary complexity and limited flexibility. The new provider-based architecture in 1.1.0 offers:
-
-- **Greater Flexibility**: Services defined inline with Hosts
-- **Better Resource Management**: Direct access to Node resources when creating services
-- **Asynchronous Support**: Native support for async service initialization
-- **Dependency Ordering**: WaitFor mechanism for complex initialization sequences
-- **Simplified Architecture**: One less concept to learn (no more separate Service classes)
-
-Given the magnitude of these changes, we decided to increment to 1.1.0 rather than release 1.0.0 with known limitations.
-
-### Migration Steps
-
-#### 1. Replace [Singleton] Service Classes with [Provide] Methods
-
-**Before (1.0.0-rc.3)**:
-```csharp
-// Separate service class
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
-{
-    public int Health { get; set; } = 100;
-    public int Mana { get; set; } = 50;
-}
-
-[Singleton(typeof(IDatabase))]
-public partial class DatabaseService : IDatabase
-{
-    [InjectConstructor]
-    public DatabaseService(IConfig config)
-    {
-        ConnectionString = config.ConnectionString;
-    }
-    
-    public string ConnectionString { get; }
-}
-
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(DatabaseService)],
-    Hosts = [typeof(GameManager)]
-)]
-public partial class GameScope : Node, IScope { }
-```
-
-**After (1.1.0)**:
-```csharp
-// Service provided by Host
-[Host]
-public partial class ServiceHost : Node, IDependenciesResolved
-{
-    [Inject] private IConfig _config;
-    
-    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
-    public IPlayerStats CreatePlayerStats()
-    {
-        return new PlayerStatsService { Health = 100, Mana = 50 };
-    }
-    
-    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
-    public IDatabase CreateDatabase()
-    {
-        return new DatabaseService(_config.ConnectionString);
-    }
-    
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
-    
-    public override partial void _Notification(int what);
-}
-
-// Service implementation (no attributes needed)
-public class PlayerStatsService : IPlayerStats
-{
-    public int Health { get; set; }
-    public int Mana { get; set; }
-}
-
-public class DatabaseService : IDatabase
-{
-    public DatabaseService(string connectionString)
-    {
-        ConnectionString = connectionString;
-    }
-    
-    public string ConnectionString { get; }
-}
-
-// Simplified Modules attribute
-[Modules(Hosts = [typeof(ServiceHost), typeof(GameManager)])]
-public partial class GameScope : Node, IScope
-{
-    public override partial void _Notification(int what);
-}
-```
-
-#### 2. Remove [InjectConstructor] Attributes
-
-The `[InjectConstructor]` attribute is no longer needed. Services are created by provider methods, giving you full control over construction.
-
-#### 3. Update Modules Attribute
-
-Remove the `Services` parameter from `[Modules]`:
-
-```csharp
-// Before
-[Modules(
-    Services = [typeof(Service1), typeof(Service2)],
-    Hosts = [typeof(Host1)]
-)]
-
-// After
-[Modules(Hosts = [typeof(Host1)])]
-```
-
-#### 4. Use WaitFor for Service Dependencies
-
-If your services have dependencies on other services:
-
-```csharp
-[Host]
-public partial class ServiceHost : Node, IDependenciesResolved
-{
-    [Inject] private IConfig? _config;
-    [Inject] private ILogger? _logger;
-    
-    // Metrics created immediately (no dependencies)
-    [Provide(ExposedTypes = [typeof(IMetrics)])]
-    public IMetrics CreateMetrics()
-    {
-        return new MetricsService();
-    }
-    
-    // Database waits for _config injection
-    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
-    public IDatabase CreateDatabase()
-    {
-        if (!IsConfigInjectionReady || _config == null)
-        {
-            return new InMemoryDatabase();
-        }
-        return new DatabaseService(_config.ConnectionString);
-    }
-    
-    // Repository waits for both _config and _logger injection
-    [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(_config), nameof(_logger)])]
-    public IRepository CreateRepository()
-    {
-        // Check if dependencies are ready
-        var hasConfig = IsConfigInjectionReady && _config != null;
-        var hasLogger = IsLoggerInjectionReady && _logger != null;
-        
-        if (!hasConfig || !hasLogger)
-        {
-            return new RepositoryWithDefaults();
-        }
-        
-        // Both dependencies ready, injected services can also be obtained through scope
-        return new Repository(_config, _logger);
-    }
-    
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
-    public override partial void _Notification(int what);
-}
-```
-
-### Breaking Changes Summary
-
-| Feature | 1.0.0-rc.3 | 1.1.0 |
-|---------|------------|------------|
-| Service Declaration | `[Singleton]` on class | `[Provide]` on Host member |
-| Constructor Injection | `[InjectConstructor]` | Use provider method parameters |
-| Modules Attribute | `Services = [...]` | Removed, only `Hosts = [...]` |
-| Service Dependencies | Constructor parameters | `WaitFor` mechanism |
-| Async Support | Not supported | `Task<T>` return types |
-
----
-
 ## Diagnostic Codes
 
 The framework provides comprehensive compile-time error checking. For a complete list of diagnostic codes, please refer to [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md).
@@ -2274,7 +2103,7 @@ public override partial void _Notification(int what);
 
 IDE (Visual Studio, Rider) will provide automatic fixes:
 
-1. If you forget to add this method, you'll see a **GDI_C080** error
+1. If you forget to add this method, you'll see a **GDI_C060** error
 2. Press `Ctrl+.` (VS) or `Alt+Enter` (Rider) on the error
 3. Select "Add _Notification method declaration" to auto-generate the correct declaration
 
@@ -2325,7 +2154,9 @@ partial class GameManager
 
 - [ ] Add runtime integration tests
 - [ ] Add generator, analyzer, code fixer integration tests
-- [ ] Add WaitFor mechanism tests
+- [x] Add WaitFor mechanism tests
+- [x] Add cross-host deadlock detection tests
+- [x] Add duplicate service registration tests
 
 ### 3. Features
 
@@ -2337,5 +2168,7 @@ partial class GameManager
 ### 4. Diagnostics
 
 - [x] Diagnose generator internal errors (GDI_E)
-- [ ] Add more detailed WaitFor cycle detection
+- [x] Cross-host WaitFor deadlock detection (GDI_D011)
+- [x] Duplicate service registration warning (GDI_D041)
+- [ ] Improve error messages with code examples
 - [ ] Improve error messages with code examples

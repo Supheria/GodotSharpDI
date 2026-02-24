@@ -53,7 +53,6 @@
   - [接口优先原则](#接口优先原则)
   - [Host 注入和提供服务](#host-注入和提供服务)
   - [使用服务工厂](#使用服务工厂)
-- [从 1.0.0-rc.3 迁移指南](#从-100-rc3-迁移指南)
 - [诊断代码](#诊断代码)
 - [许可证](#许可证)
 - [附录：需要显式声明 _Notification 方法](#附录需要显式声明-_notification-方法)
@@ -292,7 +291,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     
     partial void OnConfigInjectionFailed()
     {
-        GD.PrintErr($"配置加载失败: {error}");
+        GD.PrintErr("配置加载失败");
         UseDefaultConfiguration();
     }
     
@@ -366,7 +365,7 @@ public partial class NetworkManager : Node, IDependenciesResolved
     // 注入失败时自动调用
     partial void OnNetworkServiceInjectionFailed()
     {
-        GD.PrintErr($"网络服务不可用: {error}");
+        GD.PrintErr("网络服务不可用");
         EnableOfflineMode();  // 降级策略
     }
     
@@ -414,7 +413,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
     
     partial void OnDatabaseInjectionFailed()
     {
-        GD.PrintErr($"数据库连接失败: {error}");
+        GD.PrintErr("数据库连接失败");
         UseFallbackDataSource();
     }
     
@@ -1210,7 +1209,7 @@ private INetworkService _network;
 
 partial void OnNetworkInjectionFailed()
 {
-    GD.PrintErr($"网络服务不可用: {error}");
+    GD.PrintErr("网络服务不可用");
     EnableOfflineMode();
 }
 
@@ -1235,7 +1234,7 @@ partial void OnDatabaseInjectionReady()
 
 partial void OnDatabaseInjectionFailed()
 {
-    GD.PrintErr($"数据库连接失败: {error}");
+    GD.PrintErr("数据库连接失败");
     UseFallbackDataSource();
 }
 ```
@@ -1281,7 +1280,7 @@ public partial class PlayerController : Node
     // 你来实现它：
     partial void OnNetworkServiceInjectionFailed()
     {
-        GD.PrintErr($"网络服务注入失败: {error}");
+        GD.PrintErr("网络服务注入失败");
         
         // 实现降级策略
         EnableOfflineMode();
@@ -1357,7 +1356,7 @@ public partial class GameManager : Node
     partial void OnDatabaseInjectionFailed()
     {
         // 失败路径
-        GD.PrintErr($"数据库不可用: {error}");
+        GD.PrintErr("数据库不可用");
         UseFallbackDataSource();
     }
 }
@@ -1877,43 +1876,50 @@ public partial class DataHost : Node
 
 ### 避免循环依赖
 
-**编译时检测**：框架检测循环 WaitFor 链。注意：WaitFor 只能等待 `[Inject]` 成员，因此循环依赖通常发生在相互依赖的注入服务中：
+**编译时检测**：框架检测两类 WaitFor 循环：
+
+- **GDI_D010**——同一 Host 内部的 WaitFor 循环
+- **GDI_D011**——跨不同 Host 的 WaitFor 循环（*1.2.0 新增*）
+
+**跨 Host 死锁示例（GDI_D011）**：
 
 ```csharp
-// ❌ 概念示例 - 如果两个 Host 相互注入对方提供的服务并等待
-// Host A 注入来自 Host B 的服务，并等待它
+// ❌ HostA 提供 IServiceA，但 WaitFor 等待 IServiceB 注入
 [Host]
 public partial class HostA : Node
 {
     [Inject] private IServiceB? _serviceB;
     
-    // 提供服务 A，但等待 _serviceB 注入
     [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
     public IServiceA CreateA() => new ServiceA(_serviceB);
+    
+    public override partial void _Notification(int what);
 }
 
-// Host B 注入来自 Host A 的服务，并等待它
+// ❌ HostB 提供 IServiceB，但 WaitFor 等待 IServiceA → 跨 Host 死锁 → GDI_D011
 [Host]
 public partial class HostB : Node
 {
     [Inject] private IServiceA? _serviceA;
     
-    // 提供服务 B，但等待 _serviceA 注入 - 这将导致运行时死锁
     [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
     public IServiceB CreateB() => new ServiceB(_serviceA);
+    
+    public override partial void _Notification(int what);
 }
 ```
 
-**解决方案**：重构依赖关系，避免相互等待：
+**解决方案**：只保留单向等待：
 
 ```csharp
-// ✅ 正确方法 - 只有一个方向等待
+// ✅ 正确做法 - 只有一个方向等待
 [Host]
 public partial class HostA : Node
 {
-    // 不等待任何依赖，立即提供
     [Provide(ExposedTypes = [typeof(IServiceA)])]
     public IServiceA CreateA() => new ServiceA();
+    
+    public override partial void _Notification(int what);
 }
 
 [Host]
@@ -1921,14 +1927,15 @@ public partial class HostB : Node
 {
     [Inject] private IServiceA? _serviceA;
     
-    // 等待 _serviceA，但 ServiceA 不依赖 ServiceB
     [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
     public IServiceB CreateB()
     {
-        if (_serviceA == null)
-            return new ServiceB(new NullServiceA());
+        if (_serviceA == null) return new ServiceB(new NullServiceA());
         return new ServiceB(_serviceA);
-    };
+    }
+    
+    public override partial void _Notification(int what);
+}
 ```
 
 ### 接口优先原则
@@ -2055,186 +2062,6 @@ public class EnemyFactory : IEnemyFactory
 
 ---
 
-## 从 1.0.0-rc.3 迁移指南
-
-### 为什么是 1.1.0 而不是 1.0.0？
-
-在发布 1.0.0-rc.3 后，我们发现了一个架构局限：`[Singleton]` 特性和独立的服务类虽然功能正常，但创造了不必要的复杂性并限制了灵活性。1.1.0 的新提供者架构提供了：
-
-- **更大的灵活性**：服务与 Host 内联定义
-- **更好的资源管理**：创建服务时直接访问 Node 资源
-- **异步支持**：原生支持异步服务初始化
-- **依赖排序**：WaitFor 机制用于复杂的初始化序列
-- **简化的架构**：减少一个学习概念（不再需要单独的 Service 类）
-
-鉴于这些变化的规模，我们决定增加到 1.1.0，而不是发布已知限制的 1.0.0。
-
-### 迁移步骤
-
-#### 1. 用 [Provide] 方法替换 [Singleton] 服务类
-
-**之前（1.0.0-rc.3）**：
-```csharp
-// 独立的服务类
-[Singleton(typeof(IPlayerStats))]
-public partial class PlayerStatsService : IPlayerStats
-{
-    public int Health { get; set; } = 100;
-    public int Mana { get; set; } = 50;
-}
-
-[Singleton(typeof(IDatabase))]
-public partial class DatabaseService : IDatabase
-{
-    [InjectConstructor]
-    public DatabaseService(IConfig config)
-    {
-        ConnectionString = config.ConnectionString;
-    }
-    
-    public string ConnectionString { get; }
-}
-
-[Modules(
-    Services = [typeof(PlayerStatsService), typeof(DatabaseService)],
-    Hosts = [typeof(GameManager)]
-)]
-public partial class GameScope : Node, IScope { }
-```
-
-**之后（1.1.0）**：
-```csharp
-// 服务由 Host 提供
-[Host]
-public partial class ServiceHost : Node, IDependenciesResolved
-{
-    [Inject] private IConfig _config;
-    
-    [Provide(ExposedTypes = [typeof(IPlayerStats)])]
-    public IPlayerStats CreatePlayerStats()
-    {
-        return new PlayerStatsService { Health = 100, Mana = 50 };
-    }
-    
-    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
-    public IDatabase CreateDatabase()
-    {
-        return new DatabaseService(_config.ConnectionString);
-    }
-    
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
-    
-    public override partial void _Notification(int what);
-}
-
-// 服务实现（不需要特性）
-public class PlayerStatsService : IPlayerStats
-{
-    public int Health { get; set; }
-    public int Mana { get; set; }
-}
-
-public class DatabaseService : IDatabase
-{
-    public DatabaseService(string connectionString)
-    {
-        ConnectionString = connectionString;
-    }
-    
-    public string ConnectionString { get; }
-}
-
-// 简化的 Modules 特性
-[Modules(Hosts = [typeof(ServiceHost), typeof(GameManager)])]
-public partial class GameScope : Node, IScope
-{
-    public override partial void _Notification(int what);
-}
-```
-
-#### 2. 移除 [InjectConstructor] 特性
-
-不再需要 `[InjectConstructor]` 特性。服务由提供者方法创建，您可以完全控制构造。
-
-#### 3. 更新 Modules 特性
-
-从 `[Modules]` 中移除 `Services` 参数：
-
-```csharp
-// 之前
-[Modules(
-    Services = [typeof(Service1), typeof(Service2)],
-    Hosts = [typeof(Host1)]
-)]
-
-// 之后
-[Modules(Hosts = [typeof(Host1)])]
-```
-
-#### 4. 使用 WaitFor 处理服务依赖
-
-如果您的服务依赖其他服务：
-
-```csharp
-[Host]
-public partial class ServiceHost : Node, IDependenciesResolved
-{
-    [Inject] private IConfig? _config;
-    [Inject] private ILogger? _logger;
-    
-    // Metrics 立即创建（无依赖）
-    [Provide(ExposedTypes = [typeof(IMetrics)])]
-    public IMetrics CreateMetrics()
-    {
-        return new MetricsService();
-    }
-    
-    // Database 等待 _config 注入
-    [Provide(ExposedTypes = [typeof(IDatabase)], WaitFor = [nameof(_config)])]
-    public IDatabase CreateDatabase()
-    {
-        if (!IsConfigInjectionReady || _config == null)
-        {
-            return new InMemoryDatabase();
-        }
-        return new DatabaseService(_config.ConnectionString);
-    }
-    
-    // Repository 等待 _config 和 _logger 注入
-    [Provide(ExposedTypes = [typeof(IRepository)], 
-             WaitFor = [nameof(_config), nameof(_logger)])]
-    public IRepository CreateRepository()
-    {
-        // 检查依赖是否就绪
-        var hasConfig = IsConfigInjectionReady && _config != null;
-        var hasLogger = IsLoggerInjectionReady && _logger != null;
-        
-        if (!hasConfig || !hasLogger)
-        {
-            return new RepositoryWithDefaults();
-        }
-        
-        // 两个依赖都就绪，注入的服务也可通过 scope 获取
-        return new Repository(_config, _logger);
-    }
-    
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
-    public override partial void _Notification(int what);
-}
-```
-
-### 重大变化总结
-
-| 功能 | 1.0.0-rc.3 | 1.1.0 |
-|------|------------|------------|
-| 服务声明 | 类上的 `[Singleton]` | Host 成员上的 `[Provide]` |
-| 构造函数注入 | `[InjectConstructor]` | 使用提供者方法参数 |
-| Modules 特性 | `Services = [...]` | 已移除，仅 `Hosts = [...]` |
-| 服务依赖 | 构造函数参数 | `WaitFor` 机制 |
-| 异步支持 | 不支持 | `Task<T>` 返回类型 |
-
----
-
 ## 诊断代码
 
 框架提供全面的编译时错误检查。完整的诊断代码列表，请参考 [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md)。
@@ -2274,7 +2101,7 @@ public override partial void _Notification(int what);
 
 IDE（Visual Studio、Rider）将提供自动修复：
 
-1. 如果您忘记添加此方法，您会看到 **GDI_C080** 错误
+1. 如果您忘记添加此方法，您会看到 **GDI_C060** 错误
 2. 在错误上按 `Ctrl+.`（VS）或 `Alt+Enter`（Rider）
 3. 选择"添加 _Notification 方法声明"以自动生成正确的声明
 
@@ -2325,7 +2152,9 @@ partial class GameManager
 
 - [ ] 添加运行时集成测试
 - [ ] 添加生成器、分析器、代码修复程序集成测试
-- [ ] 添加 WaitFor 机制测试
+- [x] 添加 WaitFor 机制测试
+- [x] 添加跨 Host 死锁检测测试
+- [x] 添加重复服务注册测试
 
 ### 3. 功能
 
@@ -2337,5 +2166,7 @@ partial class GameManager
 ### 4. 诊断
 
 - [x] 诊断生成器内部错误（GDI_E）
-- [ ] 添加更详细的 WaitFor 循环检测
+- [x] 跨 Host WaitFor 死锁检测（GDI_D011）
+- [x] 重复服务注册警告（GDI_D041）
+- [ ] 改进错误消息，提供代码示例
 - [ ] 改进带代码示例的错误消息
