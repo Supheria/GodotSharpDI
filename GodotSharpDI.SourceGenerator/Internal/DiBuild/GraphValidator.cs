@@ -33,9 +33,6 @@ internal static class GraphValidator
             // 1b. P1: 跨 Host 全局 WaitFor 死锁检测（GDI_D011）
             DetectCrossHostDeadlocks(indexes, diagnostics);
 
-            // 1c. P2: 全局重复服务注册警告（早于 Scope 检测，覆盖跨 Scope 场景）
-            ValidateDuplicateServiceRegistrations(indexes, diagnostics);
-
             // 2. 验证 Host 的注入成员
             ValidateHostInjections(allHostNodes, indexes, diagnostics);
 
@@ -124,20 +121,22 @@ internal static class GraphValidator
         try
         {
             var graphBuilder = ImmutableDictionary.CreateBuilder<
-                ITypeSymbol, ImmutableArray<ITypeSymbol>>(SymbolEqualityComparer.Default);
+                ITypeSymbol,
+                ImmutableArray<ITypeSymbol>
+            >(SymbolEqualityComparer.Default);
 
             foreach (var kvp in indexes.ServiceTypeToWaitForDeps)
             {
-                var deps = kvp.Value
-                    .Where(d => indexes.HasProvider(d))
-                    .ToImmutableArray();
+                var deps = kvp.Value.Where(d => indexes.HasProvider(d)).ToImmutableArray();
 
                 if (!deps.IsEmpty)
                     graphBuilder[kvp.Key] = deps;
             }
 
             var detector = new CrossHostCircularDependencyDetector(
-                graphBuilder.ToImmutable(), indexes);
+                graphBuilder.ToImmutable(),
+                indexes
+            );
             diagnostics.AddRange(detector.Detect());
         }
         catch (Exception ex)
@@ -149,29 +148,6 @@ internal static class GraphValidator
                     ex.Message
                 )
             );
-        }
-    }
-
-    /// <summary>
-    /// P2: 全局重复服务注册警告
-    /// </summary>
-    private static void ValidateDuplicateServiceRegistrations(
-        ServiceIndexes indexes,
-        ImmutableArray<Diagnostic>.Builder diagnostics
-    )
-    {
-        foreach (var kvp in indexes.DuplicateServiceProviders)
-        {
-            var svcType = kvp.Key;
-            var providers = kvp.Value;
-            var names = string.Join(", ",
-                providers.Select(n => n.ValidatedTypeInfo.Symbol.Name));
-
-            foreach (var provider in providers)
-                diagnostics.Add(DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.DuplicateServiceRegistration,
-                    provider.ValidatedTypeInfo.Location,
-                    svcType.Name, names));
         }
     }
 

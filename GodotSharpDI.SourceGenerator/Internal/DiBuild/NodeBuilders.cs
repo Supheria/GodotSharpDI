@@ -337,7 +337,7 @@ internal static class NodeBuilders
 
                 diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.ScopeServiceTypeConflict,
+                        DiagnosticDescriptors.ScopeServiceTypeDuplicated,
                         scope.Location,
                         scope.Symbol.Name,
                         serviceType.ToDisplayString(),

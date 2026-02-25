@@ -13,7 +13,6 @@
 | Rule ID  | Category            | Severity | Notes                                                       |
 |----------|---------------------|----------|-------------------------------------------------------------|
 | GDI_D011 | GDI.DependencyGraph | Error    | Cross-host WaitFor deadlock detected (Tarjan SCC algorithm) |
-| GDI_D041 | GDI.DependencyGraph | Warning  | Service type provided by multiple Hosts (first caller wins) |
 
 ## Removed Rules
 

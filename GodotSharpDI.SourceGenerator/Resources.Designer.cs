@@ -240,15 +240,6 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; is provided by multiple Hosts: {1}. The first Host to call ProvideServices() wins. Use child Scope override or remove duplicate providers.
-        /// </summary>
-        internal static string D_DuplicateServiceRegistration {
-            get {
-                return ResourceManager.GetString("D_DuplicateServiceRegistration", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type.
         /// </summary>
         internal static string D_InjectMemberTypeIsNotExposed {
@@ -278,9 +269,9 @@ namespace GodotSharpDI.SourceGenerator {
         /// <summary>
         ///   Looks up a localized string similar to In Scope &apos;{0}&apos;, Service type &apos;{1}&apos; is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope.
         /// </summary>
-        internal static string D_ScopeServiceTypeConflict {
+        internal static string D_ScopeServiceTypeDuplicated {
             get {
-                return ResourceManager.GetString("D_ScopeServiceTypeConflict", resourceCulture);
+                return ResourceManager.GetString("D_ScopeServiceTypeDuplicated", resourceCulture);
             }
         }
         

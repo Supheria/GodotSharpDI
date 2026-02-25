@@ -227,14 +227,9 @@
         <value>检测到跨 Host WaitFor 死锁: {0}。多个 Host 形成了循环等待链，将在运行时死锁。请删除其中一个 WaitFor 依赖或重新设计服务提供关系</value>
     </data>
 
-    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
+    <data name="D_ScopeServiceTypeDuplicated" xml:space="preserve">
         <value>在 Scope '{0}' 中，服务类型 '{1}' 由多个提供者注册：{2}。每个服务类型在 Scope 内必须只有一个提供者</value>
     </data>
-
-    <data name="D_DuplicateServiceRegistration" xml:space="preserve">
-        <value>服务 '{0}' 由多个 Host 提供：{1}。第一个调用 ProvideServices() 的 Host 将获得所有权。请使用子 Scope 覆盖，或移除重复的提供者</value>
-    </data>
-
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有任何服务暴露此类型</value>
     </data>

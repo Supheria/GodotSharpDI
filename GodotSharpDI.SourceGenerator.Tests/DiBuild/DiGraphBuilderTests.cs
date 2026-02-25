@@ -183,30 +183,9 @@ namespace Test {
         Assert.Equal("HostA", node!.ValidatedTypeInfo.Symbol.Name);
     }
 
-    [Fact]
-    public void Build_DuplicateService_ReportsGDI_D041()
-    {
-        var result = BuildGraph(
-            @"
-using GodotSharpDI.Abstractions; using Godot; using System;
-namespace Test {
-    public interface IMyService { }
-    public class ImplA : IMyService { } public class ImplB : IMyService { }
-    [Host] public partial class HostA : Node {
-        [Provide(ExposedTypes = new Type[] { typeof(IMyService) })] public ImplA Create() => new ImplA();
-    }
-    [Host] public partial class HostB : Node {
-        [Provide(ExposedTypes = new Type[] { typeof(IMyService) })] public ImplB Create() => new ImplB();
-    }
-}"
-        );
-        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_D041");
-    }
-
     // ============================================================
     //  辅助
     // ============================================================
-
     private static DiGraphBuildResult BuildGraph(string source) =>
         BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
 

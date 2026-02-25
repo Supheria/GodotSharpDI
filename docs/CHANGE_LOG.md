@@ -94,39 +94,6 @@ public partial class HostB : Node
 
 ---
 
-### ⚠️ Duplicate Service Registration Warning (GDI_D041)
-
-**New in 1.2.0**: A warning is issued when two or more `[Host]` nodes in the same scope expose the same service type.
-
-When multiple Hosts provide the same interface, the **first** registered Host wins at runtime. The second (and subsequent) registrations are silently ignored. `GDI_D041` makes this situation visible at compile time.
-
-```csharp
-// ❌ Both HostA and HostB expose IMyService → GDI_D041 warning
-[Host]
-public partial class HostA : Node
-{
-    [Provide(ExposedTypes = [typeof(IMyService)])]
-    public ImplA CreateA() => new ImplA();
-
-    public override partial void _Notification(int what);
-}
-
-[Host]
-public partial class HostB : Node
-{
-    [Provide(ExposedTypes = [typeof(IMyService)])]
-    public ImplB CreateB() => new ImplB();
-
-    public override partial void _Notification(int what);
-}
-```
-
-**Diagnostic**: `GDI_D041` (Warning) – reports the duplicated service type and all providers involved.
-
-**Note**: This is a warning (not an error), so the code still compiles. You can suppress it with `#pragma warning disable GDI_D041` if the overlap is intentional (e.g., a deliberate override pattern).
-
----
-
 ## 🛠️ Internal Improvements
 
 ### Centralized Generated String Constants

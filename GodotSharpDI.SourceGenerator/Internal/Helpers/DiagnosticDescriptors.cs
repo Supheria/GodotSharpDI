@@ -352,15 +352,9 @@ internal static class DiagnosticDescriptors
         Resources.D_CrossHostDeadlockDetected
     );
 
-    public static readonly DiagnosticDescriptor ScopeServiceTypeConflict = DependencyGraph(
+    public static readonly DiagnosticDescriptor ScopeServiceTypeDuplicated = DependencyGraph(
         "040",
-        Resources.D_ScopeServiceTypeConflict
-    );
-
-    public static readonly DiagnosticDescriptor DuplicateServiceRegistration = DependencyGraph(
-        "041",
-        Resources.D_DuplicateServiceRegistration,
-        DiagnosticSeverity.Warning
+        Resources.D_ScopeServiceTypeDuplicated
     );
 
     public static readonly DiagnosticDescriptor InjectMemberTypeIsNotExposed = DependencyGraph(

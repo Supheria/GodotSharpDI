@@ -94,39 +94,6 @@ public partial class HostB : Node
 
 ---
 
-### ⚠️ 重复服务注册警告（GDI_D041）
-
-**1.2.0 新功能**：当同一 Scope 中两个或多个 `[Host]` 节点暴露相同服务类型时，发出警告。
-
-当多个 Host 提供同一接口时，运行时**第一个**注册的 Host 获得所有权，后续注册被静默忽略。`GDI_D041` 使这种情况在编译期可见。
-
-```csharp
-// ❌ HostA 和 HostB 都暴露 IMyService → GDI_D041 警告
-[Host]
-public partial class HostA : Node
-{
-    [Provide(ExposedTypes = [typeof(IMyService)])]
-    public ImplA CreateA() => new ImplA();
-
-    public override partial void _Notification(int what);
-}
-
-[Host]
-public partial class HostB : Node
-{
-    [Provide(ExposedTypes = [typeof(IMyService)])]
-    public ImplB CreateB() => new ImplB();
-
-    public override partial void _Notification(int what);
-}
-```
-
-**诊断**：`GDI_D041`（Warning）——报告重复的服务类型及所有涉及的提供者。
-
-**注意**：这是警告而非错误，代码仍可编译。如果重叠是有意为之（例如刻意的覆盖模式），可用 `#pragma warning disable GDI_D041` 压制。
-
----
-
 ## 🛠️ 内部改进
 
 ### 集中管理运行时字符串常量

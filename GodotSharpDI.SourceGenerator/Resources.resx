@@ -202,7 +202,7 @@
     <data name="D_CircularDependencyDetected" xml:space="preserve">
         <value>Circular dependency detected: {0}</value>
     </data>
-    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
+    <data name="D_ScopeServiceTypeDuplicated" xml:space="preserve">
         <value>In Scope '{0}', Service type '{1}' is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope</value>
     </data>
 
@@ -310,8 +310,5 @@
     </data>
     <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
         <value>[Provide] method '{0}' must be parameterless</value>
-    </data>
-    <data name="D_DuplicateServiceRegistration" xml:space="preserve">
-        <value>Service '{0}' is provided by multiple Hosts: {1}. The first Host to call ProvideServices() wins. Use child Scope override or remove duplicate providers</value>
     </data>
 </root>
