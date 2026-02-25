@@ -309,7 +309,7 @@ internal static class InjectionGenerator
                             f.CatchBlock("ex");
                             {
                                 f.AppendLine(
-                                    $"PushError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\");"
+                                    $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\");"
                                 );
                             }
                             f.EndTryCatch();
@@ -343,27 +343,30 @@ internal static class InjectionGenerator
                 f.AppendLine(");");
             }
 
-            f.AppendLine();
-            f.AppendLine("return;");
-            f.AppendLine();
-
-            // PushError 本地函数
-            f.AppendLine("void PushError(string exMsg, string memberName, string memberType)");
-            f.BeginBlock();
+            if (injectMembersList.Length > 0)
             {
-                f.BeginStringBuilderAppend("errorMessage", true);
-                {
-                    f.StringBuilderAppendLine(GeneratedStrings.ErrInjectionAssignFailed);
-                    f.StringBuilderAppendLine($"  Type: {validatedType.Symbol.Name}");
-                    f.StringBuilderAppendLine("  Member: {memberName}");
-                    f.StringBuilderAppendLine("  Member Type: {memberType}");
-                    f.StringBuilderAppendLine("  Exception: {exMsg}");
-                }
-                f.EndStringBuilderAppend();
                 f.AppendLine();
-                f.PrintError("errorMessage.ToString()");
+                f.AppendLine("return;");
+                f.AppendLine();
+
+                // PrintError 本地函数
+                f.AppendLine("void PrintError(string exMsg, string memberName, string memberType)");
+                f.BeginBlock();
+                {
+                    f.BeginStringBuilderAppend("errorMessage", true);
+                    {
+                        f.StringBuilderAppendLine(GeneratedStrings.ErrInjectionAssignFailed);
+                        f.StringBuilderAppendLine($"  Type: {validatedType.Symbol.Name}");
+                        f.StringBuilderAppendLine("  Member: {memberName}");
+                        f.StringBuilderAppendLine("  Member Type: {memberType}");
+                        f.StringBuilderAppendLine("  Exception: {exMsg}");
+                    }
+                    f.EndStringBuilderAppend();
+                    f.AppendLine();
+                    f.PrintError("errorMessage.ToString()");
+                }
+                f.EndBlock();
             }
-            f.EndBlock();
         }
         f.EndBlock();
     }
