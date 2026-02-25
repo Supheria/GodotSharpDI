@@ -117,7 +117,6 @@ A new `volatile int _diGeneration` field is generated for every DI node. It is i
 | `GDI_C060` | Class | **Renumbered** from `GDI_C080` – Missing `_Notification` declaration |
 | `GDI_C061` | Class | **Renumbered** from `GDI_C081` – Incorrect `_Notification` signature |
 | `GDI_D011` | Dependency Graph | **New** – Cross-host WaitFor deadlock detected |
-| `GDI_D041` | Dependency Graph | **New** – Duplicate service registration (Warning) |
 | `GDI_E030` | Internal Error | **Removed** – Service provider registration failed |
 | `GDI_M051–M056` | Member | **Renamed** – `SingletonMember*` → `ProvideMember*` |
 | `GDI_M060,M062` | Member | **Renamed** – `SingletonMemberExposedType*` → `ProvideMemberExposedType*` |
@@ -134,7 +133,7 @@ A new `volatile int _diGeneration` field is generated for every DI node. It is i
 - ⚠️ **Breaking**: `FailureCallback` partial method signature changed (remove `string error` param)
 - ⚠️ **Breaking**: `IScope` interface changed (remove `ResolutionResult`, use nullable types)
 - ✅ All other existing code continues to work without modification
-- ✅ New features (`GDI_D011`, `GDI_D041`) are purely additive diagnostics
+- ✅ New features (`GDI_D011`) are purely additive diagnostics
 
 ---
 

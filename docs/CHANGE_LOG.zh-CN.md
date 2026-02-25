@@ -7,6 +7,7 @@
 `FailureCallback` 的 partial 方法不再接受 `string error` 参数，现在为**无参方法**。
 
 **之前 (1.1.1)**：
+
 ```csharp
 partial void OnNetworkServiceInjectionFailed(string error)
 {
@@ -117,7 +118,6 @@ public partial class HostB : Node
 | `GDI_C060` | 类 | **重新编号** 自 `GDI_C080` – 缺少 `_Notification` 方法声明 |
 | `GDI_C061` | 类 | **重新编号** 自 `GDI_C081` – `_Notification` 方法签名不正确 |
 | `GDI_D011` | 依赖图 | **新增** – 跨 Host WaitFor 死锁检测 |
-| `GDI_D041` | 依赖图 | **新增** – 重复服务注册警告 |
 | `GDI_E030` | 内部错误 | **移除** – 服务提供者注册失败 |
 | `GDI_M051–M056` | 成员 | **重命名** – `SingletonMember*` → `ProvideMember*` |
 | `GDI_M060,M062` | 成员 | **重命名** – `SingletonMemberExposedType*` → `ProvideMemberExposedType*` |
@@ -134,7 +134,7 @@ public partial class HostB : Node
 - ⚠️ **破坏性**：`FailureCallback` partial 方法签名变更（需删除 `string error` 参数）
 - ⚠️ **破坏性**：`IScope` 接口变更（移除 `ResolutionResult`，改用可空类型）
 - ✅ 其他所有现有代码无需修改即可继续运行
-- ✅ 新功能（`GDI_D011`、`GDI_D041`）均为纯增量诊断
+- ✅ 新功能（`GDI_D011`）均为纯增量诊断
 
 ---
 
