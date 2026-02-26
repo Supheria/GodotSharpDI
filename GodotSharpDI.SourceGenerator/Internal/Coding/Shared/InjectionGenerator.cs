@@ -19,9 +19,9 @@ internal static class InjectionGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            // _diGeneration 字段无论是否有 Inject 成员都需要生成
-            // WaitForPhase 和异步 Provider 均依赖此字段
-            GenerateDiGenerationField(f);
+            // _lifetimeCts 字段无论是否有 Inject 成员都需要生成
+            // 异步 Provider 依赖此 CancellationTokenSource
+            GenerateLifetimeCtsField(f);
             f.AppendLine();
 
             if (!injectMembers.IsEmpty)
@@ -47,8 +47,8 @@ internal static class InjectionGenerator
                 GenerateInjectionReadyProperties(f, injectMembers);
                 GenerateIsAllDependenciesReadyProperty(f, injectMembers);
 
-                // TCS 字段同时被 WaitForPhase 和 ResolveDependencies 引用
-                GenerateInjectionTcsFields(f, injectMembers);
+                // 回调列表字段由 WaitForPhase 注册，由 ResolveDependencies 触发
+                GenerateInjectionCallbackListFields(f, injectMembers);
 
                 if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
                     GenerateIDependenciesResolvedSpecific(f, injectMembers);
@@ -67,35 +67,39 @@ internal static class InjectionGenerator
     // ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 生成 _diGeneration 字段。
-    /// 声明为 volatile，确保线程池中的 ContinueWith 也能读到最新值。
+    /// 生成 _lifetimeCts 字段。
+    /// 在 ExitTree/EnterTree 时 Cancel 并重建，令所有飞行中的异步 Provider 自动中止。
     /// </summary>
-    public static void GenerateDiGenerationField(CodeFormatter f)
+    public static void GenerateLifetimeCtsField(CodeFormatter f)
     {
         f.AppendHiddenMemberCommentAndAttribute(
-            "Generation counter – incremented on ExitTree/EnterTree to invalidate in-flight callbacks"
+            "CancellationTokenSource for async providers – cancelled and recreated on ExitTree/EnterTree"
         );
-        f.AppendLine("private volatile int _diGeneration = 0;");
+        f.AppendLine(
+            "private global::System.Threading.CancellationTokenSource _lifetimeCts = new();"
+        );
     }
 
     /// <summary>
-    /// 生成 TCS 实例字段。
-    /// 类型为 TaskCompletionSource&lt;bool&gt;：true = 注入成功，false = 注入失败。
+    /// 生成注入回调列表字段。
+    /// 类型为 List&lt;Action&lt;bool&gt;&gt;：true = 注入成功，false = 注入失败。
+    /// WaitFor 机制直接向列表注册回调，当注入完成时在主线程上同步调用，
+    /// 不再需要 ContinueWith / CallDeferred 跨线程跳转。
     /// </summary>
-    public static void GenerateInjectionTcsFields(
+    public static void GenerateInjectionCallbackListFields(
         CodeFormatter f,
         ImmutableArray<MemberInfo> injectMembers
     )
     {
         foreach (var member in injectMembers)
         {
-            var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
+            var listName = NamingHelper.GetInjectionCallbackListName(member.Symbol.Name);
             f.AppendHiddenMemberCommentAndAttribute(
-                $"WaitFor synchronization TCS for {member.Symbol.Name} (true=success, false=failure)"
+                $"WaitFor callback list for {member.Symbol.Name} (true=success, false=failure)"
             );
             f.AppendLine(
-                $"private global::System.Threading.Tasks.TaskCompletionSource<{GlobalNames.Bool}>"
-                    + $" {tcsName} = new();"
+                $"private readonly {GlobalNames.List}<{GlobalNames.Action}<{GlobalNames.Bool}>>"
+                    + $" {listName} = new();"
             );
             f.AppendLine();
         }
@@ -104,10 +108,9 @@ internal static class InjectionGenerator
     /// <summary>
     /// 生成 ResetInjectionState() 方法。
     /// 在 EnterTree / ExitTree 时调用：
-    ///   1. 递增 _diGeneration（使已有的异步回调失效）
-    ///   2. 对旧 TCS 调用 TrySetResult(false)，确保所有 ContinueWith 回调不会永远挂起
-    ///      （回调执行时会检测 _diGeneration 不匹配并静默退出）
-    ///   3. 创建新 TCS 和重置 ready 标识
+    ///   1. 取消并重建 _lifetimeCts，使所有飞行中的异步 Provider 收到 OperationCanceledException
+    ///   2. 清空所有注入回调列表，丢弃已注册但尚未触发的 WaitFor 回调
+    ///   3. 重置 ready 标识
     /// </summary>
     public static void GenerateResetInjectionState(
         CodeFormatter f,
@@ -120,29 +123,29 @@ internal static class InjectionGenerator
         f.AppendLine("private void ResetInjectionState()");
         f.BeginBlock();
         {
-            f.AppendLine("global::System.Threading.Interlocked.Increment(ref _diGeneration);");
+            // 取消并重建 CTS，令所有飞行中的异步 Provider 自动中止
+            f.AppendLine("_lifetimeCts.Cancel();");
+            f.AppendLine("_lifetimeCts.Dispose();");
+            f.AppendLine(
+                "// Create a fresh token so any new async providers after EnterTree can run normally"
+            );
+            f.AppendLine(
+                "_lifetimeCts = new global::System.Threading.CancellationTokenSource();"
+            );
 
             if (!injectMembers.IsEmpty)
             {
                 f.AppendLine();
-                f.AppendLine("// Settle old TCS instances so any awaiting ContinueWith callbacks");
-                f.AppendLine(
-                    "// can complete and exit (they will check _diGeneration and discard)."
-                );
-                f.AppendLine("// This prevents Task leaks from TCS objects that would otherwise");
-                f.AppendLine("// never transition to a completed state.");
+                f.AppendLine("// Clear callback lists – discards all pending WaitFor registrations.");
+                f.AppendLine("// Since all DI callbacks run on the main thread, there are no");
+                f.AppendLine("// in-flight callbacks to wait for; Clear() is sufficient.");
             }
 
             foreach (var member in injectMembers)
             {
-                var tcsName = NamingHelper.GetInjectionTcsName(member.Symbol.Name);
+                var listName = NamingHelper.GetInjectionCallbackListName(member.Symbol.Name);
                 var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
-                // 先终结旧 TCS，再创建新的
-                f.AppendLine($"{tcsName}.TrySetResult(false);");
-                f.AppendLine(
-                    $"{tcsName} = new global::System.Threading.Tasks"
-                        + $".TaskCompletionSource<{GlobalNames.Bool}>();"
-                );
+                f.AppendLine($"{listName}.Clear();");
                 f.AppendLine($"{readyField} = false;");
             }
         }
@@ -280,8 +283,6 @@ internal static class InjectionGenerator
             {
                 var memberType = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
-                var tcsName = NamingHelper.GetInjectionTcsName(memberName);
-
                 f.AppendLine($"{GlobalNames.LocalScope}.ResolveDependency<{memberType}>(");
                 f.BeginLevel();
                 {
@@ -328,8 +329,11 @@ internal static class InjectionGenerator
                         f.EndBlock();
                         f.AppendLine();
 
-                        // 通知 TCS 注入结果；WaitForPhase 通过 ContinueWith 等待此 TCS
-                        f.AppendLine($"{tcsName}.TrySetResult(instance is not null);");
+                        // 通知所有 WaitFor 回调：注入结果已就绪（全部在主线程上执行）
+                        var listName = NamingHelper.GetInjectionCallbackListName(memberName);
+                        f.AppendLine($"var __resolved = instance is not null;");
+                        f.AppendLine($"foreach (var __cb in {listName}) __cb(__resolved);");
+                        f.AppendLine($"{listName}.Clear();");
 
                         if (validatedType.ImplementsIDependenciesResolved)
                         {

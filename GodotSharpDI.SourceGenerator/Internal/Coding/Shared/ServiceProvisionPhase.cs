@@ -14,7 +14,7 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 ///   成功 → scope.ProvideService&lt;T&gt;(instance)   （传递实例本身）
 ///   失败 → scope.ProvideService&lt;T&gt;(null)        （null 表示创建失败）
 ///
-/// FIX3：异步提供方法改为实例方法，以访问 _diGeneration 字段实现回调取消。
+/// v1.3.0 重构：用 CancellationToken 替代 _diGeneration 代际计数器，使取消语义符合标准 .NET 协议。
 /// </summary>
 internal static class ServiceProvisionPhase
 {
@@ -38,11 +38,11 @@ internal static class ServiceProvisionPhase
         {
             if (inAsyncContext)
                 f.AppendLine(
-                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField});"
+                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, _lifetimeCts.Token);"
                 );
             else
                 f.AppendLine(
-                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField});"
+                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, _lifetimeCts.Token);"
                 );
         }
         else
@@ -68,10 +68,10 @@ internal static class ServiceProvisionPhase
     /// <summary>
     /// 生成单个异步提供方法（实例方法）。
     ///
-    /// FIX3：改为实例方法以访问 _diGeneration 字段。
-    ///   成功 → scope.ProvideService&lt;T&gt;(result)  （await 返回的实例）
-    ///   异常 → scope.ProvideService&lt;T&gt;(null)    （null 表示创建失败）
-    ///   两种情况均通过 CallDeferred 回到 Godot 主线程后执行。
+    /// 使用 CancellationToken 替代 _diGeneration 代际计数器实现取消。
+    ///   成功 → scope.ProvideService&lt;T&gt;(result)  （await 返回的实例，通过 CallDeferred）
+    ///   取消 → 静默退出，不调用 ProvideService   （节点已退出场景树）
+    ///   异常 → scope.ProvideService&lt;T&gt;(null)    （null 表示创建失败，通过 CallDeferred）
     /// </summary>
     private static void GenerateAsyncProviderMethod(CodeFormatter f, MemberInfo member)
     {
@@ -82,33 +82,40 @@ internal static class ServiceProvisionPhase
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
             $"private async {GlobalNames.Task} {methodName}("
-                + $"{taskTypeName} task, {GlobalNames.IScope} scope)"
+                + $"{taskTypeName} task, {GlobalNames.IScope} scope, global::System.Threading.CancellationToken ct)"
         );
         f.BeginBlock();
         {
-            // 捕获当前 Generation，用于判断回调是否已失效
-            f.AppendLine("var capturedGen = _diGeneration;");
-            f.AppendLine();
-
-            f.BeginTryCatch();
+            // OperationCanceledException 先于 Exception 捕获，确保取消静默退出
+            f.AppendLine("try");
+            f.BeginBlock();
             {
                 f.AppendLine("var result = await task;");
                 f.AppendLine();
-                // await 返回后（可能在线程池线程），先检查 Generation
-                f.AppendLine("if (_diGeneration != capturedGen) return;");
+                // await 返回后检查 token（ExitTree 已取消）
+                f.AppendLine("ct.ThrowIfCancellationRequested();");
                 f.AppendLine();
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    // 进入 Deferred 回调前再次校验（排队到执行期间可能再次重入）
-                    f.AppendLine("if (_diGeneration != capturedGen) return;");
+                    // CallDeferred 排队期间 token 可能再次被取消，进入后检查一次
+                    f.AppendLine("if (ct.IsCancellationRequested) return;");
                     f.AppendLine($"scope.ProvideService<{implType}>(result);");
                 }
                 f.EndBlock(").CallDeferred();");
             }
-            f.CatchBlock("ex");
+            f.EndBlock();
+            f.AppendLine("catch (global::System.OperationCanceledException)");
+            f.BeginBlock();
             {
-                f.AppendLine("if (_diGeneration != capturedGen) return;");
+                // 节点已退出场景树，静默退出，不调用 ProvideService
+                f.AppendLine("// Node exited scene tree – silent cancellation, do not call ProvideService");
+            }
+            f.EndBlock();
+            f.AppendLine("catch (global::System.Exception ex)");
+            f.BeginBlock();
+            {
+                f.AppendLine("if (ct.IsCancellationRequested) return;");
                 f.AppendLine();
                 f.AppendLine(
                     $"{GlobalNames.GodotGD}.PrintErr("
@@ -118,12 +125,12 @@ internal static class ServiceProvisionPhase
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    f.AppendLine("if (_diGeneration != capturedGen) return;");
+                    f.AppendLine("if (ct.IsCancellationRequested) return;");
                     f.AppendLine($"scope.ProvideService<{implType}>(null);");
                 }
                 f.EndBlock(").CallDeferred();");
             }
-            f.EndTryCatch();
+            f.EndBlock();
         }
         f.EndBlock();
         f.AppendLine();

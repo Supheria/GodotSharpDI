@@ -11,7 +11,7 @@ namespace GodotSharpDI.SourceGenerator.Tests.Shared;
 ///   - ToPascalCase：成员名 → 大驼峰
 ///   - GetFailureCallbackMethodName：→ OnXxxInjectionFailed
 ///   - GetReadyCallbackMethodName：→ OnXxxInjectionReady
-///   - GetInjectionTcsName（P3 新增）：→ __xxx_tcs，用于 WaitFor TCS 局部变量
+///   - GetInjectionCallbackListName（重构新增）：→ __xxx_callbacks，用于 WaitFor 回调列表字段
 ///   - GetInjectionReadyFieldName：→ IsXxxInjectionReady
 /// </summary>
 public class NamingHelperTests
@@ -90,52 +90,52 @@ public class NamingHelperTests
     }
 
     // ============================================================
-    //  GetInjectionTcsName（P3 新增）
+    //  GetInjectionCallbackListName（重构：替代原 GetInjectionTcsName）
     // ============================================================
 
     [Theory]
-    [InlineData("_config",              "__config_tcs")]
-    [InlineData("_playerStatsService",  "__playerStatsService_tcs")]
-    [InlineData("_my_service",          "__myService_tcs")]
-    [InlineData("MyProp",               "__myProp_tcs")]
-    [InlineData("_a",                   "__a_tcs")]
-    public void GetInjectionTcsName_VariousInputs_ReturnsExpected(string input, string expected)
+    [InlineData("_config",              "__config_callbacks")]
+    [InlineData("_playerStatsService",  "__playerStatsService_callbacks")]
+    [InlineData("_my_service",          "__myService_callbacks")]
+    [InlineData("MyProp",               "__myProp_callbacks")]
+    [InlineData("_a",                   "__a_callbacks")]
+    public void GetInjectionCallbackListName_VariousInputs_ReturnsExpected(string input, string expected)
     {
-        Assert.Equal(expected, NamingHelper.GetInjectionTcsName(input));
+        Assert.Equal(expected, NamingHelper.GetInjectionCallbackListName(input));
     }
 
     [Fact]
-    public void GetInjectionTcsName_UseDoubleUnderscorePrefix_AvoidsMemberNameCollision()
+    public void GetInjectionCallbackListName_UseDoubleUnderscorePrefix_AvoidsMemberNameCollision()
     {
         // 生成名必须以 __ 开头，避免与用户字段（_xxx）或局部变量冲突
-        var result = NamingHelper.GetInjectionTcsName("_service");
+        var result = NamingHelper.GetInjectionCallbackListName("_service");
         Assert.StartsWith("__", result);
-        Assert.EndsWith("_tcs", result);
+        Assert.EndsWith("_callbacks", result);
     }
 
     [Fact]
-    public void GetInjectionTcsName_EmptyMember_ReturnsFallback()
+    public void GetInjectionCallbackListName_EmptyMember_ReturnsFallback()
     {
-        var result = NamingHelper.GetInjectionTcsName("_");
+        var result = NamingHelper.GetInjectionCallbackListName("_");
         // 前导下划线全剥离后为空 → 使用兜底值
-        Assert.Equal("__tcs", result);
+        Assert.Equal("__callbacks", result);
     }
 
     [Fact]
-    public void GetInjectionTcsName_DifferentMembers_ProduceDifferentNames()
+    public void GetInjectionCallbackListName_DifferentMembers_ProduceDifferentNames()
     {
-        // 确保两个不同字段的 TCS 名不同（无碰撞）
-        var a = NamingHelper.GetInjectionTcsName("_serviceA");
-        var b = NamingHelper.GetInjectionTcsName("_serviceB");
+        // 确保两个不同字段的回调列表名不同（无碰撞）
+        var a = NamingHelper.GetInjectionCallbackListName("_serviceA");
+        var b = NamingHelper.GetInjectionCallbackListName("_serviceB");
         Assert.NotEqual(a, b);
     }
 
     [Fact]
-    public void GetInjectionTcsName_SameMember_IsDeterministic()
+    public void GetInjectionCallbackListName_SameMember_IsDeterministic()
     {
         // 同一字段多次调用应返回相同值
-        var first  = NamingHelper.GetInjectionTcsName("_config");
-        var second = NamingHelper.GetInjectionTcsName("_config");
+        var first  = NamingHelper.GetInjectionCallbackListName("_config");
+        var second = NamingHelper.GetInjectionCallbackListName("_config");
         Assert.Equal(first, second);
     }
 
@@ -169,14 +169,14 @@ public class NamingHelperTests
     {
         const string member = "_service";
 
-        var pascal    = NamingHelper.ToPascalCase(member);
-        var tcsName   = NamingHelper.GetInjectionTcsName(member);
-        var readyFn   = NamingHelper.GetReadyCallbackMethodName(member);
-        var failFn    = NamingHelper.GetFailureCallbackMethodName(member);
-        var readyFlag = NamingHelper.GetInjectionReadyFieldName(member);
+        var pascal       = NamingHelper.ToPascalCase(member);
+        var callbackList = NamingHelper.GetInjectionCallbackListName(member);
+        var readyFn      = NamingHelper.GetReadyCallbackMethodName(member);
+        var failFn       = NamingHelper.GetFailureCallbackMethodName(member);
+        var readyFlag    = NamingHelper.GetInjectionReadyFieldName(member);
 
         // 所有生成名均不相同
-        var names = new[] { pascal, tcsName, readyFn, failFn, readyFlag };
+        var names = new[] { pascal, callbackList, readyFn, failFn, readyFlag };
         Assert.Equal(names.Length, names.Distinct().Count());
     }
 }

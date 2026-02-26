@@ -10,16 +10,25 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 /// <summary>
 /// 生成 WaitFor 依赖等待代码
 ///
-/// FIX1 — _remaining 改用 Interlocked.Decrement 原子递减，修复并发竞态
-/// FIX2 — 废弃 FromCurrentSynchronizationContext，改用 TaskScheduler.Default + CallDeferred
-/// FIX3 — Generation ID 检查，使节点退出/重入时的旧回调自动失效
-/// v1.3.0 — TCS 类型改为 TaskCompletionSource&lt;bool&gt;（已移除 ResolutionResult）
-///           ContinueWith 结果为 bool：true = 成功，false = 失败
+/// v1.3.0 重构：
+///   旧设计：TCS → ContinueWith（线程池）→ CallDeferred → 主线程回调，需要 _diGeneration 双重 gate
+///   新设计：直接向 [Inject] 成员对应的 List&lt;Action&lt;bool&gt;&gt; 注册回调，
+///           ResolveDependencies() 在主线程触发回调时直接调用，零跨线程跳转。
+///
+/// 消除的复杂性：
+///   - 不再需要 volatile _diGeneration 计数器
+///   - 不再需要 Interlocked.Decrement 原子操作
+///   - 不再需要 ContinueWith + TaskScheduler.Default
+///   - 不再需要 CallDeferred 回到主线程（本就在主线程）
+///   - 不再需要双重 Generation 检查
+///   ExitTree 时只需 callbacks.Clear()，所有未触发的回调自动失效。
 /// </summary>
 internal static class WaitForPhase
 {
     /// <summary>
     /// 为单个 Provide 成员生成 WaitFor 等待代码。
+    /// 在 ProvideServices() 方法体中调用，生成向各依赖回调列表注册 lambda 的代码。
+    /// 当所有依赖都就绪（或失败）时，在主线程直接调用 OnXxxWaitForResolved()。
     /// </summary>
     public static void GenerateForMember(
         CodeFormatter f,
@@ -38,17 +47,13 @@ internal static class WaitForPhase
         }
 
         var memberName = provideMember.Symbol.Name;
-        var remainingVarName = $"_{memberName}_waitForRemaining";
-        var capturedGenVarName = $"_{memberName}_capturedGen";
+        var remainingVarName = $"_{memberName}_remaining";
         var resolvedCallbackName = $"On{memberName}WaitForResolved";
 
         f.AppendLine($"// WaitFor deps for {memberName}: {string.Join(", ", waitForDeps)}");
 
-        // FIX1：声明为 int，通过 Interlocked.Decrement 操作
+        // 本地计数器：全部在主线程上递减，无需 Interlocked
         f.AppendLine($"var {remainingVarName} = {waitForDeps.Length};");
-
-        // FIX3：捕获当前 Generation 快照
-        f.AppendLine($"var {capturedGenVarName} = _diGeneration;");
         f.AppendLine();
 
         foreach (var depName in waitForDeps)
@@ -60,93 +65,46 @@ internal static class WaitForPhase
                 continue;
             }
 
-            var tcsName = NamingHelper.GetInjectionTcsName(depName);
+            var listName = NamingHelper.GetInjectionCallbackListName(depName);
 
-            f.AppendLine($"// WaitFor: await TCS for '{depName}' (bool: true=success)");
+            f.AppendLine($"// WaitFor: register main-thread callback for '{depName}'");
 
-            // FIX2：使用 TaskScheduler.Default（Godot 不保证存在标准 SynchronizationContext）
-            f.AppendLine($"_ = {tcsName}.Task.ContinueWith(completedTask =>");
+            // 向回调列表注册 lambda；ResolveDependencies() 在主线程触发时直接调用
+            f.AppendLine($"{listName}.Add(__ok =>");
             f.BeginBlock();
             {
-                // FIX3：收到旧 Generation 的回调直接丢弃
-                f.AppendLine($"if (_diGeneration != {capturedGenVarName}) return;");
-                f.AppendLine();
-
-                // v1.3.0：Result 为 bool（true = 注入成功）
-                f.AppendLine("var succeeded = completedTask.Result;");
-                f.AppendLine("if (succeeded)");
+                f.AppendLine("if (!__ok)");
                 f.BeginBlock();
                 {
-                    // FIX1：原子递减，归零时触发回调
-                    f.AppendLine(
-                        $"if (global::System.Threading.Interlocked.Decrement(ref {remainingVarName}) == 0)"
-                    );
-                    f.BeginBlock();
-                    {
-                        // FIX2：通过 CallDeferred 派发回 Godot 主线程
-                        f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
-                        f.BeginBlock();
-                        {
-                            // FIX3：进入 Deferred 前再次校验
-                            f.AppendLine($"if (_diGeneration != {capturedGenVarName}) return;");
-                            f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
-                            f.BeginBlock();
-                            {
-                                f.AppendLine("if (t.IsFaulted)");
-                                f.BeginBlock();
-                                {
-                                    f.AppendLine(
-                                        $"{GlobalNames.GodotGD}.PrintErr("
-                                            + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{t.Exception?.GetBaseException().Message}}\");");
-                                }
-                                f.EndBlock();
-                            }
-                            f.EndBlock($", {GlobalNames.Task}Scheduler.Default);");
-                        }
-                        f.EndBlock(").CallDeferred();");
-                    }
-                    f.EndBlock();
-                }
-                f.EndBlock();
-                f.AppendLine("else");
-                f.BeginBlock();
-                {
-                    // 依赖失败时同样递减，确保计数归零后仍能触发回调（以便上层决策）
                     f.AppendLine(
                         $"{GlobalNames.GodotGD}.PrintErr("
                             + $"$\"[GodotSharpDI] WaitFor: dependency '{depName}' for '{memberName}' failed\");"
                     );
-                    f.AppendLine(
-                        $"if (global::System.Threading.Interlocked.Decrement(ref {remainingVarName}) == 0)"
-                    );
+                }
+                f.EndBlock();
+                // 无论成功或失败都递减；归零时触发回调（与旧设计行为一致）
+                f.AppendLine($"if (--{remainingVarName} == 0)");
+                f.BeginBlock();
+                {
+                    // 已在主线程上，直接调用 – 无需 CallDeferred
+                    f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
                     f.BeginBlock();
                     {
-                        f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
+                        f.AppendLine("if (t.IsFaulted)");
                         f.BeginBlock();
                         {
-                            f.AppendLine($"if (_diGeneration != {capturedGenVarName}) return;");
-                            f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
-                            f.BeginBlock();
-                            {
-                                f.AppendLine("if (t.IsFaulted)");
-                                f.BeginBlock();
-                                {
-                                    f.AppendLine(
-                                        $"{GlobalNames.GodotGD}.PrintErr("
-                                            + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{t.Exception?.GetBaseException().Message}}\");");
-                                }
-                                f.EndBlock();
-                            }
-                            f.EndBlock($", {GlobalNames.Task}Scheduler.Default);");
+                            f.AppendLine(
+                                $"{GlobalNames.GodotGD}.PrintErr("
+                                    + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{t.Exception?.GetBaseException().Message}}\");"
+                            );
                         }
-                        f.EndBlock(").CallDeferred();");
+                        f.EndBlock();
                     }
-                    f.EndBlock();
+                    f.EndBlock(", global::System.Threading.Tasks.TaskScheduler.Default);");
                 }
                 f.EndBlock();
             }
-            f.EndBlock(",");
-            f.AppendLine("    global::System.Threading.Tasks.TaskScheduler.Default);");
+            f.EndBlock(");");
             f.AppendLine();
         }
     }
