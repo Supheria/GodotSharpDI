@@ -9,19 +9,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
 /// 生成 WaitFor 依赖等待代码
-///
-/// v1.3.0 重构：
-///   旧设计：TCS → ContinueWith（线程池）→ CallDeferred → 主线程回调，需要 _diGeneration 双重 gate
-///   新设计：直接向 [Inject] 成员对应的 List&lt;Action&lt;bool&gt;&gt; 注册回调，
-///           ResolveDependencies() 在主线程触发回调时直接调用，零跨线程跳转。
-///
-/// 消除的复杂性：
-///   - 不再需要 volatile _diGeneration 计数器
-///   - 不再需要 Interlocked.Decrement 原子操作
-///   - 不再需要 ContinueWith + TaskScheduler.Default
-///   - 不再需要 CallDeferred 回到主线程（本就在主线程）
-///   - 不再需要双重 Generation 检查
-///   ExitTree 时只需 callbacks.Clear()，所有未触发的回调自动失效。
 /// </summary>
 internal static class WaitForPhase
 {
@@ -86,17 +73,30 @@ internal static class WaitForPhase
                 f.AppendLine($"if (--{remainingVarName} == 0)");
                 f.BeginBlock();
                 {
-                    // 已在主线程上，直接调用 – 无需 CallDeferred
+                    // OnXxxWaitForResolved() 是 async 本地函数，其内部若包含 await，
+                    // 续体可能在线程池线程上完成。ContinueWith 使用 TaskScheduler.Default，
+                    // 因此 body 同样在线程池线程执行。
+                    // GD.PrintErr 本身是线程安全的，但为了与项目其余部分保持一致
+                    // （所有 Godot API 调用均在主线程），通过 Callable.From().CallDeferred()
+                    // 将错误日志派发回 Godot 主线程，避免未来扩展时引入潜在的线程安全问题。
                     f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
                     f.BeginBlock();
                     {
                         f.AppendLine("if (t.IsFaulted)");
                         f.BeginBlock();
                         {
-                            f.AppendLine(
-                                $"{GlobalNames.GodotGD}.PrintErr("
-                                    + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{t.Exception?.GetBaseException().Message}}\");"
-                            );
+                            // 捕获错误信息到局部变量（ContinueWith body 在线程池，
+                            // 不能直接访问 t 以外的 Godot 对象）
+                            f.AppendLine("var __errMsg = t.Exception?.GetBaseException().Message;");
+                            f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
+                            f.BeginBlock();
+                            {
+                                f.AppendLine(
+                                    $"{GlobalNames.GodotGD}.PrintErr("
+                                        + $"$\"[GodotSharpDI] WaitFor callback '{resolvedCallbackName}' threw: {{__errMsg}}\");"
+                                );
+                            }
+                            f.EndBlock(").CallDeferred();");
                         }
                         f.EndBlock();
                     }
