@@ -1,370 +1,210 @@
-﻿// using System.Collections.Immutable;
-// using System.Linq;
-// using GodotSharpDI.SourceGenerator.Internal.Data;
-// using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-// using GodotSharpDI.SourceGenerator.Internal.Helpers;
-// using GodotSharpDI.SourceGenerator.Internal.Semantic;
-// using GodotSharpDI.SourceGenerator.Tests.Helpers;
-// using Microsoft.CodeAnalysis;
-// using Microsoft.CodeAnalysis.CSharp.Syntax;
-// using Xunit;
-//
-// namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
-//
-// public class DiGraphBuilderTests
-// {
-//     [Fact]
-//     public void Build_ServiceTypeConflict_ReportsDiagnostic()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-//
-// namespace Test
-// {
-//     public interface IMyService { }
-//
-//     [Singleton(typeof(IMyService))]
-//     public partial class ServiceA : IMyService { }
-//
-//     [Singleton(typeof(IMyService))]
-//     public partial class ServiceB : IMyService { }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.Contains(
-//             result.Diagnostics,
-//             d => d.Id == "GDI_D040" // ServiceTypeConflict
-//         );
-//     }
-//
-//     [Fact]
-//     public void Build_HostAndServiceProvidesSameType_ReportsDiagnostic()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     public interface IMyService { }
-//
-//     [Singleton(typeof(IMyService))]
-//     public partial class ServiceImpl : IMyService { }
-//
-//     [Host]
-//     public partial class MyHost : Node
-//     {
-//         [Singleton(typeof(IMyService))]
-//         private IMyService _service = new ServiceImpl();
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.Contains(
-//             result.Diagnostics,
-//             d => d.Id == "GDI_D040" // ServiceTypeConflict
-//         );
-//     }
-//
-//     [Fact]
-//     public void Build_ScopeWithEmptyModules_ReportsDiagnostic()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     [Modules]
-//     public partial class MyScope : Node, IScope
-//     {
-//         public void RegisterService<T>(T instance) where T : notnull { }
-//         public void UnregisterService<T>() where T : notnull { }
-//         public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.Contains(
-//             result.Diagnostics,
-//             d => d.Id == "GDI_D001" // ScopeModulesEmpty
-//         );
-//     }
-//
-//     [Fact]
-//     public void Build_ScopeModulesServiceMustBeService_ReportsDiagnostic()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     public partial class NotAService { }
-//
-//     [Modules(Services = new[] { typeof(NotAService) })]
-//     public partial class MyScope : Node, IScope
-//     {
-//         public void RegisterService<T>(T instance) where T : notnull { }
-//         public void UnregisterService<T>() where T : notnull { }
-//         public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.Contains(
-//             result.Diagnostics,
-//             d => d.Id == "GDI_D002" // ScopeModulesServiceMustBeService
-//         );
-//     }
-//
-//     [Fact]
-//     public void Build_ScopeModulesHostMustBeHost_ReportsDiagnostic()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     [Singleton]
-//     public partial class MyService { }
-//
-//     public partial class NotAHost : Node { }
-//
-//     [Modules(Services = new[] { typeof(MyService) }, Hosts = new[] { typeof(NotAHost) })]
-//     public partial class MyScope : Node, IScope
-//     {
-//         public void RegisterService<T>(T instance) where T : notnull { }
-//         public void UnregisterService<T>() where T : notnull { }
-//         public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.Contains(
-//             result.Diagnostics,
-//             d => d.Id == "GDI_D003" // ScopeModulesHostMustBeHost
-//         );
-//     }
-//
-//     [Fact]
-//     public void Build_UserInjectMemberTypeIsNotExposed_ReportsDiagnostic()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     public interface INotAService { }
-//
-//     [User]
-//     public partial class MyUser : Node
-//     {
-//         [Inject]
-//         private INotAService _notService;
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.Contains(
-//             result.Diagnostics,
-//             d => d.Id == "GDI_D050" // InjectMemberTypeIsNotExposed
-//         );
-//     }
-//
-//     [Fact]
-//     public void Build_ValidGraph_NoErrors()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     public interface IServiceA { }
-//     public interface IServiceB { }
-//
-//     [Singleton(typeof(IServiceA))]
-//     public partial class ServiceA : IServiceA
-//     {
-//         public ServiceA(IServiceB b) { }
-//     }
-//
-//     [Singleton(typeof(IServiceB))]
-//     public partial class ServiceB : IServiceB
-//     {
-//         public ServiceB() { }
-//     }
-//
-//     [Host]
-//     public partial class MyHost : Node
-//     {
-//         [Singleton]
-//         private object _hostService = new();
-//     }
-//
-//     [User]
-//     public partial class MyUser : Node
-//     {
-//         [Inject]
-//         private IServiceA _serviceA;
-//     }
-//
-//     [Modules(Services = new[] { typeof(ServiceA), typeof(ServiceB) }, Hosts = new[] { typeof(MyHost) })]
-//     public partial class MyScope : Node, IScope
-//     {
-//         public void RegisterService<T>(T instance) where T : notnull { }
-//         public void UnregisterService<T>() where T : notnull { }
-//         public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.NotNull(result.Graph);
-//         var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-//         Assert.Empty(errors);
-//     }
-//
-//     [Fact]
-//     public void Build_MultipleExposedTypes_HandlesCorrectly()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-//
-// namespace Test
-// {
-//     public interface IServiceA { }
-//     public interface IServiceB { }
-//
-//     [Singleton(typeof(IServiceA), typeof(IServiceB))]
-//     public partial class MultiService : IServiceA, IServiceB
-//     {
-//         public MultiService() { }
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.NotNull(result.Graph);
-//         var serviceNode = result.Graph.ServiceNodes.FirstOrDefault();
-//         Assert.NotNull(serviceNode);
-//         Assert.Equal(2, serviceNode.ProvidedServices.Length);
-//     }
-//
-//     [Fact]
-//     public void Build_HostProvidedServices_AreTracked()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-// using Godot;
-//
-// namespace Test
-// {
-//     public interface IHostService { }
-//     public class HostServiceImpl : IHostService { }
-//
-//     [Host]
-//     public partial class MyHost : Node
-//     {
-//         [Singleton(typeof(IHostService))]
-//         private HostServiceImpl _service = new();
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.NotNull(result.Graph);
-//         var hostNode = result.Graph.HostNodes.FirstOrDefault();
-//         Assert.NotNull(hostNode);
-//         Assert.Single(hostNode.ProvidedServices);
-//     }
-//
-//     [Fact]
-//     public void Build_ServiceWithNoExposedTypesSpecified_UsesImplementationType()
-//     {
-//         // Arrange
-//         var source =
-//             @"
-// using GodotSharpDI.Abstractions;
-//
-// namespace Test
-// {
-//     [Singleton]
-//     public partial class MyService
-//     {
-//         public MyService() { }
-//     }
-// }
-// ";
-//         var result = BuildGraph(source);
-//
-//         // Assert
-//         Assert.NotNull(result.Graph);
-//         var serviceNode = result.Graph.ServiceNodes.FirstOrDefault();
-//         Assert.NotNull(serviceNode);
-//         Assert.Single(serviceNode.ProvidedServices);
-//         Assert.Equal("MyService", serviceNode.ProvidedServices[0].Name);
-//     }
-//
-//     private static DiGraphBuildResult BuildGraph(string source)
-//     {
-//         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-//         var symbols = new CachedSymbols(compilation);
-//
-//         var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-//
-//         foreach (var tree in compilation.SyntaxTrees)
-//         {
-//             var root = tree.GetRoot();
-//             var classDecls = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
-//
-//             foreach (var classDecl in classDecls)
-//             {
-//                 var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-//                 if (raw.Info != null)
-//                 {
-//                     var result = ClassPipeline.ValidateAndClassify(raw.Info, symbols);
-//                     classResults.Add(result);
-//                 }
-//             }
-//         }
-//
-//         return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-//     }
-// }
+using System.Collections.Immutable;
+using System.Linq;
+using GodotSharpDI.SourceGenerator.Internal.Data;
+using GodotSharpDI.SourceGenerator.Internal.DiBuild;
+using GodotSharpDI.SourceGenerator.Internal.Helpers;
+using GodotSharpDI.SourceGenerator.Internal.Semantic;
+using GodotSharpDI.SourceGenerator.Tests.Helpers;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Xunit;
+
+namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
+
+/// <summary>
+/// DiGraphBuilder 整合测试
+///
+/// 当前 DiGraph 结构：
+/// - HostNodes（[Host] 节点）、UserNodes（[User] 节点）、ScopeNodes（[Modules] 节点）
+/// - 服务通过 Host 的 [Provide] 成员暴露，不存在独立 ServiceNode
+/// - HostNodeMap = Host 类型符号 → TypeNode 快速索引
+/// </summary>
+public class DiGraphBuilderTests
+{
+    [Fact]
+    public void Build_EmptyInput_ReturnsEmpty()
+    {
+        var result = BuildGraph(@"namespace Test { public class NotADiClass { } }");
+        Assert.Null(result.Graph);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Build_SingleHost_ReturnsOneHostNode()
+    {
+        var result = BuildGraph(
+            @"
+using GodotSharpDI.Abstractions; using Godot; using System;
+namespace Test {
+    public interface IMyService { }
+    public class Impl : IMyService { }
+    [Host] public partial class MyHost : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
+        public Impl Create() => new Impl();
+    }
+}"
+        );
+        Assert.NotNull(result.Graph);
+        Assert.Single(result.Graph!.HostNodes);
+        Assert.Equal("MyHost", result.Graph.HostNodes[0].ValidatedTypeInfo.Symbol.Name);
+    }
+
+    [Fact]
+    public void Build_SingleUser_ReturnsOneUserNode()
+    {
+        var result = BuildGraph(
+            @"
+using GodotSharpDI.Abstractions; using Godot;
+namespace Test {
+    public interface IMyService { }
+    [User] public partial class MyUser : Node {
+        [Inject] private IMyService _service;
+    }
+}"
+        );
+        Assert.NotNull(result.Graph);
+        Assert.Single(result.Graph!.UserNodes);
+        Assert.Equal("MyUser", result.Graph.UserNodes[0].ValidatedTypeInfo.Symbol.Name);
+    }
+
+    [Fact]
+    public void Build_MultipleHosts_AllIncluded()
+    {
+        var result = BuildGraph(
+            @"
+using GodotSharpDI.Abstractions; using Godot; using System;
+namespace Test {
+    public interface IA { } public interface IB { }
+    public class A : IA { } public class B : IB { }
+    [Host] public partial class HostA : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IA) })] public A CreateA() => new A();
+    }
+    [Host] public partial class HostB : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IB) })] public B CreateB() => new B();
+    }
+}"
+        );
+        Assert.NotNull(result.Graph);
+        Assert.Equal(2, result.Graph!.HostNodes.Length);
+        Assert.Contains(result.Graph.HostNodes, n => n.ValidatedTypeInfo.Symbol.Name == "HostA");
+        Assert.Contains(result.Graph.HostNodes, n => n.ValidatedTypeInfo.Symbol.Name == "HostB");
+    }
+
+    [Fact]
+    public void Build_HostWithMultipleExposedTypes_TracksAll()
+    {
+        var result = BuildGraph(
+            @"
+using GodotSharpDI.Abstractions; using Godot; using System;
+namespace Test {
+    public interface IA { } public interface IB { }
+    [Host] public partial class MyHost : Node, IA, IB {
+        [Provide(ExposedTypes = new Type[] { typeof(IA), typeof(IB) })]
+        public MyHost GetSelf() => this;
+    }
+}"
+        );
+        Assert.NotNull(result.Graph);
+        var node = result.Graph!.HostNodes.FirstOrDefault();
+        Assert.NotNull(node);
+        Assert.Equal(2, node!.ProvidedServices.Length);
+    }
+
+    [Fact]
+    public void Build_ValidGraph_NoErrors()
+    {
+        var result = BuildGraph(
+            @"
+using GodotSharpDI.Abstractions; using Godot; using System;
+namespace Test {
+    public interface IServiceA { } public class ImplA : IServiceA { }
+    [Host] public partial class HostA : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceA) })]
+        public ImplA Create() => new ImplA();
+    }
+    [User] public partial class MyUser : Node {
+        [Inject] private IServiceA _service;
+    }
+}"
+        );
+        Assert.NotNull(result.Graph);
+        Assert.Empty(result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Fact]
+    public void Build_HostNodeMap_ContainsAllHosts()
+    {
+        var result = BuildGraph(
+            @"
+using GodotSharpDI.Abstractions; using Godot; using System;
+namespace Test {
+    public interface IA { } public interface IB { }
+    public class A : IA { } public class B : IB { }
+    [Host] public partial class HostA : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IA) })] public A CreateA() => new A();
+    }
+    [Host] public partial class HostB : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IB) })] public B CreateB() => new B();
+    }
+}"
+        );
+        Assert.NotNull(result.Graph);
+        Assert.Equal(result.Graph!.HostNodes.Length, result.Graph.HostNodeMap.Count);
+        foreach (var node in result.Graph.HostNodes)
+        {
+            Assert.True(
+                result.Graph.HostNodeMap.TryGetValue(node.ValidatedTypeInfo.Symbol, out var mapped)
+            );
+            Assert.Same(node, mapped);
+        }
+    }
+
+    [Fact]
+    public void Build_HostNodeMap_FastLookupBySymbol()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions; using Godot; using System;
+namespace Test {
+    public interface IServiceA { } public class ImplA : IServiceA { }
+    [Host] public partial class HostA : Node {
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceA) })]
+        public ImplA Create() => new ImplA();
+    }
+}";
+        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var result = BuildGraphFromCompilation(compilation);
+
+        Assert.NotNull(result.Graph);
+        var symbol = compilation.GetTypeByMetadataName("Test.HostA");
+        Assert.NotNull(symbol);
+
+        Assert.True(result.Graph!.HostNodeMap.TryGetValue(symbol!, out var node));
+        Assert.Equal("HostA", node!.ValidatedTypeInfo.Symbol.Name);
+    }
+
+    // ============================================================
+    //  辅助
+    // ============================================================
+    private static DiGraphBuildResult BuildGraph(string source) =>
+        BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+
+    private static DiGraphBuildResult BuildGraphFromCompilation(
+        Microsoft.CodeAnalysis.Compilation compilation
+    )
+    {
+        var symbols = new CachedSymbols(compilation);
+        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            var root = tree.GetRoot();
+            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
+            {
+                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
+                if (raw.Info != null)
+                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
+            }
+        }
+        return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
+    }
+}

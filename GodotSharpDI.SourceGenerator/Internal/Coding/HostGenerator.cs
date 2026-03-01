@@ -77,11 +77,11 @@ internal static class HostGenerator
         f.AppendLine("private void ProvideServices()");
         f.BeginBlock();
         {
-            f.AppendLine("var scope = GetParentScope();");
-            f.AppendLine("if (scope is null)");
+            f.AppendLine($"var {GlobalNames.LocalScope} = GetParentScope();");
+            f.AppendLine($"if ({GlobalNames.LocalScope} is null)");
             f.BeginBlock();
             {
-                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name} 找不到父 Scope\"");
+                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\"");
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -104,7 +104,8 @@ internal static class HostGenerator
 
     /// <summary>
     /// 有依赖跟踪的情况 (实现了 IDependenciesResolved)
-    /// Inject 成员注入不阻塞 Provide 成员提供服务
+    /// WaitFor 通过 TCS（实例字段）机制等待 Inject 成员就绪，无需在此重复注册 ResolveDependency。
+    /// Phase 1 已移除：Inject 成员由 ResolveDependencies() 统一处理，避免双重回调。
     /// </summary>
     private static void GenerateWithDependencyTracking(
         CodeFormatter f,
@@ -113,65 +114,10 @@ internal static class HostGenerator
         ImmutableArray<MemberInfo> provideMembers
     )
     {
-        // 阶段 1: 注入依赖 (不等待完成,不阻塞后续流程)
-        f.AppendLine("// ━━━ 阶段 1: 注入依赖 (不阻塞服务提供) ━━━");
-        foreach (var member in injectMembers)
-        {
-            GenerateFieldInjectionWithTracking(f, member, "scope", validatedType.Symbol.Name);
-        }
-        f.AppendLine();
-
-        // 阶段 2 & 3: 每个 Provide 成员独立处理
-        f.AppendLine("// ━━━ 阶段 2 & 3: 提供服务 (独立于依赖注入) ━━━");
+        // WaitFor 依赖通过 TCS 实例字段与 ResolveDependencies() 通信，
+        // 此处只需生成 Provide 阶段代码即可
+        f.AppendLine(GeneratedStrings.Phase23Comment);
         GenerateDirectProvision(f, validatedType.Members, provideMembers);
-    }
-
-    /// <summary>
-    /// 为单个字段生成依赖注入代码 (带依赖跟踪)
-    /// </summary>
-    private static void GenerateFieldInjectionWithTracking(
-        CodeFormatter f,
-        MemberInfo member,
-        string scopeField,
-        string typeName
-    )
-    {
-        var memberName = member.Symbol.Name;
-        var memberType = member.MemberType.ToFullyQualifiedName();
-
-        f.AppendLine($"// 解析依赖: {memberName}");
-        f.AppendLine($"{scopeField}.ResolveDependency<{memberType}>(");
-        f.BeginLevel();
-        {
-            // onResult 回调
-            f.AppendLine("(result) =>");
-            f.BeginBlock();
-            {
-                f.AppendLine("if (result.IsSuccess)");
-                f.BeginBlock();
-                {
-                    DependencyResolveGenerator.GenerateSetInjectionReady(f, memberName, memberType);
-                    DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
-                }
-                f.EndBlock();
-                f.AppendLine("else");
-                f.BeginBlock();
-                {
-                    f.AppendLine(
-                        $"{GlobalNames.GodotGD}.PrintErr($\"[{typeName}] 依赖注入失败 ({memberName}): {{result.ErrorMessage}}\");"
-                    );
-                    DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
-                }
-                f.EndBlock();
-            }
-            f.EndBlock(",");
-
-            // requestorType
-            f.AppendLine($"requestorType: \"{typeName}\"");
-        }
-        f.EndLevel();
-        f.AppendLine(");");
-        f.AppendLine();
     }
 
     /// <summary>
@@ -187,7 +133,7 @@ internal static class HostGenerator
 
         foreach (var member in provideMembers)
         {
-            f.AppendLine($"// ━━━ 成员: {member.Symbol.Name} ━━━");
+            f.AppendLine(string.Format(GeneratedStrings.MemberSeparatorFmt, member.Symbol.Name));
 
             if (member.HasWaitFor)
             {
@@ -197,7 +143,7 @@ internal static class HostGenerator
                     ServiceProvisionPhase.GenerateMemberProvide(
                         f,
                         member,
-                        "scope",
+                        GlobalNames.LocalScope,
                         instancePrefix: "",
                         inAsyncContext: true
                     );
@@ -210,7 +156,7 @@ internal static class HostGenerator
                     f,
                     member,
                     allMembers,
-                    "scope",
+                    GlobalNames.LocalScope,
                     onAllResolved: callback
                 );
             }
@@ -220,7 +166,7 @@ internal static class HostGenerator
                 ServiceProvisionPhase.GenerateMemberProvide(
                     f,
                     member,
-                    "scope",
+                    GlobalNames.LocalScope,
                     instancePrefix: "",
                     inAsyncContext: false
                 );

@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.DiBuild;
@@ -11,194 +11,213 @@ using Xunit.Abstractions;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
-public class WaitForDebugTests
+/// <summary>
+/// WaitFor 机制的集成测试（含可观察的诊断输出）
+/// </summary>
+public class WaitForIntegrationTests
 {
     private readonly ITestOutputHelper _output;
 
-    public WaitForDebugTests(ITestOutputHelper output)
+    public WaitForIntegrationTests(ITestOutputHelper output)
     {
         _output = output;
     }
 
+    // ============================================================
+    //  WaitFor 成员信息被正确解析到 MemberInfo
+    // ============================================================
+
     [Fact]
-    public void Debug_SimpleCircularDependency()
+    public void WaitFor_SingleDependency_ParsedIntoMemberInfo()
     {
         var source =
             @"
 using GodotSharpDI.Abstractions;
 using Godot;
+using System;
 
 namespace Test
 {
     public interface IServiceA { }
     public interface IServiceB { }
-
-    public partial class ServiceA : IServiceA { }
-    public partial class ServiceB : IServiceB { }
+    public class ImplB : IServiceB { }
 
     [Host]
     public partial class ServiceHost : Node
     {
         [Inject]
         private IServiceA _serviceA { get; set; }
-        
-        [Inject]
-        private IServiceB _serviceB { get; set; }
-        
-        [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
-        public ServiceA CreateA()
+
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceB) }, WaitFor = new string[] { nameof(_serviceA) })]
+        public ImplB CreateB() => new ImplB();
+    }
+}";
+        var result = BuildGraph(source);
+
+        // 图构建应该成功
+        Assert.NotNull(result.Graph);
+        var hostNode = result.Graph!.HostNodes.FirstOrDefault();
+        Assert.NotNull(hostNode);
+
+        // 应该有一个 WaitFor 依赖边
+        var waitForEdges = hostNode!
+            .Dependencies.Where(d => d.Source == DependencySource.WaitForMember)
+            .ToList();
+        Assert.NotEmpty(waitForEdges);
+
+        _output.WriteLine($"WaitFor edges: {waitForEdges.Count}");
+        foreach (var edge in waitForEdges)
+            _output.WriteLine(
+                $"  {edge.SourceProvidedType?.Name} → waitFor → {edge.TargetType.Name}"
+            );
+    }
+
+    [Fact]
+    public void WaitFor_MultipleTargets_AllParsed()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IA { }
+    public interface IB { }
+    public interface IC { }
+    public class ImplC : IC { }
+
+    [Host]
+    public partial class ServiceHost : Node
+    {
+        [Inject] private IA _a { get; set; }
+        [Inject] private IB _b { get; set; }
+
+        [Provide(ExposedTypes = new Type[] { typeof(IC) }, WaitFor = new string[] { nameof(_a), nameof(_b) })]
+        public ImplC CreateC() => new ImplC();
+    }
+}";
+        var result = BuildGraph(source);
+        Assert.NotNull(result.Graph);
+        var hostNode = result.Graph!.HostNodes.FirstOrDefault();
+        Assert.NotNull(hostNode);
+
+        var waitForEdges = hostNode!
+            .Dependencies.Where(d => d.Source == DependencySource.WaitForMember)
+            .ToList();
+        // 两个 WaitFor 目标 → 两条依赖边
+        Assert.Equal(2, waitForEdges.Count);
+
+        _output.WriteLine($"WaitFor edges count: {waitForEdges.Count}");
+    }
+
+    // ============================================================
+    //  WaitFor 诊断整合验证
+    // ============================================================
+
+    [Fact]
+    public void WaitFor_Cycle_DiagnosticsContainServiceNames()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IServiceA { }
+    public interface IServiceB { }
+    public class ServiceA : IServiceA { }
+    public class ServiceB : IServiceB { }
+
+    [Host]
+    public partial class ServiceHost : Node
+    {
+        [Inject] private IServiceA _serviceA { get; set; }
+        [Inject] private IServiceB _serviceB { get; set; }
+
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceA) }, WaitFor = new string[] { nameof(_serviceB) })]
+        public ServiceA CreateA() => new ServiceA();
+
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceB) }, WaitFor = new string[] { nameof(_serviceA) })]
+        public ServiceB CreateB() => new ServiceB();
+    }
+}";
+        var result = BuildGraph(source);
+
+        var cycleDiags = result.Diagnostics.Where(d => d.Id == "GDI_D010").ToList();
+        Assert.NotEmpty(cycleDiags);
+
+        _output.WriteLine($"\n=== GDI_D010 diagnostics: {cycleDiags.Count} ===");
+        foreach (var diag in cycleDiags)
         {
-            return new ServiceA();
-        }
-        
-        [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
-        public ServiceB CreateB()
-        {
-            return new ServiceB();
+            _output.WriteLine($"  [{diag.Id}] {diag.GetMessage()}");
+            // 消息包含依赖路径箭头
+            Assert.Contains("->", diag.GetMessage());
         }
     }
-}
-";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var symbols = new CachedSymbols(compilation);
 
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
+    [Fact]
+    public void WaitFor_ValidConfiguration_ZeroDiagnostics()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
 
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            var classDecls = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
+namespace Test
+{
+    public interface IConfig { }
+    public interface IEngine { }
+    public class Config : IConfig { }
+    public class Engine : IEngine { }
 
-            foreach (var classDecl in classDecls)
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                {
-                    _output.WriteLine($"\n=== Processing class: {raw.Info.Symbol.Name} ===");
+    [Host]
+    public partial class GameHost : Node
+    {
+        [Inject] private IConfig _config { get; set; }
 
-                    var result = ClassPipeline.ValidateAndClassify(raw.Info, symbols);
+        [Provide(ExposedTypes = new Type[] { typeof(IConfig) })]
+        public Config CreateConfig() => new Config();
 
-                    if (result.TypeInfo != null)
-                    {
-                        _output.WriteLine($"Role: {result.TypeInfo.Role}");
-                        _output.WriteLine($"Members: {result.TypeInfo.Members.Length}");
-
-                        foreach (var member in result.TypeInfo.Members)
-                        {
-                            _output.WriteLine($"  Member: {member.Name}");
-                            _output.WriteLine($"    Kind: {member.Kind}");
-                            _output.WriteLine($"    IsProvide: {member.IsProvideMember}");
-                            _output.WriteLine($"    IsInject: {member.IsInjectMember}");
-                            _output.WriteLine($"    ExposedTypes: {member.ExposedTypes.Length}");
-                            foreach (var et in member.ExposedTypes)
-                            {
-                                _output.WriteLine($"      - {et.Name}");
-                            }
-                            _output.WriteLine($"    WaitFor: {member.WaitFor.Length}");
-                            foreach (var wf in member.WaitFor)
-                            {
-                                _output.WriteLine($"      - {wf}");
-                            }
-
-                            // 调试特性信息
-                            if (member.IsProvideMember)
-                            {
-                                var provideAttr = member
-                                    .Symbol.GetAttributes()
-                                    .FirstOrDefault(a =>
-                                        a.AttributeClass?.Name == "ProvideAttribute"
-                                    );
-                                if (provideAttr != null)
-                                {
-                                    _output.WriteLine($"    Provide Attribute Debug:");
-                                    _output.WriteLine(
-                                        $"      NamedArguments count: {provideAttr.NamedArguments.Length}"
-                                    );
-                                    foreach (var arg in provideAttr.NamedArguments)
-                                    {
-                                        _output.WriteLine(
-                                            $"      - {arg.Key}: {arg.Value.Kind} = {arg.Value.Value}"
-                                        );
-                                        if (
-                                            arg.Value.Kind
-                                            == Microsoft.CodeAnalysis.TypedConstantKind.Array
-                                        )
-                                        {
-                                            _output.WriteLine(
-                                                $"        Array length: {arg.Value.Values.Length}"
-                                            );
-                                            foreach (var val in arg.Value.Values)
-                                            {
-                                                _output.WriteLine(
-                                                    $"          - {val.Kind}: {val.Value}"
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    classResults.Add(result);
-
-                    _output.WriteLine($"Diagnostics from this class: {result.Diagnostics.Length}");
-                    foreach (var diag in result.Diagnostics)
-                    {
-                        _output.WriteLine($"  [{diag.Id}] {diag.GetMessage()}");
-                    }
-                }
-            }
-        }
-
-        _output.WriteLine("\n=== Building Graph ===");
-        var graphResult = DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-
-        // 输出所有诊断信息
-        _output.WriteLine($"\nTotal diagnostics: {graphResult.Diagnostics.Length}");
-        foreach (var diag in graphResult.Diagnostics)
-        {
-            _output.WriteLine($"[{diag.Id}] {diag.GetMessage()}");
-        }
-
-        // 输出图结构
-        _output.WriteLine($"\nService nodes: {graphResult.Graph.HostNodes.Length}");
-        foreach (var node in graphResult.Graph.HostNodes)
-        {
-            _output.WriteLine($"Node: {node.ValidatedTypeInfo.Symbol.Name}");
-            _output.WriteLine($"  Dependencies: {node.Dependencies.Length}");
-            foreach (var dep in node.Dependencies)
-            {
-                _output.WriteLine($"    - {dep.TargetType.Name} ({dep.Source})");
-            }
-            _output.WriteLine($"  Provided: {node.ProvidedServices.Length}");
-            foreach (var svc in node.ProvidedServices)
-            {
-                _output.WriteLine($"    - {svc.Name}");
-            }
-        }
+        [Provide(ExposedTypes = new Type[] { typeof(IEngine) }, WaitFor = new string[] { nameof(_config) })]
+        public Engine CreateEngine() => new Engine();
     }
+}";
+        var result = BuildGraph(source);
+
+        var errorDiags = result
+            .Diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .ToList();
+
+        _output.WriteLine($"\n=== Total diagnostics: {result.Diagnostics.Length} ===");
+        foreach (var d in result.Diagnostics)
+            _output.WriteLine($"  [{d.Id}] {d.Severity}: {d.GetMessage()}");
+
+        Assert.Empty(errorDiags);
+    }
+
+    // ============================================================
+    //  辅助
+    // ============================================================
 
     private static DiGraphBuildResult BuildGraph(string source)
     {
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var symbols = new CachedSymbols(compilation);
-
         var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
 
         foreach (var tree in compilation.SyntaxTrees)
         {
             var root = tree.GetRoot();
-            var classDecls = root.DescendantNodes().OfType<ClassDeclarationSyntax>();
-
-            foreach (var classDecl in classDecls)
+            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
             {
                 var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
                 if (raw.Info != null)
-                {
-                    var result = ClassPipeline.ValidateAndClassify(raw.Info, symbols);
-                    classResults.Add(result);
-                }
+                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
             }
         }
 

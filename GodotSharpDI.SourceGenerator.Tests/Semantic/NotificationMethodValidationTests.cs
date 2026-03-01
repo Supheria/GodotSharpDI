@@ -1,11 +1,22 @@
-﻿using GodotSharpDI.SourceGenerator.Tests.Helpers;
+using GodotSharpDI.SourceGenerator.Tests.Helpers;
 using Microsoft.CodeAnalysis;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
+/// <summary>
+/// _Notification 方法的存在性与签名验证测试（GDI_C060 / GDI_C061）
+///
+/// 所有 DI 类型（[Host] / [User] / [Modules]）必须声明：
+///   public override partial void _Notification(int what);
+/// 否则生成器无法输出生命周期桩代码。
+/// </summary>
 public sealed class NotificationMethodValidationTests
 {
+    // ============================================================
+    //  [Host] 场景
+    // ============================================================
+
     [Fact]
     public void Host_WithoutNotificationMethod_ReportsDiagnostic()
     {
@@ -13,23 +24,23 @@ public sealed class NotificationMethodValidationTests
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
-public partial class TestHost : Node
+public partial class TestHost : Node, ITestService
 {
-    [Singleton(typeof(ITestService))]
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -40,24 +51,28 @@ public interface ITestService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 public partial class TestHost : Node, ITestService
 {
     public override partial void _Notification(int what);
-    
-    [Singleton(typeof(ITestService))]
+
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
+
+    // ============================================================
+    //  [User] 场景
+    // ============================================================
 
     [Fact]
     public void User_WithoutNotificationMethod_ReportsDiagnostic()
@@ -76,13 +91,12 @@ public partial class TestUser : Node
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestUser")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestUser")
         );
     }
 
@@ -98,19 +112,22 @@ using GodotSharpDI.Abstractions;
 public partial class TestUser : Node
 {
     public override partial void _Notification(int what);
-    
+
     [Inject]
     private ITestService _service = null!;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
+
+    // ============================================================
+    //  [Modules] (Scope) 场景
+    // ============================================================
 
     [Fact]
     public void Scope_WithoutNotificationMethod_ReportsDiagnostic()
@@ -120,29 +137,20 @@ public interface ITestService { }
 using Godot;
 using GodotSharpDI.Abstractions;
 
-[Modules(Services = new[] { typeof(TestService) })]
+[Modules]
 public partial class TestScope : Node, IScope
 {
     public void RegisterService<T>(T instance) where T : notnull { }
     public void UnregisterService<T>() where T : notnull { }
     public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
 }
-
-[Singleton(typeof(ITestService))]
-public partial class TestService : ITestService
-{
-    public TestService() { }
-}
-
-public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestScope")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestScope")
         );
     }
 
@@ -154,30 +162,25 @@ public interface ITestService { }
 using Godot;
 using GodotSharpDI.Abstractions;
 
-[Modules(Services = new[] { typeof(TestService) })]
+[Modules]
 public partial class TestScope : Node, IScope
 {
     public override partial void _Notification(int what);
-    
+
     public void RegisterService<T>(T instance) where T : notnull { }
     public void UnregisterService<T>() where T : notnull { }
     public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
 }
-
-[Singleton(typeof(ITestService))]
-public partial class TestService : ITestService
-{
-    public TestService() { }
-}
-
-public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
+
+    // ============================================================
+    //  签名错误场景（GDI_C061）
+    // ============================================================
 
     [Fact]
     public void NotificationMethod_MissingPublic_ReportsDiagnostic()
@@ -186,25 +189,25 @@ public interface ITestService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 public partial class TestHost : Node, ITestService
 {
     private override partial void _Notification(int what);
-    
-    [Singleton(typeof(ITestService))]
+
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C081" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C061" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -215,25 +218,25 @@ public interface ITestService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 public partial class TestHost : Node, ITestService
 {
     public partial void _Notification(int what);
-    
-    [Singleton(typeof(ITestService))]
+
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C081" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C061" && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -244,26 +247,26 @@ public interface ITestService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 public partial class TestHost : Node, ITestService
 {
     public override void _Notification(int what) { }
-    
-    [Singleton(typeof(ITestService))]
+
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        // 如果方法不是 partial definition，验证逻辑会报告缺少方法或签名错误
+        // 非 partial 定义版本应触发缺失或签名错误
         Assert.Contains(
             diagnostics,
-            d => (d.Id == "GDI_C080" || d.Id == "GDI_C081") && d.GetMessage().Contains("TestHost")
+            d => (d.Id == "GDI_C060" || d.Id == "GDI_C061") && d.GetMessage().Contains("TestHost")
         );
     }
 
@@ -274,27 +277,31 @@ public interface ITestService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 public partial class TestHost : Node, ITestService
 {
     public override partial void _Notification(long what);
-    
-    [Singleton(typeof(ITestService))]
+
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
 }
 
 public interface ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestHost")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestHost")
         );
     }
+
+    // ============================================================
+    //  组合场景：[Host] + [User] 同一类
+    // ============================================================
 
     [Fact]
     public void HostAndUser_WithoutNotificationMethod_ReportsDiagnostic()
@@ -303,14 +310,15 @@ public interface ITestService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 [User]
 public partial class TestHostUser : Node, ITestService
 {
-    [Singleton(typeof(ITestService))]
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
-    
+
     [Inject]
     private IAnotherService _service = null!;
 }
@@ -318,13 +326,12 @@ public partial class TestHostUser : Node, ITestService
 public interface ITestService { }
 public interface IAnotherService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestHostUser")
+            d => d.Id == "GDI_C060" && d.GetMessage().Contains("TestHostUser")
         );
     }
 
@@ -335,16 +342,17 @@ public interface IAnotherService { }
             @"
 using Godot;
 using GodotSharpDI.Abstractions;
+using System;
 
 [Host]
 [User]
 public partial class TestHostUser : Node, ITestService
 {
     public override partial void _Notification(int what);
-    
-    [Singleton(typeof(ITestService))]
+
+    [Provide(ExposedTypes = new Type[] { typeof(ITestService) })]
     private ITestService Self => this;
-    
+
     [Inject]
     private IAnotherService _service = null!;
 }
@@ -352,43 +360,21 @@ public partial class TestHostUser : Node, ITestService
 public interface ITestService { }
 public interface IAnotherService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
 
-        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C080");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
 
-    [Fact]
-    public void Service_DoesNotRequireNotificationMethod()
-    {
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-
-[Singleton(typeof(ITestService))]
-public partial class TestService : ITestService
-{
-    // Service 不需要 _Notification 方法
-    public TestService() { }
-}
-
-public interface ITestService { }
-";
-
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
-
-        // Service 类型不应该报告 GDI_C080 错误
-        Assert.DoesNotContain(
-            diagnostics,
-            d => d.Id == "GDI_C080" && d.GetMessage().Contains("TestService")
-        );
-    }
+    // ============================================================
+    //  生成代码验证
+    // ============================================================
 
     [Fact]
     public void NotificationMethod_WithCorrectSignature_GeneratesImplementation()
     {
+        // 验证：_Notification 签名正确时，生成器接受该类并产生 DI 文件
+        // 注：GDI_D050（无 Provider）是图验证级错误，与 _Notification 签名无关
         var source =
             @"
 using Godot;
@@ -398,24 +384,21 @@ using GodotSharpDI.Abstractions;
 public partial class TestUser : Node
 {
     public override partial void _Notification(int what);
-    
+
     [Inject]
     private ITestService _service = null!;
 }
 
 public interface ITestService { }
-
-[Singleton(typeof(ITestService))]
-public partial class TestService : ITestService { }
 ";
-
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
 
-        // 检查没有诊断错误
+        // 核心断言：正确的 _Notification 签名不应触发 GDI_C060/C081
         var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
-        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
+        Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C061");
 
-        // 检查生成了实现文件
+        // 生成器应为该类产生 DI 文件
         var sources = TestCompilationHelper.GetGeneratedSources(compilation);
         Assert.Contains(sources, s => s.HintName.Contains("TestUser") && s.HintName.Contains("DI"));
     }

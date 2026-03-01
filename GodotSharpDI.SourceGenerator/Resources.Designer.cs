@@ -168,33 +168,6 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; cannot inherit from Godot.Node..
-        /// </summary>
-        internal static string C_ServiceCannotBeNode {
-            get {
-                return ResourceManager.GetString("C_ServiceCannotBeNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service cannot be unbound generic type &apos;{0}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
-        /// </summary>
-        internal static string C_ServiceTypeCannotBeGeneric {
-            get {
-                return ResourceManager.GetString("C_ServiceTypeCannotBeGeneric", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; must be a non-abstract, non-static class type.
-        /// </summary>
-        internal static string C_ServiceTypeIsInvalid {
-            get {
-                return ResourceManager.GetString("C_ServiceTypeIsInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to User cannot be generic type &apos;{0}&apos;. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead.
         /// </summary>
         internal static string C_UserCannotBeGenericType {
@@ -258,6 +231,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Cross-Host WaitFor deadlock detected: {0}. Multiple Hosts form a circular wait chain that will deadlock at runtime. Break the cycle by removing one WaitFor dependency or restructuring service provision.
+        /// </summary>
+        internal static string D_CrossHostDeadlockDetected {
+            get {
+                return ResourceManager.GetString("D_CrossHostDeadlockDetected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; requests type &apos;{1}&apos;, but no service exposes this type.
         /// </summary>
         internal static string D_InjectMemberTypeIsNotExposed {
@@ -285,29 +267,11 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Scope &apos;{0}&apos; Modules Service type &apos;{1}&apos; must be a Service.
-        /// </summary>
-        internal static string D_ScopeModulesServiceMustBeService {
-            get {
-                return ResourceManager.GetString("D_ScopeModulesServiceMustBeService", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to In Scope &apos;{0}&apos;, Service type &apos;{1}&apos; is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope.
         /// </summary>
-        internal static string D_ScopeServiceTypeConflict {
+        internal static string D_ScopeServiceTypeDuplicated {
             get {
-                return ResourceManager.GetString("D_ScopeServiceTypeConflict", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Service &apos;{0}&apos; has constructor parameter of type &apos;{1}&apos;, which is not a Service.
-        /// </summary>
-        internal static string D_ServiceConstructorParameterInvalid {
-            get {
-                return ResourceManager.GetString("D_ServiceConstructorParameterInvalid", resourceCulture);
+                return ResourceManager.GetString("D_ScopeServiceTypeDuplicated", resourceCulture);
             }
         }
         
@@ -384,15 +348,6 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Failed to register service provider for &apos;{0}&apos;: {1}.
-        /// </summary>
-        internal static string E_ServiceProviderRegistrationFailed {
-            get {
-                return ResourceManager.GetString("E_ServiceProviderRegistrationFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Failed to output generated source code: {0}.
         /// </summary>
         internal static string E_SourceOutputFailed {
@@ -411,11 +366,11 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Host &apos;{0}&apos; has no member marked as [Singleton].
+        ///   Looks up a localized string similar to Host &apos;{0}&apos; has no member marked as [Provide]. A Host must expose at least one service via [Provide].
         /// </summary>
-        internal static string M_HostMissingSingletonMember {
+        internal static string M_HostMissingProvideMember {
             get {
-                return ResourceManager.GetString("M_HostMissingSingletonMember", resourceCulture);
+                return ResourceManager.GetString("M_HostMissingProvideMember", resourceCulture);
             }
         }
         
@@ -425,6 +380,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_InjectMemberIsHostType {
             get {
                 return ResourceManager.GetString("M_InjectMemberIsHostType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Godot.Node (not marked with any DI attribute). Only Host types, interfaces, or plain service classes can be injected. Use [Host] on the target type or inject an interface instead.
+        /// </summary>
+        internal static string M_InjectMemberIsRegularNode {
+            get {
+                return ResourceManager.GetString("M_InjectMemberIsRegularNode", resourceCulture);
             }
         }
         
@@ -510,11 +474,56 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; cannot expose unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed.
+        /// </summary>
+        internal static string M_ProvideMemberExposedTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberExposedTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has exposed type &apos;{1}&apos;, but type &apos;{2}&apos; does not implement it.
+        /// </summary>
+        internal static string M_ProvideMemberExposedTypeNotImplemented {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberExposedTypeNotImplemented", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member exposed type &apos;{0}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
+        /// </summary>
+        internal static string M_ProvideMemberExposedTypeShouldBeInterface {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberExposedTypeShouldBeInterface", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a Host type. Host can only expose itself through [Provide] members, not other Host types.
         /// </summary>
         internal static string M_ProvideMemberIsHostType {
             get {
                 return ResourceManager.GetString("M_ProvideMemberIsHostType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Node (not marked with DI attributes) and cannot be used as a Provide member.
+        /// </summary>
+        internal static string M_ProvideMemberIsRegularNode {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberIsRegularNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be used as a Provide member.
+        /// </summary>
+        internal static string M_ProvideMemberIsScopeType {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberIsScopeType", resourceCulture);
             }
         }
         
@@ -528,11 +537,38 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be used as a Provide member.
+        /// </summary>
+        internal static string M_ProvideMemberIsUserType {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Type &apos;{0}&apos; must be marked as [Singleton] or [Host] to use [Provide] on members.
         /// </summary>
         internal static string M_ProvideMemberNotInServiceOrHost {
             get {
                 return ResourceManager.GetString("M_ProvideMemberNotInServiceOrHost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; cannot be unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
+        /// </summary>
+        internal static string M_ProvideMemberTypeCannotBeGeneric {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberTypeCannotBeGeneric", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid type. Provide member types must be interfaces or concrete classes (non-abstract, non-static).
+        /// </summary>
+        internal static string M_ProvideMemberTypeIsInvalid {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberTypeIsInvalid", resourceCulture);
             }
         }
         
@@ -564,78 +600,6 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot expose unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed.
-        /// </summary>
-        internal static string M_SingletonMemberExposedTypeCannotBeGeneric {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberExposedTypeCannotBeGeneric", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has exposed type &apos;{1}&apos;, but type &apos;{2}&apos; does not implement it.
-        /// </summary>
-        internal static string M_SingletonMemberExposedTypeNotImplemented {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberExposedTypeNotImplemented", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member exposed type &apos;{0}&apos; is a concrete class. Consider using an interface instead for better testability and loose coupling.
-        /// </summary>
-        internal static string M_SingletonMemberExposedTypeShouldBeInterface {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberExposedTypeShouldBeInterface", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Node (not marked with DI attributes) and cannot be used as a Singleton member.
-        /// </summary>
-        internal static string M_SingletonMemberIsRegularNode {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberIsRegularNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be used as a Singleton member.
-        /// </summary>
-        internal static string M_SingletonMemberIsScopeType {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberIsScopeType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be used as a Singleton member.
-        /// </summary>
-        internal static string M_SingletonMemberIsUserType {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberIsUserType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; cannot be unbound generic type &apos;{1}&apos;. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead.
-        /// </summary>
-        internal static string M_SingletonMemberTypeCannotBeGeneric {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberTypeCannotBeGeneric", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Singleton] member &apos;{0}&apos; has type &apos;{1}&apos;, which is not a valid type. Singleton member types must be interfaces or concrete classes (non-abstract, non-static).
-        /// </summary>
-        internal static string M_SingletonMemberTypeIsInvalid {
-            get {
-                return ResourceManager.GetString("M_SingletonMemberTypeIsInvalid", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to User &apos;{0}&apos; has no member marked as [Inject].
         /// </summary>
         internal static string M_UserMissingInjectMember {
@@ -645,11 +609,29 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service ‘{0}’ must have public parameterless constructor.
+        ///   Looks up a localized string similar to Member &apos;{0}&apos; has a circular WaitFor dependency chain. This will cause a deadlock at runtime.
         /// </summary>
-        internal static string S_ServiceHasNoPublicParameterlessConstructor {
+        internal static string M_WaitForCircularDependency {
             get {
-                return ResourceManager.GetString("S_ServiceHasNoPublicParameterlessConstructor", resourceCulture);
+                return ResourceManager.GetString("M_WaitForCircularDependency", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to WaitFor references field &apos;{0}&apos; on member &apos;{1}&apos;, but no such member exists in this class.
+        /// </summary>
+        internal static string M_WaitForFieldNotFound {
+            get {
+                return ResourceManager.GetString("M_WaitForFieldNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to WaitFor references field &apos;{0}&apos;, but it is not marked with [Inject]. The TCS used for synchronization will never be resolved, causing WaitFor to hang indefinitely at runtime.
+        /// </summary>
+        internal static string M_WaitForFieldNotInjected {
+            get {
+                return ResourceManager.GetString("M_WaitForFieldNotInjected", resourceCulture);
             }
         }
         
@@ -699,7 +681,7 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Member '{0}' is marked with [Inject(ReadyCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle successful injections.
+        ///   Looks up a localized string similar to Member &apos;{0}&apos; is marked with [Inject(ReadyCallback = true)] but the required callback method &apos;{1}&apos; is not implemented. Please implement this partial method to handle successful injections.
         /// </summary>
         internal static string U_MissingInjectionReadyCallbackImplementation {
             get {

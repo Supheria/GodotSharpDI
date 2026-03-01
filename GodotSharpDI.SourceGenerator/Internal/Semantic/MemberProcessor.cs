@@ -229,7 +229,6 @@ internal sealed class MemberProcessor
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
             // 读取 FailureCallback 和 ReadyCallback 属性
-            // TODO: move this method into AttributeHelper
             var injectAttr = member.GetAttribute(_symbols.InjectAttribute);
             foreach (var namedArg in injectAttr!.NamedArguments)
             {
@@ -267,7 +266,6 @@ internal sealed class MemberProcessor
                 exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
 
                 // 提取 WaitFor
-                // TODO: move this method into AttributeHelper
                 foreach (var namedArg in provideAttr.NamedArguments)
                 {
                     if (
@@ -294,7 +292,7 @@ internal sealed class MemberProcessor
                 }
             }
 
-            ValidateSingletonMemberExposedTypes(memberType, member, location, exposedTypes);
+            ValidateProvideMemberExposedTypes(memberType, member, location, exposedTypes);
         }
 
         return new MemberInfo(
@@ -424,7 +422,7 @@ internal sealed class MemberProcessor
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.SingletonMemberTypeIsInvalid,
+                    DiagnosticDescriptors.ProvideMemberTypeIsInvalid,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -438,7 +436,7 @@ internal sealed class MemberProcessor
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.SingletonMemberTypeCannotBeGeneric,
+                    DiagnosticDescriptors.ProvideMemberTypeCannotBeGeneric,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -471,7 +469,7 @@ internal sealed class MemberProcessor
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.SingletonMemberIsUserType,
+                    DiagnosticDescriptors.ProvideMemberIsUserType,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -485,7 +483,7 @@ internal sealed class MemberProcessor
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.SingletonMemberIsScopeType,
+                    DiagnosticDescriptors.ProvideMemberIsScopeType,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -499,7 +497,7 @@ internal sealed class MemberProcessor
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.SingletonMemberIsRegularNode,
+                    DiagnosticDescriptors.ProvideMemberIsRegularNode,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -511,7 +509,7 @@ internal sealed class MemberProcessor
         return true;
     }
 
-    private void ValidateSingletonMemberExposedTypes(
+    private void ValidateProvideMemberExposedTypes(
         ITypeSymbol memberType,
         ISymbol member,
         Location location,
@@ -525,7 +523,7 @@ internal sealed class MemberProcessor
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonMemberExposedTypeCannotBeGeneric,
+                        DiagnosticDescriptors.ProvideMemberExposedTypeCannotBeGeneric,
                         location,
                         member.Name,
                         exposedType.ToDisplayString()
@@ -538,7 +536,7 @@ internal sealed class MemberProcessor
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.SingletonMemberExposedTypeShouldBeInterface,
+                        DiagnosticDescriptors.ProvideMemberExposedTypeShouldBeInterface,
                         location,
                         exposedType.ToDisplayString()
                     )
@@ -552,7 +550,7 @@ internal sealed class MemberProcessor
                 {
                     _diagnostics.Add(
                         DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.SingletonMemberExposedTypeNotImplemented,
+                            DiagnosticDescriptors.ProvideMemberExposedTypeNotImplemented,
                             location,
                             member.Name,
                             exposedType.ToDisplayString(),
@@ -571,7 +569,7 @@ internal sealed class MemberProcessor
                 {
                     _diagnostics.Add(
                         DiagnosticBuilder.Create(
-                            DiagnosticDescriptors.SingletonMemberExposedTypeNotImplemented,
+                            DiagnosticDescriptors.ProvideMemberExposedTypeNotImplemented,
                             location,
                             member.Name,
                             exposedType.ToDisplayString(),
@@ -593,7 +591,7 @@ internal sealed class MemberProcessor
             {
                 _diagnostics.Add(
                     DiagnosticBuilder.Create(
-                        DiagnosticDescriptors.HostMissingSingletonMember,
+                        DiagnosticDescriptors.HostMissingProvideMember,
                         _raw.Location,
                         _raw.Symbol.Name
                     )

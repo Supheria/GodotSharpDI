@@ -52,7 +52,7 @@
     </data>
 
     <data name="C_IDependenciesResolvedInvalid" xml:space="preserve">
-        <value>类型 '{0}' 实现了 IDependenciesResolved 但未标记 [User] 或 [Host]</value>
+        <value>类型 '{0}' 实现了 IDependenciesResolved，但未标记 [User] 或 [Host]</value>
     </data>
 
     <data name="C_ScopeMissingModules" xml:space="preserve">
@@ -63,9 +63,6 @@
         <value>DI 相关类 '{0}' 必须声明为 partial 以启用代码生成</value>
     </data>
 
-    <data name="C_ServiceTypeIsInvalid" xml:space="preserve">
-        <value>服务 '{0}' 必须是非抽象、非静态的 class 类型</value>
-    </data>
     <data name="C_MissingNotificationMethod" xml:space="preserve">
         <value>类型 '{0}' 必须在附加到 Node 的脚本文件中定义 'public override partial void _Notification(int what);'。DI 框架需要此方法进行生命周期管理</value>
     </data>
@@ -74,16 +71,28 @@
         <value>类型 '{0}' 的 _Notification 方法签名不正确。期望: 'public override partial void _Notification(int what);'</value>
     </data>
 
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个继承该泛型类型的具体类</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- M — 成员级别诊断 -->
     <!-- ============================================================ -->
 
     <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
-        <value>类型 '{0}' 必须标记为 [Singleton] 或者 [Host] 才能在成员上使用 [Provide]</value>
+        <value>类型 '{0}' 必须标记为 [Host] 才能在成员上使用 [Provide]</value>
     </data>
 
     <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
-        <value>类型 '{0}' 必须标记为 [Service], [Host] 或者 [User] 才能在成员上使用 [Inject]</value>
+        <value>类型 '{0}' 必须标记为 [Host] 或 [User] 才能在成员上使用 [Inject]</value>
     </data>
 
     <data name="M_MemberConflictWithProvideAndInject" xml:space="preserve">
@@ -98,12 +107,28 @@
         <value>[Provide] 属性 '{0}' 必须有 getter</value>
     </data>
 
+    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
+        <value>[Provide] 方法 '{0}' 的返回值不能是 void</value>
+    </data>
+
+    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
+        <value>[Provide] 方法 '{0}' 必须是无参方法</value>
+    </data>
+
+    <data name="M_InjectMemberIsStatic" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 不能是静态的</value>
+    </data>
+
+    <data name="M_InjectMemberIsRegularNode" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是普通 Godot.Node（未标记任何 DI 特性）。只有 Host 类型、接口或普通服务类可以被注入。请为目标类型添加 [Host]，或改为注入接口</value>
+    </data>
+
     <data name="M_InjectMemberTypeIsInvalid" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 的类型 '{1}' 不是有效的可注入类型。可注入类型必须是接口或具体类（非抽象、非静态）</value>
     </data>
 
     <data name="M_InjectMemberIsHostType" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [Host] 类型。虽然允许，但不推荐直接注入 Host 类型 - 建议注入 Host 暴露的接口</value>
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [Host] 类型。虽然允许，但不推荐直接注入 Host 类型——建议注入 Host 暴露的接口</value>
     </data>
 
     <data name="M_InjectMemberIsUserType" xml:space="preserve">
@@ -114,88 +139,104 @@
         <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能被注入</value>
     </data>
 
-    <data name="M_InjectMemberIsStatic" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 不能是静态的</value>
-    </data>
-
     <data name="M_InjectMemberTypeShouldBeInterface" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 的类型 '{1}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
     </data>
 
-    <data name="M_SingletonMemberTypeIsInvalid" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 不是有效类型。Singleton 成员类型必须是接口或具体类（非抽象、非静态）</value>
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个继承该泛型类型的具体类</value>
     </data>
+
+    <data name="M_ProvideMemberIsStatic" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能是静态的</value>
+    </data>
+
+    <data name="M_ProvideMemberTypeIsInvalid" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 不是有效类型。[Provide] 成员类型必须是接口或具体类（非抽象、非静态）</value>
+    </data>
+
     <data name="M_ProvideMemberIsHostType" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是 Host 类型。Host 只能通过 [Provide] 成员暴露自身，不能暴露其他 Host 类型</value>
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 Host 类型。Host 只能通过 [Provide] 成员暴露自身，不能暴露其他 Host 类型</value>
     </data>
 
-    <data name="M_SingletonMemberIsUserType" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能用作 Singleton 成员</value>
+    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能用作 [Provide] 成员</value>
     </data>
 
-    <data name="M_SingletonMemberIsScopeType" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能用作 Singleton 成员</value>
+    <data name="M_ProvideMemberIsScopeType" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能用作 [Provide] 成员</value>
     </data>
 
-    <data name="M_SingletonMemberIsRegularNode" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 的类型 '{1}' 是普通 Node（未标记 DI 特性），不能用作 Singleton 成员</value>
+    <data name="M_ProvideMemberIsRegularNode" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是普通 Node（未标记 DI 特性），不能用作 [Provide] 成员</value>
     </data>
 
-    <data name="M_SingletonMemberExposedTypeNotImplemented" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 有暴露类型 '{1}'，但类型 '{2}' 未实现该类型</value>
+    <data name="M_ProvideMemberExposedTypeNotImplemented" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的暴露类型为 '{1}'，但类型 '{2}' 未实现该类型</value>
     </data>
 
-    <data name="M_SingletonMemberExposedTypeShouldBeInterface" xml:space="preserve">
-        <value>[Singleton] 成员暴露类型 '{0}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
+    <data name="M_ProvideMemberExposedTypeShouldBeInterface" xml:space="preserve">
+        <value>[Provide] 成员暴露类型 '{0}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
     </data>
 
-    <data name="M_HostMissingSingletonMember" xml:space="preserve">
-        <value>Host '{0}' 没有标记为 [Singleton] 的成员</value>
+    <data name="M_ProvideMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="M_ProvideMemberExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
+    </data>
+
+    <data name="M_HostMissingProvideMember" xml:space="preserve">
+        <value>Host '{0}' 没有标记为 [Provide] 的成员。Host 必须通过至少一个 [Provide] 成员暴露服务</value>
     </data>
 
     <data name="M_UserMissingInjectMember" xml:space="preserve">
         <value>User '{0}' 没有标记为 [Inject] 的成员</value>
     </data>
 
-    <!-- ============================================================ -->
-    <!-- S — 构造函数级别诊断 -->
-    <!-- ============================================================ -->
+    <data name="M_WaitForFieldNotFound" xml:space="preserve">
+        <value>WaitFor 在成员 '{1}' 上引用了字段 '{0}'，但本类中不存在该成员</value>
+    </data>
+
+    <data name="M_WaitForFieldNotInjected" xml:space="preserve">
+        <value>WaitFor 引用了字段 '{0}'，但该字段未标记 [Inject]。用于同步的 TCS 将永远不会被解析，导致 WaitFor 在运行时无限等待</value>
+    </data>
+
+    <data name="M_WaitForCircularDependency" xml:space="preserve">
+        <value>成员 '{0}' 存在循环的 WaitFor 依赖链，将在运行时导致死锁</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- D — 依赖图诊断 -->
     <!-- ============================================================ -->
 
     <data name="D_ScopeModulesEmpty" xml:space="preserve">
-        <value>Scope '{0}' 在 [Modules] 中未指定任何服务或 Host</value>
-    </data>
-
-    <data name="D_ScopeModulesServiceMustBeService" xml:space="preserve">
-        <value>Scope '{0}' Modules 服务类型 '{1}' 必须是服务</value>
+        <value>Scope '{0}' 在 [Modules] 中未指定任何 Host</value>
     </data>
 
     <data name="D_ScopeModulesHostMustBeHost" xml:space="preserve">
-        <value>Scope '{0}' Modules Host 类型 '{1}' 必须是 Host</value>
+        <value>Scope '{0}' Modules Host 类型 '{1}' 必须是 [Host]</value>
     </data>
 
     <data name="D_CircularDependencyDetected" xml:space="preserve">
         <value>检测到循环依赖: {0}</value>
     </data>
 
-    <data name="D_ServiceConstructorParameterInvalid" xml:space="preserve">
-        <value>服务 '{0}' 的构造函数参数类型 '{1}' 不是服务</value>
+    <data name="D_CrossHostDeadlockDetected" xml:space="preserve">
+        <value>检测到跨 Host WaitFor 死锁: {0}。多个 Host 形成了循环等待链，将在运行时死锁。请删除其中一个 WaitFor 依赖或重新设计服务提供关系</value>
     </data>
 
-    <data name="D_ScopeServiceTypeConflict" xml:space="preserve">
-        <value>在 Scope '{0}' 中，服务类型 '{1}' 由多个提供者注册： {2}。每个服务类型在 Scope 中必须只有一个提供者</value>
+    <data name="D_ScopeServiceTypeDuplicated" xml:space="preserve">
+        <value>在 Scope '{0}' 中，服务类型 '{1}' 由多个提供者注册：{2}。每个服务类型在 Scope 内必须只有一个提供者</value>
     </data>
-
     <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有服务暴露此类型</value>
+        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有任何服务暴露此类型</value>
     </data>
 
     <!-- ============================================================ -->
     <!-- E — 内部错误诊断 -->
     <!-- ============================================================ -->
-    <!-- ========== 新增诊断 (E001-E101) ========== -->
 
     <data name="E_GeneratorInitializationFailed" xml:space="preserve">
         <value>源生成器初始化失败: {0}</value>
@@ -219,10 +260,6 @@
 
     <data name="E_GraphBuildPhaseFailed" xml:space="preserve">
         <value>依赖图构建阶段 '{0}' 失败: {1}</value>
-    </data>
-
-    <data name="E_ServiceProviderRegistrationFailed" xml:space="preserve">
-        <value>为 '{0}' 注册服务提供者失败: {1}</value>
     </data>
 
     <data name="E_NodeBuildFailed" xml:space="preserve">
@@ -264,33 +301,9 @@
     <data name="U_ManualSetInjectionReadyField" xml:space="preserve">
         <value>不要手动设置注入准备字段 '{0}'（在 '{1}' 上）。此字段由 DI 框架管理，会在依赖成功注入时自动设置</value>
     </data>
-    
-    <data name="M_ProvideMemberIsStatic" xml:space="preserve">
-        <value>[Provide] 成员 '{0}' 不能是静态的</value>
-    </data>
-    <data name="C_ServiceCannotBeNode" xml:space="preserve">
-        <value>服务 '{0}' 不能继承自 Godot.Node</value>
-    </data>
-    <data name="C_ServiceTypeCannotBeGeneric" xml:space="preserve">
-        <value>服务不能是开放泛型类型 '{0}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。请定义一个具体类</value>
-    </data>
-    <data name="M_SingletonMemberExposedTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
-    </data>
-    <data name="M_SingletonMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Singleton] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
-    </data>
-    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个具体类继承该泛型类型作为服务实现</value>
-    </data>
-    <data name="C_HostCannotBeGenericType" xml:space="preserve">
-        <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
-    </data>
-    <data name="C_UserCannotBeGenericType" xml:space="preserve">
-        <value>User 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
-    </data>
-    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
-        <value>Scope 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个具体类继承该泛型类型作为服务实现</value>
+
+    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
+        <value>成员 '{0}' 标记了 [Inject(ReadyCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入成功的情况</value>
     </data>
 
     <!-- ============================================================ -->
@@ -304,19 +317,9 @@
     <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
         <value>实现 {0} 方法</value>
     </data>
+
     <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
         <value>实现 {0} 方法</value>
     </data>
-    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
-        <value>成员 '{0}' 标记了 [Inject(ReadyCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入成功的情况</value>
-    </data>
-    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
-        <value>[Provide] 方法的返回值不能是 void</value>
-    </data>
-    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
-        <value>[Provide] 方法的必须是无参方法</value>
-    </data>
-    <data name="S_ServiceHasNoPublicParameterlessConstructor" xml:space="preserve">
-        <value>服务 '{0}' 必须有公共的无参构造函数</value>
-    </data>
+
 </root>

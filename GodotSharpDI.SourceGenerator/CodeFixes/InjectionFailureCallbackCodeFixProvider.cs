@@ -27,7 +27,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create(
             "GDI_U004", // MissingInjectionFailureCallbackImplementation
-            "GDI_U006"  // MissingInjectionReadyCallbackImplementation
+            "GDI_U006" // MissingInjectionReadyCallbackImplementation
         );
 
     public override FixAllProvider GetFixAllProvider()
@@ -242,21 +242,24 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             var statements = SyntaxFactory.List(
                 new StatementSyntax[]
                 {
-                    // GD.PushError(error);
+                    // GD.Print("Injection ready");
                     SyntaxFactory.ExpressionStatement(
                         SyntaxFactory
                             .InvocationExpression(
                                 SyntaxFactory.MemberAccessExpression(
                                     SyntaxKind.SimpleMemberAccessExpression,
                                     SyntaxFactory.IdentifierName("GD"),
-                                    SyntaxFactory.IdentifierName("PushError")
+                                    SyntaxFactory.IdentifierName("Print")
                                 )
                             )
                             .WithArgumentList(
                                 SyntaxFactory.ArgumentList(
                                     SyntaxFactory.SingletonSeparatedList(
                                         SyntaxFactory.Argument(
-                                            SyntaxFactory.IdentifierName("error")
+                                            SyntaxFactory.LiteralExpression(
+                                                SyntaxKind.StringLiteralExpression,
+                                                SyntaxFactory.Literal("Dependency injection failed")
+                                            )
                                         )
                                     )
                                 )
@@ -265,7 +268,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 }
             );
 
-            // 创建方法：partial void OnXxxInjectionFailed(string error) { ... }
+            // 创建方法：partial void OnXxxInjectionFailed() { ... }
             var method = SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -274,19 +277,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 .WithModifiers(
                     SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword))
                 )
-                .WithParameterList(
-                    SyntaxFactory.ParameterList(
-                        SyntaxFactory.SingletonSeparatedList(
-                            SyntaxFactory
-                                .Parameter(SyntaxFactory.Identifier("error"))
-                                .WithType(
-                                    SyntaxFactory.PredefinedType(
-                                        SyntaxFactory.Token(SyntaxKind.StringKeyword)
-                                    )
-                                )
-                        )
-                    )
-                )
+                .WithParameterList(SyntaxFactory.ParameterList())
                 .WithBody(SyntaxFactory.Block(statements))
                 .WithLeadingTrivia(
                     SyntaxFactory.ElasticCarriageReturnLineFeed,
@@ -307,19 +298,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 .WithModifiers(
                     SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword))
                 )
-                .WithParameterList(
-                    SyntaxFactory.ParameterList(
-                        SyntaxFactory.SingletonSeparatedList(
-                            SyntaxFactory
-                                .Parameter(SyntaxFactory.Identifier("error"))
-                                .WithType(
-                                    SyntaxFactory.PredefinedType(
-                                        SyntaxFactory.Token(SyntaxKind.StringKeyword)
-                                    )
-                                )
-                        )
-                    )
-                )
+                .WithParameterList(SyntaxFactory.ParameterList())
                 .WithBody(SyntaxFactory.Block());
         }
     }

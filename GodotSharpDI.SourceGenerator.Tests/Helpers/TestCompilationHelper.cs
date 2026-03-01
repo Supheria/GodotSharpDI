@@ -177,40 +177,40 @@ using System;
 
 namespace GodotSharpDI.Abstractions
 {
-    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    public sealed class SingletonAttribute : Attribute
-    {
-        public Type[] ServiceTypes { get; }
-        public SingletonAttribute(params Type[] serviceTypes)
-        {
-            ServiceTypes = serviceTypes;
-        }
-    }
-
+    /// <summary>标记一个 Node 为 DI 服务提供者</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class HostAttribute : Attribute { }
 
+    /// <summary>标记一个 Node 为 DI 服务消费者</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class UserAttribute : Attribute { }
 
+    /// <summary>标记一个字段/属性需要注入</summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
-    public sealed class InjectAttribute : Attribute { }
+    public sealed class InjectAttribute : Attribute
+    {
+        /// <summary>注入失败时是否调用回调</summary>
+        public bool FailureCallback { get; set; }
+        /// <summary>注入就绪时是否调用回调</summary>
+        public bool ReadyCallback { get; set; }
+    }
 
+    /// <summary>标记一个属性/方法对外暴露服务</summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
     public sealed class ProvideAttribute : Attribute
     {
+        /// <summary>暴露的服务类型列表</summary>
         public Type[] ExposedTypes { get; set; } = Array.Empty<Type>();
+        /// <summary>该 Provide 成员需等待哪些 Inject 字段先完成</summary>
         public string[] WaitFor { get; set; } = Array.Empty<string>();
     }
 
-    [AttributeUsage(AttributeTargets.Constructor)]
-    public sealed class InjectConstructorAttribute : Attribute { }
-
+    /// <summary>标记一个 Node 为 DI Scope（服务注册表）</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class ModulesAttribute : Attribute
     {
-        public Type[] Services { get; set; } = [];
-        public Type[] Hosts { get; set; } = [];
+        public Type[] Services { get; set; } = Array.Empty<Type>();
+        public Type[] Hosts { get; set; } = Array.Empty<Type>();
     }
 
     public interface IScope
@@ -220,9 +220,10 @@ namespace GodotSharpDI.Abstractions
         void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
     }
 
+    /// <summary>所有依赖注入完成后的回调接口</summary>
     public interface IDependenciesResolved
     {
-        void OnDependenciesResolved(string isAllDependencyResolved);
+        void OnDependenciesResolved(bool isAllDependenciesReady);
     }
 }
 
@@ -242,6 +243,7 @@ namespace Godot
     {
         public static void PushError(string message) { }
         public static void PushError(Exception ex) { }
+        public static void PrintErr(string message) { }
         public static void Print(string message) { }
     }
 }

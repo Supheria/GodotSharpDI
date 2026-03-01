@@ -13,15 +13,16 @@ public class ClassValidatorTests
     [Fact]
     public void Validate_NonPartialClass_ReportsDiagnostic()
     {
-        // Arrange
+        // [Host] 类必须是 partial — 非 partial 应报 GDI_C050
         var source =
             @"
 using GodotSharpDI.Abstractions;
+using Godot;
 
 namespace Test
 {
-    [Singleton]
-    public class MyService
+    [Host]
+    public class MyHost : Node
     {
     }
 }
@@ -31,7 +32,7 @@ namespace Test
         var root = tree.GetRoot();
         var classDecl = root.DescendantNodes()
             .OfType<ClassDeclarationSyntax>()
-            .First(c => c.Identifier.Text == "MyService");
+            .First(c => c.Identifier.Text == "MyHost");
 
         var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
         Assert.NotNull(raw.Info);
@@ -51,9 +52,9 @@ namespace Test
     }
 
     [Fact]
-    public void Validate_ServiceInheritsFromNode_ReportsDiagnostic()
+    public void Validate_UserNonPartialClass_ReportsDiagnostic()
     {
-        // Arrange
+        // [User] 类也必须是 partial
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -61,8 +62,8 @@ using Godot;
 
 namespace Test
 {
-    [Singleton]
-    public partial class MyService : Node
+    [User]
+    public class MyUser : Node
     {
     }
 }
@@ -72,21 +73,16 @@ namespace Test
         var root = tree.GetRoot();
         var classDecl = root.DescendantNodes()
             .OfType<ClassDeclarationSyntax>()
-            .First(c => c.Identifier.Text == "MyService");
+            .First(c => c.Identifier.Text == "MyUser");
 
         var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
         Assert.NotNull(raw.Info);
 
         var symbols = new CachedSymbols(compilation);
-
-        // Act
         var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
 
-        // Assert
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Id == "GDI_C061" // ServiceCannotBeNode
-        );
+        Assert.Null(result.TypeInfo);
+        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_C050");
     }
 
     [Fact]
@@ -168,23 +164,20 @@ namespace Test
     [Fact]
     public void Validate_ScopeNotInheritingFromNode_ReportsDiagnostic()
     {
-        // Arrange
+        // Scope 必须继承 Godot.Node，否则报 GDI_C022
         var source =
             @"
 using GodotSharpDI.Abstractions;
 
 namespace Test
 {
-    [Modules(Services = new[] { typeof(MyService) })]
+    [Modules]
     public partial class MyScope : IScope
     {
         public void RegisterService<T>(T instance) where T : notnull { }
         public void UnregisterService<T>() where T : notnull { }
         public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
     }
-
-    [Singleton]
-    public partial class MyService { }
 }
 ";
         var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
@@ -210,19 +203,24 @@ namespace Test
     }
 
     [Fact]
-    public void Validate_IServicesReadyWithoutUser_ReportsDiagnostic()
+    public void Validate_IDependenciesResolvedOnScopeClass_ReportsDiagnostic()
     {
-        // Arrange
+        // IDependenciesResolved 只能用于 [Host] 或 [User]
+        // Scope 类实现该接口 → GDI_C030
         var source =
             @"
 using GodotSharpDI.Abstractions;
+using Godot;
 
 namespace Test
 {
-    [Singleton]
-    public partial class MyService : IDependenciesResolved
+    [Modules]
+    public partial class MyScope : Node, IScope, IDependenciesResolved
     {
-        public void OnServicesReady(string isAllDependencyResolved) { }
+        public void RegisterService<T>(T instance) where T : notnull { }
+        public void UnregisterService<T>() where T : notnull { }
+        public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
+        public void OnDependenciesResolved(bool isAllDependenciesReady) { }
     }
 }
 ";
@@ -231,7 +229,7 @@ namespace Test
         var root = tree.GetRoot();
         var classDecl = root.DescendantNodes()
             .OfType<ClassDeclarationSyntax>()
-            .First(c => c.Identifier.Text == "MyService");
+            .First(c => c.Identifier.Text == "MyScope");
 
         var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
         Assert.NotNull(raw.Info);
@@ -241,10 +239,10 @@ namespace Test
         // Act
         var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
 
-        // Assert
+        // Assert - IDependenciesResolved 不能用于 Scope
         Assert.Contains(
             result.Diagnostics,
-            d => d.Id == "GDI_C030" // ServiceReadyNeedUser
+            d => d.Id == "GDI_C030" // IDependenciesResolvedInvalid
         );
     }
 

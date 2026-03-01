@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using Microsoft.CodeAnalysis;
 
@@ -35,15 +36,30 @@ internal sealed class ServiceIndexes
     /// </summary>
     public ImmutableDictionary<ITypeSymbol, TypeNode> UserTypeToNode { get; }
 
+    /// <summary>全局范围内有多个提供者的服务类型</summary>
+    public ImmutableDictionary<ITypeSymbol, ImmutableArray<TypeNode>>
+        DuplicateServiceProviders { get; }
+
+    /// <summary>
+    /// 服务类型 S → 提供 S 的 Host 在 WaitFor 中等待的所有注入类型集合
+    /// 用于构建跨 Host 服务依赖图以检测死锁
+    /// </summary>
+    public ImmutableDictionary<ITypeSymbol, ImmutableHashSet<ITypeSymbol>>
+        ServiceTypeToWaitForDeps { get; }
+
     public ServiceIndexes(
         ImmutableDictionary<ITypeSymbol, TypeNode> hostTypeToNode,
         ImmutableDictionary<ITypeSymbol, ImmutableArray<TypeNode>> serviceTypeToProviders,
-        ImmutableDictionary<ITypeSymbol, TypeNode> userTypeToNode
+        ImmutableDictionary<ITypeSymbol, TypeNode> userTypeToNode,
+        ImmutableDictionary<ITypeSymbol, ImmutableArray<TypeNode>> duplicateServiceProviders,
+        ImmutableDictionary<ITypeSymbol, ImmutableHashSet<ITypeSymbol>> serviceTypeToWaitForDeps
     )
     {
         HostTypeToNode = hostTypeToNode;
         ServiceTypeToProviders = serviceTypeToProviders;
         UserTypeToNode = userTypeToNode;
+        DuplicateServiceProviders = duplicateServiceProviders;
+        ServiceTypeToWaitForDeps = serviceTypeToWaitForDeps;
     }
 
     /// <summary>
@@ -101,10 +117,44 @@ internal sealed class ServiceIndexes
             userTypeToNode[node.ValidatedTypeInfo.Symbol] = node;
         }
 
+        // 4. P2: 收集重复服务提供者
+        var dupBuilder = ImmutableDictionary.CreateBuilder<
+            ITypeSymbol, ImmutableArray<TypeNode>>(SymbolEqualityComparer.Default);
+        foreach (var kvp in tempProviders)
+            if (kvp.Value.Count > 1)
+                dupBuilder[kvp.Key] = kvp.Value.ToImmutableArray();
+
+        // 5. P1: 构建服务类型 → WaitFor 依赖类型映射（用于跨 Host 死锁检测）
+        var waitForDepsBuilder = ImmutableDictionary.CreateBuilder<
+            ITypeSymbol, ImmutableHashSet<ITypeSymbol>>(SymbolEqualityComparer.Default);
+
+        foreach (var node in hostNodes)
+        {
+            foreach (var member in node.ValidatedTypeInfo.Members)
+            {
+                if (!member.IsProvideMember || !member.HasWaitFor) continue;
+
+                foreach (var exposedType in member.ExposedTypes)
+                {
+                    var injectDeps = member.WaitFor
+                        .Select(fn => node.ValidatedTypeInfo.Members
+                            .FirstOrDefault(m => m.Symbol.Name == fn && m.IsInjectMember))
+                        .Where(m => m != null)
+                        .Select(m => (ITypeSymbol)m!.MemberType)
+                        .ToImmutableHashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+
+                    if (!injectDeps.IsEmpty)
+                        waitForDepsBuilder[(ITypeSymbol)exposedType] = injectDeps;
+                }
+            }
+        }
+
         return new ServiceIndexes(
             hostTypeToNode.ToImmutable(),
             serviceTypeToProviders.ToImmutable(),
-            userTypeToNode.ToImmutable()
+            userTypeToNode.ToImmutable(),
+            dupBuilder.ToImmutable(),
+            waitForDepsBuilder.ToImmutable()
         );
     }
 

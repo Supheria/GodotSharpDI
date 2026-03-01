@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using Microsoft.CodeAnalysis;
@@ -28,6 +29,9 @@ internal static class GraphValidator
         {
             // 1. 检测 Host 节点的循环依赖（包括 WaitFor 循环）
             DetectCircularDependencies(allHostNodes, indexes, diagnostics);
+
+            // 1b. P1: 跨 Host 全局 WaitFor 死锁检测（GDI_D011）
+            DetectCrossHostDeadlocks(indexes, diagnostics);
 
             // 2. 验证 Host 的注入成员
             ValidateHostInjections(allHostNodes, indexes, diagnostics);
@@ -104,6 +108,47 @@ internal static class GraphValidator
         }
 
         return builder.ToImmutable();
+    }
+
+    /// <summary>
+    /// P1: 跨 Host WaitFor 死锁检测
+    /// </summary>
+    private static void DetectCrossHostDeadlocks(
+        ServiceIndexes indexes,
+        ImmutableArray<Diagnostic>.Builder diagnostics
+    )
+    {
+        try
+        {
+            var graphBuilder = ImmutableDictionary.CreateBuilder<
+                ITypeSymbol,
+                ImmutableArray<ITypeSymbol>
+            >(SymbolEqualityComparer.Default);
+
+            foreach (var kvp in indexes.ServiceTypeToWaitForDeps)
+            {
+                var deps = kvp.Value.Where(d => indexes.HasProvider(d)).ToImmutableArray();
+
+                if (!deps.IsEmpty)
+                    graphBuilder[kvp.Key] = deps;
+            }
+
+            var detector = new CrossHostCircularDependencyDetector(
+                graphBuilder.ToImmutable(),
+                indexes
+            );
+            diagnostics.AddRange(detector.Detect());
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add(
+                DiagnosticBuilder.CreateAtNone(
+                    DiagnosticDescriptors.GraphValidationFailed,
+                    "CrossHostDeadlockDetection",
+                    ex.Message
+                )
+            );
+        }
     }
 
     /// <summary>

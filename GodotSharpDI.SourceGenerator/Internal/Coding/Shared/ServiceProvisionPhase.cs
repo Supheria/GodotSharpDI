@@ -4,23 +4,17 @@ using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
-using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 阶段 3: 提供 [Provide] 标记的服务
+/// 为 [Provide] 标记的成员生成服务提供代码
 /// </summary>
 internal static class ServiceProvisionPhase
 {
     /// <summary>
-    /// 为单个成员生成提供代码（使用成员的实现类型提供服务）
+    /// 为单个成员生成服务提供调用语句。
     /// </summary>
-    /// <param name="f">代码格式化器</param>
-    /// <param name="member">要提供的成员</param>
-    /// <param name="scopeField">Scope 字段名称</param>
-    /// <param name="instancePrefix">实例访问前缀（Provider用""，外部调用可能用"instance."）</param>
-    /// <param name="inAsyncContext">是否在 async 上下文中（影响异步成员的调用方式）</param>
     public static void GenerateMemberProvide(
         CodeFormatter f,
         MemberInfo member,
@@ -30,33 +24,23 @@ internal static class ServiceProvisionPhase
     )
     {
         var memberAccess = GetMemberAccess(member, instancePrefix);
-
-        // 使用成员的实现类型提供服务
         var implType = member.MemberType.ToFullyQualifiedName();
 
         f.AppendLine($"// 提供服务: {implType}");
 
         if (member.IsAsync)
         {
-            // 异步成员
             if (inAsyncContext)
-            {
-                // 在 async 上下文中，使用 await 确保完成
                 f.AppendLine(
-                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField});"
+                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, __lifetime_cancellation_tokens.Token);"
                 );
-            }
             else
-            {
-                // 不在 async 上下文中，启动异步任务但不等待
                 f.AppendLine(
-                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField});"
+                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, __lifetime_cancellation_tokens.Token);"
                 );
-            }
         }
         else
         {
-            // 同步成员 - 直接提供
             GenerateSyncProvide(f, memberAccess, implType, scopeField);
         }
 
@@ -64,7 +48,7 @@ internal static class ServiceProvisionPhase
     }
 
     /// <summary>
-    /// 生成所有异步提供的辅助方法（使用成员的实现类型提供服务）
+    /// 生成所有异步提供辅助方法。
     /// </summary>
     public static void GenerateAsyncProviderMethods(
         CodeFormatter f,
@@ -72,100 +56,113 @@ internal static class ServiceProvisionPhase
     )
     {
         foreach (var member in asyncMembers.Where(m => m.IsAsync))
-        {
             GenerateAsyncProviderMethod(f, member);
-        }
     }
 
     /// <summary>
-    /// 生成单个异步提供方法
+    /// 生成单个异步提供方法（实例方法）。
     /// </summary>
     private static void GenerateAsyncProviderMethod(CodeFormatter f, MemberInfo member)
     {
         var implType = member.MemberType.ToFullyQualifiedName();
-        // member.MemberType 是 T（从 Task<T> 中提取的），需要构建完整的 Task<T> 类型
-        var innerTypeName = member.MemberType.ToFullyQualifiedName(); // T
-        var taskTypeName = $"{GlobalNames.Task}<{innerTypeName}>"; // Task<T>
+        var taskTypeName = $"{GlobalNames.Task}<{implType}>";
         var methodName = $"ProvideAsync_{member.Symbol.Name}";
 
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"private static async {GlobalNames.Task} {methodName}("
-                + $"{taskTypeName} task, "
-                + $"{GlobalNames.IScope} scope)"
+            $"private async {GlobalNames.Task} {methodName}("
+                + $"{taskTypeName} task, {GlobalNames.IScope} scope, global::System.Threading.CancellationToken ct)"
         );
         f.BeginBlock();
         {
-            f.BeginTryCatch();
+            // OperationCanceledException 先于 Exception 捕获，确保取消静默退出
+            f.AppendLine("try");
+            f.BeginBlock();
             {
                 f.AppendLine("var result = await task;");
                 f.AppendLine();
-
-                f.AppendLine("// 使用 CallDeferred 回到主线程");
+                // await 返回后检查 token（ExitTree 已取消）
+                f.AppendLine("ct.ThrowIfCancellationRequested();");
+                f.AppendLine();
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    f.AppendLine(
-                        $"scope.ProvideService<{implType}>({GlobalNames.ResolutionResult}.Success(result));"
-                    );
+                    // CallDeferred 排队期间 token 可能再次被取消，进入后检查一次
+                    f.AppendLine("if (ct.IsCancellationRequested) return;");
+                    f.AppendLine($"scope.ProvideService<{implType}>(result);");
                 }
                 f.EndBlock(").CallDeferred();");
             }
-            f.CatchBlock("ex");
+            f.EndBlock();
+            f.AppendLine("catch (global::System.OperationCanceledException)");
+            f.BeginBlock();
             {
+                // 节点已退出场景树，静默退出，不调用 ProvideService
+                f.AppendLine("// Node exited scene tree – silent cancellation, do not call ProvideService");
+            }
+            f.EndBlock();
+            f.AppendLine("catch (global::System.Exception ex)");
+            f.BeginBlock();
+            {
+                f.AppendLine("if (ct.IsCancellationRequested) return;");
+                f.AppendLine();
+                f.AppendLine(
+                    $"{GlobalNames.GodotGD}.PrintErr("
+                        + $"$\"[GodotSharpDI] Async provider for {implType} threw: {{ex.Message}}\");"
+                );
+
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    f.AppendLine(
-                        $"scope.ProvideService<{implType}>({GlobalNames.ResolutionResult}.Failure(ex.Message));"
-                    );
+                    f.AppendLine("if (ct.IsCancellationRequested) return;");
+                    f.AppendLine($"scope.ProvideService<{implType}>(null);");
                 }
                 f.EndBlock(").CallDeferred();");
             }
-            f.EndTryCatch();
+            f.EndBlock();
         }
         f.EndBlock();
         f.AppendLine();
     }
 
     /// <summary>
-    /// 生成同步服务提供代码
+    /// 生成同步服务提供代码。
+    ///   成功 → scope.ProvideService&lt;T&gt;(instance)
+    ///   异常 → scope.ProvideService&lt;T&gt;(null)
     /// </summary>
     private static void GenerateSyncProvide(
         CodeFormatter f,
         string memberAccess,
-        string exposedTypeName,
+        string implType,
         string scopeField
     )
     {
         f.BeginTryCatch();
         {
             f.AppendLine($"var instance = {memberAccess};");
-            f.AppendLine(
-                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.ResolutionResult}.Success(instance));"
-            );
+            f.AppendLine($"{scopeField}.ProvideService<{implType}>(instance);");
         }
         f.CatchBlock("ex");
         {
             f.AppendLine(
-                $"{scopeField}.ProvideService<{exposedTypeName}>({GlobalNames.ResolutionResult}.Failure(ex.Message));"
+                $"{GlobalNames.GodotGD}.PrintErr("
+                    + $"$\"[GodotSharpDI] Provider for {implType} threw: {{ex.Message}}\");"
             );
+            f.AppendLine($"{scopeField}.ProvideService<{implType}>(null);");
         }
         f.EndTryCatch();
     }
 
     /// <summary>
-    /// 获取成员访问表达式
+    /// 获取成员访问表达式。
     /// </summary>
     private static string GetMemberAccess(MemberInfo member, string instancePrefix)
     {
         var prefix = string.IsNullOrEmpty(instancePrefix) ? "" : $"{instancePrefix}.";
-        var memberName = member.Symbol.Name;
-
         return member.Kind switch
         {
-            MemberKind.ProvideProperty => $"{prefix}{memberName}",
-            MemberKind.ProvideMethod => $"{prefix}{memberName}()",
+            MemberKind.ProvideProperty => $"{prefix}{member.Symbol.Name}",
+            MemberKind.ProvideMethod => $"{prefix}{member.Symbol.Name}()",
             _ => throw new ArgumentOutOfRangeException(),
         };
     }

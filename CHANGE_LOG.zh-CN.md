@@ -1,3 +1,143 @@
+# v1.2.0
+
+## 🔨 破坏性变更
+
+### FailureCallback 方法签名变更
+
+`FailureCallback` 的 partial 方法不再接受 `string error` 参数，现在为**无参方法**。
+
+**之前 (1.1.1)**：
+
+```csharp
+partial void OnNetworkServiceInjectionFailed(string error)
+{
+    GD.PrintErr($"网络服务不可用: {error}");
+    EnableOfflineMode();
+}
+```
+
+**之后 (1.2.0)**：
+```csharp
+partial void OnNetworkServiceInjectionFailed()
+{
+    GD.PrintErr("网络服务不可用");
+    EnableOfflineMode();
+}
+```
+
+**迁移方式**：删除所有 `OnXxxInjectionFailed` 实现中的 `string error` 参数。
+
+---
+
+### IScope 接口 API 变更
+
+`ResolutionResult` 结构体已被移除，`IScope` 现在直接使用可空类型。
+
+**之前 (1.1.1)**：
+```csharp
+void ProvideService<TImpl>(ResolutionResult result);
+void ResolveDependency<TExposed>(Action<ResolutionResult> onResult, string requestorType);
+```
+
+**之后 (1.2.0)**：
+```csharp
+void ProvideService<TImpl>(TImpl? instance);
+void ResolveDependency<TExposed>(Action<TExposed?> onResult, string requestorType);
+```
+
+**影响范围**：仅影响直接实现 `IScope` 的用户（极少见）。如果你只使用 `[Host]`、`[User]` 和 `[Modules]`，无需任何迁移。
+
+---
+
+## 🎯 新功能
+
+### 🔒 跨 Host 死锁检测（GDI_D011）
+
+**1.2.0 新功能**：编译期检测跨 Host 的 `WaitFor` 循环依赖。
+
+当两个或多个 `[Host]` 节点通过 `WaitFor` 相互等待对方提供的服务时，会在运行时产生死锁。框架现在使用 **Tarjan 强连通分量算法**在**编译期**检测这类循环，并报告 `GDI_D011`。
+
+**死锁示例**：
+```csharp
+// ❌ HostA 提供 IServiceA，但 WaitFor 等待 IServiceB 注入
+[Host]
+public partial class HostA : Node
+{
+    [Inject] private IServiceB? _serviceB;
+
+    [Provide(ExposedTypes = [typeof(IServiceA)], WaitFor = [nameof(_serviceB)])]
+    public IServiceA CreateA() => new ServiceA();
+
+    public override partial void _Notification(int what);
+}
+
+// ❌ HostB 提供 IServiceB，但 WaitFor 等待 IServiceA 注入
+// → IServiceA → IServiceB → IServiceA：跨 Host 死锁！
+[Host]
+public partial class HostB : Node
+{
+    [Inject] private IServiceA? _serviceA;
+
+    [Provide(ExposedTypes = [typeof(IServiceB)], WaitFor = [nameof(_serviceA)])]
+    public IServiceB CreateB() => new ServiceB();
+
+    public override partial void _Notification(int what);
+}
+```
+
+**诊断**：`GDI_D011`（Error）——对环中的所有 Host 均发出诊断，消息中包含完整的环路径（如 `IServiceA -> IServiceB -> IServiceA`）。
+
+**与 GDI_D010 的区别**：
+- `GDI_D010`——**同一 Host 内**的 WaitFor 循环（单机死锁）
+- `GDI_D011`——**跨不同 Host** 的 WaitFor 循环（分布式死锁）
+
+**解决方式**：删除其中一个 WaitFor 引用，或重新设计哪个 Host 负责提供哪个服务。
+
+---
+
+## 🛠️ 内部改进
+
+### 集中管理运行时字符串常量
+
+新增 `GeneratedStrings.cs`——生成代码中使用的所有运行时字符串字面量现在统一在此文件中定义，提升可维护性并为未来国际化做准备。
+
+### 基于 TCS 的 WaitFor 同步机制
+
+`WaitFor` 机制现在使用 `TaskCompletionSource<bool>` 字段（`__xxx_tcs`）进行依赖同步，替代原有的事件驱动方式。在跨异步边界的依赖解析场景下，此方案的正确性更有保障。
+
+### 生成计数器（`_diGeneration`）
+
+每个 DI 节点的生成代码中新增了 `volatile int _diGeneration` 字段。该字段在 `ExitTree` 时递增，用于使飞行中的异步回调失效，防止节点重新进入场景树后，上一次挂载期间触发的回调仍被执行。
+
+---
+
+## 📊 诊断代码变更
+
+| 代码 | 分类 | 变更说明 |
+|------|------|----------|
+| `GDI_C060` | 类 | **重新编号** 自 `GDI_C080` – 缺少 `_Notification` 方法声明 |
+| `GDI_C061` | 类 | **重新编号** 自 `GDI_C081` – `_Notification` 方法签名不正确 |
+| `GDI_D011` | 依赖图 | **新增** – 跨 Host WaitFor 死锁检测 |
+| `GDI_E030` | 内部错误 | **移除** – 服务提供者注册失败 |
+| `GDI_M051–M056` | 成员 | **重命名** – `SingletonMember*` → `ProvideMember*` |
+| `GDI_M060,M062` | 成员 | **重命名** – `SingletonMemberExposedType*` → `ProvideMemberExposedType*` |
+| `GDI_M061` | 成员 | **新增** – `[Provide]` 成员暴露类型建议使用接口（Warning） |
+| `GDI_M070` | 成员 | **重命名** – `HostMissingSingletonMember` → `HostMissingProvideMember` |
+| `GDI_M080` | 成员 | **移入资源文件** – WaitFor 引用不存在的字段 |
+| `GDI_M081` | 成员 | **移入资源文件 + 严重性升级** – WaitFor 字段未标记 [Inject]；Warning 升级为 **Error** |
+| `GDI_M082` | 成员 | **移入资源文件** – WaitFor 循环依赖（原为硬编码字符串） |
+
+---
+
+## ✅ 兼容性
+
+- ⚠️ **破坏性**：`FailureCallback` partial 方法签名变更（需删除 `string error` 参数）
+- ⚠️ **破坏性**：`IScope` 接口变更（移除 `ResolutionResult`，改用可空类型）
+- ✅ 其他所有现有代码无需修改即可继续运行
+- ✅ 新功能（`GDI_D011`）均为纯增量诊断
+
+---
+
 # v1.1.1
 
 ## 🎯 新功能

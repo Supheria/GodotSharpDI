@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
@@ -40,22 +40,20 @@ internal static class NodeLifeCycleGenerator
 
     private static void GenerateParentScopeField(CodeFormatter f)
     {
-        // _parentScope
         f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine($"private {GlobalNames.IScope}? _parentScope;");
+        f.AppendLine($"private {GlobalNames.IScope}? __parentScope;");
     }
 
     private static void GenerateGetParentScope(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
-        // GetParentScope
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine($"private {GlobalNames.IScope}? GetParentScope()");
         f.BeginBlock();
         {
-            f.AppendLine("if (_parentScope is not null)");
+            f.AppendLine("if (__parentScope is not null)");
             f.BeginBlock();
             {
-                f.AppendLine("return _parentScope;");
+                f.AppendLine("return __parentScope;");
             }
             f.EndBlock();
             f.AppendLine();
@@ -67,8 +65,8 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine($"if (parent is {GlobalNames.IScope} scope)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("_parentScope = scope;");
-                    f.AppendLine("return _parentScope;");
+                    f.AppendLine("__parentScope = scope;");
+                    f.AppendLine("return __parentScope;");
                 }
                 f.EndBlock();
                 f.AppendLine("parent = parent.GetParent();");
@@ -81,7 +79,6 @@ internal static class NodeLifeCycleGenerator
 
     private static void GenerateNotification(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
-        // _Notification
         f.AppendLine("public override partial void _Notification(int what)");
         f.BeginBlock();
         {
@@ -93,10 +90,17 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("case NotificationEnterTree:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("_parentScope = null;");
+                    f.AppendLine("__parentScope = null;");
+                    if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
+                    {
+                        // ResetInjectionState: 递增 Generation + 重置 TCS/ready flags
+                        // 确保重新进入场景树时拿到全新的注入状态，旧操作的回调会因 Generation 不符而失效
+                        f.AppendLine("ResetInjectionState();");
+                    }
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
+
                 // NotificationReady
                 f.AppendLine("case NotificationReady:");
                 f.BeginBlock();
@@ -117,14 +121,24 @@ internal static class NodeLifeCycleGenerator
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
+
                 // NotificationExitTree
                 f.AppendLine("case NotificationExitTree:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("_parentScope = null;");
+                    f.AppendLine("__parentScope = null;");
+                    if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
+                    {
+                        // FIX3: 节点退出场景树时立即令所有飞行中的异步操作失效。
+                        //       ResetInjectionState 会递增 _diGeneration，
+                        //       任何已排队的 ContinueWith / CallDeferred 回调在执行时
+                        //       将发现 Generation 不匹配并静默退出。
+                        f.AppendLine("ResetInjectionState();");
+                    }
                     f.AppendLine("break;");
                 }
                 f.EndBlock();
+
                 // NotificationPredelete
                 f.AppendLine("case NotificationPredelete:");
                 f.BeginBlock();

@@ -176,7 +176,7 @@ internal sealed class CircularDependencyDetector
             } while (!SymbolEqualityComparer.Default.Equals(w, serviceType));
 
             // 如果强连通分量包含多个节点，或有自环，则是循环依赖
-            if (component.Count > 1 || HasSelfLoop(serviceType, node))
+            if (component.Count > 1 || HasEdgeToSelf(serviceType))
             {
                 _cycles.Add(new Cycle(component));
             }
@@ -184,21 +184,28 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 检查服务是否有自环（通过WaitFor依赖自己）
+    /// 检查服务类型 S 在 WaitFor 依赖图中是否有指向自身的边（直接自环）
+    /// 即：某个 Provide 成员的 WaitFor 列表中包含了其自身的暴露类型
+    /// 注意：间接依赖（A→B→A）由 Tarjan 多节点 SCC 检测覆盖，无需在此处理
     /// </summary>
-    private bool HasSelfLoop(ITypeSymbol serviceType, TypeNode node)
+    private bool HasEdgeToSelf(ITypeSymbol serviceType)
     {
-        foreach (var dependency in node.Dependencies)
+        if (!_serviceToMember.TryGetValue(serviceType, out var memberInfo)) return false;
+        if (!_serviceImplToNode.TryGetValue(memberInfo.HostType, out var node)) return false;
+
+        foreach (var dep in node.Dependencies)
         {
-            if (
-                dependency.Source == DependencySource.WaitForMember
-                && dependency.SourceProvidedType != null
-                && SymbolEqualityComparer.Default.Equals(dependency.SourceProvidedType, serviceType)
-                && SymbolEqualityComparer.Default.Equals(dependency.TargetType, serviceType)
-            )
-            {
+            if (dep.Source != DependencySource.WaitForMember) continue;
+            if (dep.SourceProvidedType == null) continue;
+
+            // 只处理属于当前 serviceType 的 WaitFor 边
+            if (!SymbolEqualityComparer.Default.Equals(dep.SourceProvidedType, serviceType))
+                continue;
+
+            // 直接自环：Provide 成员等待自身类型被注入
+            // 例：[Provide(typeof(IServiceA), WaitFor=[nameof(_self)])] 且 _self 类型为 IServiceA
+            if (SymbolEqualityComparer.Default.Equals(dep.TargetType, serviceType))
                 return true;
-            }
         }
 
         return false;
@@ -323,7 +330,9 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 递归构建排序后的循环路径
+    /// 递归构建排序后的循环路径。
+    /// 修复：当某节点有多个出边且首选节点已访问时，尝试其余未访问出边，
+    /// 避免因 FirstOrDefault 误选已访问节点而导致路径提前截断。
     /// </summary>
     private void BuildOrderedPath(
         ITypeSymbol current,
@@ -339,10 +348,11 @@ internal sealed class CircularDependencyDetector
         visited.Add(current);
         path.Add(current);
 
-        // 找到循环中的下一个节点
-        var nextInCycle = graph[current].FirstOrDefault(dep => componentSet.Contains(dep));
+        // 优先选择尚未访问的循环内节点，避免提前截断路径
+        var nextInCycle = graph[current]
+            .FirstOrDefault(dep => componentSet.Contains(dep) && !visited.Contains(dep));
 
-        if (nextInCycle != null && !visited.Contains(nextInCycle))
+        if (nextInCycle != null)
         {
             BuildOrderedPath(nextInCycle, graph, componentSet, visited, path);
         }
