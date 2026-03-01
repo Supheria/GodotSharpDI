@@ -53,12 +53,9 @@ A compile-time dependency injection framework specifically designed for the Godo
   - [Interface-First Principle](#interface-first-principle)
   - [Host Injecting and Providing Services](#host-injecting-and-providing-services)
   - [Using Service Factories](#using-service-factories)
-- [Migration Guide from 1.1.x to 1.2.0](#migration-guide-from-11x-to-120)
-- [Migration Guide from 1.0.0-rc.3](#migration-guide-from-100-rc3)
 - [Diagnostic Codes](#diagnostic-codes)
 - [License](#license)
 - [Appendix: _Notification method explicitly definition requirement](#appendix-_notification-method-explicitly-definition-requirement)
-- [Todo List](#todo-list)
 
 ---
 
@@ -2140,35 +2137,3 @@ partial class GameManager
     }
 }
 ```
-
-## Todo List
-
-### 1. Documentation and Examples
-
-- [ ] Complete bilingual (Chinese-English) documentation
-- [ ] Add comprehensive sample projects
-- [ ] Create video tutorials
-- [ ] Enhance comment coverage in generated code
-
-### 2. Testing
-
-- [ ] Add runtime integration tests
-- [ ] Add generator, analyzer, code fixer integration tests
-- [x] Add WaitFor mechanism tests
-- [x] Add cross-host deadlock detection tests
-- [x] Add duplicate service registration tests
-
-### 3. Features
-
-- [x] Implement dependency WaitFor mechanism
-- [x] Support asynchronous service providers
-- [x] Support asynchronous operations (using CallDeferred)
-- [ ] Add service lifetime configuration options
-
-### 4. Diagnostics
-
-- [x] Diagnose generator internal errors (GDI_E)
-- [x] Cross-host WaitFor deadlock detection (GDI_D011)
-- [x] Duplicate service registration warning (GDI_D041)
-- [ ] Improve error messages with code examples
-- [ ] Improve error messages with code examples
