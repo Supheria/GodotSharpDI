@@ -154,14 +154,8 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
                 if (m.PartialImplementationPart == null)
                     return false;
 
-                // 检查签名是否匹配: partial void OnXxxInjectionFailed(string error)
-                if (m.ReturnsVoid && m.Parameters.Length == 1)
-                {
-                    var param = m.Parameters[0];
-                    return param.Type.SpecialType == SpecialType.System_String;
-                }
-
-                return false;
+                // 检查签名是否匹配: partial void OnXxxInjectionFailed()
+                return m.ReturnsVoid && m.Parameters.Length == 0;
             }
             catch
             {

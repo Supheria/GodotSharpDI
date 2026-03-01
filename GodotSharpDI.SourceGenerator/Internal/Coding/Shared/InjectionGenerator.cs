@@ -224,7 +224,6 @@ internal static class InjectionGenerator
 
     /// <summary>
     /// 生成 FailureCallback 的 partial 方法声明。
-    /// v1.3.0：ErrorMessage 已废弃，因此无 string 参数。
     /// </summary>
     private static void GenerateFailureCallbackDeclarations(CodeFormatter f, MemberInfo[] members)
     {
