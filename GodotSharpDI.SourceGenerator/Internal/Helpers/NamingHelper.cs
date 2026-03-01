@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace GodotSharpDI.SourceGenerator.Shared;
+namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
 /// 命名转换辅助类

@@ -48,10 +48,9 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenFieldNames = ImmutableHashSet.Create(
         // Node DI 生成的字段
-        "_serviceScope",
+        "__parentScope",
         // Scope 生成的字段
         "ServiceTypes",
-        "_parentScope",
         "_services",
         "_waiters",
         "_disposableSingletons",

@@ -1,4 +1,5 @@
 using System.Linq;
+using GodotSharpDI.SourceGenerator.Internal.Helpers;
 using GodotSharpDI.SourceGenerator.Shared;
 using Xunit;
 
@@ -21,13 +22,13 @@ public class NamingHelperTests
     // ============================================================
 
     [Theory]
-    [InlineData("_myField",      "MyField")]
-    [InlineData("_my_service",   "MyService")]
-    [InlineData("MyProperty",    "MyProperty")]
-    [InlineData("myField",       "MyField")]
+    [InlineData("_myField", "MyField")]
+    [InlineData("_my_service", "MyService")]
+    [InlineData("MyProperty", "MyProperty")]
+    [InlineData("myField", "MyField")]
     [InlineData("__doubleUnder", "DoubleUnder")]
-    [InlineData("_a",            "A")]
-    [InlineData("abc",           "Abc")]
+    [InlineData("_a", "A")]
+    [InlineData("abc", "Abc")]
     public void ToPascalCase_VariousInputs_ReturnsExpected(string input, string expected)
     {
         Assert.Equal(expected, NamingHelper.ToPascalCase(input));
@@ -52,11 +53,14 @@ public class NamingHelperTests
     // ============================================================
 
     [Theory]
-    [InlineData("_service",        "OnServiceInjectionFailed")]
-    [InlineData("_playerStats",    "OnPlayerStatsInjectionFailed")]
-    [InlineData("_my_component",   "OnMyComponentInjectionFailed")]
-    [InlineData("MyProperty",      "OnMyPropertyInjectionFailed")]
-    public void GetFailureCallbackMethodName_VariousInputs_ReturnsExpected(string input, string expected)
+    [InlineData("_service", "OnServiceInjectionFailed")]
+    [InlineData("_playerStats", "OnPlayerStatsInjectionFailed")]
+    [InlineData("_my_component", "OnMyComponentInjectionFailed")]
+    [InlineData("MyProperty", "OnMyPropertyInjectionFailed")]
+    public void GetFailureCallbackMethodName_VariousInputs_ReturnsExpected(
+        string input,
+        string expected
+    )
     {
         Assert.Equal(expected, NamingHelper.GetFailureCallbackMethodName(input));
     }
@@ -73,11 +77,14 @@ public class NamingHelperTests
     // ============================================================
 
     [Theory]
-    [InlineData("_service",        "OnServiceInjectionReady")]
-    [InlineData("_playerStats",    "OnPlayerStatsInjectionReady")]
-    [InlineData("_my_component",   "OnMyComponentInjectionReady")]
-    [InlineData("MyProperty",      "OnMyPropertyInjectionReady")]
-    public void GetReadyCallbackMethodName_VariousInputs_ReturnsExpected(string input, string expected)
+    [InlineData("_service", "OnServiceInjectionReady")]
+    [InlineData("_playerStats", "OnPlayerStatsInjectionReady")]
+    [InlineData("_my_component", "OnMyComponentInjectionReady")]
+    [InlineData("MyProperty", "OnMyPropertyInjectionReady")]
+    public void GetReadyCallbackMethodName_VariousInputs_ReturnsExpected(
+        string input,
+        string expected
+    )
     {
         Assert.Equal(expected, NamingHelper.GetReadyCallbackMethodName(input));
     }
@@ -94,12 +101,15 @@ public class NamingHelperTests
     // ============================================================
 
     [Theory]
-    [InlineData("_config",              "__config_callbacks")]
-    [InlineData("_playerStatsService",  "__playerStatsService_callbacks")]
-    [InlineData("_my_service",          "__myService_callbacks")]
-    [InlineData("MyProp",               "__myProp_callbacks")]
-    [InlineData("_a",                   "__a_callbacks")]
-    public void GetInjectionCallbackListName_VariousInputs_ReturnsExpected(string input, string expected)
+    [InlineData("_config", "__config_callbacks")]
+    [InlineData("_playerStatsService", "__playerStatsService_callbacks")]
+    [InlineData("_my_service", "__myService_callbacks")]
+    [InlineData("MyProp", "__myProp_callbacks")]
+    [InlineData("_a", "__a_callbacks")]
+    public void GetInjectionCallbackListName_VariousInputs_ReturnsExpected(
+        string input,
+        string expected
+    )
     {
         Assert.Equal(expected, NamingHelper.GetInjectionCallbackListName(input));
     }
@@ -134,7 +144,7 @@ public class NamingHelperTests
     public void GetInjectionCallbackListName_SameMember_IsDeterministic()
     {
         // 同一字段多次调用应返回相同值
-        var first  = NamingHelper.GetInjectionCallbackListName("_config");
+        var first = NamingHelper.GetInjectionCallbackListName("_config");
         var second = NamingHelper.GetInjectionCallbackListName("_config");
         Assert.Equal(first, second);
     }
@@ -144,11 +154,14 @@ public class NamingHelperTests
     // ============================================================
 
     [Theory]
-    [InlineData("_service",        "IsServiceInjectionReady")]
-    [InlineData("_playerStats",    "IsPlayerStatsInjectionReady")]
-    [InlineData("_my_component",   "IsMyComponentInjectionReady")]
-    [InlineData("MyProperty",      "IsMyPropertyInjectionReady")]
-    public void GetInjectionReadyFieldName_VariousInputs_ReturnsExpected(string input, string expected)
+    [InlineData("_service", "IsServiceInjectionReady")]
+    [InlineData("_playerStats", "IsPlayerStatsInjectionReady")]
+    [InlineData("_my_component", "IsMyComponentInjectionReady")]
+    [InlineData("MyProperty", "IsMyPropertyInjectionReady")]
+    public void GetInjectionReadyFieldName_VariousInputs_ReturnsExpected(
+        string input,
+        string expected
+    )
     {
         Assert.Equal(expected, NamingHelper.GetInjectionReadyFieldName(input));
     }
@@ -169,11 +182,11 @@ public class NamingHelperTests
     {
         const string member = "_service";
 
-        var pascal       = NamingHelper.ToPascalCase(member);
+        var pascal = NamingHelper.ToPascalCase(member);
         var callbackList = NamingHelper.GetInjectionCallbackListName(member);
-        var readyFn      = NamingHelper.GetReadyCallbackMethodName(member);
-        var failFn       = NamingHelper.GetFailureCallbackMethodName(member);
-        var readyFlag    = NamingHelper.GetInjectionReadyFieldName(member);
+        var readyFn = NamingHelper.GetReadyCallbackMethodName(member);
+        var failFn = NamingHelper.GetFailureCallbackMethodName(member);
+        var readyFlag = NamingHelper.GetInjectionReadyFieldName(member);
 
         // 所有生成名均不相同
         var names = new[] { pascal, callbackList, readyFn, failFn, readyFlag };

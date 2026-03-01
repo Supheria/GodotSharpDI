@@ -19,9 +19,9 @@ internal static class InjectionGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            // _lifetimeCts 字段无论是否有 Inject 成员都需要生成
+            // __lifetime_cancellation_tokens 字段无论是否有 Inject 成员都需要生成
             // 异步 Provider 依赖此 CancellationTokenSource
-            GenerateLifetimeCtsField(f);
+            GenerateLifetimeCancellationTokens(f);
             f.AppendLine();
 
             if (!injectMembers.IsEmpty)
@@ -46,6 +46,7 @@ internal static class InjectionGenerator
 
                 GenerateInjectionReadyProperties(f, injectMembers);
                 GenerateIsAllDependenciesReadyProperty(f, injectMembers);
+                f.AppendLine();
 
                 // 回调列表字段由 WaitForPhase 注册，由 ResolveDependencies 触发
                 GenerateInjectionCallbackListFields(f, injectMembers);
@@ -67,16 +68,16 @@ internal static class InjectionGenerator
     // ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 生成 _lifetimeCts 字段。
+    /// 生成 __lifetime_cancellation_tokens 字段。
     /// 在 ExitTree/EnterTree 时 Cancel 并重建，令所有飞行中的异步 Provider 自动中止。
     /// </summary>
-    public static void GenerateLifetimeCtsField(CodeFormatter f)
+    public static void GenerateLifetimeCancellationTokens(CodeFormatter f)
     {
         f.AppendHiddenMemberCommentAndAttribute(
             "CancellationTokenSource for async providers – cancelled and recreated on ExitTree/EnterTree"
         );
         f.AppendLine(
-            "private global::System.Threading.CancellationTokenSource _lifetimeCts = new();"
+            "private global::System.Threading.CancellationTokenSource __lifetime_cancellation_tokens = new();"
         );
     }
 
@@ -108,7 +109,7 @@ internal static class InjectionGenerator
     /// <summary>
     /// 生成 ResetInjectionState() 方法。
     /// 在 EnterTree / ExitTree 时调用：
-    ///   1. 取消并重建 _lifetimeCts，使所有飞行中的异步 Provider 收到 OperationCanceledException
+    ///   1. 取消并重建 __lifetime_cancellation_tokens，使所有飞行中的异步 Provider 收到 OperationCanceledException
     ///   2. 清空所有注入回调列表，丢弃已注册但尚未触发的 WaitFor 回调
     ///   3. 重置 ready 标识
     /// </summary>
@@ -124,19 +125,21 @@ internal static class InjectionGenerator
         f.BeginBlock();
         {
             // 取消并重建 CTS，令所有飞行中的异步 Provider 自动中止
-            f.AppendLine("_lifetimeCts.Cancel();");
-            f.AppendLine("_lifetimeCts.Dispose();");
+            f.AppendLine("__lifetime_cancellation_tokens.Cancel();");
+            f.AppendLine("__lifetime_cancellation_tokens.Dispose();");
             f.AppendLine(
                 "// Create a fresh token so any new async providers after EnterTree can run normally"
             );
             f.AppendLine(
-                "_lifetimeCts = new global::System.Threading.CancellationTokenSource();"
+                "__lifetime_cancellation_tokens = new global::System.Threading.CancellationTokenSource();"
             );
 
             if (!injectMembers.IsEmpty)
             {
                 f.AppendLine();
-                f.AppendLine("// Clear callback lists – discards all pending WaitFor registrations.");
+                f.AppendLine(
+                    "// Clear callback lists – discards all pending WaitFor registrations."
+                );
                 f.AppendLine("// Since all DI callbacks run on the main thread, there are no");
                 f.AppendLine("// in-flight callbacks to wait for; Clear() is sufficient.");
             }
@@ -295,11 +298,9 @@ internal static class InjectionGenerator
                         {
                             f.BeginTryCatch();
                             {
-                                DependencyResolveGenerator.GenerateSetInjectionReady(
-                                    f,
-                                    memberName,
-                                    memberType
-                                );
+                                var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
+                                f.AppendLine($"{memberName} ??= instance;");
+                                f.AppendLine($"{fieldName} = true;");
                                 if (member.HasReadyCallback)
                                 {
                                     f.AppendLine(
@@ -316,28 +317,35 @@ internal static class InjectionGenerator
                             f.EndTryCatch();
                         }
                         f.EndBlock();
-                        f.AppendLine("else");
-                        f.BeginBlock();
+                        if (member.HasFailureCallback)
                         {
-                            if (member.HasFailureCallback)
+                            f.AppendLine("else");
+                            f.BeginBlock();
                             {
-                                f.AppendLine(
-                                    $"{NamingHelper.GetFailureCallbackMethodName(memberName)}();"
-                                );
+                                {
+                                    f.AppendLine(
+                                        $"{NamingHelper.GetFailureCallbackMethodName(memberName)}();"
+                                    );
+                                }
                             }
+                            f.EndBlock();
                         }
-                        f.EndBlock();
                         f.AppendLine();
 
                         // 通知所有 WaitFor 回调：注入结果已就绪（全部在主线程上执行）
                         var listName = NamingHelper.GetInjectionCallbackListName(memberName);
-                        f.AppendLine($"var __resolved = instance is not null;");
-                        f.AppendLine($"foreach (var __cb in {listName}) __cb(__resolved);");
+                        f.AppendLine("var resolved = instance is not null;");
+                        f.AppendLine($"foreach (var cb in {listName})");
+                        f.BeginBlock();
+                        {
+                            f.AppendLine("cb.Invoke(resolved);");
+                        }
+                        f.EndBlock();
                         f.AppendLine($"{listName}.Clear();");
 
                         if (validatedType.ImplementsIDependenciesResolved)
                         {
-                            DependencyResolveGenerator.GenerateResolvedCallback(f, memberType);
+                            f.AppendLine($"OnDependencyResolved<{memberType}>();");
                         }
                     }
                     f.EndBlock(",");

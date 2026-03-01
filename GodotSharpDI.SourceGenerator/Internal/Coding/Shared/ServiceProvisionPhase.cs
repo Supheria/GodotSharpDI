@@ -8,13 +8,7 @@ using GodotSharpDI.SourceGenerator.Shared;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 阶段 3：为 [Provide] 标记的成员生成服务提供代码
-///
-/// v1.3.0：移除 ResolutionResult。
-///   成功 → scope.ProvideService&lt;T&gt;(instance)   （传递实例本身）
-///   失败 → scope.ProvideService&lt;T&gt;(null)        （null 表示创建失败）
-///
-/// v1.3.0 重构：用 CancellationToken 替代 _diGeneration 代际计数器，使取消语义符合标准 .NET 协议。
+/// 为 [Provide] 标记的成员生成服务提供代码
 /// </summary>
 internal static class ServiceProvisionPhase
 {
@@ -38,11 +32,11 @@ internal static class ServiceProvisionPhase
         {
             if (inAsyncContext)
                 f.AppendLine(
-                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, _lifetimeCts.Token);"
+                    $"await ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, __lifetime_cancellation_tokens.Token);"
                 );
             else
                 f.AppendLine(
-                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, _lifetimeCts.Token);"
+                    $"_ = ProvideAsync_{member.Symbol.Name}({memberAccess}, {scopeField}, __lifetime_cancellation_tokens.Token);"
                 );
         }
         else
@@ -67,11 +61,6 @@ internal static class ServiceProvisionPhase
 
     /// <summary>
     /// 生成单个异步提供方法（实例方法）。
-    ///
-    /// 使用 CancellationToken 替代 _diGeneration 代际计数器实现取消。
-    ///   成功 → scope.ProvideService&lt;T&gt;(result)  （await 返回的实例，通过 CallDeferred）
-    ///   取消 → 静默退出，不调用 ProvideService   （节点已退出场景树）
-    ///   异常 → scope.ProvideService&lt;T&gt;(null)    （null 表示创建失败，通过 CallDeferred）
     /// </summary>
     private static void GenerateAsyncProviderMethod(CodeFormatter f, MemberInfo member)
     {

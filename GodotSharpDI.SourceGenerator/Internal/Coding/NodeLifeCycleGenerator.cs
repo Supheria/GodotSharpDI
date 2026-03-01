@@ -8,10 +8,6 @@ namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
 /// 生成 Node 生命周期管理
-///
-/// FIX3: NotificationExitTree 现在也调用 ResetInjectionState()（Host/User），
-///       在节点离开场景树时立即令所有飞行中的异步操作和 WaitFor 回调失效，
-///       防止它们在节点重新进入场景树后操作错误的 Scope 实例。
 /// </summary>
 internal static class NodeLifeCycleGenerator
 {
@@ -45,7 +41,7 @@ internal static class NodeLifeCycleGenerator
     private static void GenerateParentScopeField(CodeFormatter f)
     {
         f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine($"private {GlobalNames.IScope}? _parentScope;");
+        f.AppendLine($"private {GlobalNames.IScope}? __parentScope;");
     }
 
     private static void GenerateGetParentScope(CodeFormatter f, ValidatedTypeInfo validatedType)
@@ -54,10 +50,10 @@ internal static class NodeLifeCycleGenerator
         f.AppendLine($"private {GlobalNames.IScope}? GetParentScope()");
         f.BeginBlock();
         {
-            f.AppendLine("if (_parentScope is not null)");
+            f.AppendLine("if (__parentScope is not null)");
             f.BeginBlock();
             {
-                f.AppendLine("return _parentScope;");
+                f.AppendLine("return __parentScope;");
             }
             f.EndBlock();
             f.AppendLine();
@@ -69,8 +65,8 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine($"if (parent is {GlobalNames.IScope} scope)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("_parentScope = scope;");
-                    f.AppendLine("return _parentScope;");
+                    f.AppendLine("__parentScope = scope;");
+                    f.AppendLine("return __parentScope;");
                 }
                 f.EndBlock();
                 f.AppendLine("parent = parent.GetParent();");
@@ -94,7 +90,7 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("case NotificationEnterTree:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("_parentScope = null;");
+                    f.AppendLine("__parentScope = null;");
                     if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
                     {
                         // ResetInjectionState: 递增 Generation + 重置 TCS/ready flags
@@ -130,7 +126,7 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("case NotificationExitTree:");
                 f.BeginBlock();
                 {
-                    f.AppendLine("_parentScope = null;");
+                    f.AppendLine("__parentScope = null;");
                     if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
                     {
                         // FIX3: 节点退出场景树时立即令所有飞行中的异步操作失效。
