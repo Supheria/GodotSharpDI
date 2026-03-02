@@ -21,7 +21,7 @@ namespace GodotSharpDI.SourceGenerator.CodeFixes;
 public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
 {
     public override ImmutableArray<string> FixableDiagnosticIds =>
-        ImmutableArray.Create("GDI_C080"); // MissingNotificationMethod
+        ImmutableArray.Create("GDI_C060"); // MissingNotificationMethod
 
     public override FixAllProvider GetFixAllProvider()
     {

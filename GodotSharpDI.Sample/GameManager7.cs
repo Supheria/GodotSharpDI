@@ -46,8 +46,6 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
         return Task.Run(() => new PlayerStatsService3(_playerStatsCenter));
     }
 
-    public override partial void _Notification(int what);
-
     public GameState CurrentState { get; set; }
 
     public void OnDependenciesResolved(bool isAllDependenciesReady)
@@ -59,4 +57,6 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
     {
         GD.Print("Dependency injection failed");
     }
+
+    public override partial void _Notification(int what);
 }
