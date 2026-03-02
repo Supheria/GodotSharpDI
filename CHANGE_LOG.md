@@ -1,3 +1,10 @@
+# v1.2.1
+
+Fix missing auto-fix of GDI_C060 `MissingNotificationMethod`.
+Reason: GDI_C080 had been changed to GDI_C060, while diagnostic code doesn't change in `NotificationMethodCodeFixProvider`.
+
+---
+
 # v1.2.0
 
 ## 🔨 Breaking Changes
