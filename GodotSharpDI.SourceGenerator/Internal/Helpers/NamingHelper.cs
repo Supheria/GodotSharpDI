@@ -119,7 +119,22 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 将成员名转换为注入准备标识字段名
+    /// 将成员名转换为方法参数名（camelCase，去除前导下划线）
+    /// 规则：
+    /// 1. 忽略前导下划线
+    /// 2. 将剩余部分转换为小写驼峰格式（去除中间的下划线）
+    /// </summary>
+    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
+    /// <returns>camelCase 参数名，如 "myField", "myService", "myProperty"</returns>
+    public static string ToParameterName(string memberName)
+    {
+        var pascal = ToPascalCase(memberName);
+        if (string.IsNullOrEmpty(pascal))
+            return "value";
+        return char.ToLower(pascal[0]) + pascal.Substring(1);
+    }
+
+    /// <summary>
     /// 规则：
     /// 1. 忽略前导下划线
     /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）

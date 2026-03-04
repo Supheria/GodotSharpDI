@@ -117,9 +117,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     public GameState CurrentState { get; set; }
     
     // 在所有依赖解析后调用
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             GD.Print("GameManager 已就绪，所有依赖已解析");
         }
@@ -160,9 +160,9 @@ public partial class PlayerUI : Control, IDependenciesResolved
     [Inject] private IGameState _gameState;
     
     // 在所有依赖解析后调用
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             UpdateUI();
         }
@@ -282,7 +282,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     }
     
     // 注入回调（1.1.1 新功能）
-    partial void OnConfigInjectionReady()
+    partial void OnConfigInjectionReady(IConfigService config)
     {
         GD.Print("配置加载成功");
         ApplyConfiguration();
@@ -294,9 +294,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
         UseDefaultConfiguration();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // 使用注入的依赖进行初始化
             InitializeGame();
@@ -331,9 +331,9 @@ public partial class PlayerController : Node, IDependenciesResolved
     [Inject] private IInputService _input;
     [Inject] private IPhysicsService _physics;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // 所有依赖就绪
             InitializeController();
@@ -368,7 +368,7 @@ public partial class NetworkManager : Node, IDependenciesResolved
         EnableOfflineMode();  // 降级策略
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     public override partial void _Notification(int what);
 }
 ```
@@ -383,14 +383,14 @@ public partial class GameUI : Control, IDependenciesResolved
     private IGameState? _gameState;
     
     // 注入成功时自动调用
-    partial void OnGameStateInjectionReady()
+    partial void OnGameStateInjectionReady(IGameState gameState)
     {
         GD.Print("游戏状态服务已就绪");
         _gameState!.Initialize();
         UpdateUI();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     public override partial void _Notification(int what);
 }
 ```
@@ -404,7 +404,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
     [Inject(FailureCallback = true, ReadyCallback = true)]
     private IDatabaseService? _database;
     
-    partial void OnDatabaseInjectionReady()
+    partial void OnDatabaseInjectionReady(IDatabaseService database)
     {
         _database!.MigrateSchema();
         LoadInitialData();
@@ -416,7 +416,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
         UseFallbackDataSource();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     public override partial void _Notification(int what);
 }
 ```
@@ -643,9 +643,9 @@ public partial class DependentHost : Node, IDependenciesResolved
         return new Repository(_config, _logger);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             GD.Print("所有依赖都成功注入");
         }
@@ -767,9 +767,9 @@ public partial class ServiceHost : Node, IDependenciesResolved
         return new SecureRepository(_authService!, _logger!, _config!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (!isAllDependenciesReady)
+        if (!IsAllDependenciesReady)
         {
             GD.PrintErr("部分依赖注入失败，某些服务可能降级运行");
         }
@@ -826,9 +826,9 @@ public partial class ServiceHost : Node, IDependenciesResolved
 
 2. **实现 IDependenciesResolved**
    ```csharp
-   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   public void OnDependenciesResolved()
    {
-       if (!isAllDependenciesReady)
+       if (!IsAllDependenciesReady)
        {
            // 记录或处理依赖失败
            LogDependencyStatus();
@@ -995,7 +995,7 @@ public partial class ExampleHost : Node, IDependenciesResolved
         );
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
         // 在 T4 调用：所有 Inject 依赖都已解析完成
         // 此时可能部分 Provide 服务仍在异步执行
@@ -1029,9 +1029,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     
     public GameState CurrentState { get; set; }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // 所有依赖就绪，可以安全初始化
             // IsConfigInjectionReady 和 IsSaveSystemInjectionReady 都为 true
@@ -1216,7 +1216,7 @@ partial void OnNetworkInjectionFailed()
 [Inject(ReadyCallback = true)]
 private IGameState _gameState;
 
-partial void OnGameStateInjectionReady()
+partial void OnGameStateInjectionReady(IGameState gameState)
 {
     GD.Print("游戏状态就绪");
     _gameState.Initialize();
@@ -1226,7 +1226,7 @@ partial void OnGameStateInjectionReady()
 [Inject(FailureCallback = true, ReadyCallback = true)]
 private IDatabaseService _database;
 
-partial void OnDatabaseInjectionReady()
+partial void OnDatabaseInjectionReady(IDatabaseService database)
 {
     _database.MigrateSchema();
 }
@@ -1310,10 +1310,10 @@ public partial class GameUI : Control
     private IGameState _gameState;
     
     // 框架生成此声明：
-    // partial void OnGameStateInjectionReady();
+    // partial void OnGameStateInjectionReady(IGameState gameState);
     
     // 你来实现它：
-    partial void OnGameStateInjectionReady()
+    partial void OnGameStateInjectionReady(IGameState gameState)
     {
         GD.Print("游戏状态服务就绪");
         
@@ -1326,8 +1326,10 @@ public partial class GameUI : Control
 
 **生成的方法签名**：
 ```csharp
-partial void On{成员名}InjectionReady()
+partial void On{成员名}InjectionReady(TService value)
 ```
+
+> **说明：** 参数类型与注入成员的声明类型一致（不带 `?`），因此编译器会自动在回调内部强制非空约束。
 
 **使用场景**：
 - 注入后需要立即初始化的服务
@@ -1345,7 +1347,7 @@ public partial class GameManager : Node
     [Inject(FailureCallback = true, ReadyCallback = true)]
     private IDatabaseService _database;
     
-    partial void OnDatabaseInjectionReady()
+    partial void OnDatabaseInjectionReady(IDatabaseService database)
     {
         // 成功路径
         _database.MigrateSchema();
@@ -1424,9 +1426,9 @@ partial void OnNetworkInjectionFailed()
 [Inject(ReadyCallback = true)]
 private IConfigService _config;
 
-partial void OnConfigInjectionReady()
+partial void OnConfigInjectionReady(IConfigService config)
 {
-    // 注入后立即初始化
+    // 注入后立即初始化 — config 在此处保证非空
     ApplyConfiguration();
 }
 ```
@@ -1436,9 +1438,9 @@ partial void OnConfigInjectionReady()
 [Inject(FailureCallback = true, ReadyCallback = true)]
 private IDatabaseService _db;
 
-partial void OnDbInjectionReady()
+partial void OnDbInjectionReady(IDatabaseService db)
 {
-    _db.MigrateSchema();
+    db.MigrateSchema();
 }
 
 partial void OnDbInjectionFailed()
@@ -1458,9 +1460,9 @@ public partial class GameBootstrap : Node
     
     private int _readyCount = 0;
     
-    partial void OnConfigInjectionReady() => CheckAllReady();
-    partial void OnDbInjectionReady() => CheckAllReady();
-    partial void OnAssetsInjectionReady() => CheckAllReady();
+    partial void OnConfigInjectionReady(IConfig config) => CheckAllReady();
+    partial void OnDbInjectionReady(IDatabase db) => CheckAllReady();
+    partial void OnAssetsInjectionReady(IAssets assets) => CheckAllReady();
     
     private void CheckAllReady()
     {
@@ -1494,13 +1496,13 @@ public partial class GameScope : Node, IScope
 ```csharp
 public interface IDependenciesResolved
 {
-    void OnDependenciesResolved(bool isAllDependenciesReady);
+    void OnDependenciesResolved();
 }
 ```
 
 #### 参数说明
 
-- **`isAllDependenciesReady`**：
+- 使用 **`IsAllDependenciesReady`**（生成的带 `[MemberNotNull]` 属性）检查所有注入是否成功：
   - `true`：所有 `[Inject]` 成员都成功注入
   - `false`：至少有一个 `[Inject]` 成员注入失败
 
@@ -1565,9 +1567,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     [Inject] private IPlayerStats? _playerStats;
     [Inject] private IGameConfig? _config;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             GD.Print("所有依赖就绪，游戏可以开始");
             StartGame();
@@ -1593,9 +1595,9 @@ public partial class PlayerUI : Control, IDependenciesResolved
     [Inject] private IInventory? _inventory;
     [Inject] private IAchievements? _achievements;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // 所有依赖都成功，启用完整功能
             EnableAllFeatures();
@@ -1684,9 +1686,9 @@ public partial class DataManager : Node, IDependenciesResolved
         return db;
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (!isAllDependenciesReady)
+        if (!IsAllDependenciesReady)
         {
             GD.PrintErr("部分依赖注入失败：");
             
@@ -1716,11 +1718,11 @@ public partial class DataManager : Node, IDependenciesResolved
 
 #### 最佳实践
 
-1. **总是检查 `isAllDependenciesReady` 参数**
+1. **总是检查 `IsAllDependenciesReady`**
    ```csharp
-   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   public void OnDependenciesResolved()
    {
-       if (isAllDependenciesReady)
+       if (IsAllDependenciesReady)
        {
            // 正常流程
        }
@@ -1751,9 +1753,9 @@ public partial class DataManager : Node, IDependenciesResolved
 
 4. **记录依赖状态用于调试**
    ```csharp
-   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   public void OnDependenciesResolved()
    {
-       GD.Print($"Dependencies ready: {isAllDependenciesReady}");
+       GD.Print($"Dependencies ready: {IsAllDependenciesReady}");
        GD.Print($"  Config: {IsConfigInjectionReady}");
        GD.Print($"  Logger: {IsLoggerInjectionReady}");
    }
@@ -1967,9 +1969,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             InitializeWithDependencies();
         }
@@ -2038,7 +2040,7 @@ public partial class GameHost : Node, IDependenciesResolved
         return new EnemyFactory(_playerStats);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     
     public override partial void _Notification(int what);
 }

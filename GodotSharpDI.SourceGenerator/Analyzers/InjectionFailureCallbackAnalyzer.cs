@@ -190,6 +190,13 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
     {
         var expectedMethodName = NamingHelper.GetReadyCallbackMethodName(member.Name);
 
+        // 获取成员类型，用于检查带参数签名
+        INamedTypeSymbol? memberType = null;
+        if (member is IFieldSymbol field)
+            memberType = field.Type as INamedTypeSymbol;
+        else if (member is IPropertySymbol prop)
+            memberType = prop.Type as INamedTypeSymbol;
+
         // 检查是否存在对应的 partial 方法实现
         var hasImplementation = partialMethods.Any(m =>
         {
@@ -203,13 +210,19 @@ public sealed class InjectionFailureCallbackAnalyzer : DiagnosticAnalyzer
                 if (m.PartialImplementationPart == null)
                     return false;
 
-                // 检查签名是否匹配: partial void OnXxxInjectionReady()
-                if (m.ReturnsVoid && m.Parameters.Length == 0)
-                {
-                    return true;
-                }
+                // 检查签名是否匹配: partial void OnXxxInjectionReady(TypeA a)
+                // 参数类型必须与成员类型兼容（忽略可空注解）
+                if (!m.ReturnsVoid || m.Parameters.Length != 1)
+                    return false;
 
-                return false;
+                if (memberType == null)
+                    return true; // 无法判断类型时保守通过
+
+                var paramType = m.Parameters[0].Type;
+                return SymbolEqualityComparer.Default.Equals(
+                    paramType.WithNullableAnnotation(NullableAnnotation.None),
+                    memberType.WithNullableAnnotation(NullableAnnotation.None)
+                );
             }
             catch
             {

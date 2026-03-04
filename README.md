@@ -117,9 +117,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     public GameState CurrentState { get; set; }
     
     // Called after all dependencies are resolved
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             GD.Print("GameManager ready with all dependencies");
         }
@@ -160,9 +160,9 @@ public partial class PlayerUI : Control, IDependenciesResolved
     [Inject] private IGameState _gameState;
     
     // Called after all dependencies are resolved
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             UpdateUI();
         }
@@ -282,7 +282,7 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     }
     
     // Injection callbacks (New in 1.1.1)
-    partial void OnConfigInjectionReady()
+    partial void OnConfigInjectionReady(IConfigService config)
     {
         GD.Print("Config loaded successfully");
         ApplyConfiguration();
@@ -294,9 +294,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
         UseDefaultConfiguration();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // Initialize with injected dependencies
             InitializeGame();
@@ -331,9 +331,9 @@ public partial class PlayerController : Node, IDependenciesResolved
     [Inject] private IInputService _input;
     [Inject] private IPhysicsService _physics;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // All dependencies are ready
             InitializeController();
@@ -368,7 +368,7 @@ public partial class NetworkManager : Node, IDependenciesResolved
         EnableOfflineMode();  // Fallback strategy
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     public override partial void _Notification(int what);
 }
 ```
@@ -383,14 +383,14 @@ public partial class GameUI : Control, IDependenciesResolved
     private IGameState? _gameState;
     
     // Automatically called when injection succeeds
-    partial void OnGameStateInjectionReady()
+    partial void OnGameStateInjectionReady(IGameState gameState)
     {
         GD.Print("Game state service ready");
         _gameState!.Initialize();
         UpdateUI();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     public override partial void _Notification(int what);
 }
 ```
@@ -404,7 +404,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
     [Inject(FailureCallback = true, ReadyCallback = true)]
     private IDatabaseService? _database;
     
-    partial void OnDatabaseInjectionReady()
+    partial void OnDatabaseInjectionReady(IDatabaseService database)
     {
         _database!.MigrateSchema();
         LoadInitialData();
@@ -416,7 +416,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
         UseFallbackDataSource();
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     public override partial void _Notification(int what);
 }
 ```
@@ -643,9 +643,9 @@ public partial class DependentHost : Node, IDependenciesResolved
         return new Repository(_config, _logger);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             GD.Print("All dependencies successfully injected");
         }
@@ -767,9 +767,9 @@ public partial class ServiceHost : Node, IDependenciesResolved
         return new SecureRepository(_authService!, _logger!, _config!);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (!isAllDependenciesReady)
+        if (!IsAllDependenciesReady)
         {
             GD.PrintErr("Some dependencies failed, certain services may run in degraded mode");
         }
@@ -826,9 +826,9 @@ public partial class ServiceHost : Node, IDependenciesResolved
 
 2. **Implement IDependenciesResolved**
    ```csharp
-   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   public void OnDependenciesResolved()
    {
-       if (!isAllDependenciesReady)
+       if (!IsAllDependenciesReady)
        {
            // Log or handle dependency failures
            LogDependencyStatus();
@@ -995,7 +995,7 @@ public partial class ExampleHost : Node, IDependenciesResolved
         );
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
         // Called at T4: All Inject dependencies have been resolved
         // Some Provide services may still be executing asynchronously
@@ -1029,9 +1029,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     
     public GameState CurrentState { get; set; }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // All dependencies ready, safe to initialize
             // Both IsConfigInjectionReady and IsSaveSystemInjectionReady are true
@@ -1216,7 +1216,7 @@ partial void OnNetworkInjectionFailed()
 [Inject(ReadyCallback = true)]
 private IGameState _gameState;
 
-partial void OnGameStateInjectionReady()
+partial void OnGameStateInjectionReady(IGameState gameState)
 {
     GD.Print("Game state ready");
     _gameState.Initialize();
@@ -1226,7 +1226,7 @@ partial void OnGameStateInjectionReady()
 [Inject(FailureCallback = true, ReadyCallback = true)]
 private IDatabaseService _database;
 
-partial void OnDatabaseInjectionReady()
+partial void OnDatabaseInjectionReady(IDatabaseService database)
 {
     _database.MigrateSchema();
 }
@@ -1300,25 +1300,25 @@ partial void On{MemberName}InjectionFailed()
 
 #### ReadyCallback
 
-When an `[Inject]` member is marked with `ReadyCallback = true`, the framework generates a partial method called when the injection succeeds:
+When an `[Inject]` member is marked with `ReadyCallback = true`, the framework generates a partial method called when the injection succeeds. The method receives a **non-null** reference to the injected value as a parameter, so you can use it directly without any null checks:
 
 ```csharp
 [User]
 public partial class GameUI : Control
 {
     [Inject(ReadyCallback = true)]
-    private IGameState _gameState;
+    private IGameState? _gameState;
     
     // Framework generates this declaration:
-    // partial void OnGameStateInjectionReady();
+    // partial void OnGameStateInjectionReady(IGameState gameState);
     
     // You implement it:
-    partial void OnGameStateInjectionReady()
+    partial void OnGameStateInjectionReady(IGameState gameState)
     {
         GD.Print("Game state service ready");
         
-        // Safe to use immediately
-        _gameState.Initialize();
+        // Parameter is guaranteed non-null — no need to check IsGameStateInjectionReady
+        gameState.Initialize();
         UpdateUI();
     }
 }
@@ -1326,8 +1326,10 @@ public partial class GameUI : Control
 
 **Generated Method Signature**:
 ```csharp
-partial void On{MemberName}InjectionReady()
+partial void On{MemberName}InjectionReady(TService value)
 ```
+
+> **Note:** The parameter type matches the injected member's declared type (without `?`), so the compiler enforces non-nullability inside the callback automatically.
 
 **Use Cases**:
 - Services requiring immediate initialization after injection
@@ -1345,7 +1347,7 @@ public partial class GameManager : Node
     [Inject(FailureCallback = true, ReadyCallback = true)]
     private IDatabaseService _database;
     
-    partial void OnDatabaseInjectionReady()
+    partial void OnDatabaseInjectionReady(IDatabaseService database)
     {
         // Success path
         _database.MigrateSchema();
@@ -1397,7 +1399,7 @@ private IService _service;
 // 3. You press Ctrl+. and select "Implement OnServiceInjectionReady method"
 
 // 4. Framework generates:
-partial void OnServiceInjectionReady()
+partial void OnServiceInjectionReady(IService service)
 {
     GD.Print("Dependency injection ready");
 }
@@ -1422,11 +1424,11 @@ partial void OnNetworkInjectionFailed()
 **2. Use ReadyCallback for Initialization**:
 ```csharp
 [Inject(ReadyCallback = true)]
-private IConfigService _config;
+private IConfigService? _config;
 
-partial void OnConfigInjectionReady()
+partial void OnConfigInjectionReady(IConfigService config)
 {
-    // Initialize immediately after injection
+    // Initialize immediately after injection — config is non-null here
     ApplyConfiguration();
 }
 ```
@@ -1436,9 +1438,9 @@ partial void OnConfigInjectionReady()
 [Inject(FailureCallback = true, ReadyCallback = true)]
 private IDatabaseService _db;
 
-partial void OnDbInjectionReady()
+partial void OnDbInjectionReady(IDatabaseService db)
 {
-    _db.MigrateSchema();
+    db.MigrateSchema();
 }
 
 partial void OnDbInjectionFailed()
@@ -1458,9 +1460,9 @@ public partial class GameBootstrap : Node
     
     private int _readyCount = 0;
     
-    partial void OnConfigInjectionReady() => CheckAllReady();
-    partial void OnDbInjectionReady() => CheckAllReady();
-    partial void OnAssetsInjectionReady() => CheckAllReady();
+    partial void OnConfigInjectionReady(IConfig config) => CheckAllReady();
+    partial void OnDbInjectionReady(IDatabase db) => CheckAllReady();
+    partial void OnAssetsInjectionReady(IAssets assets) => CheckAllReady();
     
     private void CheckAllReady()
     {
@@ -1494,13 +1496,13 @@ Optional interface for receiving dependency resolution notification.
 ```csharp
 public interface IDependenciesResolved
 {
-    void OnDependenciesResolved(bool isAllDependenciesReady);
+    void OnDependenciesResolved();
 }
 ```
 
 #### Parameter Description
 
-- **`isAllDependenciesReady`**:
+- Use **`IsAllDependenciesReady`** (generated property with `[MemberNotNull]`) to check whether all injections succeeded:
   - `true`: All `[Inject]` members were successfully injected
   - `false`: At least one `[Inject]` member failed to inject
 
@@ -1565,9 +1567,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     [Inject] private IPlayerStats? _playerStats;
     [Inject] private IGameConfig? _config;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             GD.Print("All dependencies ready, game can start");
             StartGame();
@@ -1593,9 +1595,9 @@ public partial class PlayerUI : Control, IDependenciesResolved
     [Inject] private IInventory? _inventory;
     [Inject] private IAchievements? _achievements;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             // All dependencies succeeded, enable full features
             EnableAllFeatures();
@@ -1684,9 +1686,9 @@ public partial class DataManager : Node, IDependenciesResolved
         return db;
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (!isAllDependenciesReady)
+        if (!IsAllDependenciesReady)
         {
             GD.PrintErr("Some dependencies failed to inject:");
             
@@ -1716,11 +1718,11 @@ public partial class DataManager : Node, IDependenciesResolved
 
 #### Best Practices
 
-1. **Always check the `isAllDependenciesReady` parameter**
+1. **Always check `IsAllDependenciesReady`**
    ```csharp
-   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   public void OnDependenciesResolved()
    {
-       if (isAllDependenciesReady)
+       if (IsAllDependenciesReady)
        {
            // Normal flow
        }
@@ -1751,9 +1753,9 @@ public partial class DataManager : Node, IDependenciesResolved
 
 4. **Log dependency status for debugging**
    ```csharp
-   public void OnDependenciesResolved(bool isAllDependenciesReady)
+   public void OnDependenciesResolved()
    {
-       GD.Print($"Dependencies ready: {isAllDependenciesReady}");
+       GD.Print($"Dependencies ready: {IsAllDependenciesReady}");
        GD.Print($"  Config: {IsConfigInjectionReady}");
        GD.Print($"  Logger: {IsLoggerInjectionReady}");
    }
@@ -1967,9 +1969,9 @@ public partial class GameManager : Node, IGameState, IDependenciesResolved
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
-        if (isAllDependenciesReady)
+        if (IsAllDependenciesReady)
         {
             InitializeWithDependencies();
         }
@@ -2038,7 +2040,7 @@ public partial class GameHost : Node, IDependenciesResolved
         return new EnemyFactory(_playerStats);
     }
     
-    public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+    public void OnDependenciesResolved() { }
     
     public override partial void _Notification(int what);
 }

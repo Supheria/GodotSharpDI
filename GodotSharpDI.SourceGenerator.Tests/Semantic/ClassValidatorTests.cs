@@ -220,7 +220,7 @@ namespace Test
         public void RegisterService<T>(T instance) where T : notnull { }
         public void UnregisterService<T>() where T : notnull { }
         public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
-        public void OnDependenciesResolved(bool isAllDependenciesReady) { }
+        public void OnDependenciesResolved() { }
     }
 }
 ";

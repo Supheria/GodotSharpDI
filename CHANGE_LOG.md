@@ -1,3 +1,67 @@
+# v1.2.2
+
+## 🔨 Breaking Changes
+
+### `IDependenciesResolved.OnDependenciesResolved` Parameter Removed
+
+The `isAllDependenciesReady` parameter has been removed from `OnDependenciesResolved`. Use the generated `IsAllDependenciesReady` property (which carries `[MemberNotNull]` attributes) directly inside the implementation to verify null-safety.
+
+**Before (1.2.1)**:
+```csharp
+public void OnDependenciesResolved(bool isAllDependenciesReady)
+{
+    if (isAllDependenciesReady)
+    {
+        // use injected members
+    }
+}
+```
+
+**After (1.2.2)**:
+```csharp
+public void OnDependenciesResolved()
+{
+    if (IsAllDependenciesReady)
+    {
+        // use injected members — null-safety guaranteed by [MemberNotNull]
+    }
+}
+```
+
+**Migration**: Remove the `bool isAllDependenciesReady` parameter from all `OnDependenciesResolved` implementations and replace references to the parameter with `IsAllDependenciesReady`.
+
+---
+
+### `OnXxxInjectionReady` Callback Now Receives a Typed Non-Null Parameter
+
+The `ReadyCallback` partial method now receives a non-null reference to the successfully injected value, removing the need to call `IsXxxInjectionReady` inside the callback.
+
+**Before (1.2.1)**:
+```csharp
+[Inject(ReadyCallback = true)] private INetworkService? _network;
+
+partial void OnNetworkInjectionReady()
+{
+    // had to use IsNetworkInjectionReady / _network! to access the value
+    GD.Print(_network!.ToString());
+}
+```
+
+**After (1.2.2)**:
+```csharp
+[Inject(ReadyCallback = true)] private INetworkService? _network;
+
+partial void OnNetworkInjectionReady(INetworkService network)
+{
+    // parameter is guaranteed non-null
+    GD.Print(network.ToString());
+}
+```
+
+**Migration**: Add a typed parameter matching the injected member's type to all `OnXxxInjectionReady` partial method implementations.
+
+---
+
 # v1.2.1
 
 Fix missing auto-fix of GDI_C060 `MissingNotificationMethod`.

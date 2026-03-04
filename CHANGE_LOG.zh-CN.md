@@ -1,3 +1,67 @@
+# v1.2.2
+
+## 🔨 破坏性变更
+
+### 移除 `IDependenciesResolved.OnDependenciesResolved` 的参数
+
+`OnDependenciesResolved` 方法的 `isAllDependenciesReady` 参数已被移除。请直接在实现中使用生成的 `IsAllDependenciesReady` 属性（该属性携带 `[MemberNotNull]` 特性）来验证注入成员的非空约束。
+
+**之前 (1.2.1)**：
+```csharp
+public void OnDependenciesResolved(bool isAllDependenciesReady)
+{
+    if (isAllDependenciesReady)
+    {
+        // 使用注入成员
+    }
+}
+```
+
+**之后 (1.2.2)**：
+```csharp
+public void OnDependenciesResolved()
+{
+    if (IsAllDependenciesReady)
+    {
+        // 使用注入成员 — [MemberNotNull] 保证非空约束
+    }
+}
+```
+
+**迁移方式**：从所有 `OnDependenciesResolved` 实现中移除 `bool isAllDependenciesReady` 参数，并将对该参数的引用替换为 `IsAllDependenciesReady`。
+
+---
+
+### `OnXxxInjectionReady` 回调现在接收带类型的非空参数
+
+`ReadyCallback` partial 方法现在接收一个非空的注入值引用，无需再在回调内部调用 `IsXxxInjectionReady` 进行验证。
+
+**之前 (1.2.1)**：
+```csharp
+[Inject(ReadyCallback = true)] private INetworkService? _network;
+
+partial void OnNetworkInjectionReady()
+{
+    // 需要使用 IsNetworkInjectionReady / _network! 访问值
+    GD.Print(_network!.ToString());
+}
+```
+
+**之后 (1.2.2)**：
+```csharp
+[Inject(ReadyCallback = true)] private INetworkService? _network;
+
+partial void OnNetworkInjectionReady(INetworkService network)
+{
+    // 参数保证非空
+    GD.Print(network.ToString());
+}
+```
+
+**迁移方式**：为所有 `OnXxxInjectionReady` partial 方法实现添加与注入成员类型匹配的带类型参数。
+
+---
+
 # v1.2.1
 
 修复 GDI_C060 `MissingNotificationMethod` 自动修复缺失问题。
