@@ -223,7 +223,7 @@ namespace GodotSharpDI.Abstractions
     /// <summary>所有依赖注入完成后的回调接口</summary>
     public interface IDependenciesResolved
     {
-        void OnDependenciesResolved(bool isAllDependenciesReady);
+        void OnDependenciesResolved();
     }
 }
 

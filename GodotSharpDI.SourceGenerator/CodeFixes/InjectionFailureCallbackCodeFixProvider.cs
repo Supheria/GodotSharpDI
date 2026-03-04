@@ -90,8 +90,43 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             }
             else if (isReadyCallback)
             {
+                // 尝试从语义模型获取成员类型，用于生成正确的参数签名
+                string? memberTypeName = null;
+                try
+                {
+                    var semanticModel = await context.Document
+                        .GetSemanticModelAsync(context.CancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (semanticModel != null)
+                    {
+                        var memberNode = root.FindToken(diagnosticSpan.Start).Parent;
+                        var memberSymbol = memberNode != null
+                            ? semanticModel.GetDeclaredSymbol(memberNode, context.CancellationToken)
+                            : null;
+
+                        if (memberSymbol is IFieldSymbol fs)
+                            memberTypeName = fs.Type.ToDisplayString(
+                                Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat
+                            );
+                        else if (memberSymbol is IPropertySymbol ps)
+                            memberTypeName = ps.Type.ToDisplayString(
+                                Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat
+                            );
+
+                        // 去掉可空 ? 后缀
+                        if (memberTypeName != null && memberTypeName.EndsWith("?"))
+                            memberTypeName = memberTypeName.Substring(0, memberTypeName.Length - 1);
+                    }
+                }
+                catch
+                {
+                    // 语义模型获取失败，回退到 object
+                }
+
                 // 注册就绪回调的代码修复
                 var title = string.Format(Resources.CodeFix_InjectionReadyCallback, methodName);
+                var capturedMemberTypeName = memberTypeName;
                 context.RegisterCodeFix(
                     CodeAction.Create(
                         title: title,
@@ -100,6 +135,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                                 context.Document,
                                 classDeclaration,
                                 methodName,
+                                capturedMemberTypeName,
                                 c
                             ),
                         equivalenceKey: title
@@ -202,6 +238,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         Document document,
         ClassDeclarationSyntax classDeclaration,
         string methodName,
+        string? memberTypeName,
         CancellationToken cancellationToken
     )
     {
@@ -213,7 +250,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 return document;
 
             // 创建 partial 方法实现
-            var method = CreateReadyCallbackMethod(methodName);
+            var method = CreateReadyCallbackMethod(methodName, memberTypeName);
 
             // 找到合适的插入位置
             var newClassDeclaration = classDeclaration.AddMembers(method);
@@ -303,15 +340,27 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
     }
 
-    private static MethodDeclarationSyntax CreateReadyCallbackMethod(string methodName)
+    private static MethodDeclarationSyntax CreateReadyCallbackMethod(string methodName, string? memberTypeName)
     {
         try
         {
+            // 确定参数类型：优先使用已知成员类型，否则回退到 object
+            var typeSyntax = memberTypeName != null
+                ? (TypeSyntax)SyntaxFactory.ParseTypeName(memberTypeName)
+                : (TypeSyntax)SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ObjectKeyword));
+
+            // 参数名：方法名去掉 "On" 前缀和 "InjectionReady" 后缀，首字母小写
+            var paramName = DeriveParmName(methodName);
+
+            var parameter = SyntaxFactory
+                .Parameter(SyntaxFactory.Identifier(paramName))
+                .WithType(typeSyntax.WithTrailingTrivia(SyntaxFactory.Space));
+
             // 创建方法体
             var statements = SyntaxFactory.List(
                 new StatementSyntax[]
                 {
-                    // GD.Print("Injection ready");
+                    // GD.Print("Dependency injection ready");
                     SyntaxFactory.ExpressionStatement(
                         SyntaxFactory
                             .InvocationExpression(
@@ -337,7 +386,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 }
             );
 
-            // 创建方法：partial void OnXxxInjectionReady() { ... }
+            // 创建方法：partial void OnXxxInjectionReady(TypeA xxx) { ... }
             var method = SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -346,7 +395,11 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 .WithModifiers(
                     SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PartialKeyword))
                 )
-                .WithParameterList(SyntaxFactory.ParameterList())
+                .WithParameterList(
+                    SyntaxFactory.ParameterList(
+                        SyntaxFactory.SingletonSeparatedList(parameter)
+                    )
+                )
                 .WithBody(SyntaxFactory.Block(statements))
                 .WithLeadingTrivia(
                     SyntaxFactory.ElasticCarriageReturnLineFeed,
@@ -369,6 +422,32 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 )
                 .WithParameterList(SyntaxFactory.ParameterList())
                 .WithBody(SyntaxFactory.Block());
+        }
+    }
+
+    /// <summary>
+    /// 从方法名 OnXxxInjectionReady 提取参数名（首字母小写的 Xxx 部分）
+    /// </summary>
+    private static string DeriveParmName(string methodName)
+    {
+        try
+        {
+            const string prefix = "On";
+            const string suffix = "InjectionReady";
+            if (methodName.StartsWith(prefix) && methodName.EndsWith(suffix))
+            {
+                var middle = methodName.Substring(
+                    prefix.Length,
+                    methodName.Length - prefix.Length - suffix.Length
+                );
+                if (middle.Length > 0)
+                    return char.ToLower(middle[0]) + middle.Substring(1);
+            }
+            return "value";
+        }
+        catch
+        {
+            return "value";
         }
     }
 }

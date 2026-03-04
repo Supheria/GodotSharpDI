@@ -48,7 +48,7 @@ public sealed partial class GameManager7 : Node, IGameState, IGameState2
 
     public GameState CurrentState { get; set; }
 
-    public void OnDependenciesResolved(bool isAllDependenciesReady)
+    public void OnDependenciesResolved()
     {
         var a = 0;
     }

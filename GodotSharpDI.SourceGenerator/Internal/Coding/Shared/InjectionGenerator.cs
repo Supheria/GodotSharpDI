@@ -243,10 +243,13 @@ internal static class InjectionGenerator
         foreach (var member in members)
         {
             var methodName = NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
+            var memberType = member.MemberType.ToFullyQualifiedName();
+            // 参数名：去前导下划线后首字母小写的驼峰名
+            var paramName = NamingHelper.ToParameterName(member.Symbol.Name);
             f.AppendLine(
-                $"/// <summary>Called when injection of {member.Symbol.Name} succeeds</summary>"
+                $"/// <summary>Called when injection of {member.Symbol.Name} succeeds. The parameter provides a non-null reference to the injected value.</summary>"
             );
-            f.AppendLine($"partial void {methodName}();");
+            f.AppendLine($"partial void {methodName}({memberType} {paramName});");
             f.AppendLine();
         }
     }
@@ -303,7 +306,7 @@ internal static class InjectionGenerator
                                 if (member.HasReadyCallback)
                                 {
                                     f.AppendLine(
-                                        $"{NamingHelper.GetReadyCallbackMethodName(memberName)}();"
+                                        $"{NamingHelper.GetReadyCallbackMethodName(memberName)}(instance);"
                                     );
                                 }
                             }
@@ -411,7 +414,7 @@ internal static class InjectionGenerator
             f.BeginBlock();
             {
                 f.AppendLine(
-                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved(IsAllDependenciesReady);"
+                    $"(({GlobalNames.IDependenciesResolved})this).OnDependenciesResolved();"
                 );
             }
             f.EndBlock();

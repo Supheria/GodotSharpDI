@@ -34,9 +34,9 @@ public sealed partial class PlayerUI3 : Control
         GD.Print("PlayerUI is ready before services ready");
     }
 
-    // void IDependenciesResolved.OnDependenciesResolved(bool isAllDependenciesReady)
+    // void IDependenciesResolved.OnDependenciesResolved()
     // {
-    //     if (isAllDependenciesReady)
+    //     if (IsAllDependenciesReady)
     //     {
     //         GD.Print("PlayerUI updated after dependencies ready");
     //     }

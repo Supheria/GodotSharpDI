@@ -14,8 +14,12 @@
 ///     Use <c>IsXxxInjectionReady</c> properties to check individual injection status.
 ///   </item>
 /// </list>
+/// <para>
+/// Use <c>IsAllDependenciesReady</c> (which carries <c>[MemberNotNull]</c> attributes)
+/// inside the implementation to verify null-safety of all injected members.
+/// </para>
 /// </remarks>
 public interface IDependenciesResolved
 {
-    void OnDependenciesResolved(bool isAllDependenciesReady);
+    void OnDependenciesResolved();
 }
