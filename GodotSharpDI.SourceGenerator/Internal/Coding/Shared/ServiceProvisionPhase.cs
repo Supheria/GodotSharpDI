@@ -161,6 +161,7 @@ internal static class ServiceProvisionPhase
         var prefix = string.IsNullOrEmpty(instancePrefix) ? "" : $"{instancePrefix}.";
         return member.Kind switch
         {
+            MemberKind.ProvideField => $"{prefix}{member.Symbol.Name}",
             MemberKind.ProvideProperty => $"{prefix}{member.Symbol.Name}",
             MemberKind.ProvideMethod => $"{prefix}{member.Symbol.Name}()",
             _ => throw new ArgumentOutOfRangeException(),

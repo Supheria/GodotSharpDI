@@ -538,6 +538,118 @@ namespace Test
     }
 
     // ============================================================
+    //  v1.3.0 新功能：[Provide] 字段成员、[Provide] Node 类型成员、[Inject] Node 类型成员
+    // ============================================================
+
+    [Fact]
+    public void Process_ProvideFieldInHost_ReturnsProvideFieldMember()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IAlertBox { }
+    public partial class AlertBox : Node, IAlertBox { }
+
+    [Host]
+    public partial class GuiHost : Node
+    {
+        [Export]
+        [Provide(ExposedTypes = new Type[] { typeof(IAlertBox) })]
+        private AlertBox _alertBox;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "GuiHost");
+        Assert.NotNull(result.TypeInfo);
+        Assert.Single(result.TypeInfo!.Members);
+        Assert.Equal(MemberKind.ProvideField, result.TypeInfo.Members[0].Kind);
+    }
+
+    [Fact]
+    public void Process_InjectNodeMemberInUser_ReportsWarning()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+
+namespace Test
+{
+    public interface IAlertBox { }
+    public partial class AlertBox : Node, IAlertBox { }
+
+    [User]
+    public partial class MapLoader : Node
+    {
+        [Inject]
+        private IAlertBox _alertBox;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MapLoader");
+        Assert.NotNull(result.TypeInfo);
+        // IAlertBox 是接口，不是 Node，所以不触发 Node Warning，正常通过
+        Assert.Single(result.TypeInfo!.Members);
+    }
+
+    [Fact]
+    public void Process_ProvidePropertyNodeTypeWithExposedTypes_ReturnsProvideMember()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IAlertBox { }
+    public partial class AlertBox : Node, IAlertBox { }
+
+    [Host]
+    public partial class GuiHost : Node
+    {
+        [Export]
+        private AlertBox _alertBox = null!;
+
+        [Provide(ExposedTypes = new Type[] { typeof(IAlertBox) })]
+        public AlertBox AlertBox => _alertBox;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "GuiHost");
+        Assert.NotNull(result.TypeInfo);
+        Assert.Equal(MemberKind.ProvideProperty, result.TypeInfo!.Members[0].Kind);
+    }
+
+    [Fact]
+    public void Process_ProvideWaitForNonExistent()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IServiceA { }
+    public class ImplA : IServiceA { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceA) }, WaitFor = new string[] { ""_nonExistent"" })]
+        public ImplA CreateA() => new ImplA();
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M080");
+    }
+
+    // ============================================================
     //  辅助
     // ============================================================
 

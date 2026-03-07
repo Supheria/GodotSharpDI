@@ -1,3 +1,80 @@
+# v1.3.0
+
+## ✨ New Features
+
+### `[Provide]` Now Supports Field Members
+
+`[Provide]` can now be applied to field members in addition to properties and methods. This is especially useful when combined with Godot's `[Export]` attribute to expose child nodes as services.
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+### `[Provide]` Now Supports Node-Type Members
+
+`[Provide]` can now be applied to members whose type is a Godot Node (without requiring `[Host]` on the Node type). This enables a Host to expose child nodes as services through their interfaces.
+
+**Typical scene tree pattern:**
+```
+Root (Scope)
+  |- Gui (GuiHost — [Host])
+  |    |- AlertBox
+  |- MapLoader ([User])
+```
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+Previously, this required `AlertBox` to be a `[Host]` itself and registered in the Scope's `[Modules]`. With v1.3.0, `GuiHost` can host and expose `AlertBox` directly.
+
+---
+
+### `[Inject]` Now Supports Node-Type Members (Warning)
+
+`[Inject]` can now be applied to members whose type is a Node class (i.e. the type itself is not an interface). A **Warning** (`GDI_M045`) is emitted to encourage injecting an interface instead of the concrete Node type, but the injection will proceed normally.
+
+```csharp
+[User]
+public partial class MapLoader : Node
+{
+    // Allowed (with GDI_M045 warning — prefer injecting IAlertBox instead)
+    [Inject]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+## Deleted Diagnostics
+
+| Rule ID  | Description                               |
+| -------- | ----------------------------------------- |
+| GDI_M045 | `[Inject]` member type is a regular Node  |
+| GDI_M055 | `[provide]` member type is a regular Node |
+
+---
+
 # v1.2.2
 
 ## 🔨 Breaking Changes

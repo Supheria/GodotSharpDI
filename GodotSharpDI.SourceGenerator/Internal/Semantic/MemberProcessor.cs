@@ -132,7 +132,26 @@ internal sealed class MemberProcessor
         if (member is IFieldSymbol field && field.Type is INamedTypeSymbol)
         {
             memberType = (INamedTypeSymbol)field.Type;
-            kind = MemberKind.InjectField;
+
+            if (hasInject)
+            {
+                if (field.IsReadOnly)
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.InjectMemberNotAssignable,
+                            location,
+                            member.Name
+                        )
+                    );
+                    return null;
+                }
+                kind = MemberKind.InjectField;
+            }
+            else if (hasProvide)
+            {
+                kind = MemberKind.ProvideField;
+            }
         }
         else if (member is IPropertySymbol property && property.Type is INamedTypeSymbol)
         {
@@ -381,20 +400,6 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 不能是普通 Node
-        if (_symbols.IsNode(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.InjectMemberIsRegularNode,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
         // 可以是非接口，但不推荐并产生警告
         if (memberType.TypeKind != TypeKind.Interface)
         {
@@ -484,20 +489,6 @@ internal sealed class MemberProcessor
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ProvideMemberIsScopeType,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
-        // 不能是普通 Node
-        if (_symbols.IsNode(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ProvideMemberIsRegularNode,
                     location,
                     member.Name,
                     memberType.ToDisplayString()

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <root>
     <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
@@ -97,11 +97,6 @@
     <data name="M_InjectMemberIsStatic" xml:space="preserve">
         <value>[Inject] member '{0}' cannot be static</value>
     </data>
-
-    <data name="M_InjectMemberIsRegularNode" xml:space="preserve">
-        <value>[Inject] member '{0}' has type '{1}', which is a regular Godot.Node (not marked with any DI attribute). Only Host types, interfaces, or plain service classes can be injected. Use [Host] on the target type or inject an interface instead</value>
-    </data>
-
     <data name="M_InjectMemberTypeIsInvalid" xml:space="preserve">
         <value>[Inject] member '{0}' has type '{1}', which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static)</value>
     </data>
@@ -140,11 +135,6 @@
     <data name="M_ProvideMemberIsScopeType" xml:space="preserve">
         <value>[Provide] member '{0}' has type '{1}', which is an IScope type and cannot be used as a Provide member</value>
     </data>
-
-    <data name="M_ProvideMemberIsRegularNode" xml:space="preserve">
-        <value>[Provide] member '{0}' has type '{1}', which is a regular Node (not marked with DI attributes) and cannot be used as a Provide member</value>
-    </data>
-
     <data name="M_ProvideMemberExposedTypeNotImplemented" xml:space="preserve">
         <value>[Provide] member '{0}' has exposed type '{1}', but type '{2}' does not implement it</value>
     </data>

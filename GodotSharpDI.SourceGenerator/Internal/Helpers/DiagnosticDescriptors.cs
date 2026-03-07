@@ -233,11 +233,6 @@ internal static class DiagnosticDescriptors
         Resources.M_InjectMemberIsScopeType
     );
 
-    public static readonly DiagnosticDescriptor InjectMemberIsRegularNode = Member(
-        "045",
-        Resources.M_InjectMemberIsRegularNode
-    );
-
     public static readonly DiagnosticDescriptor InjectMemberTypeShouldBeInterface = Member(
         "046",
         Resources.M_InjectMemberTypeShouldBeInterface,
@@ -272,11 +267,6 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ProvideMemberIsScopeType = Member(
         "054",
         Resources.M_ProvideMemberIsScopeType
-    );
-
-    public static readonly DiagnosticDescriptor ProvideMemberIsRegularNode = Member(
-        "055",
-        Resources.M_ProvideMemberIsRegularNode
     );
 
     public static readonly DiagnosticDescriptor ProvideMemberTypeCannotBeGeneric = Member(

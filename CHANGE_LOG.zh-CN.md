@@ -1,6 +1,82 @@
+# v1.3.0
+
+## ✨ 新功能
+
+### `[Provide]` 现在支持字段成员
+
+`[Provide]` 现在可以用在字段成员上，不再仅限于属性和方法。这在配合 Godot 的 `[Export]` 将子节点作为服务暴露时非常实用。
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+### `[Provide]` 现在支持 Node 类型成员
+
+`[Provide]` 现在可以用在类型为 Godot Node 的成员上（无需在该 Node 类型上标记 `[Host]`）。这允许 Host 通过接口将子节点作为服务暴露给 Scope。
+
+**典型场景树结构：**
+```
+Root (Scope)
+  |- Gui (GuiHost — [Host])
+  |    |- AlertBox
+  |- MapLoader ([User])
+```
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+在 v1.3.0 之前，这要求 `AlertBox` 本身是 `[Host]` 并在 Scope 的 `[Modules]` 中注册。现在 `GuiHost` 可以直接托管并暴露 `AlertBox`。
+
+---
+
+### `[Inject]` 现在支持 Node 类型成员（Warning）
+
+`[Inject]` 现在允许用在类型为 Node 类的成员上（即类型本身不是接口）。会触发一个 **Warning**（`GDI_M045`）以鼓励注入接口而非具体 Node 类型，但注入本身会正常执行。
+
+```csharp
+[User]
+public partial class MapLoader : Node
+{
+    // 允许（触发 GDI_M045 警告 — 建议注入 IAlertBox 接口）
+    [Inject]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+## 移除的诊断
+
+| 规则 ID  | 说明                            |
+| -------- | ------------------------------- |
+| GDI_M045 | `[Inject]` 成员类型是普通 Node  |
+| GDI_M055 | `[Provide]` 成员类型是普通 Node |
+
+---
+
 # v1.2.2
 
-## 🔨 破坏性变更
 
 ### 移除 `IDependenciesResolved.OnDependenciesResolved` 的参数
 

@@ -384,15 +384,6 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Godot.Node (not marked with any DI attribute). Only Host types, interfaces, or plain service classes can be injected. Use [Host] on the target type or inject an interface instead.
-        /// </summary>
-        internal static string M_InjectMemberIsRegularNode {
-            get {
-                return ResourceManager.GetString("M_InjectMemberIsRegularNode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is an IScope type and cannot be injected.
         /// </summary>
         internal static string M_InjectMemberIsScopeType {
@@ -506,15 +497,6 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_ProvideMemberIsHostType {
             get {
                 return ResourceManager.GetString("M_ProvideMemberIsHostType", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a regular Node (not marked with DI attributes) and cannot be used as a Provide member.
-        /// </summary>
-        internal static string M_ProvideMemberIsRegularNode {
-            get {
-                return ResourceManager.GetString("M_ProvideMemberIsRegularNode", resourceCulture);
             }
         }
         
