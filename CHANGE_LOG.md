@@ -26,38 +26,6 @@ void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : c
 
 ---
 
-## 🔨 Bug Fixes
-
-### Async `[Provide]` Member Without `ExposedTypes` Now Infers Correct Service Type
-
-**Fixed**: When an async `[Provide]` member (method or property returning `Task<T>` / `ValueTask<T>`) did not specify `ExposedTypes`, the inferred service type was incorrectly set to `Task<T>` instead of the inner type `T`.
-
-**Before (broken)**:
-```csharp
-[Host]
-public partial class MyHost : Node
-{
-    // ❌ Service type was incorrectly inferred as Task<MyService>
-    [Provide]
-    public async Task<MyService> CreateServiceAsync() { ... }
-}
-```
-
-**After (fixed)**:
-```csharp
-[Host]
-public partial class MyHost : Node
-{
-    // ✅ Service type is now correctly inferred as MyService
-    [Provide]
-    public async Task<MyService> CreateServiceAsync() { ... }
-}
-```
-
----
-
-## ✨ New Features
-
 ### `[Provide]` Now Supports Field Members
 
 `[Provide]` can now be applied to field members in addition to properties and methods. This is especially useful when combined with Godot's `[Export]` attribute to expose child nodes as services.
@@ -117,6 +85,36 @@ public partial class MapLoader : Node
     private AlertBox _alertBox;
 
     public override partial void _Notification(int what);
+}
+```
+
+---
+
+## 🔨 Bug Fixes
+
+### Async `[Provide]` Member Without `ExposedTypes` Now Infers Correct Service Type
+
+**Fixed**: When an async `[Provide]` member (method or property returning `Task<T>` / `ValueTask<T>`) did not specify `ExposedTypes`, the inferred service type was incorrectly set to `Task<T>` instead of the inner type `T`.
+
+**Before (broken)**:
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ❌ Service type was incorrectly inferred as Task<MyService>
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+**After (fixed)**:
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ✅ Service type is now correctly inferred as MyService
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
 }
 ```
 

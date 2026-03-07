@@ -26,40 +26,6 @@ void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : c
 
 ---
 
-## 🔨 Bug 修复
-
-### 异步 `[Provide]` 成员未指定 `ExposedTypes` 时服务类型推断错误
-
-**问题**：当异步 `[Provide]` 成员（返回 `Task<T>` / `ValueTask<T>` 的方法或属性）未指定 `ExposedTypes` 时，推断出的服务类型错误地被设为 `Task<T>`，而非内部类型 `T`。
-
-**修复前（错误行为）**：
-
-```csharp
-[Host]
-public partial class MyHost : Node
-{
-    // ❌ 服务类型被错误地推断为 Task<MyService>
-    [Provide]
-    public async Task<MyService> CreateServiceAsync() { ... }
-}
-```
-
-**修复后（正确行为）**：
-
-```csharp
-[Host]
-public partial class MyHost : Node
-{
-    // ✅ 服务类型现在正确推断为 MyService
-    [Provide]
-    public async Task<MyService> CreateServiceAsync() { ... }
-}
-```
-
----
-
-## ✨ 新功能
-
 ### `[Provide]` 现在支持字段成员
 
 `[Provide]` 现在可以用在字段成员上，不再仅限于属性和方法。这在配合 Godot 的 `[Export]` 将子节点作为服务暴露时非常实用。
@@ -119,6 +85,38 @@ public partial class MapLoader : Node
     private AlertBox _alertBox;
 
     public override partial void _Notification(int what);
+}
+```
+
+---
+
+## 🔨 Bug 修复
+
+### 异步 `[Provide]` 成员未指定 `ExposedTypes` 时服务类型推断错误
+
+**问题**：当异步 `[Provide]` 成员（返回 `Task<T>` / `ValueTask<T>` 的方法或属性）未指定 `ExposedTypes` 时，推断出的服务类型错误地被设为 `Task<T>`，而非内部类型 `T`。
+
+**修复前（错误行为）**：
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ❌ 服务类型被错误地推断为 Task<MyService>
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+**修复后（正确行为）**：
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ✅ 服务类型现在正确推断为 MyService
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
 }
 ```
 
