@@ -74,13 +74,13 @@ public sealed partial class GuiHost : Node
 
 ### `[Inject]` 现在支持 Node 类型成员（Warning）
 
-`[Inject]` 现在允许用在类型为 Node 类的成员上（即类型本身不是接口）。会触发一个 **Warning**（`GDI_M045`）以鼓励注入接口而非具体 Node 类型，但注入本身会正常执行。
+`[Inject]` 现在允许用在类型为 Node 类的成员上（即类型本身不是接口）。会触发一个 **Warning**（`GDI_M046`）以鼓励注入接口而非具体 Node 类型，但注入本身会正常执行。
 
 ```csharp
 [User]
 public partial class MapLoader : Node
 {
-    // 允许（触发 GDI_M045 警告 — 建议注入 IAlertBox 接口）
+    // 允许（触发 GDI_M046 警告 — 建议注入 IAlertBox 接口）
     [Inject]
     private AlertBox _alertBox;
 

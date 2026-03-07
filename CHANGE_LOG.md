@@ -74,13 +74,13 @@ Previously, this required `AlertBox` to be a `[Host]` itself and registered in t
 
 ### `[Inject]` Now Supports Node-Type Members (Warning)
 
-`[Inject]` can now be applied to members whose type is a Node class (i.e. the type itself is not an interface). A **Warning** (`GDI_M045`) is emitted to encourage injecting an interface instead of the concrete Node type, but the injection will proceed normally.
+`[Inject]` can now be applied to members whose type is a Node class (i.e. the type itself is not an interface). A **Warning** (`GDI_M046`) is emitted to encourage injecting an interface instead of the concrete Node type, but the injection will proceed normally.
 
 ```csharp
 [User]
 public partial class MapLoader : Node
 {
-    // Allowed (with GDI_M045 warning — prefer injecting IAlertBox instead)
+    // Allowed (with GDI_M046 warning — prefer injecting IAlertBox instead)
     [Inject]
     private AlertBox _alertBox;
 
