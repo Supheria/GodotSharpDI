@@ -650,6 +650,132 @@ namespace Test
     }
 
     // ============================================================
+    //  异步 Provide 成员的服务类型推断（Bug 修复回归测试）
+    // ============================================================
+
+    /// <summary>
+    /// 回归测试：异步方法未指定 ExposedTypes 时，服务类型应为 T 而非 Task&lt;T&gt;。
+    /// </summary>
+    [Fact]
+    public void Process_AsyncProvideMethod_NoExposedTypes_ServiceTypeIsInnerType()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    public interface IMyService { }
+    public class MyService : IMyService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide]
+        public async Task<MyService> CreateServiceAsync()
+        {
+            await Task.Yield();
+            return new MyService();
+        }
+    }
+}";
+        var (result, symbols) = GetValidationResult(source, "MyHost");
+        Assert.NotNull(result.TypeInfo);
+        var member = result.TypeInfo!.Members[0];
+        Assert.True(member.IsAsync);
+        Assert.Equal(MemberKind.ProvideMethod, member.Kind);
+
+        // 关键断言：ExposedTypes 不应包含 Task<MyService>，而应是 MyService
+        Assert.Single(member.ExposedTypes);
+        Assert.False(
+            symbols.IsAsyncType(member.ExposedTypes[0]),
+            "ExposedTypes should NOT be Task<T> — it should be the unwrapped inner type T."
+        );
+        Assert.Equal("MyService", member.ExposedTypes[0].Name);
+
+        // MemberType 也应解包为内部类型
+        Assert.Equal("MyService", member.MemberType.Name);
+    }
+
+    /// <summary>
+    /// 回归测试：异步属性未指定 ExposedTypes 时，服务类型应为 T 而非 Task&lt;T&gt;。
+    /// </summary>
+    [Fact]
+    public void Process_AsyncProvideProperty_NoExposedTypes_ServiceTypeIsInnerType()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    public interface IMyService { }
+    public class MyService : IMyService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide]
+        public Task<MyService> Service => Task.FromResult(new MyService());
+    }
+}";
+        var (result, symbols) = GetValidationResult(source, "MyHost");
+        Assert.NotNull(result.TypeInfo);
+        var member = result.TypeInfo!.Members[0];
+        Assert.True(member.IsAsync);
+        Assert.Equal(MemberKind.ProvideProperty, member.Kind);
+
+        Assert.Single(member.ExposedTypes);
+        Assert.False(
+            symbols.IsAsyncType(member.ExposedTypes[0]),
+            "ExposedTypes should NOT be Task<T> — it should be the unwrapped inner type T."
+        );
+        Assert.Equal("MyService", member.ExposedTypes[0].Name);
+    }
+
+    /// <summary>
+    /// 验证：显式指定 ExposedTypes 时，行为不受影响。
+    /// </summary>
+    [Fact]
+    public void Process_AsyncProvideMethod_WithExposedTypes_UsesExplicitTypes()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    public interface IMyService { }
+    public class MyService : IMyService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
+        public async Task<MyService> CreateServiceAsync()
+        {
+            await Task.Yield();
+            return new MyService();
+        }
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.NotNull(result.TypeInfo);
+        var member = result.TypeInfo!.Members[0];
+        Assert.True(member.IsAsync);
+
+        Assert.Single(member.ExposedTypes);
+        Assert.Equal("IMyService", member.ExposedTypes[0].Name);
+    }
+
+    // ============================================================
     //  辅助
     // ============================================================
 

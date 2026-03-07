@@ -1,5 +1,35 @@
 # v1.3.0
 
+## 🔨 Bug Fixes
+
+### Async `[Provide]` Member Without `ExposedTypes` Now Infers Correct Service Type
+
+**Fixed**: When an async `[Provide]` member (method or property returning `Task<T>` / `ValueTask<T>`) did not specify `ExposedTypes`, the inferred service type was incorrectly set to `Task<T>` instead of the inner type `T`.
+
+**Before (broken)**:
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ❌ Service type was incorrectly inferred as Task<MyService>
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+**After (fixed)**:
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ✅ Service type is now correctly inferred as MyService
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+---
+
 ## ✨ New Features
 
 ### `[Provide]` Now Supports Field Members
