@@ -39,14 +39,12 @@
 | GDI_M040 | GDI.Member | Error    | [Inject] member cannot be static                                    |
 | GDI_M041 | GDI.Member | Error    | [Inject] member type is not a valid injectable type                 |
 | GDI_M042 | GDI.Member | Warning  | [Inject] member type is a [Host] (allowed, not recommended)         |
-| GDI_M043 | GDI.Member | Error    | Cannot inject a [User] type                                         |
 | GDI_M044 | GDI.Member | Error    | Cannot inject an IScope type                                        |
 | GDI_M046 | GDI.Member | Warning  | [Inject] member type should be interface                            |
 | GDI_M047 | GDI.Member | Error    | [Inject] member cannot be an unbound generic type                   |
 | GDI_M050 | GDI.Member | Error    | [Provide] member cannot be static                                   |
 | GDI_M051 | GDI.Member | Error    | [Provide] member type is not a valid service type                   |
 | GDI_M052 | GDI.Member | Error    | [Provide] member type is a [Host] type (Host exposes only itself)   |
-| GDI_M053 | GDI.Member | Error    | [Provide] member cannot be a [User] type                            |
 | GDI_M054 | GDI.Member | Error    | [Provide] member cannot be an IScope type                           |
 | GDI_M056 | GDI.Member | Error    | [Provide] member cannot be an unbound generic type                  |
 | GDI_M060 | GDI.Member | Error    | [Provide] member exposed type is not implemented by the return type |

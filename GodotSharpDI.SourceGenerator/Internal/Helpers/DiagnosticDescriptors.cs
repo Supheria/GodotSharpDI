@@ -223,11 +223,6 @@ internal static class DiagnosticDescriptors
         DiagnosticSeverity.Warning
     );
 
-    public static readonly DiagnosticDescriptor InjectMemberIsUserType = Member(
-        "043",
-        Resources.M_InjectMemberIsUserType
-    );
-
     public static readonly DiagnosticDescriptor InjectMemberIsScopeType = Member(
         "044",
         Resources.M_InjectMemberIsScopeType
@@ -257,11 +252,6 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor ProvideMemberIsHostType = Member(
         "052",
         Resources.M_ProvideMemberIsHostType
-    );
-
-    public static readonly DiagnosticDescriptor ProvideMemberIsUserType = Member(
-        "053",
-        Resources.M_ProvideMemberIsUserType
     );
 
     public static readonly DiagnosticDescriptor ProvideMemberIsScopeType = Member(

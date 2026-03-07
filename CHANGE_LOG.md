@@ -1,5 +1,31 @@
 # v1.3.0
 
+## ✨ New Features
+
+### `[Inject]` and `[Provide]` Now Allow `[User]`-Typed Members (with Warning)
+
+Previously, using a `[User]` type as the type of an `[Inject]` or `[Provide]` member was a compile-time **Error**. These diagnostics are now removed.
+
+---
+
+### `IScope.ProvideService` Now Includes `string providerType` Parameter
+
+`ProvideService<TImpl>` now accepts a `providerType` string that records the name of the Host or User class providing the service. This name is included in all error and diagnostic messages emitted by the Scope, making it much easier to identify which node is responsible when a service provision fails.
+
+**Before (1.2.x)**:
+```csharp
+void ProvideService<TImpl>(TImpl? instance) where TImpl : class;
+```
+
+**After (1.3.0)**:
+```csharp
+void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : class;
+```
+
+**Impact**: Generated code is updated automatically. 
+
+---
+
 ## 🔨 Bug Fixes
 
 ### Async `[Provide]` Member Without `ExposedTypes` Now Infers Correct Service Type
@@ -102,6 +128,8 @@ public partial class MapLoader : Node
 | -------- | ----------------------------------------- |
 | GDI_M045 | `[Inject]` member type is a regular Node  |
 | GDI_M055 | `[provide]` member type is a regular Node |
+| GDI_M043 | Cannot inject a [User] type               |
+| GDI_M053 | [Provide] member cannot be a [User] type  |
 
 ---
 

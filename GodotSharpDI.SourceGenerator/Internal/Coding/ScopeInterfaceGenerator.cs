@@ -48,7 +48,9 @@ internal static class ScopeInterfaceGenerator
         f.AppendHiddenMethodCommentAndAttribute(
             "以实现类型提供服务。instance == null 表示服务创建失败。"
         );
-        f.AppendLine($"void {GlobalNames.IScope}.ProvideService<TImpl>(TImpl? instance)");
+        f.AppendLine(
+            $"void {GlobalNames.IScope}.ProvideService<TImpl>(TImpl? instance, {GlobalNames.String} providerType)"
+        );
         f.AppendTypeConstraints("where TImpl : class");
         f.BeginBlock();
         {
@@ -63,7 +65,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("if (parent is not null)");
                 f.BeginBlock();
                 {
-                    f.AppendLine("parent.ProvideService<TImpl>(instance);");
+                    f.AppendLine("parent.ProvideService<TImpl>(instance, providerType);");
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
@@ -71,7 +73,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("var sb = CreateErrorMessageBuilder(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("title: \"Cannot provide service\",");
+                    f.AppendLine("title: $\"Host '{providerType}' cannot provide service\",");
                     f.AppendLine(
                         "reason: $\"No Scope in scene tree contains implementation type: {implType.Name}\","
                     );
@@ -105,8 +107,10 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("var sb = CreateErrorMessageBuilder(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("title: \"Service creation failed\",");
-                    f.AppendLine("reason: $\"Host provided null for {implType.Name}\",");
+                    f.AppendLine("title: \"Host '{providerType}' failed to provide service\",");
+                    f.AppendLine(
+                        "reason: $\"Null reference provided for implementation type: {implType.Name}\","
+                    );
                     f.AppendLine("serviceImplType: implType.Name,");
                     f.AppendLine("requestorType: \"N/A\",");
                     f.AppendLine("scopeChain: \"N/A\",");
@@ -132,7 +136,9 @@ internal static class ScopeInterfaceGenerator
                             f.AppendLine("sb = CreateErrorMessageBuilder(");
                             f.BeginLevel();
                             {
-                                f.AppendLine("title: \"Exception in dependency injection callback (on failure)\",");
+                                f.AppendLine(
+                                    "title: \"Exception in dependency injection callback (on failure)\","
+                                );
                                 f.AppendLine("reason: ex.Message,");
                                 f.AppendLine("serviceImplType: implType.Name,");
                                 f.AppendLine("requestorType: waiter.RequestorType,");
@@ -200,9 +206,7 @@ internal static class ScopeInterfaceGenerator
                         f.AppendLine("var sb = CreateErrorMessageBuilder(");
                         f.BeginLevel();
                         {
-                            f.AppendLine(
-                                "title: \"Exception in dependency injection callback\","
-                            );
+                            f.AppendLine("title: \"Exception in dependency injection callback\",");
                             f.AppendLine("reason: ex.Message,");
                             f.AppendLine("serviceImplType: implType.Name,");
                             f.AppendLine("requestorType: waiter.RequestorType,");
@@ -253,7 +257,7 @@ internal static class ScopeInterfaceGenerator
             // 通过 ServiceImplementationMap 查找实现类型
             f.AppendLine(
                 "if (!ServiceImplementationMap.TryGetValue(exposedType, out var implType) || "
-                + "!ServiceCache.TryGetValue(implType, out var cacheEntry))"
+                    + "!ServiceCache.TryGetValue(implType, out var cacheEntry))"
             );
             f.BeginBlock();
             {
@@ -366,9 +370,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var sb = CreateErrorMessageBuilder(");
             f.BeginLevel();
             {
-                f.AppendLine(
-                    "title: $\"Previous creation of service {exposedType.Name} failed\","
-                );
+                f.AppendLine("title: $\"Previous creation of service {exposedType.Name} failed\",");
                 f.AppendLine("reason: \"The Host reported a null instance\",");
                 f.AppendLine("serviceImplType: implType.Name,");
                 f.AppendLine("requestorType: requestorType,");
@@ -429,9 +431,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
             f.BeginLevel();
             {
-                f.AppendLine(
-                    "ResultCallback: obj => onResult.Invoke((TExposed?)obj),"
-                );
+                f.AppendLine("ResultCallback: obj => onResult.Invoke((TExposed?)obj),");
                 f.AppendLine($"RequestTicks: {GlobalNames.DateTime}.Now.Ticks,");
                 f.AppendLine("RequestorType: requestorType,");
                 f.AppendLine("ScopeChain: currentScopeChain,");

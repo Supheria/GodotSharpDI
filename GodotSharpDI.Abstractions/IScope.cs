@@ -27,7 +27,10 @@ public interface IScope
     /// <param name="instance">
     /// The service instance, or <c>null</c> if service creation failed.
     /// </param>
-    void ProvideService<TImpl>(TImpl? instance)
+    /// <param name="providerType">
+    /// Name of the type providing the service, used for diagnostics.
+    /// </param>
+    void ProvideService<TImpl>(TImpl? instance, string providerType)
         where TImpl : class;
 
     /// <summary>

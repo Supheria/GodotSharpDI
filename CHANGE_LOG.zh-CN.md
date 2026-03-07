@@ -1,5 +1,31 @@
 # v1.3.0
 
+## ✨ 新功能
+
+### `[Inject]` 和 `[Provide]` 现在允许 `[User]` 类型成员
+
+此前，将 `[User]` 类型用作 `[Inject]` 或 `[Provide]` 成员的类型会产生编译时**错误**。现在移除了这些诊断。
+
+---
+
+### `IScope.ProvideService` 新增 `string providerType` 参数
+
+`ProvideService<TImpl>` 现在接受一个 `providerType` 字符串参数，用于记录提供服务的 Host 或 User 类名。该名称会包含在 Scope 发出的所有错误和诊断消息中，使服务提供失败时更容易定位责任节点。
+
+**修改前（1.2.x）**：
+```csharp
+void ProvideService<TImpl>(TImpl? instance) where TImpl : class;
+```
+
+**修改后（1.3.0）**：
+```csharp
+void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : class;
+```
+
+**影响**：生成代码会自动更新。
+
+---
+
 ## 🔨 Bug 修复
 
 ### 异步 `[Provide]` 成员未指定 `ExposedTypes` 时服务类型推断错误
@@ -100,10 +126,12 @@ public partial class MapLoader : Node
 
 ## 移除的诊断
 
-| 规则 ID  | 说明                            |
-| -------- | ------------------------------- |
-| GDI_M045 | `[Inject]` 成员类型是普通 Node  |
-| GDI_M055 | `[Provide]` 成员类型是普通 Node |
+| 规则 ID  | 说明                             |
+| -------- | -------------------------------- |
+| GDI_M045 | `[Inject]` 成员类型是普通 Node   |
+| GDI_M055 | `[Provide]` 成员类型是普通 Node  |
+| GDI_M043 | 不能注入标记为 [User] 的类型     |
+| GDI_M053 | [Provide] 成员不能是 [User] 类型 |
 
 ---
 

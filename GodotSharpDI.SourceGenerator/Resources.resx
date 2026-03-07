@@ -75,7 +75,7 @@
     <!-- ============================================================ -->
 
     <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
-        <value>Type '{0}' must be marked as [Singleton] or [Host] to use [Provide] on members</value>
+        <value>Type '{0}' must be marked as [Host] or [User] to use [Provide] on members</value>
     </data>
 
     <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
@@ -104,11 +104,6 @@
     <data name="M_InjectMemberIsHostType" xml:space="preserve">
         <value>[Inject] member '{0}' has type '{1}', which is a [Host] type. While allowed, injecting Host types directly is not recommended - consider injecting an interface exposed by the Host instead</value>
     </data>
-
-    <data name="M_InjectMemberIsUserType" xml:space="preserve">
-        <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
-    </data>
-
     <data name="M_InjectMemberIsScopeType" xml:space="preserve">
         <value>[Inject] member '{0}' has type '{1}', which is an IScope type and cannot be injected</value>
     </data>
@@ -127,11 +122,6 @@
     <data name="M_ProvideMemberIsHostType" xml:space="preserve">
         <value>[Provide] member '{0}' has type '{1}', which is a Host type. Host can only expose itself through [Provide] members, not other Host types</value>
     </data>
-
-    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
-        <value>[Provide] member '{0}' has type '{1}', which is a [User] type and cannot be used as a Provide member</value>
-    </data>
-
     <data name="M_ProvideMemberIsScopeType" xml:space="preserve">
         <value>[Provide] member '{0}' has type '{1}', which is an IScope type and cannot be used as a Provide member</value>
     </data>
