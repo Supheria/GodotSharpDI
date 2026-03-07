@@ -223,19 +223,9 @@ internal static class DiagnosticDescriptors
         DiagnosticSeverity.Warning
     );
 
-    public static readonly DiagnosticDescriptor InjectMemberIsUserType = Member(
-        "043",
-        Resources.M_InjectMemberIsUserType
-    );
-
     public static readonly DiagnosticDescriptor InjectMemberIsScopeType = Member(
         "044",
         Resources.M_InjectMemberIsScopeType
-    );
-
-    public static readonly DiagnosticDescriptor InjectMemberIsRegularNode = Member(
-        "045",
-        Resources.M_InjectMemberIsRegularNode
     );
 
     public static readonly DiagnosticDescriptor InjectMemberTypeShouldBeInterface = Member(
@@ -264,19 +254,9 @@ internal static class DiagnosticDescriptors
         Resources.M_ProvideMemberIsHostType
     );
 
-    public static readonly DiagnosticDescriptor ProvideMemberIsUserType = Member(
-        "053",
-        Resources.M_ProvideMemberIsUserType
-    );
-
     public static readonly DiagnosticDescriptor ProvideMemberIsScopeType = Member(
         "054",
         Resources.M_ProvideMemberIsScopeType
-    );
-
-    public static readonly DiagnosticDescriptor ProvideMemberIsRegularNode = Member(
-        "055",
-        Resources.M_ProvideMemberIsRegularNode
     );
 
     public static readonly DiagnosticDescriptor ProvideMemberTypeCannotBeGeneric = Member(

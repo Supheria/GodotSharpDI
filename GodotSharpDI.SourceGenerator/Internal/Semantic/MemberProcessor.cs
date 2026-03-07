@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
@@ -132,7 +132,26 @@ internal sealed class MemberProcessor
         if (member is IFieldSymbol field && field.Type is INamedTypeSymbol)
         {
             memberType = (INamedTypeSymbol)field.Type;
-            kind = MemberKind.InjectField;
+
+            if (hasInject)
+            {
+                if (field.IsReadOnly)
+                {
+                    _diagnostics.Add(
+                        DiagnosticBuilder.Create(
+                            DiagnosticDescriptors.InjectMemberNotAssignable,
+                            location,
+                            member.Name
+                        )
+                    );
+                    return null;
+                }
+                kind = MemberKind.InjectField;
+            }
+            else if (hasProvide)
+            {
+                kind = MemberKind.ProvideField;
+            }
         }
         else if (member is IPropertySymbol property && property.Type is INamedTypeSymbol)
         {
@@ -353,40 +372,12 @@ internal sealed class MemberProcessor
             return true;
         }
 
-        // 不能是 User 类型
-        if (_symbols.IsUserType(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.InjectMemberIsUserType,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
         // 不能是 Scope 类型
         if (_symbols.ImplementsIScope(memberType))
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.InjectMemberIsScopeType,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
-        // 不能是普通 Node
-        if (_symbols.IsNode(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.InjectMemberIsRegularNode,
                     location,
                     member.Name,
                     memberType.ToDisplayString()
@@ -464,40 +455,12 @@ internal sealed class MemberProcessor
             return true;
         }
 
-        // 不能是 User 类型
-        if (_symbols.IsUserType(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ProvideMemberIsUserType,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
         // 不能是 Scope 类型
         if (_symbols.ImplementsIScope(memberType))
         {
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.ProvideMemberIsScopeType,
-                    location,
-                    member.Name,
-                    memberType.ToDisplayString()
-                )
-            );
-            return false;
-        }
-
-        // 不能是普通 Node
-        if (_symbols.IsNode(memberType))
-        {
-            _diagnostics.Add(
-                DiagnosticBuilder.Create(
-                    DiagnosticDescriptors.ProvideMemberIsRegularNode,
                     location,
                     member.Name,
                     memberType.ToDisplayString()

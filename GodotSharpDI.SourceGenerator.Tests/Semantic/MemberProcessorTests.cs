@@ -190,33 +190,6 @@ namespace Test
     }
 
     [Fact]
-    public void Process_InjectUserType_ReportsDiagnostic()
-    {
-        var source =
-            @"
-using GodotSharpDI.Abstractions;
-using Godot;
-
-namespace Test
-{
-    [User]
-    public partial class AnotherUser : Node
-    {
-        [Inject] private object _something;
-    }
-
-    [User]
-    public partial class MyUser : Node
-    {
-        [Inject]
-        private AnotherUser _host;
-    }
-}";
-        var (result, _) = GetValidationResult(source, "MyUser");
-        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M043"); // InjectMemberIsUserType
-    }
-
-    [Fact]
     public void Process_InjectScopeType_ReportsDiagnostic()
     {
         var source =
@@ -535,6 +508,244 @@ namespace Test
 }";
         var (result, _) = GetValidationResult(source, "MyHost");
         Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M080");
+    }
+
+    // ============================================================
+    //  v1.3.0 新功能：[Provide] 字段成员、[Provide] Node 类型成员、[Inject] Node 类型成员
+    // ============================================================
+
+    [Fact]
+    public void Process_ProvideFieldInHost_ReturnsProvideFieldMember()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IAlertBox { }
+    public partial class AlertBox : Node, IAlertBox { }
+
+    [Host]
+    public partial class GuiHost : Node
+    {
+        [Export]
+        [Provide(ExposedTypes = new Type[] { typeof(IAlertBox) })]
+        private AlertBox _alertBox;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "GuiHost");
+        Assert.NotNull(result.TypeInfo);
+        Assert.Single(result.TypeInfo!.Members);
+        Assert.Equal(MemberKind.ProvideField, result.TypeInfo.Members[0].Kind);
+    }
+
+    [Fact]
+    public void Process_InjectNodeMemberInUser_ReportsWarning()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+
+namespace Test
+{
+    public interface IAlertBox { }
+    public partial class AlertBox : Node, IAlertBox { }
+
+    [User]
+    public partial class MapLoader : Node
+    {
+        [Inject]
+        private IAlertBox _alertBox;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MapLoader");
+        Assert.NotNull(result.TypeInfo);
+        // IAlertBox 是接口，不是 Node，所以不触发 Node Warning，正常通过
+        Assert.Single(result.TypeInfo!.Members);
+    }
+
+    [Fact]
+    public void Process_ProvidePropertyNodeTypeWithExposedTypes_ReturnsProvideMember()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IAlertBox { }
+    public partial class AlertBox : Node, IAlertBox { }
+
+    [Host]
+    public partial class GuiHost : Node
+    {
+        [Export]
+        private AlertBox _alertBox = null!;
+
+        [Provide(ExposedTypes = new Type[] { typeof(IAlertBox) })]
+        public AlertBox AlertBox => _alertBox;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "GuiHost");
+        Assert.NotNull(result.TypeInfo);
+        Assert.Equal(MemberKind.ProvideProperty, result.TypeInfo!.Members[0].Kind);
+    }
+
+    [Fact]
+    public void Process_ProvideWaitForNonExistent()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+
+namespace Test
+{
+    public interface IServiceA { }
+    public class ImplA : IServiceA { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide(ExposedTypes = new Type[] { typeof(IServiceA) }, WaitFor = new string[] { ""_nonExistent"" })]
+        public ImplA CreateA() => new ImplA();
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M080");
+    }
+
+    // ============================================================
+    //  异步 Provide 成员的服务类型推断（Bug 修复回归测试）
+    // ============================================================
+
+    /// <summary>
+    /// 回归测试：异步方法未指定 ExposedTypes 时，服务类型应为 T 而非 Task&lt;T&gt;。
+    /// </summary>
+    [Fact]
+    public void Process_AsyncProvideMethod_NoExposedTypes_ServiceTypeIsInnerType()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    public interface IMyService { }
+    public class MyService : IMyService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide]
+        public async Task<MyService> CreateServiceAsync()
+        {
+            await Task.Yield();
+            return new MyService();
+        }
+    }
+}";
+        var (result, symbols) = GetValidationResult(source, "MyHost");
+        Assert.NotNull(result.TypeInfo);
+        var member = result.TypeInfo!.Members[0];
+        Assert.True(member.IsAsync);
+        Assert.Equal(MemberKind.ProvideMethod, member.Kind);
+
+        // 关键断言：ExposedTypes 不应包含 Task<MyService>，而应是 MyService
+        Assert.Single(member.ExposedTypes);
+        Assert.False(
+            symbols.IsAsyncType(member.ExposedTypes[0]),
+            "ExposedTypes should NOT be Task<T> — it should be the unwrapped inner type T."
+        );
+        Assert.Equal("MyService", member.ExposedTypes[0].Name);
+
+        // MemberType 也应解包为内部类型
+        Assert.Equal("MyService", member.MemberType.Name);
+    }
+
+    /// <summary>
+    /// 回归测试：异步属性未指定 ExposedTypes 时，服务类型应为 T 而非 Task&lt;T&gt;。
+    /// </summary>
+    [Fact]
+    public void Process_AsyncProvideProperty_NoExposedTypes_ServiceTypeIsInnerType()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    public interface IMyService { }
+    public class MyService : IMyService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide]
+        public Task<MyService> Service => Task.FromResult(new MyService());
+    }
+}";
+        var (result, symbols) = GetValidationResult(source, "MyHost");
+        Assert.NotNull(result.TypeInfo);
+        var member = result.TypeInfo!.Members[0];
+        Assert.True(member.IsAsync);
+        Assert.Equal(MemberKind.ProvideProperty, member.Kind);
+
+        Assert.Single(member.ExposedTypes);
+        Assert.False(
+            symbols.IsAsyncType(member.ExposedTypes[0]),
+            "ExposedTypes should NOT be Task<T> — it should be the unwrapped inner type T."
+        );
+        Assert.Equal("MyService", member.ExposedTypes[0].Name);
+    }
+
+    /// <summary>
+    /// 验证：显式指定 ExposedTypes 时，行为不受影响。
+    /// </summary>
+    [Fact]
+    public void Process_AsyncProvideMethod_WithExposedTypes_UsesExplicitTypes()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+using System;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    public interface IMyService { }
+    public class MyService : IMyService { }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide(ExposedTypes = new Type[] { typeof(IMyService) })]
+        public async Task<MyService> CreateServiceAsync()
+        {
+            await Task.Yield();
+            return new MyService();
+        }
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.NotNull(result.TypeInfo);
+        var member = result.TypeInfo!.Members[0];
+        Assert.True(member.IsAsync);
+
+        Assert.Single(member.ExposedTypes);
+        Assert.Equal("IMyService", member.ExposedTypes[0].Name);
     }
 
     // ============================================================

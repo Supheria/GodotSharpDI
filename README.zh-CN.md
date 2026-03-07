@@ -73,7 +73,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.2.0" />
+<PackageReference Include="GodotSharpDI" Version="1.3.0" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -463,7 +463,8 @@ RootScope (IScope)
 
 ## 使用 [Provide] 提供服务
 
-### 属性提供者
+### 字段（v1.3.0 新增）或属性提供者
+
 
 最简单的服务提供方式：
 
@@ -480,6 +481,29 @@ public partial class ConfigHost : Node
     
     public override partial void _Notification(int what);
 }
+```
+
+结合 Godot 的 `[Export]` 将子节点作为服务暴露时特别有用，无需将这些子节点标记为 `[Host]`。
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+对应的场景树结构：
+
+```
+Root (Scope)
+  |- GuiHost  [Host]
+  |    |- AlertBox        ← 普通 Node，通过 GuiHost 暴露
+  |- MapLoader  [User]    ← 注入 IAlertBox
 ```
 
 ### 方法提供者

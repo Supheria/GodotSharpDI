@@ -23,7 +23,7 @@ internal sealed record MemberInfo(
     public bool IsInjectMember { get; } =
         Kind == MemberKind.InjectField || Kind == MemberKind.InjectProperty;
     public bool IsProvideMember { get; } =
-        Kind == MemberKind.ProvideProperty || Kind == MemberKind.ProvideMethod;
+        Kind == MemberKind.ProvideField || Kind == MemberKind.ProvideProperty || Kind == MemberKind.ProvideMethod;
 
     /// <summary>
     /// 获取此成员名称

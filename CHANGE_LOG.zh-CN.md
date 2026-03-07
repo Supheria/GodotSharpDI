@@ -1,6 +1,140 @@
+# v1.3.0
+
+## ✨ 新功能
+
+### `[Inject]` 和 `[Provide]` 现在允许 `[User]` 类型成员
+
+此前，将 `[User]` 类型用作 `[Inject]` 或 `[Provide]` 成员的类型会产生编译时**错误**。现在移除了这些诊断。
+
+---
+
+### `IScope.ProvideService` 新增 `string providerType` 参数
+
+`ProvideService<TImpl>` 现在接受一个 `providerType` 字符串参数，用于记录提供服务的 Host 或 User 类名。该名称会包含在 Scope 发出的所有错误和诊断消息中，使服务提供失败时更容易定位责任节点。
+
+**修改前（1.2.x）**：
+```csharp
+void ProvideService<TImpl>(TImpl? instance) where TImpl : class;
+```
+
+**修改后（1.3.0）**：
+```csharp
+void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : class;
+```
+
+**影响**：生成代码会自动更新。
+
+---
+
+### `[Provide]` 现在支持字段成员
+
+`[Provide]` 现在可以用在字段成员上，不再仅限于属性和方法。这在配合 Godot 的 `[Export]` 将子节点作为服务暴露时非常实用。
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+### `[Provide]` 现在支持 Node 类型成员
+
+`[Provide]` 现在可以用在类型为 Godot Node 的成员上（无需在该 Node 类型上标记 `[Host]`）。这允许 Host 通过接口将子节点作为服务暴露给 Scope。
+
+**典型场景树结构：**
+```
+Root (Scope)
+  |- Gui (GuiHost — [Host])
+  |    |- AlertBox
+  |- MapLoader ([User])
+```
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+在 v1.3.0 之前，这要求 `AlertBox` 本身是 `[Host]` 并在 Scope 的 `[Modules]` 中注册。现在 `GuiHost` 可以直接托管并暴露 `AlertBox`。
+
+---
+
+### `[Inject]` 现在支持 Node 类型成员（Warning）
+
+`[Inject]` 现在允许用在类型为 Node 类的成员上（即类型本身不是接口）。会触发一个 **Warning**（`GDI_M045`）以鼓励注入接口而非具体 Node 类型，但注入本身会正常执行。
+
+```csharp
+[User]
+public partial class MapLoader : Node
+{
+    // 允许（触发 GDI_M045 警告 — 建议注入 IAlertBox 接口）
+    [Inject]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+## 🔨 Bug 修复
+
+### 异步 `[Provide]` 成员未指定 `ExposedTypes` 时服务类型推断错误
+
+**问题**：当异步 `[Provide]` 成员（返回 `Task<T>` / `ValueTask<T>` 的方法或属性）未指定 `ExposedTypes` 时，推断出的服务类型错误地被设为 `Task<T>`，而非内部类型 `T`。
+
+**修复前（错误行为）**：
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ❌ 服务类型被错误地推断为 Task<MyService>
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+**修复后（正确行为）**：
+
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ✅ 服务类型现在正确推断为 MyService
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+---
+
+## 移除的诊断
+
+| 规则 ID  | 说明                             |
+| -------- | -------------------------------- |
+| GDI_M045 | `[Inject]` 成员类型是普通 Node   |
+| GDI_M055 | `[Provide]` 成员类型是普通 Node  |
+| GDI_M043 | 不能注入标记为 [User] 的类型     |
+| GDI_M053 | [Provide] 成员不能是 [User] 类型 |
+
+---
+
 # v1.2.2
 
-## 🔨 破坏性变更
 
 ### 移除 `IDependenciesResolved.OnDependenciesResolved` 的参数
 

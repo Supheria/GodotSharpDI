@@ -88,7 +88,7 @@
     <!-- ============================================================ -->
 
     <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
-        <value>类型 '{0}' 必须标记为 [Host] 才能在成员上使用 [Provide]</value>
+        <value>类型 '{0}' 必须标记为 [Host] 或 [User] 才能在成员上使用 [Provide]</value>
     </data>
 
     <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
@@ -118,11 +118,6 @@
     <data name="M_InjectMemberIsStatic" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 不能是静态的</value>
     </data>
-
-    <data name="M_InjectMemberIsRegularNode" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是普通 Godot.Node（未标记任何 DI 特性）。只有 Host 类型、接口或普通服务类可以被注入。请为目标类型添加 [Host]，或改为注入接口</value>
-    </data>
-
     <data name="M_InjectMemberTypeIsInvalid" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 的类型 '{1}' 不是有效的可注入类型。可注入类型必须是接口或具体类（非抽象、非静态）</value>
     </data>
@@ -130,11 +125,6 @@
     <data name="M_InjectMemberIsHostType" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [Host] 类型。虽然允许，但不推荐直接注入 Host 类型——建议注入 Host 暴露的接口</value>
     </data>
-
-    <data name="M_InjectMemberIsUserType" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能被注入</value>
-    </data>
-
     <data name="M_InjectMemberIsScopeType" xml:space="preserve">
         <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能被注入</value>
     </data>
@@ -158,19 +148,9 @@
     <data name="M_ProvideMemberIsHostType" xml:space="preserve">
         <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 Host 类型。Host 只能通过 [Provide] 成员暴露自身，不能暴露其他 Host 类型</value>
     </data>
-
-    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
-        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能用作 [Provide] 成员</value>
-    </data>
-
     <data name="M_ProvideMemberIsScopeType" xml:space="preserve">
         <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能用作 [Provide] 成员</value>
     </data>
-
-    <data name="M_ProvideMemberIsRegularNode" xml:space="preserve">
-        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是普通 Node（未标记 DI 特性），不能用作 [Provide] 成员</value>
-    </data>
-
     <data name="M_ProvideMemberExposedTypeNotImplemented" xml:space="preserve">
         <value>[Provide] 成员 '{0}' 的暴露类型为 '{1}'，但类型 '{2}' 未实现该类型</value>
     </data>

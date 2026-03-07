@@ -1,3 +1,136 @@
+# v1.3.0
+
+## ✨ New Features
+
+### `[Inject]` and `[Provide]` Now Allow `[User]`-Typed Members (with Warning)
+
+Previously, using a `[User]` type as the type of an `[Inject]` or `[Provide]` member was a compile-time **Error**. These diagnostics are now removed.
+
+---
+
+### `IScope.ProvideService` Now Includes `string providerType` Parameter
+
+`ProvideService<TImpl>` now accepts a `providerType` string that records the name of the Host or User class providing the service. This name is included in all error and diagnostic messages emitted by the Scope, making it much easier to identify which node is responsible when a service provision fails.
+
+**Before (1.2.x)**:
+```csharp
+void ProvideService<TImpl>(TImpl? instance) where TImpl : class;
+```
+
+**After (1.3.0)**:
+```csharp
+void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : class;
+```
+
+**Impact**: Generated code is updated automatically. 
+
+---
+
+### `[Provide]` Now Supports Field Members
+
+`[Provide]` can now be applied to field members in addition to properties and methods. This is especially useful when combined with Godot's `[Export]` attribute to expose child nodes as services.
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+### `[Provide]` Now Supports Node-Type Members
+
+`[Provide]` can now be applied to members whose type is a Godot Node (without requiring `[Host]` on the Node type). This enables a Host to expose child nodes as services through their interfaces.
+
+**Typical scene tree pattern:**
+```
+Root (Scope)
+  |- Gui (GuiHost — [Host])
+  |    |- AlertBox
+  |- MapLoader ([User])
+```
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+Previously, this required `AlertBox` to be a `[Host]` itself and registered in the Scope's `[Modules]`. With v1.3.0, `GuiHost` can host and expose `AlertBox` directly.
+
+---
+
+### `[Inject]` Now Supports Node-Type Members (Warning)
+
+`[Inject]` can now be applied to members whose type is a Node class (i.e. the type itself is not an interface). A **Warning** (`GDI_M045`) is emitted to encourage injecting an interface instead of the concrete Node type, but the injection will proceed normally.
+
+```csharp
+[User]
+public partial class MapLoader : Node
+{
+    // Allowed (with GDI_M045 warning — prefer injecting IAlertBox instead)
+    [Inject]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+---
+
+## 🔨 Bug Fixes
+
+### Async `[Provide]` Member Without `ExposedTypes` Now Infers Correct Service Type
+
+**Fixed**: When an async `[Provide]` member (method or property returning `Task<T>` / `ValueTask<T>`) did not specify `ExposedTypes`, the inferred service type was incorrectly set to `Task<T>` instead of the inner type `T`.
+
+**Before (broken)**:
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ❌ Service type was incorrectly inferred as Task<MyService>
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+**After (fixed)**:
+```csharp
+[Host]
+public partial class MyHost : Node
+{
+    // ✅ Service type is now correctly inferred as MyService
+    [Provide]
+    public async Task<MyService> CreateServiceAsync() { ... }
+}
+```
+
+---
+
+## Deleted Diagnostics
+
+| Rule ID  | Description                               |
+| -------- | ----------------------------------------- |
+| GDI_M045 | `[Inject]` member type is a regular Node  |
+| GDI_M055 | `[provide]` member type is a regular Node |
+| GDI_M043 | Cannot inject a [User] type               |
+| GDI_M053 | [Provide] member cannot be a [User] type  |
+
+---
+
 # v1.2.2
 
 ## 🔨 Breaking Changes

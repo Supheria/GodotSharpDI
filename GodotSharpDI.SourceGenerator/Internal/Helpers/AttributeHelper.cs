@@ -39,6 +39,16 @@ internal static class AttributeHelper
             }
             if (memberType is INamedTypeSymbol namedType)
             {
+                // 异步成员（Task<T> / ValueTask<T>）未指定 ExposedTypes 时，
+                // 服务类型应为内部的 T，而非 Task<T> 本身
+                if (
+                    symbols.IsAsyncType(namedType)
+                    && namedType.IsGenericType
+                    && namedType.TypeArguments[0] is INamedTypeSymbol innerType
+                )
+                {
+                    return ImmutableArray.Create(innerType);
+                }
                 return ImmutableArray.Create(namedType);
             }
         }

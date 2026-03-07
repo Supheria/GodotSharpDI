@@ -73,7 +73,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.2.0" />
+<PackageReference Include="GodotSharpDI" Version="1.3.0" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -463,7 +463,8 @@ Services provided by parent scopes are accessible to child scopes.
 
 ## Service Provision with [Provide]
 
-### Property Providers
+### Field (New in v1.3.0) or Property Providers
+
 
 The simplest way to provide services:
 
@@ -480,6 +481,29 @@ public partial class ConfigHost : Node
     
     public override partial void _Notification(int what);
 }
+```
+
+`[Provide]` can be applied directly to fields. This is particularly useful when combined with Godot's `[Export]` to expose child nodes as services, without requiring those nodes to be `[Host]` themselves.
+
+```csharp
+[Host]
+public sealed partial class GuiHost : Node
+{
+    [Export]
+    [Provide(ExposedTypes = [typeof(IAlertBox)])]
+    private AlertBox _alertBox;
+
+    public override partial void _Notification(int what);
+}
+```
+
+This enables a scene tree like:
+
+```
+Root (Scope)
+  |- GuiHost  [Host]
+  |    |- AlertBox        ← plain Node, exposed via GuiHost
+  |- MapLoader  [User]    ← injects IAlertBox
 ```
 
 ### Method Providers

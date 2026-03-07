@@ -50,7 +50,11 @@ internal static class HostGenerator
             var asyncMembers = provideMembers.Where(m => m.IsAsync).ToImmutableArray();
             if (!asyncMembers.IsEmpty)
             {
-                ServiceProvisionPhase.GenerateAsyncProviderMethods(f, asyncMembers);
+                ServiceProvisionPhase.GenerateAsyncProviderMethods(
+                    f,
+                    asyncMembers,
+                    validatedType.Symbol.Name
+                );
             }
         }
         f.EndClassDeclaration();
@@ -81,7 +85,9 @@ internal static class HostGenerator
             f.AppendLine($"if ({GlobalNames.LocalScope} is null)");
             f.BeginBlock();
             {
-                f.PrintError($"\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\"");
+                f.PrintError(
+                    $"\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\""
+                );
                 f.AppendLine("return;");
             }
             f.EndBlock();
@@ -96,7 +102,12 @@ internal static class HostGenerator
             else
             {
                 // 没有 Inject 成员 - 直接提供服务
-                GenerateDirectProvision(f, validatedType.Members, provideMembers);
+                GenerateDirectProvision(
+                    f,
+                    validatedType.Members,
+                    provideMembers,
+                    validatedType.Symbol.Name
+                );
             }
         }
         f.EndBlock();
@@ -117,7 +128,12 @@ internal static class HostGenerator
         // WaitFor 依赖通过 TCS 实例字段与 ResolveDependencies() 通信，
         // 此处只需生成 Provide 阶段代码即可
         f.AppendLine(GeneratedStrings.Phase23Comment);
-        GenerateDirectProvision(f, validatedType.Members, provideMembers);
+        GenerateDirectProvision(
+            f,
+            validatedType.Members,
+            provideMembers,
+            validatedType.Symbol.Name
+        );
     }
 
     /// <summary>
@@ -126,7 +142,8 @@ internal static class HostGenerator
     private static void GenerateDirectProvision(
         CodeFormatter f,
         ImmutableArray<MemberInfo> allMembers,
-        ImmutableArray<MemberInfo> provideMembers
+        ImmutableArray<MemberInfo> provideMembers,
+        string providerTypeName
     )
     {
         var waitForMembers = new List<(MemberInfo member, Action callback)>();
@@ -144,6 +161,7 @@ internal static class HostGenerator
                         f,
                         member,
                         GlobalNames.LocalScope,
+                        providerTypeName,
                         instancePrefix: "",
                         inAsyncContext: true
                     );
@@ -167,6 +185,7 @@ internal static class HostGenerator
                     f,
                     member,
                     GlobalNames.LocalScope,
+                    providerTypeName,
                     instancePrefix: "",
                     inAsyncContext: false
                 );

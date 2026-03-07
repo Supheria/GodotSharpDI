@@ -19,6 +19,7 @@ internal static class ServiceProvisionPhase
         CodeFormatter f,
         MemberInfo member,
         string scopeField,
+        string providerTypeName,
         string instancePrefix = "",
         bool inAsyncContext = false
     )
@@ -41,7 +42,7 @@ internal static class ServiceProvisionPhase
         }
         else
         {
-            GenerateSyncProvide(f, memberAccess, implType, scopeField);
+            GenerateSyncProvide(f, memberAccess, implType, scopeField, providerTypeName);
         }
 
         f.AppendLine();
@@ -52,17 +53,22 @@ internal static class ServiceProvisionPhase
     /// </summary>
     public static void GenerateAsyncProviderMethods(
         CodeFormatter f,
-        ImmutableArray<MemberInfo> asyncMembers
+        ImmutableArray<MemberInfo> asyncMembers,
+        string providerTypeName
     )
     {
         foreach (var member in asyncMembers.Where(m => m.IsAsync))
-            GenerateAsyncProviderMethod(f, member);
+            GenerateAsyncProviderMethod(f, member, providerTypeName);
     }
 
     /// <summary>
     /// 生成单个异步提供方法（实例方法）。
     /// </summary>
-    private static void GenerateAsyncProviderMethod(CodeFormatter f, MemberInfo member)
+    private static void GenerateAsyncProviderMethod(
+        CodeFormatter f,
+        MemberInfo member,
+        string providerTypeName
+    )
     {
         var implType = member.MemberType.ToFullyQualifiedName();
         var taskTypeName = $"{GlobalNames.Task}<{implType}>";
@@ -89,7 +95,9 @@ internal static class ServiceProvisionPhase
                 {
                     // CallDeferred 排队期间 token 可能再次被取消，进入后检查一次
                     f.AppendLine("if (ct.IsCancellationRequested) return;");
-                    f.AppendLine($"scope.ProvideService<{implType}>(result);");
+                    f.AppendLine(
+                        $"scope.ProvideService<{implType}>(result, \"{providerTypeName}\");"
+                    );
                 }
                 f.EndBlock(").CallDeferred();");
             }
@@ -98,7 +106,9 @@ internal static class ServiceProvisionPhase
             f.BeginBlock();
             {
                 // 节点已退出场景树，静默退出，不调用 ProvideService
-                f.AppendLine("// Node exited scene tree – silent cancellation, do not call ProvideService");
+                f.AppendLine(
+                    "// Node exited scene tree – silent cancellation, do not call ProvideService"
+                );
             }
             f.EndBlock();
             f.AppendLine("catch (global::System.Exception ex)");
@@ -115,7 +125,9 @@ internal static class ServiceProvisionPhase
                 f.BeginBlock();
                 {
                     f.AppendLine("if (ct.IsCancellationRequested) return;");
-                    f.AppendLine($"scope.ProvideService<{implType}>(null);");
+                    f.AppendLine(
+                        $"scope.ProvideService<{implType}>(null, \"{providerTypeName}\");"
+                    );
                 }
                 f.EndBlock(").CallDeferred();");
             }
@@ -127,20 +139,23 @@ internal static class ServiceProvisionPhase
 
     /// <summary>
     /// 生成同步服务提供代码。
-    ///   成功 → scope.ProvideService&lt;T&gt;(instance)
-    ///   异常 → scope.ProvideService&lt;T&gt;(null)
+    ///   成功 → scope.ProvideService&lt;T&gt;(instance, providerType)
+    ///   异常 → scope.ProvideService&lt;T&gt;(null, providerType)
     /// </summary>
     private static void GenerateSyncProvide(
         CodeFormatter f,
         string memberAccess,
         string implType,
-        string scopeField
+        string scopeField,
+        string providerTypeName
     )
     {
         f.BeginTryCatch();
         {
             f.AppendLine($"var instance = {memberAccess};");
-            f.AppendLine($"{scopeField}.ProvideService<{implType}>(instance);");
+            f.AppendLine(
+                $"{scopeField}.ProvideService<{implType}>(instance, \"{providerTypeName}\");"
+            );
         }
         f.CatchBlock("ex");
         {
@@ -148,7 +163,7 @@ internal static class ServiceProvisionPhase
                 $"{GlobalNames.GodotGD}.PrintErr("
                     + $"$\"[GodotSharpDI] Provider for {implType} threw: {{ex.Message}}\");"
             );
-            f.AppendLine($"{scopeField}.ProvideService<{implType}>(null);");
+            f.AppendLine($"{scopeField}.ProvideService<{implType}>(null, \"{providerTypeName}\");");
         }
         f.EndTryCatch();
     }
@@ -161,6 +176,7 @@ internal static class ServiceProvisionPhase
         var prefix = string.IsNullOrEmpty(instancePrefix) ? "" : $"{instancePrefix}.";
         return member.Kind switch
         {
+            MemberKind.ProvideField => $"{prefix}{member.Symbol.Name}",
             MemberKind.ProvideProperty => $"{prefix}{member.Symbol.Name}",
             MemberKind.ProvideMethod => $"{prefix}{member.Symbol.Name}()",
             _ => throw new ArgumentOutOfRangeException(),
