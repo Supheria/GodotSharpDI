@@ -1,3 +1,17 @@
+# v1.3.1
+
+## Bug Fixes
+
+Fix error message in Scope:
+
+> [GodotSharpDI] Host '{providerType}' failed to provide service
+
+After fixed:
+
+> [GodotSharpDI] Host 'HostaNodeA' failed to provide service
+
+---
+
 # v1.3.0
 
 ## ✨ New Features

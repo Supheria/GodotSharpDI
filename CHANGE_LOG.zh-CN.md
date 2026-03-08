@@ -1,3 +1,17 @@
+# v1.3.1
+
+## Bug 修复
+
+修复 Scope 的报错信息：
+
+> [GodotSharpDI] Host '{providerType}' failed to provide service
+
+修复后：
+
+> [GodotSharpDI] Host 'HostaNodeA' failed to provide service
+
+---
+
 # v1.3.0
 
 ## ✨ 新功能
