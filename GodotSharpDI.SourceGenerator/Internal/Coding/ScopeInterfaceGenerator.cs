@@ -107,7 +107,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("var sb = CreateErrorMessageBuilder(");
                 f.BeginLevel();
                 {
-                    f.AppendLine("title: \"Host '{providerType}' failed to provide service\",");
+                    f.AppendLine("title: $\"Host '{providerType}' failed to provide service\",");
                     f.AppendLine(
                         "reason: $\"Null reference provided for implementation type: {implType.Name}\","
                     );
