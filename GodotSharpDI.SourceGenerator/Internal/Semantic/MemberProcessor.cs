@@ -372,6 +372,20 @@ internal sealed class MemberProcessor
             return true;
         }
 
+        // 不能是 User 类型
+        if (_symbols.IsUserType(memberType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.InjectMemberIsUserType,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
+        }
+
         // 不能是 Scope 类型
         if (_symbols.ImplementsIScope(memberType))
         {
@@ -453,6 +467,20 @@ internal sealed class MemberProcessor
                 return false;
             }
             return true;
+        }
+
+        // 不能是 User 类型
+        if (_symbols.IsUserType(memberType))
+        {
+            _diagnostics.Add(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.ProvideMemberIsUserType,
+                    location,
+                    member.Name,
+                    memberType.ToDisplayString()
+                )
+            );
+            return false;
         }
 
         // 不能是 Scope 类型

@@ -291,4 +291,10 @@
     <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
         <value>[Provide] method '{0}' must be parameterless</value>
     </data>
+    <data name="M_InjectMemberIsUserType" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
+    </data>
+    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is a [User] type and cannot be used as a Provide member</value>
+    </data>
 </root>

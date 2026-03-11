@@ -402,6 +402,15 @@ namespace GodotSharpDI.SourceGenerator {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be injected.
+        /// </summary>
+        internal static string M_InjectMemberIsUserType {
+            get {
+                return ResourceManager.GetString("M_InjectMemberIsUserType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to [Inject] member &apos;{0}&apos; must be writable (field must not be readonly, property must have setter).
         /// </summary>
         internal static string M_InjectMemberNotAssignable {
@@ -506,6 +515,15 @@ namespace GodotSharpDI.SourceGenerator {
         internal static string M_ProvideMemberIsStatic {
             get {
                 return ResourceManager.GetString("M_ProvideMemberIsStatic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to [Provide] member &apos;{0}&apos; has type &apos;{1}&apos;, which is a [User] type and cannot be used as a Provide member.
+        /// </summary>
+        internal static string M_ProvideMemberIsUserType {
+            get {
+                return ResourceManager.GetString("M_ProvideMemberIsUserType", resourceCulture);
             }
         }
         
