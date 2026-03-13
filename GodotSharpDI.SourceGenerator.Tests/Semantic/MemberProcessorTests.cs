@@ -510,6 +510,60 @@ namespace Test
         Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M080");
     }
 
+    [Fact]
+    public void Process_InjectUserType_ReportsDiagnostic()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+
+namespace Test
+{
+    [User]
+    public partial class AnotherUser : Node
+    {
+        [Inject] private object _something;
+    }
+
+    [User]
+    public partial class MyUser : Node
+    {
+        [Inject]
+        private AnotherUser _host;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyUser");
+        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M043"); // InjectMemberIsUserType
+    }
+
+    [Fact]
+    public void Process_ProvideUserType_ReportsDiagnostic()
+    {
+        var source =
+            @"
+using GodotSharpDI.Abstractions;
+using Godot;
+
+namespace Test
+{
+    [User]
+    public partial class AnotherUser : Node
+    {
+        [Inject] private object _something;
+    }
+
+    [Host]
+    public partial class MyHost : Node
+    {
+        [Provide]
+        private AnotherUser _host;
+    }
+}";
+        var (result, _) = GetValidationResult(source, "MyHost");
+        Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M053"); // ProvideMemberIsUserType
+    }
+
     // ============================================================
     //  v1.3.0 新功能：[Provide] 字段成员、[Provide] Node 类型成员、[Inject] Node 类型成员
     // ============================================================

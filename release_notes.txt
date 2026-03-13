@@ -1,0 +1,145 @@
+==================
+v1.3.2
+==================
+
+FEATURE ENHANCEMENTS
+--------------------
+
+Restored diagnostics:
+
+  Rule ID    Description
+  ---------  --------------------------------------------------
+  GDI_M043   Cannot inject a type marked with [User]
+  GDI_M053   [Provide] members cannot be of [User] type
+
+Reason: If a User is provided as a service by a third party (typically a
+parent node), it becomes difficult to control the timing between injection
+and provision.
+
+
+==================
+v1.3.1
+==================
+
+BUG FIXES
+---------
+
+Fix error message in Scope:
+
+  Before: [GodotSharpDI] Host '{providerType}' failed to provide service
+  After:  [GodotSharpDI] Host 'HostaNodeA' failed to provide service
+
+
+==================
+v1.3.0
+==================
+
+NEW FEATURES
+------------
+
+1. [Inject] and [Provide] Now Allow [User]-Typed Members (with Warning)
+   -----------------------------------------------------------------------
+   Previously, using a [User] type as the type of an [Inject] or [Provide]
+   member was a compile-time Error. These diagnostics are now removed.
+
+
+2. IScope.ProvideService Now Includes `string providerType` Parameter
+   -------------------------------------------------------------------
+   ProvideService<TImpl> now accepts a providerType string that records the
+   name of the Host or User class providing the service. This name is included
+   in all error and diagnostic messages emitted by the Scope, making it much
+   easier to identify which node is responsible when a service provision fails.
+
+   Before (1.2.x):
+     void ProvideService<TImpl>(TImpl? instance) where TImpl : class;
+
+   After (1.3.0):
+     void ProvideService<TImpl>(TImpl? instance, string providerType)
+         where TImpl : class;
+
+   Impact: Generated code is updated automatically.
+
+
+3. [Provide] Now Supports Field Members
+   -------------------------------------
+   [Provide] can now be applied to field members in addition to properties
+   and methods. This is especially useful when combined with Godot's [Export]
+   attribute to expose child nodes as services.
+
+   Example:
+     [Host]
+     public sealed partial class GuiHost : Node
+     {
+         [Export]
+         [Provide(ExposedTypes = [typeof(IAlertBox)])]
+         private AlertBox _alertBox;
+
+         public override partial void _Notification(int what);
+     }
+
+
+4. [Provide] Now Supports Node-Type Members
+   ------------------------------------------
+   [Provide] can now be applied to members whose type is a Godot Node
+   (without requiring [Host] on the Node type). This enables a Host to
+   expose child nodes as services through their interfaces.
+
+   Typical scene tree pattern:
+     Root (Scope)
+       |- Gui (GuiHost — [Host])
+       |    |- AlertBox
+       |- MapLoader ([User])
+
+   Previously, this required AlertBox to be a [Host] itself and registered
+   in the Scope's [Modules]. With v1.3.0, GuiHost can host and expose
+   AlertBox directly.
+
+
+5. [Inject] Now Supports Node-Type Members (Warning)
+   ---------------------------------------------------
+   [Inject] can now be applied to members whose type is a Node class (i.e.
+   the type itself is not an interface). A Warning (GDI_M046) is emitted to
+   encourage injecting an interface instead of the concrete Node type, but
+   the injection will proceed normally.
+
+   Example:
+     [User]
+     public partial class MapLoader : Node
+     {
+         // Allowed (with GDI_M046 warning — prefer injecting IAlertBox instead)
+         [Inject]
+         private AlertBox _alertBox;
+
+         public override partial void _Notification(int what);
+     }
+
+
+BUG FIXES
+---------
+
+1. Async [Provide] Member Without ExposedTypes Now Infers Correct Service Type
+   ----------------------------------------------------------------------------
+   Fixed: When an async [Provide] member (method or property returning
+   Task<T> / ValueTask<T>) did not specify ExposedTypes, the inferred service
+   type was incorrectly set to Task<T> instead of the inner type T.
+
+   Before (broken):
+     // Service type was incorrectly inferred as Task<MyService>
+     [Provide]
+     public async Task<MyService> CreateServiceAsync() { ... }
+
+   After (fixed):
+     // Service type is now correctly inferred as MyService
+     [Provide]
+     public async Task<MyService> CreateServiceAsync() { ... }
+
+
+DELETED DIAGNOSTICS
+-------------------
+
+  Rule ID    Description
+  ---------  -------------------------------------------------
+  GDI_M045   [Inject] member type is a regular Node
+  GDI_M055   [Provide] member type is a regular Node
+  GDI_M043   Cannot inject a [User] type
+  GDI_M053   [Provide] member cannot be a [User] type
