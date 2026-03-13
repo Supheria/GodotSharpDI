@@ -1,3 +1,18 @@
+# v1.3.2
+
+## Feature Enhancements
+
+Restored diagnostics:
+
+| Rule ID  | Description                                |
+| -------- | ------------------------------------------ |
+| GDI_M043 | Cannot inject a type marked with [User]    |
+| GDI_M053 | [Provide] members cannot be of [User] type |
+
+Reason: If a User is provided as a service by a third party (typically a parent node), it becomes difficult to control the timing between injection and provision.
+
+---
+
 # v1.3.1
 
 ## Bug Fixes
