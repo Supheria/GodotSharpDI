@@ -22,6 +22,17 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) Supheria and Godot Engine contributors</Copyright>
   </PropertyGroup>
+  <!-- Package Release Notes -->
+  <Target Name="PreparePackageReleaseNotesFromFile" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <PackageReleaseNotes>$([System.IO.File]::ReadAllText("../release_notes.txt"))</PackageReleaseNotes>
+    </PropertyGroup>
+  </Target>
+  <!-- Include README and Icon -->
+  <ItemGroup>
+    <None Include="../icon.png" Pack="true" PackagePath="/" />
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
   <!-- Include Generator DLL in analyzers folder -->
   <ItemGroup>
     <None
@@ -42,11 +53,6 @@
       PackagePath="analyzers/dotnet/cs/zh-hans"
       Visible="false"
     />
-  </ItemGroup>
-  <!-- Include README and Icon -->
-  <ItemGroup>
-    <None Include="../icon.png" Pack="true" PackagePath="/" />
-    <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
   <!-- Project References for Build -->
   <ItemGroup>
