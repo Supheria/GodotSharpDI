@@ -48,6 +48,12 @@ internal sealed class CodeFormatter
         _sb.Append('\n');
     }
 
+    public void AppendLineIf(bool condition, string text)
+    {
+        if (condition)
+            AppendLine(text);
+    }
+
     public void BeginBlock()
     {
         AppendLine("{");

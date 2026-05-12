@@ -150,6 +150,7 @@ internal static class InjectionGenerator
                 var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
                 f.AppendLine($"{listName}.Clear();");
                 f.AppendLine($"{readyField} = false;");
+                f.AppendLine($"{member.Symbol.Name} = default;");
             }
         }
         f.EndBlock();

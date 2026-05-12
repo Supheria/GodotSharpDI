@@ -22,7 +22,7 @@ internal static class SourceEmitter
             {
                 HostGenerator.Generate(context, node);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 ReportCodeGenerationError(context, "Host", node.ValidatedTypeInfo, ex);
             }
@@ -35,7 +35,7 @@ internal static class SourceEmitter
             {
                 UserGenerator.Generate(context, node);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 ReportCodeGenerationError(context, "User", node.ValidatedTypeInfo, ex);
             }
@@ -48,7 +48,7 @@ internal static class SourceEmitter
             {
                 ScopeGenerator.Generate(context, node, graph);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 ReportCodeGenerationError(context, "Scope", node.ValidatedTypeInfo, ex);
             }

@@ -338,7 +338,34 @@ internal static class ScopeInterfaceGenerator
         {
             f.BeginTryCatch();
             {
-                f.AppendLine("onResult.Invoke((TExposed)cacheEntry.Instance!);");
+                f.AppendLine("var __cast = cacheEntry.Instance as TExposed;");
+                f.AppendLine("if (__cast is not null)");
+                f.BeginBlock();
+                {
+                    f.AppendLine("onResult.Invoke(__cast);");
+                }
+                f.EndBlock();
+                f.AppendLine("else");
+                f.BeginBlock();
+                {
+                    f.AppendLine("var __sb = CreateErrorMessageBuilder(");
+                    f.BeginLevel();
+                    {
+                        f.AppendLine("title: $\"Type mismatch in dependency injection\",");
+                        f.AppendLine(
+                            "reason: $\"Service implementation type {implType.Name} cannot be cast to {exposedType.Name}\","
+                        );
+                        f.AppendLine("serviceImplType: implType.Name,");
+                        f.AppendLine("requestorType: requestorType,");
+                        f.AppendLine("scopeChain: currentScopeChain,");
+                        f.AppendLine("dependencyChain: currentDependencyChain");
+                    }
+                    f.EndLevel();
+                    f.AppendLine(");");
+                    f.PrintError("__sb.ToString()");
+                    f.AppendLine("onResult.Invoke(null);");
+                }
+                f.EndBlock();
             }
             f.CatchBlock("ex");
             {

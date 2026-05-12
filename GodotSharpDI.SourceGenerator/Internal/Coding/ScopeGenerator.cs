@@ -223,7 +223,23 @@ internal static class ScopeGenerator
         ValidatedTypeInfo validatedType
     )
     {
-        // StartDependencyMonitoring
+        GenerateStartDependencyMonitoring(f);
+        f.AppendLine();
+
+        GenerateStopDependencyMonitoring(f);
+        f.AppendLine();
+
+        GenerateCheckPendingDependencies(f, validatedType);
+        f.AppendLine();
+
+        GenerateReportUnresolvedDependencies(f, validatedType);
+        f.AppendLine();
+
+        GenerateWaitForDeadlockDetection(f, validatedType);
+    }
+
+    private static void GenerateStartDependencyMonitoring(CodeFormatter f)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Start dependency monitoring (debug only)");
         f.AppendLine("private void StartDependencyMonitoring()");
         f.BeginBlock();
@@ -241,9 +257,10 @@ internal static class ScopeGenerator
             f.EndDebugRegion();
         }
         f.EndBlock();
-        f.AppendLine();
+    }
 
-        // StopDependencyMonitoring
+    private static void GenerateStopDependencyMonitoring(CodeFormatter f)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Stop dependency monitoring (debug only)");
         f.AppendLine("private void StopDependencyMonitoring()");
         f.BeginBlock();
@@ -262,9 +279,10 @@ internal static class ScopeGenerator
             f.EndDebugRegion();
         }
         f.EndBlock();
-        f.AppendLine();
+    }
 
-        // CheckPendingDependencies
+    private static void GenerateCheckPendingDependencies(CodeFormatter f, ValidatedTypeInfo validatedType)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Check pending dependencies (called periodically in debug)");
         f.AppendLine("private void CheckPendingDependencies()");
         f.BeginBlock();
@@ -318,9 +336,10 @@ internal static class ScopeGenerator
             f.EndDebugRegion();
         }
         f.EndBlock();
-        f.AppendLine();
+    }
 
-        // ReportUnresolvedDependencies
+    private static void GenerateReportUnresolvedDependencies(CodeFormatter f, ValidatedTypeInfo validatedType)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Report all unresolved dependencies (debug only)");
         f.AppendLine("public void ReportUnresolvedDependencies()");
         f.BeginBlock();
@@ -381,9 +400,10 @@ internal static class ScopeGenerator
             f.PrintError("message");
         }
         f.EndBlock();
+    }
 
-        // P1-runtime: TryTrackAndDetectDeadlock (entire method in #if DEBUG)
-        f.AppendLine();
+    private static void GenerateWaitForDeadlockDetection(CodeFormatter f, ValidatedTypeInfo validatedType)
+    {
         f.BeginDebugRegion();
         {
             f.AppendHiddenMethodCommentAndAttribute("Runtime WaitFor deadlock tracking and DFS detection (DEBUG only)");
@@ -426,7 +446,6 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            // P1-runtime: FindWaitForCycle (also in #if DEBUG)
             f.AppendHiddenMethodCommentAndAttribute("DFS search for cycle in wait graph, returns cycle path or null");
             f.AppendLine($"private {GlobalNames.List}<{GlobalNames.String}>? FindWaitForCycle(");
             f.AppendLine($"    {GlobalNames.String} current,");
@@ -458,7 +477,6 @@ internal static class ScopeGenerator
                 f.AppendLine("return null;");
             }
             f.EndBlock();
-            f.AppendLine();
         }
         f.EndDebugRegion();
     }

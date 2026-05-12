@@ -179,7 +179,7 @@ internal static class ServiceProvisionPhase
             MemberKind.ProvideField => $"{prefix}{member.Symbol.Name}",
             MemberKind.ProvideProperty => $"{prefix}{member.Symbol.Name}",
             MemberKind.ProvideMethod => $"{prefix}{member.Symbol.Name}()",
-            _ => throw new ArgumentOutOfRangeException(),
+            _ => throw new ArgumentOutOfRangeException(nameof(member), member.Kind, "Unsupported Provide member kind"),
         };
     }
 }

@@ -34,8 +34,9 @@ internal static class WaitForPhase
         }
 
         var memberName = provideMember.Symbol.Name;
+        var pascalName = NamingHelper.ToPascalCase(memberName);
         var remainingVarName = $"_{memberName}_remaining";
-        var resolvedCallbackName = $"On{memberName}WaitForResolved";
+        var resolvedCallbackName = $"On{pascalName}WaitForResolved";
 
         f.AppendLine($"// WaitFor deps for {memberName}: {string.Join(", ", waitForDeps)}");
 
@@ -119,7 +120,8 @@ internal static class WaitForPhase
     )
     {
         var memberName = provideMember.Symbol.Name;
-        var resolvedCallbackName = $"On{memberName}WaitForResolved";
+        var pascalName = NamingHelper.ToPascalCase(memberName);
+        var resolvedCallbackName = $"On{pascalName}WaitForResolved";
 
         f.AppendLine($"async {GlobalNames.Task} {resolvedCallbackName}()");
         f.BeginBlock();
