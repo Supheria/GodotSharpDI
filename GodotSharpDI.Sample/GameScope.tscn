@@ -1,12 +1,19 @@
-[gd_scene load_steps=5 format=3 uid="uid://cmpx3n8hmhvtj"]
+[gd_scene load_steps=6 format=3 uid="uid://cmpx3n8hmhvtj"]
 
 [ext_resource type="Script" uid="uid://dla2w1piam3q5" path="res://GameScope.cs" id="1_64i45"]
-[ext_resource type="Script" uid="uid://d0hhe7nm34l0i" path="res://PlayerUI.cs" id="2_gtp5e"]
-[ext_resource type="Script" uid="uid://djyaidvletfl3" path="res://GameManager.cs" id="3_j4dat"]
-[ext_resource type="Script" uid="uid://bt1tfwnespgpk" path="res://PlayerStatsCenter.cs" id="4_gtp5e"]
+[ext_resource type="Script" path="res://PlayerUI.cs" id="2_gtp5e"]
+[ext_resource type="Script" path="res://GameManager.cs" id="3_j4dat"]
+[ext_resource type="Script" path="res://PlayerStatsCenter.cs" id="4_gtp5e"]
+[ext_resource type="Script" path="res://ChildScope.cs" id="5_child"]
 
 [node name="GameScope" type="Node"]
 script = ExtResource("1_64i45")
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("3_j4dat")
+
+[node name="PlayerStatsCenter" type="Node" parent="."]
+script = ExtResource("4_gtp5e")
 
 [node name="PlayerUI" type="Control" parent="."]
 layout_mode = 3
@@ -15,8 +22,9 @@ offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("2_gtp5e")
 
-[node name="GameManager" type="Node" parent="."]
-script = ExtResource("3_j4dat")
+[node name="HostB" type="Node" parent="."]
 
-[node name="Node" type="Node" parent="."]
-script = ExtResource("4_gtp5e")
+[node name="ChildScope" type="Node" parent="."]
+script = ExtResource("5_child")
+
+[node name="HostC" type="Node" parent="ChildScope"]
