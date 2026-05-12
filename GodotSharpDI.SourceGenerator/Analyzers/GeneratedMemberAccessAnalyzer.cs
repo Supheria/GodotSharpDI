@@ -552,11 +552,11 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         try
         {
             var filePath = location.SourceTree?.FilePath;
-            if (string.IsNullOrEmpty(filePath))
+            if (filePath is null || filePath.Length == 0)
                 return false;
 
             return filePath.Contains(".DI.g.cs")
-                || filePath.Contains(".DI.") && filePath.EndsWith(".g.cs");
+                || (filePath.Contains(".DI.") && filePath.EndsWith(".g.cs"));
         }
         catch
         {

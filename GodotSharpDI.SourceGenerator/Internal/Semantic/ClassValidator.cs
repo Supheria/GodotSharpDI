@@ -115,7 +115,7 @@ internal sealed class ClassValidator
                     DiagnosticDescriptors.HostInvalidAttribute,
                     _raw.Location,
                     _raw.Symbol.Name,
-                    "User (Host 和 User 不应同时使用)"
+                    ShortNames.User
                 )
             );
             // 优先作为 Host 处理

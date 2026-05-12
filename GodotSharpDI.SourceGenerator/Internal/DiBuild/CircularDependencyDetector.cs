@@ -114,10 +114,16 @@ internal sealed class CircularDependencyDetector
 
         // 获取提供该服务的节点和成员
         if (!_serviceToMember.TryGetValue(serviceType, out var memberInfo))
+        {
+            PopAndCheckScc(serviceType);
             return;
+        }
 
         if (!_serviceImplToNode.TryGetValue(memberInfo.HostType, out var node))
+        {
+            PopAndCheckScc(serviceType);
             return;
+        }
 
         // 找到提供这个服务的成员
         var providingMember = node.ValidatedTypeInfo.Members.FirstOrDefault(m =>
@@ -125,7 +131,10 @@ internal sealed class CircularDependencyDetector
         );
 
         if (providingMember == null)
+        {
+            PopAndCheckScc(serviceType);
             return;
+        }
 
         // 遍历该成员的WaitFor依赖
         foreach (var dependency in node.Dependencies)
@@ -176,6 +185,31 @@ internal sealed class CircularDependencyDetector
             } while (!SymbolEqualityComparer.Default.Equals(w, serviceType));
 
             // 如果强连通分量包含多个节点，或有自环，则是循环依赖
+            if (component.Count > 1 || HasEdgeToSelf(serviceType))
+            {
+                _cycles.Add(new Cycle(component));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 弹出节点并检查是否构成 SCC 根节点。
+    /// 用于 StrongConnect 中的 early return 路径，确保栈状态一致。
+    /// </summary>
+    private void PopAndCheckScc(ITypeSymbol serviceType)
+    {
+        // 如果当前节点是 SCC 根，弹出整个 SCC
+        if (_lowLinks[serviceType] == _indices[serviceType])
+        {
+            var component = new List<ITypeSymbol>();
+            ITypeSymbol w;
+            do
+            {
+                w = _stack.Pop();
+                _onStack.Remove(w);
+                component.Add(w);
+            } while (!SymbolEqualityComparer.Default.Equals(w, serviceType));
+
             if (component.Count > 1 || HasEdgeToSelf(serviceType))
             {
                 _cycles.Add(new Cycle(component));

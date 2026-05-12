@@ -8,3 +8,26 @@ riderModule.iml
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Build results
+TestResults/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

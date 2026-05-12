@@ -18,12 +18,12 @@ internal sealed class CrossHostCircularDependencyDetector
     private readonly ImmutableDictionary<ITypeSymbol, ImmutableArray<ITypeSymbol>> _graph;
     private readonly ServiceIndexes _indexes;
 
-    private readonly Dictionary<ITypeSymbol, int> _disc  = new(SymbolEqualityComparer.Default);
-    private readonly Dictionary<ITypeSymbol, int> _low   = new(SymbolEqualityComparer.Default);
-    private readonly HashSet<ITypeSymbol>         _onStack = new(SymbolEqualityComparer.Default);
-    private readonly Stack<ITypeSymbol>            _stack = new();
+    private Dictionary<ITypeSymbol, int> _disc  = new(SymbolEqualityComparer.Default);
+    private Dictionary<ITypeSymbol, int> _low   = new(SymbolEqualityComparer.Default);
+    private HashSet<ITypeSymbol>         _onStack = new(SymbolEqualityComparer.Default);
+    private Stack<ITypeSymbol>            _stack = new();
     private int _timer = 0;
-    private readonly List<List<ITypeSymbol>> _cycles = new();
+    private List<List<ITypeSymbol>> _cycles = new();
 
     public CrossHostCircularDependencyDetector(
         ImmutableDictionary<ITypeSymbol, ImmutableArray<ITypeSymbol>> graph,
@@ -35,6 +35,13 @@ internal sealed class CrossHostCircularDependencyDetector
 
     public ImmutableArray<Diagnostic> Detect()
     {
+        _disc  = new Dictionary<ITypeSymbol, int>(SymbolEqualityComparer.Default);
+        _low   = new Dictionary<ITypeSymbol, int>(SymbolEqualityComparer.Default);
+        _onStack = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+        _stack = new Stack<ITypeSymbol>();
+        _timer = 0;
+        _cycles = new List<List<ITypeSymbol>>();
+
         foreach (var node in _graph.Keys)
             if (!_disc.ContainsKey(node)) Tarjan(node);
 

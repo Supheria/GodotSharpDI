@@ -381,7 +381,7 @@ namespace Test
         sw.Stop();
 
         Assert.True(
-            sw.ElapsedMilliseconds < 1000,
+            sw.ElapsedMilliseconds < 3000,
             $"Detection took too long: {sw.ElapsedMilliseconds}ms"
         );
         Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D010"));

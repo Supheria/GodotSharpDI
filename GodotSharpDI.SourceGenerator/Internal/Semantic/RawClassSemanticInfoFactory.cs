@@ -15,13 +15,19 @@ internal static class RawClassSemanticInfoFactory
         ImmutableArray<Diagnostic> Diagnostics
     ) CreateWithDiagnostics(Compilation compilation, ClassDeclarationSyntax syntax)
     {
+        return CreateWithDiagnostics(compilation, syntax, new CachedSymbols(compilation));
+    }
+
+    public static (
+        RawClassSemanticInfo? Info,
+        ImmutableArray<Diagnostic> Diagnostics
+    ) CreateWithDiagnostics(Compilation compilation, ClassDeclarationSyntax syntax, CachedSymbols symbols)
+    {
         var model = compilation.GetSemanticModel(syntax.SyntaxTree);
         var declaredSymbol = ModelExtensions.GetDeclaredSymbol(model, syntax);
 
         if (declaredSymbol is not INamedTypeSymbol symbol)
             return (null, ImmutableArray<Diagnostic>.Empty);
-
-        var symbols = new CachedSymbols(compilation);
 
         // 检查是否有相关特性
         var hasHost = symbol.HasAttribute(symbols.HostAttribute);

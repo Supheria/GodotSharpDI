@@ -77,24 +77,27 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
         // 3. Raw 构建（类级增量）+ Raw 诊断（增强异常处理）
         var rawClassInfoResults = candidateClasses
             .Combine(context.CompilationProvider)
+            .Combine(symbolsProvider)
             .Select(
                 static (pair, _) =>
                 {
                     try
                     {
-                        var (syntax, compilation) = pair;
-                        return RawClassSemanticInfoFactory.CreateWithDiagnostics(
-                            compilation,
-                            syntax
-                        );
+                        var ((syntax, compilation), symbols) = pair;
+                        return symbols != null
+                            ? RawClassSemanticInfoFactory.CreateWithDiagnostics(
+                                compilation, syntax, symbols)
+                            : RawClassSemanticInfoFactory.CreateWithDiagnostics(
+                                compilation, syntax);
                     }
                     catch (Exception ex)
                     {
                         // 捕获单个类处理的异常
-                        var className = pair.Item1.Identifier.Text;
+                        var (syntax, compilation) = pair.Left;
+                        var className = syntax.Identifier.Text;
                         var diagnostic = DiagnosticBuilder.Create(
                             DiagnosticDescriptors.ClassAnalysisFailed,
-                            pair.Item1.Identifier.GetLocation(),
+                            syntax.Identifier.GetLocation(),
                             className,
                             ex.Message
                         );

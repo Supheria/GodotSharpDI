@@ -94,18 +94,6 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 将成员名转换为注入结果 TCS 局部变量名（已废弃，仅保留以防旧代码引用）
-    /// 例: "_config" → "__config_tcs"
-    /// </summary>
-    [global::System.Obsolete("TCS pattern replaced by callback list. Use GetInjectionCallbackListName instead.")]
-    public static string GetInjectionTcsName(string memberName)
-    {
-        var pascal = ToPascalCase(memberName);
-        if (string.IsNullOrEmpty(pascal)) return "__tcs";
-        return $"__{char.ToLower(pascal[0])}{pascal.Substring(1)}_tcs";
-    }
-
-    /// <summary>
     /// 将成员名转换为注入回调列表字段名。
     /// 用于 WaitFor 机制：每个 [Inject] 成员对应一个 List&lt;Action&lt;bool&gt;&gt;，
     /// 在主线程上直接调用，无需跨线程跳转。
