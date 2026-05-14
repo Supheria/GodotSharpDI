@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// Scope 节点
+/// Scope node
 /// </summary>
 internal sealed record ScopeNode(
     ValidatedTypeInfo ValidatedTypeInfo,

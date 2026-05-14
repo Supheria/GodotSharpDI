@@ -9,15 +9,15 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
 /// <summary>
-/// Host [Provide] 成员的暴露类型验证测试
+/// Host [Provide] member exposed type validation tests
 ///
-/// 注意：旧架构有独立的 [Singleton] 服务类及其 ExposedTypes 验证。
-/// 新架构服务类型验证全部通过 [Host] 的 [Provide] 成员进行。
+/// Note: Old architecture had independent [Singleton] service class and its ExposedTypes validation.
+/// New architecture validates all service types through [Host]'s [Provide] members.
 /// </summary>
 public class ExposedTypeValidationTests
 {
     // ============================================================
-    //  [Provide] 成员暴露类型 - 接口验证
+    //  [Provide] member exposed types - Interface validation
     // ============================================================
 
     [Fact]
@@ -37,7 +37,7 @@ namespace Test
     [Host]
     public partial class ChunkManager : Node
     {
-        // ChunkManager 没有实现 IChunkGetter 和 IChunkGenerator
+        // ChunkManager does not implement IChunkGetter and IChunkGenerator
         [Provide(ExposedTypes = new Type[] { typeof(IChunkGetter), typeof(IChunkGenerator) })]
         private ChunkManager Self => this;
     }
@@ -70,7 +70,7 @@ namespace Test
     [Host]
     public partial class ChunkManager : Node, IChunkGetter
     {
-        // 实现了 IChunkGetter，但没有实现 IChunkGenerator
+        // Implements IChunkGetter, but does not implement IChunkGenerator
         [Provide(ExposedTypes = new Type[] { typeof(IChunkGetter), typeof(IChunkGenerator) })]
         private ChunkManager Self => this;
     }
@@ -112,13 +112,13 @@ namespace Test
     }
 
     // ============================================================
-    //  [Provide] 成员暴露类型 - 非 Host 成员（子对象）
+    //  [Provide] member exposed types - Non-Host members (sub-objects)
     // ============================================================
 
     [Fact]
     public void HostProvide_FieldObject_ExposesInterfaceNotImplemented_ReportsDiagnostic()
     {
-        // Host 字段对象不实现指定接口
+        // Host field object does not implement the specified interface
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -128,7 +128,7 @@ using System;
 namespace Test
 {
     public interface IWorldConfig { }
-    public class WorldConfig { } // 未实现 IWorldConfig
+    public class WorldConfig { } // Does not implement IWorldConfig
 
     [Host]
     public partial class WorldManager : Node
@@ -156,7 +156,7 @@ using System;
 namespace Test
 {
     public interface IWorldConfig { }
-    public class WorldConfig : IWorldConfig { } // 已实现
+    public class WorldConfig : IWorldConfig { } // Already implemented
 
     [Host]
     public partial class WorldManager : Node
@@ -172,7 +172,7 @@ namespace Test
     [Fact]
     public void HostProvide_ExposesConcreteClass_NotMatching_ReportsDiagnostic()
     {
-        // 成员类型 ConfigB，暴露类型 ConfigA（无继承关系）
+        // Member type ConfigB, exposed type ConfigA (no inheritance relationship)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -201,7 +201,7 @@ namespace Test
     [Fact]
     public void HostProvide_ExposesBaseClassOfMemberType_NoDiagnostic()
     {
-        // 成员类型 DerivedConfig 继承 BaseConfig → 暴露 BaseConfig 合法
+        // Member type DerivedConfig inherits BaseConfig → exposing BaseConfig is valid
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -227,7 +227,7 @@ namespace Test
     [Fact]
     public void HostProvide_ExposedTypeIsConcreteClass_NotInterface_ReportsWarning()
     {
-        // GDI_M061 = Warning（暴露类型应该是接口）
+        // GDI_M061 = Warning (exposed type should be an interface)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -250,7 +250,7 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(

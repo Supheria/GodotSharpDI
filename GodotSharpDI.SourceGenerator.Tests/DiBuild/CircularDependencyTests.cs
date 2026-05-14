@@ -13,23 +13,23 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// 循环依赖检测器的全面测试（[Host]+[Provide]+[Inject]+WaitFor 架构）
+/// Comprehensive tests for circular dependency detector ([Host]+[Provide]+[Inject]+WaitFor architecture)
 ///
-/// 当前架构说明：
-/// - DI 图只包含 [Host]、[User]、[Modules] 三种节点
-/// - 服务通过 [Host] 上的 [Provide] 成员暴露
-/// - 循环依赖（GDI_D010）发生在 WaitFor 形成的等待链上
+/// Current architecture notes:
+/// - DI graph only contains [Host], [User], [Modules] three types of nodes
+/// - Services are exposed through [Host]'s [Provide] members
+/// - Circular dependencies (GDI_D010) occur on wait chains formed by WaitFor
 /// </summary>
 public class CircularDependencyTests
 {
     // ============================================================
-    //  同一 Host 内的 WaitFor 循环（GDI_D010）
+    //  WaitFor cycles within the same Host (GDI_D010)
     // ============================================================
 
     [Fact]
     public void Detect_SameHost_TwoProvide_WaitForEachOther_ReportsCycle()
     {
-        // A 等待 B 注入，B 等待 A 注入 → 死锁
+        // A waits for B injection, B waits for A injection → deadlock
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -67,7 +67,7 @@ namespace Test
     [Fact]
     public void Detect_SameHost_ThreeProvide_WaitForChain_ReportsCycle()
     {
-        // A waitFor B, B waitFor C, C waitFor A (三节点环)
+        // A waitFor B, B waitFor C, C waitFor A (three-node cycle)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -107,7 +107,7 @@ namespace Test
     [Fact]
     public void Detect_SameHost_DirectSelfWaitFor_ReportsCycle()
     {
-        // [Provide(ExposedTypes=[IServiceA], WaitFor=[_serviceA])] 自等待
+        // [Provide(ExposedTypes=[IServiceA], WaitFor=[_serviceA])] self-wait
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -133,13 +133,13 @@ namespace Test
     }
 
     // ============================================================
-    //  正常场景（不应报告 GDI_D010）
+    //  Normal scenarios (should not report GDI_D010)
     // ============================================================
 
     [Fact]
     public void Detect_LinearWaitFor_Chain_NoCycle()
     {
-        // A 无等待，C waitFor A，B waitFor C → 正常有向无环图
+        // A has no wait, C waitFor A, B waitFor C → normal directed acyclic graph
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -178,7 +178,7 @@ namespace Test
     [Fact]
     public void Detect_MultipleWaitFor_NoCycle()
     {
-        // B 同时等待 A 和 C，A、C 均无等待 → 无环
+        // B simultaneously waits for A and C, A and C have no wait → no cycle
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -217,7 +217,7 @@ namespace Test
     [Fact]
     public void Detect_MultipleIndependentHosts_NoCycle()
     {
-        // 两个独立 Host 各自无环，且不存在跨 Host 等待
+        // Two independent Hosts each have no cycle, and no cross-Host wait exists
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -251,15 +251,15 @@ namespace Test
     }
 
     // ============================================================
-    //  P6 回归测试：防止假阳性（同 Host 提供多个服务但无自环）
+    //  P6 regression test: prevent false positives (same Host provides multiple services but no self-loop)
     // ============================================================
 
     [Fact]
     public void Detect_GameManager7Pattern_NoFalsePositiveSelfLoop()
     {
-        // Host 提供 IGameState（WaitFor=[_playerStatsService]）
-        // 且同时提供 PlayerStatsService3
-        // WaitFor 指向另一个 Provide 成员的注入类型 ≠ 自环，不应报 GDI_D010
+        // Host provides IGameState (WaitFor=[_playerStatsService])
+        // and also provides PlayerStatsService3
+        // WaitFor pointing to another Provide member's injection type ≠ self-loop, should not report GDI_D010
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -308,7 +308,7 @@ namespace Test
     [Fact]
     public void Detect_HostExposesSelfAndWaitsForAnotherProvide_NoCycle()
     {
-        // 进一步验证：Host 暴露自身实现类型，WaitFor 指向同 Host 提供的另一服务
+        // Further verify: Host exposes its own implementation type, WaitFor points to another service provided by the same Host
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -338,7 +338,7 @@ namespace Test
     }
 
     // ============================================================
-    //  性能测试
+    //  Performance tests
     // ============================================================
 
     [Fact]
@@ -362,7 +362,7 @@ namespace Test
         for (int i = 0; i < count; i++)
             sb.AppendLine($"[Inject] private IService{i} _s{i} {{ get; set; }}");
 
-        // 形成链：Service{i} waitFor _s{i-1}，最终无环
+        // Form chain: Service{i} waitFor _s{i-1}, ultimately no cycle
         sb.AppendLine("[Provide(ExposedTypes = new Type[] { typeof(IService0) })]");
         sb.AppendLine("public Service0 Create0() => new Service0();");
         for (int i = 1; i < count; i++)
@@ -388,7 +388,7 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
     private static DiGraphBuildResult BuildGraph(string source)

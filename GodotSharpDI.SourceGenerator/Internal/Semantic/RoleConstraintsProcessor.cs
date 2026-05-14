@@ -47,7 +47,7 @@ internal sealed class RoleConstraintsProcessor
                 break;
         }
 
-        // 验证 IDependenciesResolved
+        // Validate IDependenciesResolved
         if (
             _raw.ImplementsIDependenciesResolved
             && _role != TypeRole.User
@@ -77,7 +77,7 @@ internal sealed class RoleConstraintsProcessor
             );
         }
 
-        // 不能是泛型类型
+        // Cannot be a generic type
         if (_raw.Symbol.IsGenericType)
         {
             _diagnostics.Add(
@@ -103,7 +103,7 @@ internal sealed class RoleConstraintsProcessor
             );
         }
 
-        // 不能是泛型类型
+        // Cannot be a generic type
         if (_raw.Symbol.IsGenericType)
         {
             _diagnostics.Add(
@@ -140,7 +140,7 @@ internal sealed class RoleConstraintsProcessor
             );
         }
 
-        // 不能是泛型类型
+        // Cannot be a generic type
         if (_raw.Symbol.IsGenericType)
         {
             _diagnostics.Add(
@@ -154,12 +154,12 @@ internal sealed class RoleConstraintsProcessor
     }
 
     /// <summary>
-    /// 验证用户代码中是否包含 _Notification 方法
-    /// Host、User、Scope 必须在用户代码中定义 public override partial void _Notification(int what);
+    /// Validate that user code contains the _Notification method
+    /// Host, User, Scope must define public override partial void _Notification(int what); in user code
     /// </summary>
     private void ValidateNotificationMethod()
     {
-        // 查找用户定义的 _Notification 方法
+        // Find user-defined _Notification method
         var notificationMethod = _raw
             .Symbol.GetMembers("_Notification")
             .OfType<IMethodSymbol>()
@@ -168,11 +168,11 @@ internal sealed class RoleConstraintsProcessor
                 && m.Parameters.Length == 1
                 && m.Parameters[0].Type.SpecialType == SpecialType.System_Int32
                 && m.IsPartialDefinition
-            ); // 必须是 partial 定义
+            ); // Must be a partial definition
 
         if (notificationMethod == null)
         {
-            // 未找到用户定义的 _Notification 方法，报告错误
+            // User-defined _Notification method not found, report error
             _diagnostics.Add(
                 DiagnosticBuilder.Create(
                     DiagnosticDescriptors.MissingNotificationMethod,
@@ -183,28 +183,28 @@ internal sealed class RoleConstraintsProcessor
         }
         else
         {
-            // 找到了方法，验证签名是否正确
+            // Method found, validate signature correctness
             bool isValid = true;
 
-            // 检查是否是 public
+            // Check if it is public
             if (notificationMethod.DeclaredAccessibility != Accessibility.Public)
             {
                 isValid = false;
             }
 
-            // 检查是否是 override
+            // Check if it is override
             if (!notificationMethod.IsOverride)
             {
                 isValid = false;
             }
 
-            // 检查是否是 partial
+            // Check if it is partial
             if (!notificationMethod.IsPartialDefinition)
             {
                 isValid = false;
             }
 
-            // 检查返回类型是否是 void
+            // Check if return type is void
             if (notificationMethod.ReturnsVoid == false)
             {
                 isValid = false;

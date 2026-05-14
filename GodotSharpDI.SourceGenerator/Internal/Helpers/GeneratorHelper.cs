@@ -4,12 +4,12 @@ using GodotSharpDI.SourceGenerator.Shared;
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
-/// 代码生成辅助方法 - 减少生成器之间的代码重复
+/// Code generation helper methods - Reduces code duplication between generators
 /// </summary>
 internal static class GeneratorHelper
 {
     /// <summary>
-    /// 开始类声明（包含 auto-generated 注释、命名空间和 partial class 声明）
+    /// Begin class declaration (includes auto-generated comment, namespace, and partial class declaration)
     /// </summary>
     public static void BeginClassDeclaration(
         this CodeFormatter f,
@@ -34,7 +34,7 @@ internal static class GeneratorHelper
     }
 
     /// <summary>
-    /// 结束类声明
+    /// End class declaration
     /// </summary>
     public static void EndClassDeclaration(this CodeFormatter f)
     {
@@ -42,7 +42,7 @@ internal static class GeneratorHelper
     }
 
     /// <summary>
-    /// 添加不可手动调用的生成方法的简介和特性
+    /// Add summary and attribute for generated methods that should not be called manually
     /// </summary>
     public static void AppendHiddenMethodCommentAndAttribute(
         this CodeFormatter f,
@@ -62,7 +62,7 @@ internal static class GeneratorHelper
     }
 
     /// <summary>
-    /// 添加不可手动调用的生成成员的简介和特性
+    /// Add summary and attribute for generated members that should not be called manually
     /// </summary>
     public static void AppendHiddenMemberCommentAndAttribute(
         this CodeFormatter f,

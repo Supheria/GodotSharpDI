@@ -13,7 +13,7 @@ public class ClassValidatorTests
     [Fact]
     public void Validate_NonPartialClass_ReportsDiagnostic()
     {
-        // [Host] 类必须是 partial — 非 partial 应报 GDI_C050
+        // [Host] class must be partial — non-partial should report GDI_C050
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -54,7 +54,7 @@ namespace Test
     [Fact]
     public void Validate_UserNonPartialClass_ReportsDiagnostic()
     {
-        // [User] 类也必须是 partial
+        // [User] class must also be partial
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -164,7 +164,7 @@ namespace Test
     [Fact]
     public void Validate_ScopeNotInheritingFromNode_ReportsDiagnostic()
     {
-        // Scope 必须继承 Godot.Node，否则报 GDI_C022
+        // Scope must inherit from Godot.Node, otherwise report GDI_C022
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -205,8 +205,8 @@ namespace Test
     [Fact]
     public void Validate_IDependenciesResolvedOnScopeClass_ReportsDiagnostic()
     {
-        // IDependenciesResolved 只能用于 [Host] 或 [User]
-        // Scope 类实现该接口 → GDI_C030
+        // IDependenciesResolved can only be used on [Host] or [User]
+        // Scope class implements this interface → GDI_C030
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -239,7 +239,7 @@ namespace Test
         // Act
         var result = ClassPipeline.ValidateAndClassify(raw.Info!, symbols);
 
-        // Assert - IDependenciesResolved 不能用于 Scope
+        // Assert - IDependenciesResolved cannot be used on Scope
         Assert.Contains(
             result.Diagnostics,
             d => d.Id == "GDI_C030" // IDependenciesResolvedInvalid

@@ -12,12 +12,12 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// DiGraphBuilder 整合测试
+/// DiGraphBuilder integration tests
 ///
-/// 当前 DiGraph 结构：
-/// - HostNodes（[Host] 节点）、UserNodes（[User] 节点）、ScopeNodes（[Modules] 节点）
-/// - 服务通过 Host 的 [Provide] 成员暴露，不存在独立 ServiceNode
-/// - HostNodeMap = Host 类型符号 → TypeNode 快速索引
+/// Current DiGraph structure:
+/// - HostNodes ([Host] nodes), UserNodes ([User] nodes), ScopeNodes ([Modules] nodes)
+/// - Services are exposed via Host's [Provide] members; no standalone ServiceNode exists
+/// - HostNodeMap = Host type symbol → TypeNode fast lookup
 /// </summary>
 public class DiGraphBuilderTests
 {
@@ -184,7 +184,7 @@ namespace Test {
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
     private static DiGraphBuildResult BuildGraph(string source) =>
         BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));

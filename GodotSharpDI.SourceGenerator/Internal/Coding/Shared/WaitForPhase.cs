@@ -8,14 +8,14 @@ using GodotSharpDI.SourceGenerator.Shared;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 生成 WaitFor 依赖等待代码
+/// Generate WaitFor dependency waiting code
 /// </summary>
 internal static class WaitForPhase
 {
     /// <summary>
-    /// 为单个 Provide 成员生成 WaitFor 等待代码。
-    /// 在 ProvideServices() 方法体中调用，生成向各依赖回调列表注册 lambda 的代码。
-    /// 当所有依赖都就绪（或失败）时，在主线程直接调用 OnXxxWaitForResolved()。
+    /// Generate WaitFor waiting code for a single Provide member.
+    /// Called in ProvideServices() method body, generates code to register lambda to each dependency callback list.
+    /// When all dependencies are ready (or failed), directly calls OnXxxWaitForResolved() on the main thread.
     /// </summary>
     public static void GenerateForMember(
         CodeFormatter f,
@@ -40,7 +40,7 @@ internal static class WaitForPhase
 
         f.AppendLine($"// WaitFor deps for {memberName}: {string.Join(", ", waitForDeps)}");
 
-        // 本地计数器：全部在主线程上递减，无需 Interlocked
+        // Local counter: all decremented on main thread, no Interlocked needed
         f.AppendLine($"var {remainingVarName} = {waitForDeps.Length};");
         f.AppendLine();
 
@@ -57,7 +57,7 @@ internal static class WaitForPhase
 
             f.AppendLine($"// WaitFor: register main-thread callback for '{depName}'");
 
-            // 向回调列表注册 lambda；ResolveDependencies() 在主线程触发时直接调用
+            // Register lambda to callback list; ResolveDependencies() triggers directly on main thread
             f.AppendLine($"{listName}.Add(__ok =>");
             f.BeginBlock();
             {
@@ -70,24 +70,24 @@ internal static class WaitForPhase
                     );
                 }
                 f.EndBlock();
-                // 无论成功或失败都递减；归零时触发回调（与旧设计行为一致）
+                // Decrement regardless of success or failure; trigger callback when zero (consistent with old design behavior)
                 f.AppendLine($"if (--{remainingVarName} == 0)");
                 f.BeginBlock();
                 {
-                    // OnXxxWaitForResolved() 是 async 本地函数，其内部若包含 await，
-                    // 续体可能在线程池线程上完成。ContinueWith 使用 TaskScheduler.Default，
-                    // 因此 body 同样在线程池线程执行。
-                    // GD.PrintErr 本身是线程安全的，但为了与项目其余部分保持一致
-                    // （所有 Godot API 调用均在主线程），通过 Callable.From().CallDeferred()
-                    // 将错误日志派发回 Godot 主线程，避免未来扩展时引入潜在的线程安全问题。
+                    // OnXxxWaitForResolved() is an async local function, if it contains await internally,
+                    // the continuation may complete on a thread pool thread. ContinueWith uses TaskScheduler.Default,
+                    // so body also executes on thread pool thread.
+                    // GD.PrintErr itself is thread-safe, but to maintain consistency with the rest of the project
+                    // (all Godot API calls are on main thread), dispatch error logs back to Godot main thread
+                    // via Callable.From().CallDeferred(), avoiding potential thread safety issues in future extensions.
                     f.AppendLine($"_ = {resolvedCallbackName}().ContinueWith(t =>");
                     f.BeginBlock();
                     {
                         f.AppendLine("if (t.IsFaulted)");
                         f.BeginBlock();
                         {
-                            // 捕获错误信息到局部变量（ContinueWith body 在线程池，
-                            // 不能直接访问 t 以外的 Godot 对象）
+                            // Capture error message to local variable (ContinueWith body is on thread pool,
+                            // cannot directly access Godot objects other than t)
                             f.AppendLine("var __errMsg = t.Exception?.GetBaseException().Message;");
                             f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                             f.BeginBlock();
@@ -111,7 +111,7 @@ internal static class WaitForPhase
     }
 
     /// <summary>
-    /// 生成 WaitFor 回调的本地函数定义。
+    /// Generate local function definition for WaitFor callback.
     /// </summary>
     public static void GenerateLocalFunction(
         CodeFormatter f,

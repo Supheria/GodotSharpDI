@@ -12,16 +12,16 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// WaitFor 语义验证测试（GDI_M080 / GDI_M081）
+/// WaitFor semantic validation tests (GDI_M080 / GDI_M081)
 ///
-/// 本文件只覆盖 WaitFor 字段引用合法性验证场景，
-/// 循环依赖检测（GDI_D010）由 CircularDependencyTests.cs 覆盖，
-/// 跨 Host 死锁（GDI_D011）由 CrossHostDeadlockTests.cs 覆盖。
+/// This file only covers WaitFor field reference validity scenarios.
+/// Circular dependency detection (GDI_D010) is covered by CircularDependencyTests.cs.
+/// Cross-Host deadlock (GDI_D011) is covered by CrossHostDeadlockTests.cs.
 /// </summary>
 public class WaitForValidationTests
 {
     // ============================================================
-    //  GDI_M080 — WaitFor 引用不存在的字段
+    //  GDI_M080 — WaitFor references a non-existent field
     // ============================================================
 
     [Fact]
@@ -50,7 +50,7 @@ namespace Test
 
         var errors = diags.Where(d => d.Id == "GDI_M080").ToList();
         Assert.NotEmpty(errors);
-        // 错误消息应包含不存在的字段名
+        // Error message should contain the non-existent field name
         Assert.Contains(errors, d => d.GetMessage().Contains("_nonExistent"));
     }
 
@@ -85,16 +85,16 @@ namespace Test
     }
 
     // ============================================================
-    //  GDI_M081 — WaitFor 引用字段但该字段无 [Inject]（Warning）
+    //  GDI_M081 — WaitFor references a field without [Inject] (Warning)
     // ============================================================
 
     [Fact]
     public void WaitFor_ReferencesProvideField_ReportsGDI_M081()
     {
-        // GDI_M081 在 WaitForValidator 中触发的条件：
-        //   字段存在于 _members 列表（即有 [Inject] 或 [Provide] 属性），
-        //   但 IsInjectMember == false（即该字段是 [Provide] 成员，而非 [Inject]）
-        // 注：无任何 DI 属性的字段不在 _members 中，会触发 GDI_M080（找不到）而非 GDI_M081
+        // GDI_M081 triggering conditions in WaitForValidator:
+        //   Field exists in _members list (has [Inject] or [Provide] attribute),
+        //   but IsInjectMember == false (i.e., the field is a [Provide] member, not [Inject])
+        // Note: Fields without any DI attribute are not in _members, and trigger GDI_M080 (not found) instead of GDI_M081
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -109,8 +109,8 @@ namespace Test
     [Host]
     public partial class ServiceHost : Node
     {
-        // 这是一个 [Provide] 成员（IsInjectMember = false）
-        // WaitFor 引用它时触发 GDI_M081（引用了非 [Inject] 字段）
+        // This is a [Provide] member (IsInjectMember = false)
+        // WaitFor referencing it triggers GDI_M081 (referenced non-[Inject] field)
         [Provide(ExposedTypes = new Type[] { })]
         public ServiceA AnotherProvide => null!;
 
@@ -129,7 +129,7 @@ namespace Test
     [Fact]
     public void WaitFor_ReferencesInjectField_NoGDI_M081()
     {
-        // 正常使用：WaitFor 字段有 [Inject] → 不应产生 GDI_M081
+        // Normal usage: WaitFor field has [Inject] → should not produce GDI_M081
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -162,13 +162,13 @@ namespace Test
     }
 
     // ============================================================
-    //  边界场景：多个 WaitFor 部分合法
+    //  Edge cases: multiple WaitFor entries, partially valid
     // ============================================================
 
     [Fact]
     public void WaitFor_MultipleEntries_OneNonExistent_ReportsSingleM080()
     {
-        // nameof(_valid) 合法，"_ghost" 不存在 → 只报告 _ghost
+        // nameof(_valid) is valid, "_ghost" does not exist → only reports _ghost
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -200,13 +200,13 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助 — 合并类级别和图级别诊断
+    //  Helpers — merge class-level and graph-level diagnostics
     // ============================================================
 
     /// <summary>
-    /// 构建图并返回所有诊断（类级别 + 图级别）。
-    /// GDI_M080/M081 来自 ClassValidationResult，GDI_D010/D011 来自图验证，
-    /// 两者需要合并才能在同一结果中断言。
+    /// Builds the graph and returns all diagnostics (class-level + graph-level).
+    /// GDI_M080/M081 come from ClassValidationResult, GDI_D010/D011 come from graph validation.
+    /// Both need to be merged to assert in a single result.
     /// </summary>
     private static ImmutableArray<Diagnostic> BuildAllDiagnostics(string source)
     {
@@ -227,7 +227,7 @@ namespace Test
 
         var graphResult = DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
 
-        // 合并：类级别诊断（GDI_M0xx）+ 图级别诊断（GDI_D0xx）
+        // Merge: class-level diagnostics (GDI_M0xx) + graph-level diagnostics (GDI_D0xx)
         return classResults
             .SelectMany(r => r.Diagnostics)
             .Concat(graphResult.Diagnostics)

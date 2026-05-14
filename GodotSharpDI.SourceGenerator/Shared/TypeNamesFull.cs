@@ -2,7 +2,7 @@
 
 public static class TypeNamesFull
 {
-    // 现有特性（保持向后兼容）
+    // Existing attributes (maintain backward compatibility)
     public const string InjectAttribute = "GodotSharpDI.Abstractions.InjectAttribute";
     public const string ProvideAttribute = "GodotSharpDI.Abstractions.ProvideAttribute";
     public const string ModulesAttribute = "GodotSharpDI.Abstractions.ModulesAttribute";

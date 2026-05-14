@@ -1,16 +1,16 @@
 ﻿// =============================================================================
 // PlayerStatsService.cs
 //
-// 演示：纯 C# 服务接口与实现（无需继承 Node）
+// Demonstrates: Pure C# service interface and implementation (no need to inherit Node)
 //
-// 在分层架构中，这些类型属于 Domain / Infrastructure 层，
-// 不依赖 Godot 或 GodotSharpDI，仅通过 [Host] 的 [Provide] 成员暴露给 DI 容器。
+// In layered architecture, these types belong to the Domain / Infrastructure layer,
+// do not depend on Godot or GodotSharpDI, only exposed to DI container through [Host]'s [Provide] member.
 // =============================================================================
 
 namespace GodotSharpDI.Sample;
 
 /// <summary>
-/// 玩家状态服务接口（Domain 层）
+/// Player stats service interface (Domain layer)
 /// </summary>
 public interface IPlayerStats
 {
@@ -19,8 +19,8 @@ public interface IPlayerStats
 }
 
 /// <summary>
-/// 玩家状态服务实现（Infrastructure 层）
-/// 纯 C# 类，不需要继承 Node，通过 [Provide] 暴露给 DI 容器。
+/// Player stats service implementation (Infrastructure layer)
+/// Pure C# class, does not need to inherit Node, exposed to DI container via [Provide].
 /// </summary>
 public sealed class PlayerStatsService : IPlayerStats
 {

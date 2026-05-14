@@ -11,31 +11,31 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Host 代码生成器（重构版本）
-/// 支持每个 Provide 成员独立的 WaitFor remaining 计数
+/// Host code generator (refactored version)
+/// Supports independent WaitFor remaining count for each Provide member
 /// </summary>
 internal static class HostGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        // 生成基础 DI 文件
+        // Generate base DI file
         NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
 
-        // 生成依赖注入部分的代码
+        // Generate dependency injection code
         InjectionGenerator.Generate(context, node);
 
-        // 生成 Host 特定代码
+        // Generate Host specific code
         GenerateHostSpecific(context, node);
     }
 
     /// <summary>
-    /// 生成 Host 特定代码（ProvideServices）
+    /// Generate Host specific code (ProvideServices)
     /// </summary>
     public static void GenerateHostSpecific(SourceProductionContext context, TypeNode node)
     {
         var validatedType = node.ValidatedTypeInfo;
 
-        // 分离注入成员和提供成员
+        // Separate inject members and provide members
         var injectMembers = validatedType.Members.Where(m => m.IsInjectMember).ToImmutableArray();
         var provideMembers = validatedType.Members.Where(m => m.IsProvideMember).ToImmutableArray();
 
@@ -46,7 +46,7 @@ internal static class HostGenerator
             GenerateProvideServices(f, validatedType, injectMembers, provideMembers);
             f.AppendLine();
 
-            // 生成异步提供方法
+            // Generate async provider methods
             var asyncMembers = provideMembers.Where(m => m.IsAsync).ToImmutableArray();
             if (!asyncMembers.IsEmpty)
             {
@@ -63,12 +63,12 @@ internal static class HostGenerator
     }
 
     /// <summary>
-    /// 生成 ProvideServices 方法
-    /// 核心逻辑:
-    /// 1. 如果有 Inject 成员且实现了 IDependenciesResolved,先注入依赖(不等待完成)
-    /// 2. 对每个 Provide 成员独立处理:
-    ///    - 如果有 WaitFor,等待 WaitFor 依赖
-    ///    - 否则直接提供服务
+    /// Generate ProvideServices method
+    /// Core logic:
+    /// 1. If there are Inject members and IDependenciesResolved is implemented, inject dependencies first (without waiting for completion)
+    /// 2. Process each Provide member independently:
+    ///    - If it has WaitFor, wait for WaitFor dependencies
+    ///    - Otherwise, provide service directly
     /// </summary>
     private static void GenerateProvideServices(
         CodeFormatter f,
@@ -93,15 +93,15 @@ internal static class HostGenerator
             f.EndBlock();
             f.AppendLine();
 
-            // 核心逻辑:根据是否有 Inject 成员和是否实现 IDependenciesResolved 来决定处理方式
+            // Core logic: Determine processing method based on whether there are Inject members and whether IDependenciesResolved is implemented
             if (!injectMembers.IsEmpty && validatedType.ImplementsIDependenciesResolved)
             {
-                // 有 Inject 成员且实现了 IDependenciesResolved - 使用依赖跟踪
+                // Has Inject members and implements IDependenciesResolved - use dependency tracking
                 GenerateWithDependencyTracking(f, validatedType, injectMembers, provideMembers);
             }
             else
             {
-                // 没有 Inject 成员 - 直接提供服务
+                // No Inject members - provide services directly
                 GenerateDirectProvision(
                     f,
                     validatedType.Members,
@@ -114,9 +114,9 @@ internal static class HostGenerator
     }
 
     /// <summary>
-    /// 有依赖跟踪的情况 (实现了 IDependenciesResolved)
-    /// WaitFor 通过 TCS（实例字段）机制等待 Inject 成员就绪，无需在此重复注册 ResolveDependency。
-    /// Phase 1 已移除：Inject 成员由 ResolveDependencies() 统一处理，避免双重回调。
+    /// Case with dependency tracking (implements IDependenciesResolved)
+    /// WaitFor uses TCS (instance field) mechanism to wait for Inject members to be ready, no need to register ResolveDependency here.
+    /// Phase 1 removed: Inject members are handled uniformly by ResolveDependencies(), avoiding duplicate callbacks.
     /// </summary>
     private static void GenerateWithDependencyTracking(
         CodeFormatter f,
@@ -125,8 +125,8 @@ internal static class HostGenerator
         ImmutableArray<MemberInfo> provideMembers
     )
     {
-        // WaitFor 依赖通过 TCS 实例字段与 ResolveDependencies() 通信，
-        // 此处只需生成 Provide 阶段代码即可
+        // WaitFor dependencies communicate with ResolveDependencies() through TCS instance field,
+        // only need to generate Provide phase code here
         f.AppendLine(GeneratedStrings.Phase23Comment);
         GenerateDirectProvision(
             f,
@@ -137,7 +137,7 @@ internal static class HostGenerator
     }
 
     /// <summary>
-    /// 直接提供服务（每个 Provide 成员独立处理,可能有 WaitFor）
+    /// Provide services directly (each Provide member is processed independently, may have WaitFor)
     /// </summary>
     private static void GenerateDirectProvision(
         CodeFormatter f,
@@ -154,7 +154,7 @@ internal static class HostGenerator
 
             if (member.HasWaitFor)
             {
-                // 收集需要生成 local function 的成员
+                // Collect members that need to generate local functions
                 Action callback = () =>
                 {
                     ServiceProvisionPhase.GenerateMemberProvide(
@@ -169,7 +169,7 @@ internal static class HostGenerator
 
                 waitForMembers.Add((member, callback));
 
-                // 只生成监听代码，不生成 local function
+                // Only generate listener code, not local functions
                 WaitForPhase.GenerateForMember(
                     f,
                     member,
@@ -180,7 +180,7 @@ internal static class HostGenerator
             }
             else
             {
-                // 直接提供
+                // Provide directly
                 ServiceProvisionPhase.GenerateMemberProvide(
                     f,
                     member,
@@ -194,13 +194,13 @@ internal static class HostGenerator
             f.AppendLine();
         }
 
-        // 统一在方法末尾添加一个 return（可选）
+        // Add a unified return at the end of the method (optional)
         if (waitForMembers.Any())
         {
             f.AppendLine("return;");
             f.AppendLine();
 
-            // 生成所有 local function 定义
+            // Generate all local function definitions
             foreach (var (member, callback) in waitForMembers)
             {
                 WaitForPhase.GenerateLocalFunction(f, member, callback);

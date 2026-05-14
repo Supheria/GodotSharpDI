@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Semantic;
 
 /// <summary>
-/// 验证 WaitFor 依赖的正确性
+/// Validates the correctness of WaitFor dependencies
 /// </summary>
 internal sealed class WaitForValidator
 {
@@ -25,11 +25,11 @@ internal sealed class WaitForValidator
     }
 
     /// <summary>
-    /// 执行所有 WaitFor 验证
+    /// Execute all WaitFor validations
     /// </summary>
     public void ValidateAll()
     {
-        // 获取所有有 WaitFor 的成员
+        // Get all members with WaitFor
         var membersWithWaitFor = _members
             .Where(m => m.WaitFor != null && m.WaitFor.Length > 0)
             .ToImmutableArray();
@@ -37,18 +37,18 @@ internal sealed class WaitForValidator
         if (membersWithWaitFor.IsEmpty)
             return;
 
-        // 验证每个成员的 WaitFor 引用
+        // Validate each member's WaitFor references
         foreach (var member in membersWithWaitFor)
         {
             ValidateMemberWaitFor(member);
         }
 
-        // 检测循环依赖
+        // Detect circular dependencies
         DetectCircularDependencies(membersWithWaitFor);
     }
 
     /// <summary>
-    /// 验证单个成员的 WaitFor 依赖
+    /// Validate a single member's WaitFor dependencies
     /// </summary>
     private void ValidateMemberWaitFor(MemberInfo member)
     {
@@ -57,7 +57,7 @@ internal sealed class WaitForValidator
 
         foreach (var depName in member.WaitFor)
         {
-            // 检查字段是否存在
+            // Check if field exists
             var field = _members.FirstOrDefault(m => m.Symbol.Name == depName);
 
             if (field == null)
@@ -73,7 +73,7 @@ internal sealed class WaitForValidator
                 continue;
             }
 
-            // 警告：如果引用的不是 [Inject] 字段
+            // Warning: if the referenced field is not an [Inject] field
             if (!field.IsInjectMember)
             {
                 _diagnostics.Add(
@@ -88,7 +88,7 @@ internal sealed class WaitForValidator
     }
 
     /// <summary>
-    /// 检测 WaitFor 循环依赖
+    /// Detect WaitFor circular dependencies
     /// </summary>
     private void DetectCircularDependencies(ImmutableArray<MemberInfo> membersWithWaitFor)
     {
@@ -109,12 +109,12 @@ internal sealed class WaitForValidator
     }
 
     /// <summary>
-    /// 递归检查是否存在循环依赖
+    /// Recursively check for circular dependencies
     /// </summary>
     private bool HasCircularDependency(MemberInfo member, HashSet<string> visited)
     {
         if (!visited.Add(member.Symbol.Name))
-            return true; // 发现循环
+            return true; // Cycle detected
 
         if (member.WaitFor != null)
         {

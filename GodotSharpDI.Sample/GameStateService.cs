@@ -1,16 +1,16 @@
 // =============================================================================
 // GameStateService.cs
 //
-// 演示：纯 C# 游戏状态接口与实现
+// Demonstrates: Pure C# game state interface and implementation
 //
-// 与 PlayerStatsService 类似，这些类型属于 Domain / Infrastructure 层，
-// 可以被任何 [Host] 通过 [Provide] 暴露，被任何 [User] 通过 [Inject] 消费。
+// Similar to PlayerStatsService, these types belong to the Domain / Infrastructure layer,
+// can be exposed by any [Host] via [Provide], and consumed by any [User] via [Inject].
 // =============================================================================
 
 namespace GodotSharpDI.Sample;
 
 /// <summary>
-/// 游戏状态枚举
+/// Game state enum
 /// </summary>
 public enum GameStateType
 {
@@ -21,7 +21,7 @@ public enum GameStateType
 }
 
 /// <summary>
-/// 游戏状态服务接口
+/// Game state service interface
 /// </summary>
 public interface IGameState
 {
@@ -29,7 +29,7 @@ public interface IGameState
 }
 
 /// <summary>
-/// 游戏状态服务实现
+/// Game state service implementation
 /// </summary>
 public sealed class GameStateService : IGameState
 {

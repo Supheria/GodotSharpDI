@@ -13,8 +13,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace GodotSharpDI.SourceGenerator.CodeFixes;
 
 /// <summary>
-/// 为缺失的 _Notification 方法提供代码修复
-/// 增强版：添加异常处理，防止 CodeFix 崩溃
+/// Provides code fix for missing _Notification method
+/// Enhanced version: Adds exception handling to prevent CodeFix crashes
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(NotificationMethodCodeFixProvider))]
 [Shared]
@@ -42,7 +42,7 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
             var diagnostic = context.Diagnostics.First();
             var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-            // 找到诊断位置的类声明
+            // Find class declaration at diagnostic location
             var classDeclaration = root.FindToken(diagnosticSpan.Start)
                 .Parent?.AncestorsAndSelf()
                 .OfType<ClassDeclarationSyntax>()
@@ -51,7 +51,7 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
             if (classDeclaration == null)
                 return;
 
-            // 注册代码修复
+            // Register code fix
             context.RegisterCodeFix(
                 CodeAction.Create(
                     title: Resources.CodeFix_Notification,
@@ -64,13 +64,13 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
         }
         catch (OperationCanceledException)
         {
-            // 取消操作是正常的，重新抛出
+            // Cancellation is normal, rethrow
             throw;
         }
         catch (Exception)
         {
-            // CodeFix 失败不应该崩溃 IDE
-            // 静默忽略 - 用户只是看不到这个修复选项
+            // CodeFix failure should not crash IDE
+            // Silently ignore - user just won't see this fix option
         }
     }
 
@@ -87,13 +87,13 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
             if (root == null)
                 return document;
 
-            // 创建 _Notification 方法
+            // Create _Notification method
             var notificationMethod = CreateNotificationMethod();
 
-            // 找到合适的插入位置
+            // Find suitable insertion position
             var newClassDeclaration = classDeclaration.AddMembers(notificationMethod);
 
-            // 替换旧的类声明
+            // Replace old class declaration
             var newRoot = root.ReplaceNode(classDeclaration, newClassDeclaration);
 
             return document.WithSyntaxRoot(newRoot);
@@ -104,7 +104,7 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 修复失败，返回原文档
+            // Fix failed, return original document
             return document;
         }
     }
@@ -113,7 +113,7 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
     {
         try
         {
-            // 创建方法：public override partial void _Notification(int what);
+            // Create method: public override partial void _Notification(int what);
             var method = SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -150,7 +150,7 @@ public sealed class NotificationMethodCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 如果创建方法失败，返回一个最简单的版本
+            // If method creation fails, return the simplest version
             return SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),

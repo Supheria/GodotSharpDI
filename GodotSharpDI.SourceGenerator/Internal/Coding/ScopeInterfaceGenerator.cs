@@ -7,11 +7,11 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Scope 接口实现代码生成器
+/// Scope interface implementation code generator
 ///
-/// v1.3.0 重构：移除 ResolutionResult，IScope 直接使用可空类型：
-///   ProvideService&lt;TImpl&gt;(TImpl? instance)          — null 表示提供失败
-///   ResolveDependency&lt;TExposed&gt;(Action&lt;TExposed?&gt;) — 回调收到 null 表示解析失败
+/// v1.3.0 refactoring: Removed ResolutionResult, IScope directly uses nullable types:
+///   ProvideService&lt;TImpl&gt;(TImpl? instance)          — null means provision failed
+///   ResolveDependency&lt;TExposed&gt;(Action&lt;TExposed?&gt;) — callback receiving null means resolution failed
 /// </summary>
 internal static class ScopeInterfaceGenerator
 {
@@ -46,7 +46,7 @@ internal static class ScopeInterfaceGenerator
     private static void GenerateProvideService(CodeFormatter f)
     {
         f.AppendHiddenMethodCommentAndAttribute(
-            "以实现类型提供服务。instance == null 表示服务创建失败。"
+            "Provide service by implementation type. instance == null means service creation failed."
         );
         f.AppendLine(
             $"void {GlobalNames.IScope}.ProvideService<TImpl>(TImpl? instance, {GlobalNames.String} providerType)"
@@ -57,11 +57,11 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("var implType = typeof(TImpl);");
             f.AppendLine();
 
-            // 查找 ServiceCache（键是实现类型）
+            // Find ServiceCache (key is implementation type)
             f.AppendLine("if (!ServiceCache.TryGetValue(implType, out var cacheEntry))");
             f.BeginBlock();
             {
-                f.AppendLine("var parent = GetParentScope();", "向父 Scope 转发");
+                f.AppendLine("var parent = GetParentScope();", "Forward to parent Scope");
                 f.AppendLine("if (parent is not null)");
                 f.BeginBlock();
                 {
@@ -90,15 +90,15 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            // 处理失败场景（instance == null）
+            // Handle failure scenario (instance == null)
             f.AppendLine("if (instance is null)");
             f.BeginBlock();
             {
-                f.AppendLine("// 失败场景：服务创建失败");
+                f.AppendLine("// Failure scenario: service creation failed");
                 f.AppendLine("if (cacheEntry.State == ServiceState.Created)");
                 f.BeginBlock();
                 {
-                    // 已经成功过了，忽略后续失败（不覆盖成功状态）
+                    // Already succeeded, ignore subsequent failures (don't overwrite success state)
                     f.AppendLine("return;");
                 }
                 f.EndBlock();
@@ -120,7 +120,7 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine(");");
                 f.PrintError("sb.ToString()");
                 f.AppendLine();
-                f.AppendLine("// 通知已在等待的 waiters：服务创建失败，传 null 给回调");
+                f.AppendLine("// Notify waiting waiters: service creation failed, pass null to callback");
                 f.AppendLine("if (_waiters.Remove(implType, out var failedWaiters))");
                 f.BeginBlock();
                 {
@@ -160,7 +160,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine("else");
             f.BeginBlock();
             {
-                f.AppendLine("// 成功场景");
+                f.AppendLine("// Success scenario");
                 f.AppendLine("if (cacheEntry.State == ServiceState.Created)");
                 f.BeginBlock();
                 {
@@ -189,7 +189,7 @@ internal static class ScopeInterfaceGenerator
             f.EndBlock();
             f.AppendLine();
 
-            // 通知所有等待者（键是实现类型）
+            // Notify all waiters (key is implementation type)
             f.AppendLine("if (_waiters.Remove(implType, out var waiters))");
             f.BeginBlock();
             {
@@ -198,7 +198,7 @@ internal static class ScopeInterfaceGenerator
                 {
                     f.BeginTryCatch();
                     {
-                        // instance == null → 失败，非 null → 成功的实例
+                        // instance == null → failure, non-null → successful instance
                         f.AppendLine("waiter.ResultCallback.Invoke(instance);");
                     }
                     f.CatchBlock("ex");
@@ -233,7 +233,7 @@ internal static class ScopeInterfaceGenerator
     private static void GenerateResolveDependency(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
         f.AppendHiddenMethodCommentAndAttribute(
-            "解析服务依赖。TExposed 是暴露的接口类型，通过 ServiceImplementationMap 映射到实现类型。"
+            "Resolve service dependency. TExposed is the exposed interface type, mapped to implementation type via ServiceImplementationMap."
         );
         f.BeginLevel();
         {
@@ -254,7 +254,7 @@ internal static class ScopeInterfaceGenerator
             );
             f.AppendLine();
 
-            // 通过 ServiceImplementationMap 查找实现类型
+            // Find implementation type via ServiceImplementationMap
             f.AppendLine(
                 "if (!ServiceImplementationMap.TryGetValue(exposedType, out var implType) || "
                     + "!ServiceCache.TryGetValue(implType, out var cacheEntry))"
@@ -282,7 +282,7 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateServiceNotFoundHandling(CodeFormatter f)
     {
-        f.AppendLine("var parent = GetParentScope();", "向父 Scope 转发");
+        f.AppendLine("var parent = GetParentScope();", "Forward to parent Scope");
         f.AppendLine("if (parent is not null)");
         f.BeginBlock();
         {
@@ -454,7 +454,7 @@ internal static class ScopeInterfaceGenerator
             f.EndDebugRegion();
             f.AppendLine();
 
-            // ResultCallback: 将 object? 向下转换为 TExposed?，传递给调用者的回调
+            // ResultCallback: Downcast object? to TExposed?, pass to caller's callback
             f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
             f.BeginLevel();
             {

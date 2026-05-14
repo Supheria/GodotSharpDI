@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
-/// 缓存常用的符号引用
+/// Cache commonly used symbol references
 /// </summary>
 internal sealed class CachedSymbols
 {
@@ -47,7 +47,7 @@ internal sealed class CachedSymbols
     {
         if (GodotNode is null)
             return false;
-        // 使用 SymbolExtensions 的 InheritsFrom 方法
+        // Use SymbolExtensions' InheritsFrom method
         return SymbolEqualityComparer.Default.Equals(type, GodotNode)
             || type.InheritsFrom(GodotNode);
     }
@@ -56,7 +56,7 @@ internal sealed class CachedSymbols
     {
         if (IScope is null)
             return false;
-        // 使用 SymbolExtensions 的 ImplementsInterface 方法
+        // Use SymbolExtensions' ImplementsInterface method
         return type.ImplementsInterface(IScope);
     }
 
@@ -64,24 +64,24 @@ internal sealed class CachedSymbols
     {
         if (IDependenciesResolved is null)
             return false;
-        // 使用 SymbolExtensions 的 ImplementsInterface 方法
+        // Use SymbolExtensions' ImplementsInterface method
         return type.ImplementsInterface(IDependenciesResolved);
     }
 
     public bool IsHostType(ITypeSymbol type)
     {
-        // 使用 SymbolExtensions 的 HasAttribute 方法
+        // Use SymbolExtensions' HasAttribute method
         return type.HasAttribute(HostAttribute);
     }
 
     public bool IsUserType(ITypeSymbol type)
     {
-        // 使用 SymbolExtensions 的 HasAttribute 方法
+        // Use SymbolExtensions' HasAttribute method
         return type.HasAttribute(UserAttribute);
     }
 
     /// <summary>
-    /// 检查成员是否有 Inject 特性
+    /// Check if a member has Inject attribute
     /// </summary>
     public bool HasInjectAttribute(ISymbol member)
     {
@@ -89,7 +89,7 @@ internal sealed class CachedSymbols
     }
 
     /// <summary>
-    /// 检查成员是否有 Inject 特性且 FailureCallback = true
+    /// Check if a member has Inject attribute and FailureCallback = true
     /// </summary>
     public bool HasInjectWithFailureCallback(ISymbol member)
     {
@@ -97,7 +97,7 @@ internal sealed class CachedSymbols
         if (injectAttr == null)
             return false;
 
-        // 检查 FailureCallback 属性
+        // Check FailureCallback property
         foreach (var namedArg in injectAttr.NamedArguments)
         {
             if (namedArg.Key == "FailureCallback" && namedArg.Value.Value is bool value)
@@ -110,7 +110,7 @@ internal sealed class CachedSymbols
     }
 
     /// <summary>
-    /// 检查成员是否有 Inject 特性且 ReadyCallback = true
+    /// Check if a member has Inject attribute and ReadyCallback = true
     /// </summary>
     public bool HasInjectWithReadyCallback(ISymbol member)
     {
@@ -118,7 +118,7 @@ internal sealed class CachedSymbols
         if (injectAttr == null)
             return false;
 
-        // 检查 ReadyCallback 属性
+        // Check ReadyCallback property
         foreach (var namedArg in injectAttr.NamedArguments)
         {
             if (namedArg.Key == "ReadyCallback" && namedArg.Value.Value is bool value)
@@ -131,14 +131,14 @@ internal sealed class CachedSymbols
     }
 
     /// <summary>
-    /// 检查类型是否是 Task&lt;T&gt; (ValueTask&lt;T&gt;)
+    /// Check if a type is Task&lt;T&gt; (ValueTask&lt;T&gt;)
     /// </summary>
     public bool IsAsyncType(ITypeSymbol type)
     {
         if (type is not INamedTypeSymbol named)
             return false;
 
-        // 比较原始定义（不受泛型参数影响）
+        // Compare original definition (not affected by generic parameters)
         var original = named.OriginalDefinition;
 
         return SymbolEqualityComparer.Default.Equals(original, GenericTask)

@@ -10,15 +10,15 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
 /// <summary>
-/// MemberProcessor 的完整测试
+/// MemberProcessor comprehensive tests
 ///
-/// 注意：旧架构使用 [Singleton] 作为 Host 成员属性，
-/// 新架构已统一使用 [Provide] 代替。测试已更新为新语义。
+/// Note: Old architecture used [Singleton] as Host member attribute.
+/// New architecture has unified to use [Provide] instead. Tests have been updated for new semantics.
 /// </summary>
 public class MemberProcessorTests
 {
     // ============================================================
-    //  [Inject] 基础测试
+    //  [Inject] basic tests
     // ============================================================
 
     [Fact]
@@ -97,9 +97,9 @@ namespace Test
     [Fact]
     public void Process_InjectMemberNotInUserOrHost_ReportsDiagnostic()
     {
-        // [Inject] 用在没有 [User]/[Host] 的普通类上
-        // RawClassSemanticInfoFactory 对无 DI 属性的类返回 null，
-        // 或 ClassPipeline 将其分类为 TypeRole.None → TypeInfo = null（不处理）
+        // [Inject] used on a plain class without [User]/[Host]
+        // RawClassSemanticInfoFactory returns null for classes without DI attributes,
+        // or ClassPipeline classifies it as TypeRole.None → TypeInfo = null (not processed)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -123,10 +123,10 @@ namespace Test
 
         var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
 
-        // 非 DI 类：Info 可能为 null（直接忽略），或 TypeInfo 为 null（分类失败）
+        // Non-DI class: Info may be null (directly ignored), or TypeInfo is null (classification failed)
         if (raw.Info == null)
         {
-            // 预期行为：无 DI 属性的类不被处理，直接通过
+            // Expected behavior: classes without DI attributes are not processed, pass through
             return;
         }
 
@@ -185,7 +185,7 @@ namespace Test
     }
 }";
         var (result, _) = GetValidationResult(source, "MyUser");
-        // GDI_M042 = InjectMemberIsHostType（Warning，不阻止使用）
+        // GDI_M042 = InjectMemberIsHostType (Warning, does not block usage)
         Assert.Contains(result.Diagnostics, d => d.Id == "GDI_M042");
     }
 
@@ -219,7 +219,7 @@ namespace Test
     }
 
     // ============================================================
-    //  [Provide] 基础测试
+    //  [Provide] basic tests
     // ============================================================
 
     [Fact]
@@ -301,7 +301,7 @@ namespace Test
     [Fact]
     public void Process_ProvideMemberNotInHost_ReportsDiagnostic()
     {
-        // [Provide] 用在 [User] 类（非 Host）
+        // [Provide] used on [User] class (not Host)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -352,7 +352,7 @@ namespace Test
     [Fact]
     public void Process_ProvideMemberIsAnotherHostType_ReportsDiagnostic()
     {
-        // [Provide] 成员返回另一个 [Host] 类型（非自身）→ GDI_M052
+        // [Provide] member returns another [Host] type (not self) → GDI_M052
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -378,7 +378,7 @@ namespace Test
     [Fact]
     public void Process_ExposedTypeIsConcreteClass_ReportsWarning()
     {
-        // 暴露类型是具体类而非接口 → GDI_M061 Warning
+        // Exposed type is a concrete class instead of an interface → GDI_M061 Warning
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -448,7 +448,7 @@ namespace Test
     }
 
     // ============================================================
-    //  WaitFor 相关
+    //  WaitFor related
     // ============================================================
 
     [Fact]
@@ -565,7 +565,7 @@ namespace Test
     }
 
     // ============================================================
-    //  v1.3.0 新功能：[Provide] 字段成员、[Provide] Node 类型成员、[Inject] Node 类型成员
+    //  v1.3.0 new features: [Provide] field members, [Provide] Node type members, [Inject] Node type members
     // ============================================================
 
     [Fact]
@@ -618,7 +618,7 @@ namespace Test
 }";
         var (result, _) = GetValidationResult(source, "MapLoader");
         Assert.NotNull(result.TypeInfo);
-        // IAlertBox 是接口，不是 Node，所以不触发 Node Warning，正常通过
+        // IAlertBox is an interface, not a Node, so it doesn't trigger Node Warning, passes normally
         Assert.Single(result.TypeInfo!.Members);
     }
 
@@ -677,11 +677,11 @@ namespace Test
     }
 
     // ============================================================
-    //  异步 Provide 成员的服务类型推断（Bug 修复回归测试）
+    //  Async Provide member service type inference (Bug fix regression tests)
     // ============================================================
 
     /// <summary>
-    /// 回归测试：异步方法未指定 ExposedTypes 时，服务类型应为 T 而非 Task&lt;T&gt;。
+    /// Regression test: When async method doesn't specify ExposedTypes, service type should be T, not Task&lt;T&gt;.
     /// </summary>
     [Fact]
     public void Process_AsyncProvideMethod_NoExposedTypes_ServiceTypeIsInnerType()
@@ -714,7 +714,7 @@ namespace Test
         Assert.True(member.IsAsync);
         Assert.Equal(MemberKind.ProvideMethod, member.Kind);
 
-        // 关键断言：ExposedTypes 不应包含 Task<MyService>，而应是 MyService
+        // Key assertion: ExposedTypes should NOT contain Task<MyService>, it should be MyService
         Assert.Single(member.ExposedTypes);
         Assert.False(
             symbols.IsAsyncType(member.ExposedTypes[0]),
@@ -722,12 +722,12 @@ namespace Test
         );
         Assert.Equal("MyService", member.ExposedTypes[0].Name);
 
-        // MemberType 也应解包为内部类型
+        // MemberType should also be unwrapped to inner type
         Assert.Equal("MyService", member.MemberType.Name);
     }
 
     /// <summary>
-    /// 回归测试：异步属性未指定 ExposedTypes 时，服务类型应为 T 而非 Task&lt;T&gt;。
+    /// Regression test: When async property doesn't specify ExposedTypes, service type should be T, not Task&lt;T&gt;.
     /// </summary>
     [Fact]
     public void Process_AsyncProvideProperty_NoExposedTypes_ServiceTypeIsInnerType()
@@ -765,7 +765,7 @@ namespace Test
     }
 
     /// <summary>
-    /// 验证：显式指定 ExposedTypes 时，行为不受影响。
+    /// Verify: When ExposedTypes is explicitly specified, behavior is not affected.
     /// </summary>
     [Fact]
     public void Process_AsyncProvideMethod_WithExposedTypes_UsesExplicitTypes()
@@ -803,7 +803,7 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(

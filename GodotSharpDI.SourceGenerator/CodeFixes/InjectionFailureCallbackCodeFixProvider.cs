@@ -14,8 +14,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace GodotSharpDI.SourceGenerator.CodeFixes;
 
 /// <summary>
-/// 为缺失的注入回调方法提供代码修复（FailureCallback 和 ReadyCallback）
-/// 增强版：添加异常处理，防止 CodeFix 崩溃
+/// Provides code fixes for missing injection callback methods (FailureCallback and ReadyCallback)
+/// Enhanced version: Adds exception handling to prevent CodeFix crashes
 /// </summary>
 [ExportCodeFixProvider(
     LanguageNames.CSharp,
@@ -49,14 +49,14 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             var diagnostic = context.Diagnostics.First();
             var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-            // 从诊断消息中提取方法名
+            // Extract method name from diagnostic message
             var message = diagnostic.GetMessage();
             var methodName = ExtractMethodNameFromMessage(message);
 
             if (string.IsNullOrEmpty(methodName))
                 return;
 
-            // 找到诊断位置的类声明
+            // Find class declaration at diagnostic location
             var classDeclaration = root.FindToken(diagnosticSpan.Start)
                 .Parent?.AncestorsAndSelf()
                 .OfType<ClassDeclarationSyntax>()
@@ -65,13 +65,13 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             if (classDeclaration == null)
                 return;
 
-            // 根据诊断ID确定回调类型
+            // Determine callback type based on diagnostic ID
             var isFailureCallback = diagnostic.Id == "GDI_U004";
             var isReadyCallback = diagnostic.Id == "GDI_U006";
 
             if (isFailureCallback)
             {
-                // 注册失败回调的代码修复
+                // Register code fix for failure callback
                 var title = string.Format(Resources.CodeFix_InjectionFailureCallback, methodName);
                 context.RegisterCodeFix(
                     CodeAction.Create(
@@ -90,7 +90,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             }
             else if (isReadyCallback)
             {
-                // 尝试从语义模型获取成员类型，用于生成正确的参数签名
+                // Try to get member type from semantic model for generating correct parameter signature
                 string? memberTypeName = null;
                 try
                 {
@@ -114,17 +114,17 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                                 Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat
                             );
 
-                        // 去掉可空 ? 后缀
+                        // Remove nullable ? suffix
                         if (memberTypeName != null && memberTypeName.EndsWith("?"))
                             memberTypeName = memberTypeName.Substring(0, memberTypeName.Length - 1);
                     }
                 }
                 catch
                 {
-                    // 语义模型获取失败，回退到 object
+                    // Semantic model acquisition failed, fallback to object
                 }
 
-                // 注册就绪回调的代码修复
+                // Register code fix for ready callback
                 var title = string.Format(Resources.CodeFix_InjectionReadyCallback, methodName);
                 var capturedMemberTypeName = memberTypeName;
                 context.RegisterCodeFix(
@@ -146,13 +146,13 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
         catch (OperationCanceledException)
         {
-            // 取消操作是正常的，重新抛出
+            // Cancellation is normal, rethrow
             throw;
         }
         catch (Exception)
         {
-            // CodeFix 失败不应该崩溃 IDE
-            // 静默忽略 - 用户只是看不到这个修复选项
+            // CodeFix failure should not crash IDE
+            // Silently ignore - user just won't see this fix option
         }
     }
 
@@ -160,9 +160,8 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
     {
         try
         {
-            // 从消息中提取方法名
-            // 消息格式: "成员 'xxx' 标记了 [Inject(FailureCallback = true)]，但未实现所需的回调方法 'OnXxxInjectionFailed'。"
-            // 或英文: "Member 'xxx' is marked with [Inject(FailureCallback = true)] but the required callback method 'OnXxxInjectionFailed' is not implemented."
+            // Extract method name from message
+            // Message format: "Member 'xxx' is marked with [Inject(FailureCallback = true)] but the required callback method 'OnXxxInjectionFailed' is not implemented."
 
             var startIndex = message.LastIndexOf('\'');
             if (startIndex == -1)
@@ -171,7 +170,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             var endIndex = message.IndexOf('\'', startIndex + 1);
             if (endIndex == -1)
             {
-                // 尝试查找第二组引号对
+                // Try to find the second pair of quotes
                 startIndex = message.IndexOf('\'');
                 if (startIndex == -1)
                     return string.Empty;
@@ -193,7 +192,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 解析失败，返回空字符串
+            // Parse failed, return empty string
             return string.Empty;
         }
     }
@@ -212,13 +211,13 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             if (root == null)
                 return document;
 
-            // 创建 partial 方法实现
+            // Create partial method implementation
             var method = CreateFailureCallbackMethod(methodName);
 
-            // 找到合适的插入位置
+            // Find suitable insertion position
             var newClassDeclaration = classDeclaration.AddMembers(method);
 
-            // 替换旧的类声明
+            // Replace old class declaration
             var newRoot = root.ReplaceNode(classDeclaration, newClassDeclaration);
 
             return document.WithSyntaxRoot(newRoot);
@@ -229,7 +228,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 修复失败，返回原文档
+            // Fix failed, return original document
             return document;
         }
     }
@@ -249,13 +248,13 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
             if (root == null)
                 return document;
 
-            // 创建 partial 方法实现
+            // Create partial method implementation
             var method = CreateReadyCallbackMethod(methodName, memberTypeName);
 
-            // 找到合适的插入位置
+            // Find suitable insertion position
             var newClassDeclaration = classDeclaration.AddMembers(method);
 
-            // 替换旧的类声明
+            // Replace old class declaration
             var newRoot = root.ReplaceNode(classDeclaration, newClassDeclaration);
 
             return document.WithSyntaxRoot(newRoot);
@@ -266,7 +265,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 修复失败，返回原文档
+            // Fix failed, return original document
             return document;
         }
     }
@@ -275,7 +274,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
     {
         try
         {
-            // 创建方法体
+            // Create method body
             var statements = SyntaxFactory.List(
                 new StatementSyntax[]
                 {
@@ -305,7 +304,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 }
             );
 
-            // 创建方法：partial void OnXxxInjectionFailed() { ... }
+            // Create method: partial void OnXxxInjectionFailed() { ... }
             var method = SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -326,7 +325,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 如果创建方法失败，返回一个最简单的空方法
+            // If method creation fails, return the simplest empty method
             return SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -344,19 +343,19 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
     {
         try
         {
-            // 确定参数类型：优先使用已知成员类型，否则回退到 object
+            // Determine parameter type: prefer known member type, otherwise fallback to object
             var typeSyntax = memberTypeName != null
                 ? (TypeSyntax)SyntaxFactory.ParseTypeName(memberTypeName)
                 : (TypeSyntax)SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ObjectKeyword));
 
-            // 参数名：方法名去掉 "On" 前缀和 "InjectionReady" 后缀，首字母小写
+            // Parameter name: Remove "On" prefix and "InjectionReady" suffix from method name, lowercase first letter
             var paramName = DeriveParmName(methodName);
 
             var parameter = SyntaxFactory
                 .Parameter(SyntaxFactory.Identifier(paramName))
                 .WithType(typeSyntax.WithTrailingTrivia(SyntaxFactory.Space));
 
-            // 创建方法体
+            // Create method body
             var statements = SyntaxFactory.List(
                 new StatementSyntax[]
                 {
@@ -386,7 +385,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
                 }
             );
 
-            // 创建方法：partial void OnXxxInjectionReady(TypeA xxx) { ... }
+            // Create method: partial void OnXxxInjectionReady(TypeA xxx) { ... }
             var method = SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -411,7 +410,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
         }
         catch (Exception)
         {
-            // 如果创建方法失败，返回一个最简单的空方法
+            // If method creation fails, return the simplest empty method
             return SyntaxFactory
                 .MethodDeclaration(
                     SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.VoidKeyword)),
@@ -426,7 +425,7 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
     }
 
     /// <summary>
-    /// 从方法名 OnXxxInjectionReady 提取参数名（首字母小写的 Xxx 部分）
+    /// Extract parameter name from method name OnXxxInjectionReady (lowercase first letter of Xxx part)
     /// </summary>
     private static string DeriveParmName(string methodName)
     {

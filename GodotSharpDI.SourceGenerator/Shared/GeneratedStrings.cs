@@ -1,7 +1,7 @@
 namespace GodotSharpDI.SourceGenerator.Shared;
 
 /// <summary>
-/// 生成代码中使用的运行时字符串常量（集中管理，便于国际化）
+/// Runtime string constants used in generated code (centralized management, easy for internationalization)
 /// </summary>
 internal static class GeneratedStrings
 {

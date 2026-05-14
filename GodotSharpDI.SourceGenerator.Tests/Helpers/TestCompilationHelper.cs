@@ -72,35 +72,35 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并获取生成的诊断
+    /// Run the source generator and get the generated diagnostics
     /// </summary>
-    /// <param name="compilation">要分析的编译</param>
-    /// <returns>源生成器产生的所有诊断</returns>
+    /// <param name="compilation">The compilation to analyze</param>
+    /// <returns>All diagnostics produced by the source generator</returns>
     public static ImmutableArray<Diagnostic> GetGeneratorDiagnostics(Compilation compilation)
     {
-        // 创建源生成器实例
+        // Create source generator instance
         var generator = new DiSourceGenerator();
 
-        // 创建生成器驱动
+        // Create generator driver
         GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
 
-        // 运行生成器
+        // Run the generator
         driver = driver.RunGeneratorsAndUpdateCompilation(
             compilation,
             out var outputCompilation,
             out var diagnostics
         );
 
-        // 返回所有诊断
+        // Return all diagnostics
         return diagnostics;
     }
 
     /// <summary>
-    /// 运行源生成器并获取指定类型的诊断
+    /// Run the source generator and get diagnostics filtered by severity
     /// </summary>
-    /// <param name="compilation">要分析的编译</param>
-    /// <param name="severity">诊断严重级别过滤器</param>
-    /// <returns>过滤后的诊断</returns>
+    /// <param name="compilation">The compilation to analyze</param>
+    /// <param name="severity">Diagnostic severity filter</param>
+    /// <returns>Filtered diagnostics</returns>
     public static ImmutableArray<Diagnostic> GetGeneratorDiagnostics(
         Compilation compilation,
         DiagnosticSeverity severity
@@ -111,7 +111,7 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并获取错误诊断
+    /// Run the source generator and get error diagnostics
     /// </summary>
     public static ImmutableArray<Diagnostic> GetGeneratorErrors(Compilation compilation)
     {
@@ -119,7 +119,7 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并获取警告诊断
+    /// Run the source generator and get warning diagnostics
     /// </summary>
     public static ImmutableArray<Diagnostic> GetGeneratorWarnings(Compilation compilation)
     {
@@ -127,7 +127,7 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并检查是否有特定ID的诊断
+    /// Run the source generator and check if a diagnostic with a specific ID exists
     /// </summary>
     public static bool HasDiagnostic(Compilation compilation, string diagnosticId)
     {
@@ -136,7 +136,7 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并获取特定ID的所有诊断
+    /// Run the source generator and get all diagnostics with a specific ID
     /// </summary>
     public static ImmutableArray<Diagnostic> GetDiagnosticsById(
         Compilation compilation,
@@ -148,7 +148,7 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并获取生成的所有源代码
+    /// Run the source generator and get all generated source code
     /// </summary>
     public static ImmutableArray<GeneratedSourceResult> GetGeneratedSources(Compilation compilation)
     {
@@ -162,7 +162,7 @@ internal static class TestCompilationHelper
     }
 
     /// <summary>
-    /// 运行源生成器并检查是否生成了特定名称的源文件
+    /// Run the source generator and check if a source file with a specific name was generated
     /// </summary>
     public static bool HasGeneratedSource(Compilation compilation, string hintName)
     {
@@ -177,35 +177,35 @@ using System;
 
 namespace GodotSharpDI.Abstractions
 {
-    /// <summary>标记一个 Node 为 DI 服务提供者</summary>
+    /// <summary>Marks a Node as a DI service provider</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class HostAttribute : Attribute { }
 
-    /// <summary>标记一个 Node 为 DI 服务消费者</summary>
+    /// <summary>Marks a Node as a DI service consumer</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class UserAttribute : Attribute { }
 
-    /// <summary>标记一个字段/属性需要注入</summary>
+    /// <summary>Marks a field/property for injection</summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
     public sealed class InjectAttribute : Attribute
     {
-        /// <summary>注入失败时是否调用回调</summary>
+        /// <summary>Whether to invoke callback on injection failure</summary>
         public bool FailureCallback { get; set; }
-        /// <summary>注入就绪时是否调用回调</summary>
+        /// <summary>Whether to invoke callback when injection is ready</summary>
         public bool ReadyCallback { get; set; }
     }
 
-    /// <summary>标记一个属性/方法对外暴露服务</summary>
+    /// <summary>Marks a property/method to expose a service externally</summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
     public sealed class ProvideAttribute : Attribute
     {
-        /// <summary>暴露的服务类型列表</summary>
+        /// <summary>List of exposed service types</summary>
         public Type[] ExposedTypes { get; set; } = Array.Empty<Type>();
-        /// <summary>该 Provide 成员需等待哪些 Inject 字段先完成</summary>
+        /// <summary>Which Inject fields this Provide member must wait for before completing</summary>
         public string[] WaitFor { get; set; } = Array.Empty<string>();
     }
 
-    /// <summary>标记一个 Node 为 DI Scope（服务注册表）</summary>
+    /// <summary>Marks a Node as a DI Scope (service registry)</summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class ModulesAttribute : Attribute
     {
@@ -220,7 +220,7 @@ namespace GodotSharpDI.Abstractions
         void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
     }
 
-    /// <summary>所有依赖注入完成后的回调接口</summary>
+    /// <summary>Callback interface invoked after all dependency injection is complete</summary>
     public interface IDependenciesResolved
     {
         void OnDependenciesResolved();

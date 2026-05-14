@@ -9,27 +9,27 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 循环依赖检测器
-/// 使用 Tarjan 强连通分量算法的改进版本来检测和报告循环依赖
-/// 支持成员级别的依赖追踪（特别是WaitFor场景）
+/// Circular dependency detector
+/// Uses an improved version of Tarjan's strongly connected components algorithm to detect and report circular dependencies
+/// Supports member-level dependency tracking (especially WaitFor scenarios)
 /// </summary>
 internal sealed class CircularDependencyDetector
 {
     private readonly ImmutableDictionary<ITypeSymbol, TypeNode> _serviceImplToNode;
     private readonly ImmutableDictionary<ITypeSymbol, ValidatedTypeInfo> _serviceProviders;
 
-    // Tarjan 算法状态 - 使用服务类型作为节点
-    // 键的格式：服务类型 (IServiceA, IServiceB etc.)
+    // Tarjan algorithm state - using service types as nodes
+    // Key format: service type (IServiceA, IServiceB etc.)
     private readonly Dictionary<ITypeSymbol, int> _indices;
     private readonly Dictionary<ITypeSymbol, int> _lowLinks;
     private readonly HashSet<ITypeSymbol> _onStack;
     private readonly Stack<ITypeSymbol> _stack;
     private int _index;
 
-    // 检测到的循环
+    // Detected cycles
     private readonly List<Cycle> _cycles;
 
-    // 服务类型到提供该服务的成员的映射（用于生成详细的循环路径）
+    // Mapping from service type to the member providing that service (for generating detailed cycle paths)
     private readonly Dictionary<ITypeSymbol, ServiceMemberInfo> _serviceToMember;
 
     public CircularDependencyDetector(
@@ -55,7 +55,7 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 构建服务类型到成员信息的映射
+    /// Build mapping from service type to member information
     /// </summary>
     private void BuildServiceToMemberMap()
     {
@@ -67,8 +67,8 @@ internal sealed class CircularDependencyDetector
                 {
                     foreach (var exposedType in member.ExposedTypes)
                     {
-                        // 如果有多个成员提供同一服务，使用第一个
-                        if (!_serviceToMember.ContainsKey(exposedType))
+                    // If multiple members provide the same service, use the first one
+                    if (!_serviceToMember.ContainsKey(exposedType))
                         {
                             _serviceToMember[exposedType] = new ServiceMemberInfo(
                                 node.ValidatedTypeInfo.Symbol,
@@ -83,11 +83,11 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 检测所有循环依赖并返回诊断信息
+    /// Detect all circular dependencies and return diagnostics
     /// </summary>
     public ImmutableArray<Diagnostic> DetectCircularDependencies()
     {
-        // 对所有服务类型运行 Tarjan 算法
+        // Run Tarjan algorithm on all service types
         foreach (var serviceType in _serviceToMember.Keys)
         {
             if (!_indices.ContainsKey(serviceType))
@@ -96,13 +96,13 @@ internal sealed class CircularDependencyDetector
             }
         }
 
-        // 从检测到的循环生成诊断信息
+        // Generate diagnostics from detected cycles
         return GenerateDiagnostics();
     }
 
     /// <summary>
-    /// Tarjan 强连通分量算法的核心递归函数
-    /// 在服务类型层面运行，而不是在Host类型层面
+    /// Core recursive function of Tarjan's strongly connected components algorithm
+    /// Operates at the service type level, not at the Host type level
     /// </summary>
     private void StrongConnect(ITypeSymbol serviceType)
     {
@@ -112,7 +112,7 @@ internal sealed class CircularDependencyDetector
         _stack.Push(serviceType);
         _onStack.Add(serviceType);
 
-        // 获取提供该服务的节点和成员
+        // Get the node and member providing this service
         if (!_serviceToMember.TryGetValue(serviceType, out var memberInfo))
         {
             PopAndCheckScc(serviceType);
@@ -125,7 +125,7 @@ internal sealed class CircularDependencyDetector
             return;
         }
 
-        // 找到提供这个服务的成员
+        // Find the member providing this service
         var providingMember = node.ValidatedTypeInfo.Members.FirstOrDefault(m =>
             m.Symbol.Name == memberInfo.MemberName && m.IsProvideMember
         );
@@ -136,10 +136,10 @@ internal sealed class CircularDependencyDetector
             return;
         }
 
-        // 遍历该成员的WaitFor依赖
+        // Traverse this member's WaitFor dependencies
         foreach (var dependency in node.Dependencies)
         {
-            // 只处理来自该成员的WaitFor依赖
+            // Only process WaitFor dependencies from this member
             if (
                 dependency.Source == DependencySource.WaitForMember
                 && dependency.SourceProvidedType != null
@@ -148,13 +148,13 @@ internal sealed class CircularDependencyDetector
             {
                 var targetServiceType = dependency.TargetType;
 
-                // 确保目标服务有提供者
+                // Ensure the target service has a provider
                 if (!_serviceToMember.ContainsKey(targetServiceType))
                     continue;
 
                 if (!_indices.ContainsKey(targetServiceType))
                 {
-                    // 递归访问未访问的依赖
+                    // Recursively visit unvisited dependencies
                     StrongConnect(targetServiceType);
                     _lowLinks[serviceType] = Math.Min(
                         _lowLinks[serviceType],
@@ -163,7 +163,7 @@ internal sealed class CircularDependencyDetector
                 }
                 else if (_onStack.Contains(targetServiceType))
                 {
-                    // 发现后向边（循环依赖）
+                    // Found back edge (circular dependency)
                     _lowLinks[serviceType] = Math.Min(
                         _lowLinks[serviceType],
                         _indices[targetServiceType]
@@ -172,7 +172,7 @@ internal sealed class CircularDependencyDetector
             }
         }
 
-        // 检查是否是强连通分量的根
+        // Check if this is the root of a strongly connected component
         if (_lowLinks[serviceType] == _indices[serviceType])
         {
             var component = new List<ITypeSymbol>();
@@ -184,7 +184,7 @@ internal sealed class CircularDependencyDetector
                 component.Add(w);
             } while (!SymbolEqualityComparer.Default.Equals(w, serviceType));
 
-            // 如果强连通分量包含多个节点，或有自环，则是循环依赖
+            // If the strongly connected component contains multiple nodes, or has a self-loop, it's a circular dependency
             if (component.Count > 1 || HasEdgeToSelf(serviceType))
             {
                 _cycles.Add(new Cycle(component));
@@ -193,12 +193,12 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 弹出节点并检查是否构成 SCC 根节点。
-    /// 用于 StrongConnect 中的 early return 路径，确保栈状态一致。
+    /// Pop node and check if it forms an SCC root node.
+    /// Used for early return paths in StrongConnect to ensure consistent stack state.
     /// </summary>
     private void PopAndCheckScc(ITypeSymbol serviceType)
     {
-        // 如果当前节点是 SCC 根，弹出整个 SCC
+        // If current node is SCC root, pop the entire SCC
         if (_lowLinks[serviceType] == _indices[serviceType])
         {
             var component = new List<ITypeSymbol>();
@@ -218,9 +218,9 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 检查服务类型 S 在 WaitFor 依赖图中是否有指向自身的边（直接自环）
-    /// 即：某个 Provide 成员的 WaitFor 列表中包含了其自身的暴露类型
-    /// 注意：间接依赖（A→B→A）由 Tarjan 多节点 SCC 检测覆盖，无需在此处理
+    /// Check if service type S has an edge pointing to itself (direct self-loop) in the WaitFor dependency graph
+    /// i.e., a Provide member's WaitFor list contains its own exposed type
+    /// Note: Indirect dependencies (A→B→A) are covered by Tarjan's multi-node SCC detection, no need to handle here
     /// </summary>
     private bool HasEdgeToSelf(ITypeSymbol serviceType)
     {
@@ -232,12 +232,12 @@ internal sealed class CircularDependencyDetector
             if (dep.Source != DependencySource.WaitForMember) continue;
             if (dep.SourceProvidedType == null) continue;
 
-            // 只处理属于当前 serviceType 的 WaitFor 边
+            // Only process WaitFor edges belonging to the current serviceType
             if (!SymbolEqualityComparer.Default.Equals(dep.SourceProvidedType, serviceType))
                 continue;
 
-            // 直接自环：Provide 成员等待自身类型被注入
-            // 例：[Provide(typeof(IServiceA), WaitFor=[nameof(_self)])] 且 _self 类型为 IServiceA
+            // Direct self-loop: Provide member waits for its own type to be injected
+            // Example: [Provide(typeof(IServiceA), WaitFor=[nameof(_self)])] and _self type is IServiceA
             if (SymbolEqualityComparer.Default.Equals(dep.TargetType, serviceType))
                 return true;
         }
@@ -246,7 +246,7 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 从检测到的循环生成诊断信息
+    /// Generate diagnostics from detected cycles
     /// </summary>
     private ImmutableArray<Diagnostic> GenerateDiagnostics()
     {
@@ -254,15 +254,15 @@ internal sealed class CircularDependencyDetector
 
         foreach (var cycle in _cycles)
         {
-            // 构建循环路径（使用服务类型名称）
+            // Build cycle path (using service type names)
             var cyclePath = BuildCyclePath(cycle.Components);
 
-            // 为循环中的每个服务类型生成诊断
+            // Generate diagnostics for each service type in the cycle
             foreach (var serviceType in cycle.Components)
             {
                 if (_serviceToMember.TryGetValue(serviceType, out var memberInfo))
                 {
-                    // 在提供该服务的Host类的位置报告错误
+                    // Report error at the location of the Host class providing this service
                     if (_serviceImplToNode.TryGetValue(memberInfo.HostType, out var node))
                     {
                         diagnostics.Add(
@@ -281,49 +281,49 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 构建循环依赖路径字符串
-    /// 使用服务类型名称（而不是Host类名）
+    /// Build cycle dependency path string
+    /// Uses service type names (not Host class names)
     /// </summary>
     private string BuildCyclePath(List<ITypeSymbol> components)
     {
         if (components.Count == 1)
         {
-            // 自环
+            // Self-loop
             var serviceType = components[0];
             var serviceName = GetServiceDisplayName(serviceType);
             return $"{serviceName} -> {serviceName}";
         }
 
-        // 重新排序以显示清晰的循环路径
+        // Reorder to display clear cycle path
         var orderedPath = OrderCyclePath(components);
 
-        // 构建路径字符串，使用服务类型名称
+        // Build path string using service type names
         var pathNames = orderedPath.Select(GetServiceDisplayName).ToList();
 
-        // 添加第一个节点到末尾以显示完整循环
+        // Add first node to the end to show complete cycle
         pathNames.Add(pathNames[0]);
 
         return string.Join(" -> ", pathNames);
     }
 
     /// <summary>
-    /// 获取服务的显示名称（优先使用简短名称）
+    /// Get display name for a service (prefer short name)
     /// </summary>
     private string GetServiceDisplayName(ITypeSymbol serviceType)
     {
-        // 使用简短的类型名称（例如 "IServiceA" 而不是 "Test.IServiceA"）
+        // Use short type name (e.g., "IServiceA" instead of "Test.IServiceA")
         return serviceType.Name;
     }
 
     /// <summary>
-    /// 重新排序循环中的组件以显示清晰的依赖路径
+    /// Reorder components in the cycle to display clear dependency path
     /// </summary>
     private List<ITypeSymbol> OrderCyclePath(List<ITypeSymbol> components)
     {
         if (components.Count <= 1)
             return components;
 
-        // 构建循环内的依赖图（服务类型之间）
+        // Build dependency graph within the cycle (between service types)
         var graph = new Dictionary<ITypeSymbol, List<ITypeSymbol>>(SymbolEqualityComparer.Default);
         var componentSet = new HashSet<ITypeSymbol>(components, SymbolEqualityComparer.Default);
 
@@ -336,7 +336,7 @@ internal sealed class CircularDependencyDetector
                 && _serviceImplToNode.TryGetValue(memberInfo.HostType, out var node)
             )
             {
-                // 查找该服务的WaitFor依赖
+                // Find the service's WaitFor dependencies
                 foreach (var dependency in node.Dependencies)
                 {
                     if (
@@ -355,7 +355,7 @@ internal sealed class CircularDependencyDetector
             }
         }
 
-        // 从第一个组件开始构建路径
+        // Start building path from the first component
         var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
         var path = new List<ITypeSymbol>();
         BuildOrderedPath(components[0], graph, componentSet, visited, path);
@@ -364,9 +364,9 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 递归构建排序后的循环路径。
-    /// 修复：当某节点有多个出边且首选节点已访问时，尝试其余未访问出边，
-    /// 避免因 FirstOrDefault 误选已访问节点而导致路径提前截断。
+    /// Recursively build ordered cycle path.
+    /// Fix: When a node has multiple outgoing edges and the preferred node is already visited,
+    /// try remaining unvisited edges to avoid path truncation due to FirstOrDefault selecting visited node.
     /// </summary>
     private void BuildOrderedPath(
         ITypeSymbol current,
@@ -382,7 +382,7 @@ internal sealed class CircularDependencyDetector
         visited.Add(current);
         path.Add(current);
 
-        // 优先选择尚未访问的循环内节点，避免提前截断路径
+        // Prefer unvisited in-cycle nodes to avoid path truncation
         var nextInCycle = graph[current]
             .FirstOrDefault(dep => componentSet.Contains(dep) && !visited.Contains(dep));
 
@@ -393,7 +393,7 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 表示一个检测到的循环依赖
+    /// Represents a detected circular dependency
     /// </summary>
     private sealed class Cycle
     {
@@ -406,7 +406,7 @@ internal sealed class CircularDependencyDetector
     }
 
     /// <summary>
-    /// 服务成员信息 - 记录哪个Host的哪个成员提供了哪个服务
+    /// Service member information - Records which member of which Host provides which service
     /// </summary>
     private sealed class ServiceMemberInfo
     {

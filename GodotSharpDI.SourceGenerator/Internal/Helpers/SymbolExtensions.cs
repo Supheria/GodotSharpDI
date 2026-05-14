@@ -5,12 +5,12 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
-/// 符号扩展方法
+/// Symbol extension methods
 /// </summary>
 internal static class SymbolExtensions
 {
     /// <summary>
-    /// 获取类型的完全限定名称（带 global:: 和命名空间）
+    /// Get the fully qualified name of a type (with global:: and namespace)
     /// </summary>
     public static string ToFullyQualifiedName(this ITypeSymbol type)
     {
@@ -18,7 +18,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否实现指定接口
+    /// Check if a type implements a specified interface
     /// </summary>
     public static bool ImplementsInterface(this ITypeSymbol type, INamedTypeSymbol interfaceType)
     {
@@ -26,7 +26,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否继承自指定基类
+    /// Check if a type inherits from a specified base class
     /// </summary>
     public static bool InheritsFrom(this ITypeSymbol type, INamedTypeSymbol baseType)
     {
@@ -41,7 +41,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查符号是否有指定特性
+    /// Check if a symbol has a specified attribute
     /// </summary>
     public static bool HasAttribute(this ISymbol symbol, INamedTypeSymbol? attributeType)
     {
@@ -54,7 +54,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 获取符号的指定特性
+    /// Get a specified attribute from a symbol
     /// </summary>
     public static AttributeData? GetAttribute(this ISymbol symbol, INamedTypeSymbol? attributeType)
     {
@@ -69,7 +69,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 获取符号的所有指定特性
+    /// Get all specified attributes from a symbol
     /// </summary>
     public static IEnumerable<AttributeData> GetAttributes(
         this ISymbol symbol,
@@ -87,44 +87,44 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否是接口或具体类
+    /// Check if a type is an interface or concrete class
     /// </summary>
     public static bool IsInterfaceOrConcreteClass(this ITypeSymbol type)
     {
-        // 检查不能是抽象类、静态类
+        // Check that it cannot be abstract class or static class
         if (type.IsAbstract && type.TypeKind == TypeKind.Class)
             return false;
         if (type.IsStatic)
             return false;
 
-        // 必须是 interface 或 class
+        // Must be interface or class
         return type.TypeKind == TypeKind.Interface || type.TypeKind == TypeKind.Class;
     }
 
     /// <summary>
-    /// 检查类型是否是具体类
+    /// Check if a type is a concrete class
     /// </summary>
     public static bool IsConcreteClass(this ITypeSymbol type)
     {
-        // 检查不能是抽象类、静态类
+        // Check that it cannot be abstract class or static class
         if (type.IsAbstract || type.IsStatic)
             return false;
 
-        // 必须是 class
+        // Must be class
         return type.TypeKind == TypeKind.Class;
     }
 
     /// <summary>
-    /// 检查类型是否是有效的暴露类型
+    /// Check if a type is a valid exposed type
     /// </summary>
     public static bool IsValidExposedType(this ITypeSymbol type)
     {
-        // 必须是 interface
+        // Must be interface
         return type.TypeKind == TypeKind.Interface;
     }
 
     /// <summary>
-    /// 获取类型的所有成员（字段和属性）
+    /// Get all members (fields and properties) of a type
     /// </summary>
     public static IEnumerable<ISymbol> GetFieldsAndProperties(this INamedTypeSymbol type)
     {
@@ -133,7 +133,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 获取类型的所有非静态构造函数
+    /// Get all non-static constructors of a type
     /// </summary>
     public static IEnumerable<IMethodSymbol> GetInstanceConstructors(this INamedTypeSymbol type)
     {
@@ -141,7 +141,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查符号是否是公共的
+    /// Check if a symbol is public
     /// </summary>
     public static bool IsPublic(this ISymbol symbol)
     {
@@ -149,7 +149,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查符号是否是私有的
+    /// Check if a symbol is private
     /// </summary>
     public static bool IsPrivate(this ISymbol symbol)
     {
@@ -157,7 +157,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查符号是否是保护的
+    /// Check if a symbol is protected
     /// </summary>
     public static bool IsProtected(this ISymbol symbol)
     {
@@ -165,7 +165,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查符号是否是内部的
+    /// Check if a symbol is internal
     /// </summary>
     public static bool IsInternal(this ISymbol symbol)
     {
@@ -173,16 +173,16 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// 检查类型是否是开放泛型（Unbound Generic Type）
-    /// 开放泛型：包含未绑定的类型参数，如 List&lt;T&gt;
-    /// 封闭泛型：所有类型参数都已绑定，如 List&lt;int&gt;
+    /// Check if a type is an unbound generic type
+    /// Unbound generic: Contains unbound type parameters, e.g., List&lt;T&gt;
+    /// Closed generic: All type parameters are bound, e.g., List&lt;int&gt;
     /// </summary>
     public static bool IsUnboundGenericType(this INamedTypeSymbol type)
     {
         if (!type.IsGenericType)
             return false;
 
-        // 检查类型参数中是否有未绑定的类型参数
+        // Check if there are unbound type parameters in the type arguments
         return type.TypeArguments.Any(arg => arg.Kind == SymbolKind.TypeParameter);
     }
 }

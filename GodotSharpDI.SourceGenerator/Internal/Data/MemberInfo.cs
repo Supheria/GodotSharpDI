@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// 成员信息
+/// Member information
 /// </summary>
 internal sealed record MemberInfo(
     ISymbol Symbol,
@@ -15,9 +15,9 @@ internal sealed record MemberInfo(
     ImmutableArray<INamedTypeSymbol> ExposedTypes,
     bool HasFailureCallback,
     bool HasReadyCallback,
-    ImmutableArray<string> WaitFor, // 新增：等待的依赖字段名称数组
-    bool IsAsync = false, // 新增：是否是异步成员
-    bool UsesProvide = false // 新增：是否使用 Provide 特性（而非 Singleton）
+    ImmutableArray<string> WaitFor, // New: Array of dependency field names to wait for
+    bool IsAsync = false, // New: Whether this is an async member
+    bool UsesProvide = false // New: Whether to use Provide attribute (instead of Singleton)
 )
 {
     public bool IsInjectMember { get; } =
@@ -26,12 +26,12 @@ internal sealed record MemberInfo(
         Kind == MemberKind.ProvideField || Kind == MemberKind.ProvideProperty || Kind == MemberKind.ProvideMethod;
 
     /// <summary>
-    /// 获取此成员名称
+    /// Get this member's name
     /// </summary>
     public string Name => Symbol.Name;
 
     /// <summary>
-    /// 是否有 WaitFor 依赖
+    /// Whether this member has WaitFor dependencies
     /// </summary>
     public bool HasWaitFor => !WaitFor.IsEmpty;
 }

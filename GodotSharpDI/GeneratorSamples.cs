@@ -10,7 +10,7 @@ using GodotSharpDI.Abstractions;
 namespace GodotSharpDI;
 
 //
-// --- 示例接口 ---
+// --- Example interfaces ---
 //
 
 public interface IDataWriter { }
@@ -33,7 +33,7 @@ public interface ICellGetter { }
 public interface ICellEditor { }
 
 //
-// --- 非节点类型服务 ---
+// --- Non-node type services ---
 //
 
 [Singleton(typeof(IDataWriter), typeof(IDataReader))]
@@ -46,12 +46,12 @@ public partial class DatabaseWriter : IDataWriter, IDataReader, IDisposable
 
 // - generated code begin -
 
-// 标记为 Singleton 才生成
+// Only generated when marked as Singleton
 partial class DatabaseWriter // DatabaseWriter.DI.Service.g.cs
 {
     public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {
-        // 仅当注入构造函数参数等于0时按照如下模板生成
+        // Only generated when injection constructor parameters equal 0, following the template below
 
         var instance = new DatabaseWriter();
         onCreated.Invoke(instance, scope);
@@ -93,21 +93,21 @@ public partial class PathFinderFactory : IPathFinder, IAStartPathFinder
 
 // - generated code begin -
 
-// 标记为 Singleton 才生成
+// Only generated when marked as Singleton
 partial class PathFinderFactory // MovementManager.DI.Singleton.g.cs
 {
     public static void CreateService(IScope scope, Action<object, IScope> onCreated)
     {
-        // 仅当注入构造函数参数大于0时按照如下模板生成
+        // Only generated when injection constructor parameters > 0, following the template below
 
-        // 记录总共需要的依赖数量
+        // Record total number of dependencies needed
         var remaining = 2;
 
-        // 声明所有注入构造函数中的参数类型临时变量
+        // Declare temporary variables for all parameter types in injection constructor
         IDataWriter? p0 = null;
         IDataReader? p1 = null;
 
-        // 解析所有注入构造函数中的依赖参数
+        // Resolve all dependency parameters in injection constructor
         scope.ResolveDependency<IDataWriter>(dependency =>
         {
             p0 = dependency;
@@ -135,7 +135,7 @@ partial class PathFinderFactory // MovementManager.DI.Singleton.g.cs
 // - generated code end -
 
 //
-// --- 节点类型 host 和 user ---
+// --- Node type host and user ---
 //
 
 [Host]
@@ -156,7 +156,7 @@ public partial class CellManager : Godot.Node, ICellGetter, ICellEditor, IServic
 
 // - generated code begin -
 
-// Host, User 或 Scope 才生成
+// Only generated for Host, User or Scope
 partial class CellManager // CellManager.DI.Lifecycle.g.cs
 {
     private IScope? _parentScope;
@@ -177,7 +177,7 @@ partial class CellManager // CellManager.DI.Lifecycle.g.cs
             }
             parent = parent.GetParent();
         }
-        Godot.GD.PushError("CellManager 没有最近的 Service Scope");
+        Godot.GD.PushError("CellManager cannot find nearest Service Scope");
         return null;
     }
 
@@ -194,9 +194,9 @@ partial class CellManager // CellManager.DI.Lifecycle.g.cs
             }
             case NotificationReady:
             {
-                // Host 才生成
+                // Only generated for Host
                 ProvideHostServices();
-                // User 才生成
+                // Only generated for User
                 ResolveUserDependencies();
                 break;
             }
@@ -213,11 +213,11 @@ partial class CellManager // CellManager.DI.Lifecycle.g.cs
     }
 }
 
-// 标记为 Host 才生成
+// Only generated when marked as Host
 partial class CellManager // CellManager.DI.Host.g.cs
 {
     /// <summary>
-    /// 注册所有标记为 [Singleton] 的字段或属性
+    /// Register all fields or properties marked as [Singleton]
     /// </summary>
     private void ProvideHostServices()
     {
@@ -226,24 +226,24 @@ partial class CellManager // CellManager.DI.Host.g.cs
         {
             return;
         }
-        // 注册为 Singleton 特性指定的类型
+        // Register as types specified by Singleton attribute
         scope.ProvideService<ICellGetter>(Self);
         scope.ProvideService<ICellEditor>(Self);
     }
 }
 
-// 标记为 User 才生成
+// Only generated when marked as User
 partial class CellManager // CellManager.DI.User.g.cs
 {
-    // 实现了 IServicesReady 才生成
+    // Only generated when implementing IServicesReady
     private readonly HashSet<Type> _unresolvedDependencies = new()
     {
-        // 列举字段或属性中所有标记为 [Inject] 的类型
+        // List all types marked as [Inject] in fields or properties
         typeof(IDataReader),
         typeof(IDataWriter),
     };
 
-    // 实现了 IServicesReady 才生成
+    // Only generated when implementing IServicesReady
     private void OnDependencyResolved<T>()
     {
         _unresolvedDependencies.Remove(typeof(T));
@@ -254,7 +254,7 @@ partial class CellManager // CellManager.DI.User.g.cs
     }
 
     /// <summary>
-    /// 解析所有标记为 [Inject] 的字段或属性
+    /// Resolve all fields or properties marked as [Inject]
     /// </summary>
     private void ResolveUserDependencies()
     {
@@ -266,13 +266,13 @@ partial class CellManager // CellManager.DI.User.g.cs
         scope.ResolveDependency<IDataReader>(dependency =>
         {
             _dataReader = dependency;
-            // 实现了 IServicesReady 才生成
+            // Only generated when implementing IServicesReady
             OnDependencyResolved<IDataReader>();
         });
         scope.ResolveDependency<IDataWriter>(dependency =>
         {
             _dataWriter = dependency;
-            // 实现了 IServicesReady 才生成
+            // Only generated when implementing IServicesReady
             OnDependencyResolved<IDataWriter>();
         });
     }
@@ -288,7 +288,7 @@ public partial class MyScope : Godot.Node, IScope { }
 
 // - generated code begin -
 
-// Host, User 或 Scope 才生成
+// Only generated for Host, User or Scope
 partial class MyScope // MyScope.DI.Lifecycle.g.cs
 {
     private IScope? _parentScope;
@@ -325,7 +325,7 @@ partial class MyScope // MyScope.DI.Lifecycle.g.cs
             }
             case NotificationReady:
             {
-                // Scope 才生成
+                // Only generated for Scope
                 InstantiateScopeSingletons();
                 CheckWaitList();
                 break;
@@ -337,7 +337,7 @@ partial class MyScope // MyScope.DI.Lifecycle.g.cs
             }
             case NotificationPredelete:
             {
-                // Scope 才生成
+                // Only generated for Scope
                 DisposeScopeSingletons();
                 break;
             }
@@ -345,21 +345,21 @@ partial class MyScope // MyScope.DI.Lifecycle.g.cs
     }
 }
 
-// 实现了 IScope 才生成
+// Only generated when implementing IScope
 partial class MyScope // MyContext.DI.Scope.g.cs
 {
     private static readonly HashSet<Type> ServiceTypes = new()
     {
-        // 注册为 Singleton 特性指定的类型
-        // 如果没有指定服务类型则注册为原类型
+        // Register as types specified by Singleton attribute
+        // If no service type is specified, register as original type
 
-        // DatabaseWriter 提供的单例服务
+        // Singleton services provided by DatabaseWriter
         typeof(IDataWriter),
         typeof(IDataReader),
-        // CellManager 提供的单例服务
+        // Singleton services provided by CellManager
         typeof(ICellGetter),
         typeof(ICellEditor),
-        // MovementManager 提供的单例服务
+        // Singleton services provided by MovementManager
         typeof(IPathProvider),
         typeof(IPathGenerator),
     };
@@ -369,7 +369,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
     private readonly HashSet<IDisposable> _disposableSingletons = new();
 
     /// <summary>
-    /// 实例化所有 Scope 约束的单例服务
+    /// Instantiate all Scope-constrained singleton services
     /// </summary>
     private void InstantiateScopeSingletons()
     {
@@ -381,9 +381,9 @@ partial class MyScope // MyContext.DI.Scope.g.cs
                 {
                     _disposableSingletons.Add(disposable);
                 }
-                // 在此注册 Singleton 单例服务
-                // 注册为 Singleton 特性指定的类型
-                // 如果没有指定服务类型则注册为原类型
+                // Register singleton service here
+                // Register as types specified by Singleton attribute
+                // If no service type is specified, register as original type
                 scope.ProvideService((IDataWriter)instance);
                 scope.ProvideService((IDataReader)instance);
             }
@@ -402,7 +402,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
     }
 
     /// <summary>
-    /// 释放所有 Scope 约束的单例服务实例
+    /// Dispose all Scope-constrained singleton service instances
     /// </summary>
     private void DisposeScopeSingletons()
     {
@@ -438,12 +438,12 @@ partial class MyScope // MyContext.DI.Scope.g.cs
             sb.Append(type.Name);
             first = false;
         }
-        Godot.GD.PushError($"存在未完成注入的服务类型：{sb}");
+        Godot.GD.PushError($"Service types with incomplete injection exist: {sb}");
         _waiters.Clear();
     }
 }
 
-// 实现了 IScope 才生成
+// Only generated when implementing IScope
 partial class MyScope // MyContext.DI.IScope.g.cs
 {
     void IScope.ResolveDependency<T>(Action<T> onResolved)
@@ -457,7 +457,7 @@ partial class MyScope // MyContext.DI.IScope.g.cs
                 parent.ResolveDependency(onResolved);
                 return;
             }
-            Godot.GD.PushError($"直到根 Service Scope 都无法找到服务类型：{type.Name}");
+            Godot.GD.PushError($"Cannot find service type from root Service Scope: {type.Name}");
             return;
         }
         if (_services.TryGetValue(type, out var singleton))
@@ -484,12 +484,12 @@ partial class MyScope // MyContext.DI.IScope.g.cs
                 parent.ProvideService(instance);
                 return;
             }
-            Godot.GD.PushError($"直到根 Service Scope 都无法注册服务类型：{type.Name}");
+            Godot.GD.PushError($"Cannot register service type from root Service Scope: {type.Name}");
             return;
         }
         if (!_services.TryAdd(type, instance))
         {
-            Godot.GD.PushError($"重复注册类型: {type.Name}。");
+            Godot.GD.PushError($"Duplicate registration of type: {type.Name}.");
         }
         if (_waiters.Remove(type, out var waiterList))
         {

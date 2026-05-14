@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// 生成 Node 生命周期管理
+/// Generate Node lifecycle management
 /// </summary>
 internal static class NodeLifeCycleGenerator
 {
@@ -93,8 +93,8 @@ internal static class NodeLifeCycleGenerator
                     f.AppendLine("__parentScope = null;");
                     if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
                     {
-                        // ResetInjectionState: 递增 Generation + 重置 TCS/ready flags
-                        // 确保重新进入场景树时拿到全新的注入状态，旧操作的回调会因 Generation 不符而失效
+                        // ResetInjectionState: Increment Generation + Reset TCS/ready flags
+                        // Ensure a fresh injection state when re-entering the scene tree, old operation callbacks will be invalidated due to Generation mismatch
                         f.AppendLine("ResetInjectionState();");
                     }
                     f.AppendLine("break;");
@@ -129,10 +129,9 @@ internal static class NodeLifeCycleGenerator
                     f.AppendLine("__parentScope = null;");
                     if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
                     {
-                        // FIX3: 节点退出场景树时立即令所有飞行中的异步操作失效。
-                        //       ResetInjectionState 会递增 _diGeneration，
-                        //       任何已排队的 ContinueWith / CallDeferred 回调在执行时
-                        //       将发现 Generation 不匹配并静默退出。
+                        // FIX3: Immediately invalidate all in-flight async operations when node exits scene tree.
+                        //       ResetInjectionState increments _diGeneration,
+                        //       any queued ContinueWith / CallDeferred callbacks will find Generation mismatch and silently exit.
                         f.AppendLine("ResetInjectionState();");
                     }
                     f.AppendLine("break;");

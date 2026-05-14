@@ -10,8 +10,8 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;
 
 /// <summary>
-/// [Provide] 方法/属性签名合法性验证测试
-/// 所有 [Host] 测试源都包含 _Notification 声明，避免 GDI_C080 干扰断言。
+/// [Provide] method/property signature validity validation tests
+/// All [Host] test sources include _Notification declaration to avoid GDI_C080 interference with assertions.
 /// </summary>
 public class ProvideMemberSignatureTests
 {
@@ -180,8 +180,8 @@ namespace Test
     [Fact]
     public void Provide_OnNonHostClass_ReportsDiagnostic()
     {
-        // [Provide] 用在没有 [Host] 的普通类上 —— 无 DI 属性的类不被 RawClassSemanticInfoFactory 处理，
-        // raw.Info 可能为 null（直接忽略），或 TypeInfo 为 null（TypeRole.None 分类失败）。
+        // [Provide] used on a plain class without [Host] — classes without DI attributes are not processed by RawClassSemanticInfoFactory,
+        // raw.Info may be null (directly ignored), or TypeInfo is null (TypeRole.None classification failed).
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -209,7 +209,7 @@ namespace Test
 
         if (raw.Info == null)
         {
-            // 无 DI 属性的类被跳过，是预期行为
+            // Classes without DI attributes are skipped, this is expected behavior
             return;
         }
 
@@ -277,7 +277,7 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
     private static (ClassValidationResult Result, CachedSymbols Symbols) GetValidationResult(

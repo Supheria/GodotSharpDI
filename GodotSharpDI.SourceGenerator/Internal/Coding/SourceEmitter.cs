@@ -6,16 +6,16 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// 源代码生成器统一入口（增强版 - 带异常处理）
+/// Source code generator unified entry point (enhanced version - with exception handling)
 /// </summary>
 internal static class SourceEmitter
 {
     /// <summary>
-    /// 生成所有代码
+    /// Generate all code
     /// </summary>
     public static void GenerateAll(SourceProductionContext context, DiGraph graph)
     {
-        // 生成 Host 代码
+        // Generate Host code
         foreach (var node in graph.HostNodes)
         {
             try
@@ -28,7 +28,7 @@ internal static class SourceEmitter
             }
         }
 
-        // 生成 User 代码
+        // Generate User code
         foreach (var node in graph.UserNodes)
         {
             try
@@ -41,7 +41,7 @@ internal static class SourceEmitter
             }
         }
 
-        // 生成 Scope 代码
+        // Generate Scope code
         foreach (var node in graph.ScopeNodes)
         {
             try
@@ -56,7 +56,7 @@ internal static class SourceEmitter
     }
 
     /// <summary>
-    /// 报告代码生成错误
+    /// Report code generation error
     /// </summary>
     private static void ReportCodeGenerationError(
         SourceProductionContext context,

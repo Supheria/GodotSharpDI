@@ -1,12 +1,12 @@
 // =============================================================================
 // Services.cs
 //
-// 演示：跨 Host 依赖链示例所需的服务接口与实现
+// Demonstrates: Service interfaces and implementations needed for cross-Host dependency chain example
 //
-// 场景：
-//   HostB 提供 IServiceB
-//   HostC 依赖 IServiceB（通过 WaitFor），并提供 IServiceC
-//   → 演示跨 Host 的 WaitFor 依赖顺序控制
+// Scenario:
+//   HostB provides IServiceB
+//   HostC depends on IServiceB (via WaitFor), and provides IServiceC
+//   → Demonstrates cross-Host WaitFor dependency ordering control
 // =============================================================================
 
 namespace GodotSharpDI.Sample;

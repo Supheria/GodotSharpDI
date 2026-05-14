@@ -9,9 +9,9 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 跨 Host WaitFor 死锁检测器（编译期）
-/// 在服务类型层面构建全局依赖图并运行 Tarjan SCC 算法
-/// 边语义：S → T 表示"提供服务 S 的 Host 的 WaitFor 需要等待 T 注入完成"
+/// Cross-Host WaitFor deadlock detector (compile-time)
+/// Builds a global dependency graph at the service type level and runs Tarjan SCC algorithm
+/// Edge semantics: S → T means "Host providing service S needs to wait for T injection to complete in WaitFor"
 /// </summary>
 internal sealed class CrossHostCircularDependencyDetector
 {
@@ -68,7 +68,7 @@ internal sealed class CrossHostCircularDependencyDetector
             }
         }
 
-        if (_low[v] != _disc[v]) return; // 非 SCC 根，继续
+        if (_low[v] != _disc[v]) return; // Not SCC root, continue
 
         var scc = new List<ITypeSymbol>();
         ITypeSymbol w2;
@@ -80,10 +80,10 @@ internal sealed class CrossHostCircularDependencyDetector
         }
         while (!SymbolEqualityComparer.Default.Equals(w2, v));
 
-        if (scc.Count <= 1) return; // 单节点无循环
+        if (scc.Count <= 1) return; // Single node, no cycle
 
-        // 检查是否所有服务都由「同一个」Host 提供
-        // 若是，则属于同 Host 内 WaitFor 环（GDI_D010 已处理），不应报 GDI_D011
+        // Check if all services are provided by the "same" Host
+        // If so, it's a WaitFor cycle within the same Host (already handled by GDI_D010), should not report GDI_D011
         var distinctHosts = scc
             .SelectMany(s => _indexes.FindProviders(s))
             .Select(n => n.ValidatedTypeInfo.Symbol)
@@ -99,7 +99,7 @@ internal sealed class CrossHostCircularDependencyDetector
         var diags = ImmutableArray.CreateBuilder<Diagnostic>();
         foreach (var cycle in _cycles)
         {
-            // 构建可读路径：IServiceA -> IServiceB -> IServiceA
+            // Build readable path: IServiceA -> IServiceB -> IServiceA
             var path = string.Join(" -> ", cycle.Select(t => t.Name))
                        + " -> " + cycle[0].Name;
 

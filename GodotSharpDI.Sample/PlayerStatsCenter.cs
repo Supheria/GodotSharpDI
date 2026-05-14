@@ -1,10 +1,10 @@
 ﻿// =============================================================================
 // PlayerStatsCenter.cs
 //
-// 演示功能：
-//   1. [Host] — 简单的服务提供者
-//   2. [Provide] 字段级别 — v1.3.0 新特性，将 [Export] 字段直接作为服务暴露
-//   3. [Provide] 属性级别 — 同步提供自身实例
+// Demonstrated features:
+//   1. [Host] — Simple service provider
+//   2. [Provide] field level — v1.3.0 new feature, exposes [Export] field directly as service
+//   3. [Provide] property level — Synchronously provides self instance
 // =============================================================================
 
 using Godot;
@@ -15,15 +15,15 @@ namespace GodotSharpDI.Sample;
 [Host]
 public sealed partial class PlayerStatsCenter : Node
 {
-    // ── [Provide] 属性 — 同步提供自身 ─────────────────────────
-    // 将 this 暴露为 PlayerStatsCenter 类型，供其他 Host/User 注入消费。
+    // ── [Provide] property — Synchronously provides self ─────────────────────────
+    // Exposes this as PlayerStatsCenter type for other Hosts/Users to inject and consume.
 
     [Provide]
     public PlayerStatsCenter Self => this;
 
-    // ── [Provide] 字段级别 — v1.3.0 新特性 ────────────────────
-    // 框架支持在字段上直接标注 [Provide]，无需通过属性或方法包装。
-    // 这对于 [Export] 导出的子节点特别有用，可以直接作为服务暴露。
+    // ── [Provide] field level — v1.3.0 new feature ────────────────────
+    // Framework supports directly annotating [Provide] on fields, no need for property or method wrapping.
+    // This is especially useful for [Export] exported child nodes, can be directly exposed as services.
 
     [Provide(ExposedTypes = [typeof(IAudioService)])]
     private AudioService _audioService = new();
@@ -32,7 +32,7 @@ public sealed partial class PlayerStatsCenter : Node
 }
 
 /// <summary>
-/// 演示：字段级别 [Provide] 暴露的服务接口
+/// Demonstrates: Service interface exposed by field-level [Provide]
 /// </summary>
 public interface IAudioService
 {
@@ -40,7 +40,7 @@ public interface IAudioService
 }
 
 /// <summary>
-/// 演示：字段级别 [Provide] 暴露的服务实现
+/// Demonstrates: Service implementation exposed by field-level [Provide]
 /// </summary>
 public sealed class AudioService : IAudioService
 {

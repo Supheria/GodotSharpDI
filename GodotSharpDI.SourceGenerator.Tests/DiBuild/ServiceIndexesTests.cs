@@ -12,16 +12,16 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// ServiceIndexes 构建的单元测试
+/// Unit tests for ServiceIndexes construction
 ///
-/// 重点覆盖 v1.2.0 新增字段：
-///   - DuplicateServiceProviders（P2：重复注册检测数据）
-///   - ServiceTypeToWaitForDeps（P1：跨 Host 死锁检测的服务依赖图数据）
+/// Focus on v1.2.0 new fields:
+///   - DuplicateServiceProviders (P2: duplicate registration detection data)
+///   - ServiceTypeToWaitForDeps (P1: service dependency graph data for cross-Host deadlock detection)
 /// </summary>
 public class ServiceIndexesTests
 {
     // ============================================================
-    //  DuplicateServiceProviders（P2）
+    //  DuplicateServiceProviders (P2)
     // ============================================================
 
     [Fact]
@@ -127,13 +127,13 @@ namespace Test
     }
 
     // ============================================================
-    //  ServiceTypeToWaitForDeps（P1）
+    //  ServiceTypeToWaitForDeps (P1)
     // ============================================================
 
     [Fact]
     public void ServiceTypeToWaitForDeps_SimpleWaitFor_IsMapped()
     {
-        // HostA 提供 IServiceA，等待 IServiceB 注入
+        // HostA provides IServiceA, waits for IServiceB injection
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -158,7 +158,7 @@ namespace Test
 }";
         var indexes = BuildIndexes(source);
 
-        // IServiceA 的 WaitFor 依赖应包含 IServiceB
+        // IServiceA's WaitFor dependencies should include IServiceB
         var entry = indexes.ServiceTypeToWaitForDeps.FirstOrDefault(kvp =>
             kvp.Key.Name == "IServiceA"
         );
@@ -171,7 +171,7 @@ namespace Test
     [Fact]
     public void ServiceTypeToWaitForDeps_NoWaitFor_NotInMap()
     {
-        // 没有 WaitFor 的 Provide 成员不应出现在 ServiceTypeToWaitForDeps 中
+        // Provide members without WaitFor should not appear in ServiceTypeToWaitForDeps
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -197,7 +197,7 @@ namespace Test
     [Fact]
     public void ServiceTypeToWaitForDeps_MultipleWaitFor_AllDepsListed()
     {
-        // Provide 等待两个 Inject 字段 → WaitForDeps 应包含两个类型
+        // Provide waits for two Inject fields → WaitForDeps should contain two types
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -235,7 +235,7 @@ namespace Test
     [Fact]
     public void ServiceTypeToWaitForDeps_CrossHostCycle_BothServicesInMap()
     {
-        // 两个 Host 形成跨 Host 循环等待 → 两个服务都在 ServiceTypeToWaitForDeps 中
+        // Two Hosts form a cross-Host circular wait → both services should be in ServiceTypeToWaitForDeps
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -275,8 +275,8 @@ namespace Test
     [Fact]
     public void ServiceTypeToWaitForDeps_WaitForNonInjectField_NotIncludedInDeps()
     {
-        // WaitFor 引用了一个非 [Inject] 字段（GDI_M081 Warning）
-        // 非 Inject 字段没有确定的服务类型 → 不应出现在依赖图中
+        // WaitFor references a non-[Inject] field (GDI_M081 Warning)
+        // Non-Inject fields have no determined service type → should not appear in dependency graph
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -299,18 +299,18 @@ namespace Test
 }";
         var indexes = BuildIndexes(source);
 
-        // IServiceA 要么不在 map 中（非 Inject 字段被过滤），要么其依赖集为空
-        // 使用 null-safe 查找避免 FirstOrDefault 返回 null 后强制解引用
+        // IServiceA is either not in the map (non-Inject field filtered) or its dependency set is empty
+        // Use null-safe lookup to avoid forced dereference after FirstOrDefault returns null
         var key = indexes.ServiceTypeToWaitForDeps.Keys.FirstOrDefault(k => k.Name == "IServiceA");
         if (key != null && indexes.ServiceTypeToWaitForDeps.TryGetValue(key, out var deps))
         {
             Assert.Empty(deps);
         }
-        // 若根本不在 map 中则也满足要求（非 Inject 字段正确被过滤）
+        // If not in the map at all, the requirement is also satisfied (non-Inject field correctly filtered)
     }
 
     // ============================================================
-    //  ServiceTypeToProviders 基础验证
+    //  ServiceTypeToProviders basic validation
     // ============================================================
 
     [Fact]
@@ -361,7 +361,7 @@ namespace Test
         [Provide(ExposedTypes = new Type[] { typeof(IFoo) })] public Foo Get() => new Foo();
     }
 }";
-        // 必须使用同一编译实例，跨编译的 ITypeSymbol 无法通过 SymbolEqualityComparer 匹配
+        // Must use the same compilation instance; cross-compilation ITypeSymbols cannot match via SymbolEqualityComparer
         var (indexes, compilation) = BuildIndexesWithCompilation(source);
         var fooSymbol = compilation.GetTypeByMetadataName("Test.IFoo");
         Assert.NotNull(fooSymbol);
@@ -394,12 +394,12 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
     /// <summary>
-    /// 构建索引并同时返回编译实例，供需要跨符号比较的测试使用。
-    /// SymbolEqualityComparer 只在同一编译内有效，跨编译必须使用同一实例。
+    /// Builds indexes and also returns the compilation instance for tests that need cross-symbol comparison.
+    /// SymbolEqualityComparer is only valid within a single compilation; cross-compilation must use the same instance.
     /// </summary>
     private static (
         ServiceIndexes Indexes,

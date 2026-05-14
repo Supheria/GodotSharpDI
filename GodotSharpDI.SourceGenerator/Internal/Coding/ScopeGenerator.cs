@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Scope 代码生成器
+/// Scope code generator
 /// </summary>
 internal static class ScopeGenerator
 {
@@ -18,7 +18,7 @@ internal static class ScopeGenerator
 
         ScopeInterfaceGenerator.GenerateInterface(context, node);
 
-        // 生成 Scope 特定代码
+        // Generate Scope specific code
         GenerateScopeSpecific(context, node, graph);
     }
 
@@ -53,7 +53,7 @@ internal static class ScopeGenerator
 
     private static void GenerateDataModels(CodeFormatter f)
     {
-        // ServiceState 枚举
+        // ServiceState enum
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine("private enum ServiceState");
         f.BeginBlock();
@@ -65,7 +65,7 @@ internal static class ScopeGenerator
         f.EndBlock();
         f.AppendLine();
 
-        // ServiceCacheEntry 类
+        // ServiceCacheEntry class
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine("private sealed class ServiceCacheEntry");
         f.BeginBlock();
@@ -76,8 +76,8 @@ internal static class ScopeGenerator
         f.EndBlock();
         f.AppendLine();
 
-        // DependencyWaitInfo 记录
-        // ResultCallback: Action<object?> — null 表示注入失败，非 null 表示注入成功的实例
+        // DependencyWaitInfo record
+        // ResultCallback: Action<object?> — null means injection failed, non-null means the injected instance
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine("private sealed record DependencyWaitInfo(");
         f.BeginLevel();
@@ -95,7 +95,7 @@ internal static class ScopeGenerator
     private static void GenerateStaticCollections(CodeFormatter f)
     {
         // ServiceImplementationMap
-        f.AppendHiddenMemberCommentAndAttribute("服务类型映射表：暴露类型 -> 实现类型");
+        f.AppendHiddenMemberCommentAndAttribute("Service type mapping table: exposed type -> implementation type");
         f.AppendLine(
             $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> ServiceImplementationMap = CreateServiceImplementationMap();"
         );
@@ -117,7 +117,7 @@ internal static class ScopeGenerator
         );
         f.AppendLine();
 
-        // P1-runtime: _waitForGraph（仅 DEBUG 模式），用于死锁 DFS 检测
+        // P1-runtime: _waitForGraph (DEBUG mode only), for deadlock DFS detection
         f.BeginDebugRegion();
         {
             f.AppendHiddenMemberCommentAndAttribute("Runtime WaitFor wait graph for deadlock DFS detection (DEBUG only)");
@@ -136,41 +136,41 @@ internal static class ScopeGenerator
 
     private static void GenerateStaticMethods(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
-        // ServiceCache 以「实现类型（TImpl）」为键，而非暴露的接口类型。
-        // ServiceImplementationMap 负责从暴露类型（TExposed）映射到实现类型（TImpl）。
-        // 查找流程：ResolveDependency<TExposed> → ServiceImplementationMap[TExposed] → implType
+        // ServiceCache uses "implementation type (TImpl)" as key, not the exposed interface type.
+        // ServiceImplementationMap is responsible for mapping from exposed type (TExposed) to implementation type (TImpl).
+        // Lookup flow: ResolveDependency<TExposed> → ServiceImplementationMap[TExposed] → implType
         //         → ServiceCache[implType] → instance
-        // 当暴露类型与实现类型相同时（如 Host 暴露自身），两者指向同一 Type key，行为正确。
-        // 收集该 Scope 需要的所有实现类型
+        // When exposed type and implementation type are the same (e.g., Host exposes itself), both point to the same Type key, behavior is correct.
+        // Collect all implementation types needed by this Scope
         var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
 
-        // 收集该 Scope 的服务暴露类型到实现类型的映射
+        // Collect the mapping from service exposed type to implementation type for this Scope
         var scopeServiceImplMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
             SymbolEqualityComparer.Default
         );
 
-        // 遍历该 Scope 的所有 Host
+        // Traverse all Hosts in this Scope
         foreach (var hostType in node.ExpectHosts)
         {
             if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
             {
-                // 收集该 Host 提供的服务映射
+                // Collect service mappings provided by this Host
                 foreach (var kvp in hostNode.ServiceImplementationMap)
                 {
                     var exposedType = kvp.Key;
                     var implementationType = kvp.Value;
 
-                    // 添加到 Scope 的服务映射
+                    // Add to Scope's service mapping
                     scopeServiceImplMap[exposedType] = implementationType;
 
-                    // 添加实现类型到集合
+                    // Add implementation type to set
                     implementationTypes.Add(implementationType);
                 }
             }
         }
 
-        // CreateServiceCache - 以实现类型作为键
-        f.AppendHiddenMethodCommentAndAttribute("初始化所有服务缓存（以实现类型作为键值）");
+        // CreateServiceCache - Use implementation type as key
+        f.AppendHiddenMethodCommentAndAttribute("Initialize all service caches (using implementation type as key)");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> CreateServiceCache()"
         );
@@ -191,8 +191,8 @@ internal static class ScopeGenerator
         }
         f.EndBlock();
 
-        // CreateServiceImplementationMap - 暴露类型到实现类型的映射
-        f.AppendHiddenMethodCommentAndAttribute("创建服务暴露类型到实现类型的映射表");
+        // CreateServiceImplementationMap - Mapping from exposed type to implementation type
+        f.AppendHiddenMethodCommentAndAttribute("Create mapping table from service exposed type to implementation type");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> CreateServiceImplementationMap()"
         );

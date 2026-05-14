@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 依赖图构建器 - 重构版
-/// 职责：协调各个构建器，组装最终的依赖图
+/// Dependency graph builder - refactored version
+/// Responsibility: Coordinate various builders to assemble the final dependency graph
 /// </summary>
 internal static class DiGraphBuilder
 {
@@ -23,7 +23,7 @@ internal static class DiGraphBuilder
 
         try
         {
-            // 1. 提取有效类型
+            // 1. Extract valid types
             var validTypes = classResults
                 .Where(r => r.TypeInfo != null)
                 .Select(r => r.TypeInfo!)
@@ -32,18 +32,18 @@ internal static class DiGraphBuilder
             if (validTypes.IsEmpty)
                 return DiGraphBuildResult.Empty;
 
-            // 2. 按角色分类
+            // 2. Classify by role
             var typesByRole = ClassifyTypesByRole(validTypes, diagnostics);
             if (typesByRole == null)
                 return new DiGraphBuildResult(null, diagnostics.ToImmutable());
 
-            // 3. 构建各类节点
+            // 3. Build various nodes
             var nodes = BuildAllNodes(typesByRole, diagnostics);
 
-            // 4. 构建全局索引
+            // 4. Build global indexes
             var indexes = ServiceIndexes.Build(nodes.HostNodes, nodes.UserNodes);
 
-            // 5. 验证依赖图
+            // 5. Validate dependency graph
             GraphValidator.ValidateDependencyGraph(
                 nodes.HostNodes,
                 nodes.UserNodes,
@@ -52,7 +52,7 @@ internal static class DiGraphBuilder
                 diagnostics
             );
 
-            // 6. 构建并验证Scope节点
+            // 6. Build and validate Scope nodes
             var scopeNodes = NodeBuilders.BuildScopeNodes(
                 typesByRole.Scopes,
                 symbols,
@@ -60,7 +60,7 @@ internal static class DiGraphBuilder
                 indexes
             );
 
-            // 7. 组装最终图
+            // 7. Assemble final graph
             try
             {
                 var graph = new DiGraph(
@@ -131,7 +131,7 @@ internal static class DiGraphBuilder
     }
 
     // ============================================================
-    // 内部数据结构
+    // Internal data structures
     // ============================================================
 
     private record TypesByRole(

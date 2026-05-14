@@ -22,7 +22,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
         }
         catch (Exception ex)
         {
-            // 如果初始化阶段发生严重错误，报告诊断
+            // If a critical error occurs during initialization, report diagnostic
             context.RegisterSourceOutput(
                 context.CompilationProvider,
                 (spc, _) =>
@@ -40,7 +40,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
 
     private static void InitializeInternal(IncrementalGeneratorInitializationContext context)
     {
-        // 1. 语法筛选（增强容错）
+        // 1. Syntax filtering (enhanced fault tolerance)
         var candidateClasses = context.SyntaxProvider.CreateSyntaxProvider(
             static (node, _) =>
             {
@@ -50,14 +50,14 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
                 catch
                 {
-                    // 如果语法分析出错，跳过该节点
+                    // Skip this node if syntax analysis fails
                     return false;
                 }
             },
             static (ctx, _) => (ClassDeclarationSyntax)ctx.Node
         );
 
-        // 2. CachedSymbols（全局一次，提前创建，带异常保护）
+        // 2. CachedSymbols (created once globally, with exception protection)
         var symbolsProvider = context.CompilationProvider.Select(
             static (c, _) =>
             {
@@ -67,14 +67,14 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
                 catch
                 {
-                    // 如果符号缓存创建失败，返回null
-                    // 后续处理会检测并报告
+                    // Return null if symbol cache creation fails
+                    // Subsequent processing will detect and report
                     return null;
                 }
             }
         );
 
-        // 3. Raw 构建（类级增量）+ Raw 诊断（增强异常处理）
+        // 3. Raw construction (class-level incremental) + Raw diagnostics (enhanced exception handling)
         var rawClassInfoResults = candidateClasses
             .Combine(context.CompilationProvider)
             .Combine(symbolsProvider)
@@ -92,7 +92,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                     }
                     catch (Exception ex)
                     {
-                        // 捕获单个类处理的异常
+                        // Catch exception for individual class processing
                         var (syntax, compilation) = pair.Left;
                         var className = syntax.Identifier.Text;
                         var diagnostic = DiagnosticBuilder.Create(
@@ -106,12 +106,12 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
             );
 
-        // 过滤出有效的 Raw 信息
+        // Filter out valid Raw information
         var validRawInfos = rawClassInfoResults
             .Where(static r => r.Info is not null)
             .Select(static (r, _) => r.Info!);
 
-        // Raw 诊断输出（仅在有诊断时）
+        // Raw diagnostic output (only when diagnostics exist)
         var rawDiagnostics = rawClassInfoResults
             .Where(static r => r.Diagnostics.Length > 0)
             .SelectMany(static (r, _) => r.Diagnostics);
@@ -121,7 +121,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
             static (spc, diag) => spc.ReportDiagnostic(diag)
         );
 
-        // 4. 类级验证（类级增量，增强异常处理）
+        // 4. Class-level validation (class-level incremental, enhanced exception handling)
         var classValidationResults = validRawInfos
             .Combine(symbolsProvider)
             .Select(
@@ -131,7 +131,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                     {
                         var (raw, symbols) = pair;
 
-                        // 检查symbols是否有效
+                        // Check if symbols are valid
                         if (symbols == null)
                         {
                             var diagnostic = DiagnosticBuilder.Create(
@@ -149,7 +149,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                     }
                     catch (Exception ex)
                     {
-                        // 捕获验证过程的异常
+                        // Catch exception during validation process
                         var diagnostic = DiagnosticBuilder.Create(
                             DiagnosticDescriptors.ClassValidationFailed,
                             pair.Item1.Location,
@@ -164,7 +164,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
             );
 
-        // 类级诊断输出（仅在有诊断时）
+        // Class-level diagnostic output (only when diagnostics exist)
         var classValidationWithDiags = classValidationResults.Where(static r =>
             r.Diagnostics.Length > 0
         );
@@ -178,8 +178,8 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
             }
         );
 
-        // 5. 分阶段图构建
-        // 5.1 按角色分类收集（减少全局 Collect）
+        // 5. Phased graph construction
+        // 5.1 Collect by role classification (reduce global Collect)
         var hostTypes = classValidationResults
             .Where(static r => r.TypeInfo?.Role == TypeRole.Host)
             .Select(static (r, _) => r.TypeInfo!)
@@ -195,7 +195,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
             .Select(static (r, _) => r.TypeInfo!)
             .Collect();
 
-        // 5.2 组合所有类型信息
+        // 5.2 Combine all type information
         var allTypesProvider = hostTypes
             .Combine(userTypes)
             .Combine(scopeTypes)
@@ -207,7 +207,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
             );
 
-        // 5.3 构建依赖图（只在所有类型信息变化时重新构建，增强异常处理）
+        // 5.3 Build dependency graph (only rebuild when all type information changes, enhanced exception handling)
         var graphResult = allTypesProvider
             .Combine(symbolsProvider)
             .Select(
@@ -217,7 +217,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                     {
                         var (types, symbols) = pair;
 
-                        // 检查symbols是否有效
+                        // Check if symbols are valid
                         if (symbols == null)
                         {
                             var diagnostic = DiagnosticBuilder.CreateAtNone(
@@ -230,13 +230,13 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                             );
                         }
 
-                        // 如果没有任何类型，返回空结果
+                        // Return empty result if no types exist
                         if (types.Hosts.IsEmpty && types.Users.IsEmpty && types.Scopes.IsEmpty)
                         {
                             return DiGraphBuildResult.Empty;
                         }
 
-                        // 合并所有类型
+                        // Merge all types
                         var allClasses = types
                             .Hosts.Concat(types.Users)
                             .Concat(types.Scopes)
@@ -250,7 +250,7 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                     }
                     catch (Exception ex)
                     {
-                        // 捕获图构建的异常
+                        // Catch exception during graph construction
                         var diagnostic = DiagnosticBuilder.CreateAtNone(
                             DiagnosticDescriptors.GraphBuildFailed,
                             ex.Message
@@ -263,24 +263,24 @@ public sealed class DiSourceGenerator : IIncrementalGenerator
                 }
             );
 
-        // 6. 图级诊断 + 源码输出（增强异常处理）
+        // 6. Graph-level diagnostics + source output (enhanced exception handling)
         context.RegisterSourceOutput(
             graphResult,
             static (spc, result) =>
             {
                 try
                 {
-                    // 报告诊断
+                    // Report diagnostics
                     foreach (var d in result.Diagnostics)
                         spc.ReportDiagnostic(d);
 
-                    // 生成源码
+                    // Generate source code
                     if (result.Graph is not null)
                         SourceEmitter.GenerateAll(spc, result.Graph);
                 }
                 catch (Exception ex)
                 {
-                    // 捕获源码输出阶段的异常
+                    // Catch exception during source output phase
                     spc.ReportDiagnostic(
                         DiagnosticBuilder.CreateAtNone(
                             DiagnosticDescriptors.SourceOutputFailed,

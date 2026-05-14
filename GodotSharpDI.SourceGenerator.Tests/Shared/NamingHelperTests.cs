@@ -6,14 +6,14 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.Shared;
 
 /// <summary>
-/// NamingHelper 完整单元测试
+/// NamingHelper comprehensive unit tests
 ///
-/// 覆盖：
-///   - ToPascalCase：成员名 → 大驼峰
-///   - GetFailureCallbackMethodName：→ OnXxxInjectionFailed
-///   - GetReadyCallbackMethodName：→ OnXxxInjectionReady
-///   - GetInjectionCallbackListName（重构新增）：→ __xxx_callbacks，用于 WaitFor 回调列表字段
-///   - GetInjectionReadyFieldName：→ IsXxxInjectionReady
+/// Coverage:
+///   - ToPascalCase: member name → PascalCase
+///   - GetFailureCallbackMethodName: → OnXxxInjectionFailed
+///   - GetReadyCallbackMethodName: → OnXxxInjectionReady
+///   - GetInjectionCallbackListName (new in refactoring): → __xxx_callbacks, used for WaitFor callback list fields
+///   - GetInjectionReadyFieldName: → IsXxxInjectionReady
 /// </summary>
 public class NamingHelperTests
 {
@@ -97,7 +97,7 @@ public class NamingHelperTests
     }
 
     // ============================================================
-    //  GetInjectionCallbackListName（重构：替代原 GetInjectionTcsName）
+    //  GetInjectionCallbackListName (refactoring: replaces original GetInjectionTcsName)
     // ============================================================
 
     [Theory]
@@ -117,7 +117,7 @@ public class NamingHelperTests
     [Fact]
     public void GetInjectionCallbackListName_UseDoubleUnderscorePrefix_AvoidsMemberNameCollision()
     {
-        // 生成名必须以 __ 开头，避免与用户字段（_xxx）或局部变量冲突
+        // Generated name must start with __ to avoid collision with user fields (_xxx) or local variables
         var result = NamingHelper.GetInjectionCallbackListName("_service");
         Assert.StartsWith("__", result);
         Assert.EndsWith("_callbacks", result);
@@ -127,14 +127,14 @@ public class NamingHelperTests
     public void GetInjectionCallbackListName_EmptyMember_ReturnsFallback()
     {
         var result = NamingHelper.GetInjectionCallbackListName("_");
-        // 前导下划线全剥离后为空 → 使用兜底值
+        // After stripping all leading underscores, it's empty → use fallback value
         Assert.Equal("__callbacks", result);
     }
 
     [Fact]
     public void GetInjectionCallbackListName_DifferentMembers_ProduceDifferentNames()
     {
-        // 确保两个不同字段的回调列表名不同（无碰撞）
+        // Ensure two different fields produce different callback list names (no collision)
         var a = NamingHelper.GetInjectionCallbackListName("_serviceA");
         var b = NamingHelper.GetInjectionCallbackListName("_serviceB");
         Assert.NotEqual(a, b);
@@ -143,7 +143,7 @@ public class NamingHelperTests
     [Fact]
     public void GetInjectionCallbackListName_SameMember_IsDeterministic()
     {
-        // 同一字段多次调用应返回相同值
+        // Same field called multiple times should return the same value
         var first = NamingHelper.GetInjectionCallbackListName("_config");
         var second = NamingHelper.GetInjectionCallbackListName("_config");
         Assert.Equal(first, second);
@@ -174,7 +174,7 @@ public class NamingHelperTests
     }
 
     // ============================================================
-    //  一致性约束：不同方法对同一输入产生独立不冲突的名称
+    //  Consistency constraint: different methods produce distinct non-conflicting names for the same input
     // ============================================================
 
     [Fact]
@@ -188,7 +188,7 @@ public class NamingHelperTests
         var failFn = NamingHelper.GetFailureCallbackMethodName(member);
         var readyFlag = NamingHelper.GetInjectionReadyFieldName(member);
 
-        // 所有生成名均不相同
+        // All generated names are distinct
         var names = new[] { pascal, callbackList, readyFn, failFn, readyFlag };
         Assert.Equal(names.Length, names.Distinct().Count());
     }

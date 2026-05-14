@@ -8,12 +8,12 @@ using GodotSharpDI.SourceGenerator.Shared;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
 
 /// <summary>
-/// 为 [Provide] 标记的成员生成服务提供代码
+/// Generate service provision code for [Provide] marked members
 /// </summary>
 internal static class ServiceProvisionPhase
 {
     /// <summary>
-    /// 为单个成员生成服务提供调用语句。
+    /// Generate service provision call statement for a single member.
     /// </summary>
     public static void GenerateMemberProvide(
         CodeFormatter f,
@@ -27,7 +27,7 @@ internal static class ServiceProvisionPhase
         var memberAccess = GetMemberAccess(member, instancePrefix);
         var implType = member.MemberType.ToFullyQualifiedName();
 
-        f.AppendLine($"// 提供服务: {implType}");
+        f.AppendLine($"// Provide service: {implType}");
 
         if (member.IsAsync)
         {
@@ -49,7 +49,7 @@ internal static class ServiceProvisionPhase
     }
 
     /// <summary>
-    /// 生成所有异步提供辅助方法。
+    /// Generate all async provider helper methods.
     /// </summary>
     public static void GenerateAsyncProviderMethods(
         CodeFormatter f,
@@ -62,7 +62,7 @@ internal static class ServiceProvisionPhase
     }
 
     /// <summary>
-    /// 生成单个异步提供方法（实例方法）。
+    /// Generate a single async provider method (instance method).
     /// </summary>
     private static void GenerateAsyncProviderMethod(
         CodeFormatter f,
@@ -81,19 +81,19 @@ internal static class ServiceProvisionPhase
         );
         f.BeginBlock();
         {
-            // OperationCanceledException 先于 Exception 捕获，确保取消静默退出
+            // OperationCanceledException is caught before Exception to ensure silent exit on cancellation
             f.AppendLine("try");
             f.BeginBlock();
             {
                 f.AppendLine("var result = await task;");
                 f.AppendLine();
-                // await 返回后检查 token（ExitTree 已取消）
+                // Check token after await returns (ExitTree has cancelled)
                 f.AppendLine("ct.ThrowIfCancellationRequested();");
                 f.AppendLine();
                 f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
                 f.BeginBlock();
                 {
-                    // CallDeferred 排队期间 token 可能再次被取消，进入后检查一次
+                    // Token may be cancelled again during CallDeferred queuing, check once after entering
                     f.AppendLine("if (ct.IsCancellationRequested) return;");
                     f.AppendLine(
                         $"scope.ProvideService<{implType}>(result, \"{providerTypeName}\");"
@@ -105,7 +105,7 @@ internal static class ServiceProvisionPhase
             f.AppendLine("catch (global::System.OperationCanceledException)");
             f.BeginBlock();
             {
-                // 节点已退出场景树，静默退出，不调用 ProvideService
+                // Node exited scene tree, silent exit, do not call ProvideService
                 f.AppendLine(
                     "// Node exited scene tree – silent cancellation, do not call ProvideService"
                 );
@@ -138,9 +138,9 @@ internal static class ServiceProvisionPhase
     }
 
     /// <summary>
-    /// 生成同步服务提供代码。
-    ///   成功 → scope.ProvideService&lt;T&gt;(instance, providerType)
-    ///   异常 → scope.ProvideService&lt;T&gt;(null, providerType)
+    /// Generate synchronous service provision code.
+    ///   Success → scope.ProvideService&lt;T&gt;(instance, providerType)
+    ///   Exception → scope.ProvideService&lt;T&gt;(null, providerType)
     /// </summary>
     private static void GenerateSyncProvide(
         CodeFormatter f,
@@ -169,7 +169,7 @@ internal static class ServiceProvisionPhase
     }
 
     /// <summary>
-    /// 获取成员访问表达式。
+    /// Get member access expression.
     /// </summary>
     private static string GetMemberAccess(MemberInfo member, string instancePrefix)
     {

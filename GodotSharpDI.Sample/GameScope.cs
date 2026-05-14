@@ -1,15 +1,15 @@
 // =============================================================================
 // GameScope.cs
 //
-// 演示功能：
-//   1. [Modules] — 声明此 Scope 管理哪些 Host
-//   2. IScope — DI 容器接口，管理服务生命周期和依赖解析
-//   3. _Notification 声明 — 框架接管生命周期的必要声明
+// Demonstrated features:
+//   1. [Modules] — Declares which Hosts this Scope manages
+//   2. IScope — DI container interface, manages service lifecycle and dependency resolution
+//   3. _Notification declaration — Required declaration for framework to take over lifecycle
 //
-// 注意：
-//   - [Modules] 中列出的 Host 类型必须在此 Scope 的场景子树中作为节点存在
-//   - 每个服务类型在同一 Scope 中只能有一个 Provider
-//   - 子 Scope（如 ChildScope）可以继承父 Scope 的服务
+// Notes:
+//   - Host types listed in [Modules] must exist as nodes in this Scope's scene subtree
+//   - Each service type can only have one Provider in the same Scope
+//   - Child Scopes (like ChildScope) can inherit services from parent Scope
 // =============================================================================
 
 using Godot;

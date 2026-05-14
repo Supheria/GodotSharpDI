@@ -4,6 +4,6 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// 模块信息
+/// Module information
 /// </summary>
 internal sealed record ModulesInfo(ImmutableArray<INamedTypeSymbol> Hosts);

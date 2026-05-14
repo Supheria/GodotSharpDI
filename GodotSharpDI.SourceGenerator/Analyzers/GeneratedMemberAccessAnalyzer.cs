@@ -10,56 +10,56 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace GodotSharpDI.SourceGenerator.Analyzers;
 
 /// <summary>
-/// 分析器：检测对框架生成的成员（方法、字段、属性）的手动访问
-/// 使用 CachedSymbols 优化符号查找
+/// Analyzer: Detects manual access to framework-generated members (methods, fields, properties)
+/// Uses CachedSymbols to optimize symbol lookup
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
 {
     /// <summary>
-    /// 禁止手动调用的方法名称列表
+    /// List of method names that are forbidden to call manually
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenMethodNames = ImmutableHashSet.Create(
-        // Service 工厂方法
+        // Service factory methods
         "CreateService",
-        // Node DI 生成的私有方法
+        // Node DI generated private methods
         "GetServiceScope",
         "AttachToScope",
         "UnattachToScope",
-        // User 生成的私有方法
+        // User generated private methods
         "ResolveUserDependencies",
         "OnDependencyResolved",
-        // Host 生成的私有方法
+        // Host generated private methods
         "AttachHostServices",
         "UnattachHostServices",
-        // Scope 生成的私有方法
+        // Scope generated private methods
         "GetParentScope",
         "InstantiateScopeSingletons",
         "DisposeScopeSingletons",
         "CheckWaitList",
-        // Scope 实现的IScope方法
+        // Scope implemented IScope methods
         "ResolveDependency",
         "RegisterService",
         "UnregisterService"
     );
 
     /// <summary>
-    /// 禁止手动访问的字段名称列表
+    /// List of field names that are forbidden to access manually
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenFieldNames = ImmutableHashSet.Create(
-        // Node DI 生成的字段
+        // Node DI generated fields
         "__parentScope",
-        // Scope 生成的字段
+        // Scope generated fields
         "ServiceTypes",
         "_services",
         "_waiters",
         "_disposableSingletons",
-        // User IDependenciesResolved 生成的字段
+        // User IDependenciesResolved generated fields
         "_unresolvedDependencies"
     );
 
     /// <summary>
-    /// 禁止手动访问的属性名称列表（当前为空，预留扩展）
+    /// List of property names that are forbidden to access manually (currently empty, reserved for extension)
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenPropertyNames =
         ImmutableHashSet<string>.Empty;
@@ -77,18 +77,18 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        // 使用 CompilationStartAction 初始化 CachedSymbols
+        // Use CompilationStartAction to initialize CachedSymbols
         context.RegisterCompilationStartAction(compilationContext =>
         {
             try
             {
                 var cachedSymbols = new CachedSymbols(compilationContext.Compilation);
 
-                // 如果 IScope 不存在，说明项目没有使用 GodotSharpDI
+                // If IScope doesn't exist, the project doesn't use GodotSharpDI
                 if (cachedSymbols.IScope == null)
                     return;
 
-                // 注册语法节点分析
+                // Register syntax node analysis
                 compilationContext.RegisterSyntaxNodeAction(
                     ctx => SafeAnalyze(ctx, cachedSymbols, AnalyzeInvocation),
                     SyntaxKind.InvocationExpression
@@ -108,13 +108,13 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
             }
             catch (Exception)
             {
-                // 初始化失败，静默忽略
+                // Initialization failed, silently ignore
             }
         });
     }
 
     /// <summary>
-    /// 安全包装器：捕获分析过程中的异常，避免分析器崩溃
+    /// Safe wrapper: Catches exceptions during analysis to prevent analyzer crashes
     /// </summary>
     private static void SafeAnalyze(
         SyntaxNodeAnalysisContext context,
@@ -128,13 +128,13 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         }
         catch (OperationCanceledException)
         {
-            // 取消操作是正常的，不需要报告
+            // Cancellation is normal, no need to report
             throw;
         }
         catch (Exception)
         {
-            // 分析器不应该崩溃
-            // 静默忽略错误，因为分析器失败不应该阻止编译
+            // Analyzer should not crash
+            // Silently ignore errors because analyzer failure should not prevent compilation
         }
     }
 
@@ -142,27 +142,27 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
 
-        // 获取被调用的方法符号
+        // Get the method symbol being called
         var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation, context.CancellationToken);
         if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
             return;
 
-        // 检查方法名是否在禁止列表中
+        // Check if method name is in forbidden list
         if (!ForbiddenMethodNames.Contains(methodSymbol.Name))
             return;
 
-        // 检查调用位置是否在生成的代码区域中
+        // Check if call location is in generated code region
         if (IsInGeneratedCodeRegion(invocation))
             return;
 
-        // 检查是否是对生成方法的调用
+        // Check if it's a call to a generated method
         if (!IsGeneratedMethodCall(methodSymbol, cachedSymbols, context.SemanticModel))
             return;
 
-        // 获取调用表达式（this.Method() 或 obj.Method()）
+        // Get the call expression (this.Method() or obj.Method())
         string calledOn = GetCalledOnExpression(invocation);
 
-        // 报告诊断
+        // Report diagnostic
         var diagnostic = Diagnostic.Create(
             DiagnosticDescriptors.ManualCallGeneratedMethod,
             invocation.GetLocation(),
@@ -177,7 +177,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         var memberAccess = (MemberAccessExpressionSyntax)context.Node;
 
-        // 获取被访问的成员符号
+        // Get the member symbol being accessed
         var symbolInfo = context.SemanticModel.GetSymbolInfo(
             memberAccess,
             context.CancellationToken
@@ -185,7 +185,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         if (symbolInfo.Symbol is null)
             return;
 
-        // 检查是否是方法调用（由 AnalyzeInvocation 处理）
+        // Check if it's a method call (handled by AnalyzeInvocation)
         if (symbolInfo.Symbol is IMethodSymbol)
             return;
 
@@ -201,30 +201,30 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         var identifier = (IdentifierNameSyntax)context.Node;
 
-        // 如果是成员访问表达式的右侧（Name 部分），跳过（由 AnalyzeMemberAccess 处理）
+        // If it's the right side of a member access expression (Name part), skip (handled by AnalyzeMemberAccess)
         if (
             identifier.Parent is MemberAccessExpressionSyntax memberAccess
             && memberAccess.Name == identifier
         )
             return;
 
-        // 如果是调用表达式，跳过（由 AnalyzeInvocation 处理）
+        // If it's an invocation expression, skip (handled by AnalyzeInvocation)
         if (identifier.Parent is InvocationExpressionSyntax)
             return;
 
-        // 获取符号
+        // Get symbol
         var symbolInfo = context.SemanticModel.GetSymbolInfo(identifier, context.CancellationToken);
         if (symbolInfo.Symbol is null)
             return;
 
-        // 检查是否是方法（由 AnalyzeInvocation 处理）
+        // Check if it's a method (handled by AnalyzeInvocation)
         if (symbolInfo.Symbol is IMethodSymbol)
             return;
 
-        // 确定访问表达式
+        // Determine access expression
         string accessedOn = "this";
 
-        // 如果标识符是成员访问表达式的左侧（Expression 部分）
+        // If identifier is the left side of a member access expression (Expression part)
         if (identifier.Parent is MemberAccessExpressionSyntax ma && ma.Expression == identifier)
         {
             accessedOn = "this";
@@ -237,11 +237,11 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         var assignment = (AssignmentExpressionSyntax)context.Node;
 
-        // 检查是否在生成的代码区域中
+        // Check if in generated code region
         if (IsInGeneratedCodeRegion(assignment))
             return;
 
-        // 获取赋值左侧的符号
+        // Get symbol of the left side of assignment
         var symbolInfo = context.SemanticModel.GetSymbolInfo(
             assignment.Left,
             context.CancellationToken
@@ -249,22 +249,22 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         if (symbolInfo.Symbol is not IFieldSymbol fieldSymbol)
             return;
 
-        // 检查字段名是否匹配 IsXxxInjectionReady 模式
+        // Check if field name matches IsXxxInjectionReady pattern
         if (!IsInjectionReadyFieldName(fieldSymbol.Name))
             return;
 
-        // 检查字段是否真的是生成的字段
+        // Check if the field is really a generated field
         if (!IsGeneratedField(fieldSymbol))
             return;
 
-        // 获取访问表达式
+        // Get access expression
         string accessedOn = "this";
         if (assignment.Left is MemberAccessExpressionSyntax memberAccess)
         {
             accessedOn = memberAccess.Expression.ToString();
         }
 
-        // 报告诊断
+        // Report diagnostic
         var diagnostic = Diagnostic.Create(
             DiagnosticDescriptors.ManualSetInjectionReadyField,
             assignment.GetLocation(),
@@ -287,32 +287,32 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         string accessedOn
     )
     {
-        // 检查是否在生成的代码区域中
+        // Check if in generated code region
         if (IsInGeneratedCodeRegion(context.Node))
             return;
 
         DiagnosticDescriptor? descriptor = null;
         string memberName = symbol.Name;
 
-        // 检查字段访问
+        // Check field access
         if (symbol is IFieldSymbol fieldSymbol)
         {
             if (!ForbiddenFieldNames.Contains(fieldSymbol.Name))
                 return;
 
-            // 检查字段是否真的是生成的字段
+            // Check if the field is really a generated field
             if (!IsGeneratedField(fieldSymbol))
                 return;
 
             descriptor = DiagnosticDescriptors.ManualAccessGeneratedField;
         }
-        // 检查属性访问
+        // Check property access
         else if (symbol is IPropertySymbol propertySymbol)
         {
             if (!ForbiddenPropertyNames.Contains(propertySymbol.Name))
                 return;
 
-            // 检查属性定义是否在生成的文件中
+            // Check if property definition is in generated file
             var propertyLocation = propertySymbol.Locations.FirstOrDefault();
             if (propertyLocation == null || !IsGeneratedFile(propertyLocation))
                 return;
@@ -324,7 +324,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // 报告诊断
+        // Report diagnostic
         var diagnostic = Diagnostic.Create(descriptor, location, memberName, accessedOn);
         context.ReportDiagnostic(diagnostic);
     }
@@ -333,14 +333,14 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         try
         {
-            // 方法1: 检查字段定义位置
+            // Method 1: Check field definition location
             var fieldLocation = fieldSymbol.Locations.FirstOrDefault();
             if (fieldLocation != null && IsGeneratedFile(fieldLocation))
             {
                 return true;
             }
 
-            // 方法2: 检查字段的声明语法
+            // Method 2: Check field's declaring syntax
             foreach (var declaringSyntax in fieldSymbol.DeclaringSyntaxReferences)
             {
                 var syntax = declaringSyntax.GetSyntax();
@@ -363,7 +363,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         }
         catch
         {
-            // 如果检查失败，保守处理：不报告诊断
+            // If check fails, conservatively: don't report diagnostic
             return false;
         }
     }
@@ -372,7 +372,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         try
         {
-            // 检查是否在生成的文件中
+            // Check if in generated file
             if (classDecl.SyntaxTree?.FilePath != null)
             {
                 var filePath = classDecl.SyntaxTree.FilePath;
@@ -385,7 +385,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
                 }
             }
 
-            // 检查是否有 GeneratedCode 属性
+            // Check for GeneratedCode attribute
             if (
                 classDecl.AttributeLists.Any(attrList =>
                     attrList.Attributes.Any(attr => attr.Name.ToString().Contains("GeneratedCode"))
@@ -395,7 +395,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
                 return true;
             }
 
-            // 检查是否只有字段声明
+            // Check if only field declarations
             var members = classDecl.Members;
             if (members.Count > 0 && members.All(m => m is FieldDeclarationSyntax))
             {
@@ -450,14 +450,14 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     {
         try
         {
-            // 情况1: 直接调用生成的私有方法
+            // Case 1: Direct call to generated private method
             var methodLocation = methodSymbol.Locations.FirstOrDefault();
             if (methodLocation != null && IsGeneratedFile(methodLocation))
             {
                 return true;
             }
 
-            // 情况2: 检查方法声明是否在生成的 partial class 中
+            // Case 2: Check if method declaration is in generated partial class
             foreach (var declaringSyntax in methodSymbol.DeclaringSyntaxReferences)
             {
                 var syntax = declaringSyntax.GetSyntax();
@@ -471,7 +471,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
                 }
             }
 
-            // 情况3: 通过接口调用生成的实现方法
+            // Case 3: Call to generated implementation method via interface
             if (methodSymbol.ContainingType != null)
             {
                 var containingType = methodSymbol.ContainingType;

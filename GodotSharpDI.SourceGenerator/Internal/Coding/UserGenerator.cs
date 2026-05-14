@@ -10,16 +10,16 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// User 代码生成器
+/// User code generator
 /// </summary>
 internal static class UserGenerator
 {
     public static void Generate(SourceProductionContext context, TypeNode node)
     {
-        // 生成基础 DI 文件
+        // Generate base DI file
         NodeLifeCycleGenerator.Generate(context, node.ValidatedTypeInfo);
 
-        // 生成依赖注入部分的代码
+        // Generate dependency injection code
         InjectionGenerator.Generate(context, node);
     }
 }

@@ -3,6 +3,6 @@
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// 参数信息
+/// Parameter information
 /// </summary>
 internal sealed record ParameterInfo(IParameterSymbol Symbol, Location Location, ITypeSymbol Type);

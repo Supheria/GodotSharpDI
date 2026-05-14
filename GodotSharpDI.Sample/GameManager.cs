@@ -1,16 +1,16 @@
 // =============================================================================
 // GameManager.cs
 //
-// 演示功能：
-//   1. [Host] — 标记类为服务提供者（必须是 Node 子类）
-//   2. [Inject] — 字段注入，消费其他 Host 提供的服务
-//   3. [Inject(FailureCallback = true)] — 注入失败时的回调处理
-//   4. [Provide] 属性 — 同步提供服务（暴露接口类型）
-//   5. [Provide] 方法 — 异步提供服务（返回 Task<T>）
-//   6. [Provide].WaitFor — 等待依赖注入完成后再提供服务
-//   7. [Provide].ExposedTypes — 将实现类型暴露为接口类型
-//   8. IDependenciesResolved — 所有 [Inject] 成员解析完成后的回调
-//   9. IsAllDependenciesReady — 检查所有注入是否成功（带 null 安全提示）
+// Demonstrated features:
+//   1. [Host] — Marks a class as a service provider (must be a Node subclass)
+//   2. [Inject] — Field injection, consumes services provided by other Hosts
+//   3. [Inject(FailureCallback = true)] — Callback handling when injection fails
+//   4. [Provide] property — Synchronously provides a service (exposes interface type)
+//   5. [Provide] method — Asynchronously provides a service (returns Task<T>)
+//   6. [Provide].WaitFor — Waits for dependency injection to complete before providing service
+//   7. [Provide].ExposedTypes — Exposes implementation type as interface type
+//   8. IDependenciesResolved — Callback after all [Inject] members are resolved
+//   9. IsAllDependenciesReady — Checks if all injections succeeded (with null safety hints)
 // =============================================================================
 
 using System.Threading.Tasks;
@@ -22,31 +22,31 @@ namespace GodotSharpDI.Sample;
 [Host]
 public sealed partial class GameManager : Node, IGameState, IDependenciesResolved
 {
-    // ── [Inject] 基本用法 ──────────────────────────────────────
-    // 消费 PlayerStatsCenter（另一个 Host）提供的服务。
-    // FailureCallback = true 表示注入失败时会调用 OnXxxInjectionFailed()。
+    // ── [Inject] Basic usage ──────────────────────────────────────
+    // Consumes services provided by PlayerStatsCenter (another Host).
+    // FailureCallback = true means OnXxxInjectionFailed() will be called when injection fails.
 
     [Inject(FailureCallback = true)]
     private PlayerStatsCenter _playerStatsCenter = default!;
 
-    // ── [Inject] 消费纯 C# 服务 ────────────────────────────────
-    // PlayerStatsService 是纯 C# 类（非 Node），由其他 Host 的 [Provide] 暴露。
+    // ── [Inject] Consuming pure C# services ────────────────────────
+    // PlayerStatsService is a pure C# class (not a Node), exposed by another Host's [Provide].
 
     [Inject]
     private IPlayerStats _playerStats = default!;
 
-    // ── [Provide] 属性 — 同步提供 ──────────────────────────────
-    // 将自身暴露为 IGameState 接口。
-    // ExposedTypes 允许将一个实现类型暴露为多个接口。
+    // ── [Provide] property — Synchronous provision ──────────────────────
+    // Exposes self as IGameState interface.
+    // ExposedTypes allows exposing an implementation type as multiple interfaces.
 
     [Provide(ExposedTypes = [typeof(IGameState)])]
     public GameManager Self => this;
 
-    // ── [Provide] 方法 — 异步提供 + WaitFor ────────────────────
-    // 返回 Task<PlayerStatsService>，框架自动处理异步流程。
-    // WaitFor = [nameof(_playerStatsCenter)] 表示：
-    //   等待 _playerStatsCenter 注入完成（成功或失败）后，才调用此方法。
-    // 这确保了 GetPlayerStatsService() 中可以安全使用 _playerStatsCenter。
+    // ── [Provide] method — Async provision + WaitFor ────────────────────
+    // Returns Task<PlayerStatsService>, framework handles async flow automatically.
+    // WaitFor = [nameof(_playerStatsCenter)] means:
+    //   Wait for _playerStatsCenter injection to complete (success or failure) before calling this method.
+    // This ensures _playerStatsCenter can be safely used in GetPlayerStatsService().
 
     [Provide(
         ExposedTypes = [typeof(IPlayerStats)],
@@ -54,17 +54,17 @@ public sealed partial class GameManager : Node, IGameState, IDependenciesResolve
     )]
     public async Task<PlayerStatsService> GetPlayerStatsService()
     {
-        // 异步创建服务实例，等待 _playerStatsCenter 注入完成后才执行
+        // Asynchronously create service instance, waits for _playerStatsCenter injection to complete before executing
         return await Task.Run(() => new PlayerStatsService());
     }
 
-    // ── IGameState 接口实现 ────────────────────────────────────
+    // ── IGameState interface implementation ────────────────────────────
 
     public GameStateType CurrentState { get; set; }
 
-    // ── IDependenciesResolved 回调 ─────────────────────────────
-    // 当所有 [Inject] 成员都解析完成（成功或失败）后调用。
-    // 使用 IsAllDependenciesReady 检查是否全部注入成功。
+    // ── IDependenciesResolved callback ─────────────────────────────
+    // Called when all [Inject] members are resolved (success or failure).
+    // Use IsAllDependenciesReady to check if all injections succeeded.
 
     public void OnDependenciesResolved()
     {
@@ -78,18 +78,18 @@ public sealed partial class GameManager : Node, IGameState, IDependenciesResolve
         }
     }
 
-    // ── [Inject(FailureCallback)] 的回调方法 ───────────────────
-    // 方法名规则：On{成员名}InjectionFailed()
-    // 当 _playerStatsCenter 注入失败时由框架调用。
+    // ── [Inject(FailureCallback)] callback method ───────────────────
+    // Method naming rule: On{memberName}InjectionFailed()
+    // Called by framework when _playerStatsCenter injection fails.
 
     partial void OnPlayerStatsCenterInjectionFailed()
     {
         GD.Print("[GameManager] PlayerStatsCenter injection failed!");
     }
 
-    // ── _Notification 声明 ─────────────────────────────────────
-    // 框架要求所有 [Host]/[User]/[Scope] 必须声明此方法，
-    // 用于接管 Godot 的生命周期通知（EnterTree/Ready/ExitTree）。
+    // ── _Notification declaration ─────────────────────────────────────
+    // Framework requires all [Host]/[User]/[Scope] to declare this method,
+    // used to take over Godot's lifecycle notifications (EnterTree/Ready/ExitTree).
 
     public override partial void _Notification(int what);
 }

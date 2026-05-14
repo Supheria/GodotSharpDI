@@ -5,14 +5,14 @@ namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 internal static class DisplayFormats
 {
     private static readonly SymbolDisplayFormat TypeFullQualified = new(
-        // 启用 global::
+        // Enable global::
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
-        // 完全限定名（包含命名空间 + 外部类型 + 当前类型）
+        // Fully qualified name (including namespace + outer type + current type)
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
-        // 泛型类型参数
+        // Generic type parameters
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters
             | SymbolDisplayGenericsOptions.IncludeVariance,
-        // 不使用别名（int → System.Int32）
+        // Don't use aliases (int → System.Int32)
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers
     );
 

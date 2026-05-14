@@ -29,7 +29,7 @@ internal static class RawClassSemanticInfoFactory
         if (declaredSymbol is not INamedTypeSymbol symbol)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
-        // 检查是否有相关特性
+        // Check for relevant attributes
         var hasHost = symbol.HasAttribute(symbols.HostAttribute);
         var hasUser = symbol.HasAttribute(symbols.UserAttribute);
         var hasModules = symbol.HasAttribute(symbols.ModulesAttribute);
@@ -39,12 +39,12 @@ internal static class RawClassSemanticInfoFactory
         var isNode = symbols.IsNode(symbol);
         var isPartial = syntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword));
 
-        // 如果没有任何 DI 相关特性且没有实现 IScope，跳过
+        // Skip if no DI-related attributes and does not implement IScope
         if (!hasHost && !hasUser && !hasModules && !implementsIScope)
             return (null, ImmutableArray<Diagnostic>.Empty);
 
-        // 收集成员：字段、属性和普通方法
-        // 排除：构造函数、属性访问器（get/set）、编译器生成的方法
+        // Collect members: fields, properties, and ordinary methods
+        // Exclude: constructors, property accessors (get/set), compiler-generated methods
         var members = symbol
             .GetMembers()
             .Where(m =>
@@ -54,7 +54,7 @@ internal static class RawClassSemanticInfoFactory
 
                 if (m.Kind == SymbolKind.Method && m is IMethodSymbol method)
                 {
-                    // 排除构造函数、属性访问器和编译器生成的特殊方法
+                    // Exclude constructors, property accessors, and compiler-generated special methods
                     return method.MethodKind == MethodKind.Ordinary;
                 }
 
