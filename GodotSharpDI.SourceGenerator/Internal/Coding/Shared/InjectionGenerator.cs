@@ -299,25 +299,38 @@ internal static class InjectionGenerator
                         f.AppendLine("if (instance is not null)");
                         f.BeginBlock();
                         {
+                            // Try-catch for assignment
                             f.BeginTryCatch();
                             {
                                 var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
                                 f.AppendLine($"{memberName} ??= instance;");
                                 f.AppendLine($"{fieldName} = true;");
-                                if (member.HasReadyCallback)
+                            }
+                            f.CatchBlock("ex");
+                            {
+                                f.AppendLine(
+                                    $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\", \"{GeneratedStrings.ErrInjectionAssignFailed}\");"
+                                );
+                            }
+                            f.EndTryCatch();
+
+                            // Separate try-catch for ready callback
+                            if (member.HasReadyCallback)
+                            {
+                                f.BeginTryCatch();
                                 {
                                     f.AppendLine(
                                         $"{NamingHelper.GetReadyCallbackMethodName(memberName)}(instance);"
                                     );
                                 }
+                                f.CatchBlock("ex");
+                                {
+                                    f.AppendLine(
+                                        $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\", \"{GeneratedStrings.ErrInjectionReadyCallbackFailed}\");"
+                                    );
+                                }
+                                f.EndTryCatch();
                             }
-                            f.CatchBlock("ex");
-                            {
-                                f.AppendLine(
-                                    $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\");"
-                                );
-                            }
-                            f.EndTryCatch();
                         }
                         f.EndBlock();
                         if (member.HasFailureCallback)
@@ -325,11 +338,19 @@ internal static class InjectionGenerator
                             f.AppendLine("else");
                             f.BeginBlock();
                             {
+                                f.BeginTryCatch();
                                 {
                                     f.AppendLine(
                                         $"{NamingHelper.GetFailureCallbackMethodName(memberName)}();"
                                     );
                                 }
+                                f.CatchBlock("ex");
+                                {
+                                    f.AppendLine(
+                                        $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\", \"{GeneratedStrings.ErrInjectionFailedCallbackFailed}\");"
+                                    );
+                                }
+                                f.EndTryCatch();
                             }
                             f.EndBlock();
                         }
@@ -365,12 +386,12 @@ internal static class InjectionGenerator
                 f.AppendLine();
 
                 // PrintError local function
-                f.AppendLine("void PrintError(string exMsg, string memberName, string memberType)");
+                f.AppendLine("void PrintError(string exMsg, string memberName, string memberType, string errorContext)");
                 f.BeginBlock();
                 {
                     f.BeginStringBuilderAppend("errorMessage", true);
                     {
-                        f.StringBuilderAppendLine(GeneratedStrings.ErrInjectionAssignFailed);
+                        f.StringBuilderAppendLine("{errorContext}");
                         f.StringBuilderAppendLine($"  Type: {validatedType.Symbol.Name}");
                         f.StringBuilderAppendLine("  Member: {memberName}");
                         f.StringBuilderAppendLine("  Member Type: {memberType}");

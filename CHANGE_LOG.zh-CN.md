@@ -50,6 +50,7 @@ public partial class GameScope : Node, IScope { }
 
 - `ScopeInterfaceGenerator`：强制类型转换改为 `as` + null 检查，类型不匹配时报告详细错误
 - `InjectionGenerator`：`ResetInjectionState` 现在清除注入字段值，修复节点重新进入场景树时 `??=` 跳过注入的问题
+- `InjectionGenerator`：将单个 try-catch 块拆分为赋值、`OnXxxInjectionReady` 回调和 `OnXxxInjectionFailed` 回调各自的独立 try-catch 块，更好地区分异常来源
 - `SourceEmitter`：`catch` 现在排除 `OperationCanceledException`，避免增量生成器正常取消时报告虚假错误
 - `WaitForPhase`：本地函数名现在使用 `NamingHelper.ToPascalCase` 统一命名
 - `ServiceProvisionPhase`：`ArgumentOutOfRangeException` 现在包含实际的 `MemberKind` 值

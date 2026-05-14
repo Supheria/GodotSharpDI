@@ -47,6 +47,7 @@ All code comments across the project have been translated from Chinese to Englis
 **Generated Code Quality**:
 - `ScopeInterfaceGenerator`: Replaced forced type casts with `as` + null check, reports detailed error on type mismatch
 - `InjectionGenerator`: `ResetInjectionState` now clears injected field values, fixes `??=` skipping injection when node re-enters scene tree
+- `InjectionGenerator`: Split single try-catch block into separate blocks for assignment, `OnXxxInjectionReady` callback, and `OnXxxInjectionFailed` callback, enabling better exception source distinction
 - `SourceEmitter`: `catch` now excludes `OperationCanceledException`, prevents false errors during normal incremental generator cancellation
 - `WaitForPhase`: Local function names now use `NamingHelper.ToPascalCase` for consistent naming
 - `ServiceProvisionPhase`: `ArgumentOutOfRangeException` now includes actual `MemberKind` value

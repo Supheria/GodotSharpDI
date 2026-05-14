@@ -25,6 +25,12 @@ internal static class GeneratedStrings
     public const string ErrInjectionAssignFailed =
         "[GodotSharpDI] Failed to assign injected value.";
 
+    // ─── Callback errors ─────────────────────────────────────────────
+    public const string ErrInjectionReadyCallbackFailed =
+        "[GodotSharpDI] OnXxxInjectionReady callback threw an exception.";
+    public const string ErrInjectionFailedCallbackFailed =
+        "[GodotSharpDI] OnXxxInjectionFailed callback threw an exception.";
+
     // ─── Structured log field labels ─────────────────────────────────
     public const string LabelCurrentScope   = "  Scope: ";
     public const string LabelServiceType    = "  Service Type: ";
