@@ -39,6 +39,12 @@ public static class GlobalNames
     public const string IDependenciesResolved =
         "global::GodotSharpDI.Abstractions.IDependenciesResolved";
 
+    // GodotSharp.DI.Runtime
+    public const string InjectionExecutor = "global::GodotSharpDI.Runtime.InjectionExecutor";
+    public const string SyncProviderRunner = "global::GodotSharpDI.Runtime.SyncProviderRunner";
+    public const string AsyncProviderRunner = "global::GodotSharpDI.Runtime.AsyncProviderRunner";
+    public const string WaitForCoordinator = "global::GodotSharpDI.Runtime.WaitForCoordinator";
+
     // ─── Generated code local variable name conventions ─────────────────────
     // Centralized management through constants, ensuring all generators use the same local variable names, avoiding string inconsistencies
     public const string LocalScope    = "scope";

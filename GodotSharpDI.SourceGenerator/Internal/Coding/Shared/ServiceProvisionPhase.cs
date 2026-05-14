@@ -62,7 +62,7 @@ internal static class ServiceProvisionPhase
     }
 
     /// <summary>
-    /// Generate a single async provider method (instance method).
+    /// Generate a single async provider method — delegates to AsyncProviderRunner.
     /// </summary>
     private static void GenerateAsyncProviderMethod(
         CodeFormatter f,
@@ -76,71 +76,29 @@ internal static class ServiceProvisionPhase
 
         f.AppendHiddenMethodCommentAndAttribute();
         f.AppendLine(
-            $"private async {GlobalNames.Task} {methodName}("
+            $"private {GlobalNames.Task} {methodName}("
                 + $"{taskTypeName} task, {GlobalNames.IScope} scope, global::System.Threading.CancellationToken ct)"
         );
         f.BeginBlock();
         {
-            // OperationCanceledException is caught before Exception to ensure silent exit on cancellation
-            f.AppendLine("try");
-            f.BeginBlock();
+            f.AppendLine($"return {GlobalNames.AsyncProviderRunner}.Run(");
+            f.BeginLevel();
             {
-                f.AppendLine("var result = await task;");
-                f.AppendLine();
-                // Check token after await returns (ExitTree has cancelled)
-                f.AppendLine("ct.ThrowIfCancellationRequested();");
-                f.AppendLine();
-                f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
-                f.BeginBlock();
-                {
-                    // Token may be cancelled again during CallDeferred queuing, check once after entering
-                    f.AppendLine("if (ct.IsCancellationRequested) return;");
-                    f.AppendLine(
-                        $"scope.ProvideService<{implType}>(result, \"{providerTypeName}\");"
-                    );
-                }
-                f.EndBlock(").CallDeferred();");
+                f.AppendLine("task,");
+                f.AppendLine($"(inst, pt) => scope.ProvideService<{implType}>(inst, pt),");
+                f.AppendLine($"\"{providerTypeName}\",");
+                f.AppendLine("ct,");
+                f.AppendLine($"{GlobalNames.GodotGD}.PrintErr,");
+                f.AppendLine($"action => {GlobalNames.GodotCallable}.From(action).CallDeferred());");
             }
-            f.EndBlock();
-            f.AppendLine("catch (global::System.OperationCanceledException)");
-            f.BeginBlock();
-            {
-                // Node exited scene tree, silent exit, do not call ProvideService
-                f.AppendLine(
-                    "// Node exited scene tree – silent cancellation, do not call ProvideService"
-                );
-            }
-            f.EndBlock();
-            f.AppendLine("catch (global::System.Exception ex)");
-            f.BeginBlock();
-            {
-                f.AppendLine("if (ct.IsCancellationRequested) return;");
-                f.AppendLine();
-                f.AppendLine(
-                    $"{GlobalNames.GodotGD}.PrintErr("
-                        + $"$\"[GodotSharpDI] Async provider for {implType} threw: {{ex.Message}}\");"
-                );
-
-                f.AppendLine($"{GlobalNames.GodotCallable}.From(() =>");
-                f.BeginBlock();
-                {
-                    f.AppendLine("if (ct.IsCancellationRequested) return;");
-                    f.AppendLine(
-                        $"scope.ProvideService<{implType}>(null, \"{providerTypeName}\");"
-                    );
-                }
-                f.EndBlock(").CallDeferred();");
-            }
-            f.EndBlock();
+            f.EndLevel();
         }
         f.EndBlock();
         f.AppendLine();
     }
 
     /// <summary>
-    /// Generate synchronous service provision code.
-    ///   Success → scope.ProvideService&lt;T&gt;(instance, providerType)
-    ///   Exception → scope.ProvideService&lt;T&gt;(null, providerType)
+    /// Generate synchronous service provision code — delegates to SyncProviderRunner.
     /// </summary>
     private static void GenerateSyncProvide(
         CodeFormatter f,
@@ -150,22 +108,14 @@ internal static class ServiceProvisionPhase
         string providerTypeName
     )
     {
-        f.BeginTryCatch();
+        f.AppendLine($"{GlobalNames.SyncProviderRunner}.Run<{implType}>(");
+        f.BeginLevel();
         {
-            f.AppendLine($"var instance = {memberAccess};");
-            f.AppendLine(
-                $"{scopeField}.ProvideService<{implType}>(instance, \"{providerTypeName}\");"
-            );
+            f.AppendLine($"() => {memberAccess},");
+            f.AppendLine($"(inst, pt) => {scopeField}.ProvideService<{implType}>(inst, pt),");
+            f.AppendLine($"\"{providerTypeName}\");");
         }
-        f.CatchBlock("ex");
-        {
-            f.AppendLine(
-                $"{GlobalNames.GodotGD}.PrintErr("
-                    + $"$\"[GodotSharpDI] Provider for {implType} threw: {{ex.Message}}\");"
-            );
-            f.AppendLine($"{scopeField}.ProvideService<{implType}>(null, \"{providerTypeName}\");");
-        }
-        f.EndTryCatch();
+        f.EndLevel();
     }
 
     /// <summary>

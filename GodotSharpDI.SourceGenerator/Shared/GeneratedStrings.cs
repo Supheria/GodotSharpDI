@@ -21,11 +21,11 @@ internal static class GeneratedStrings
     public const string WarnUnresolvedDependencies =
         "[GodotSharpDI] {0} has unresolved dependencies.";
 
-    // ─── Assignment error ────────────────────────────────────────────
+    // ─── Assignment / callback errors ────────────────────────────────
+    // Moved to GodotSharpDI.Runtime.ErrorReporter — these constants are kept
+    // only for backward compatibility with any external references.
     public const string ErrInjectionAssignFailed =
         "[GodotSharpDI] Failed to assign injected value.";
-
-    // ─── Callback errors ─────────────────────────────────────────────
     public const string ErrInjectionReadyCallbackFailed =
         "[GodotSharpDI] OnXxxInjectionReady callback threw an exception.";
     public const string ErrInjectionFailedCallbackFailed =

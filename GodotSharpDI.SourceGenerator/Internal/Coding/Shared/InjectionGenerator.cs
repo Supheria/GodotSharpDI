@@ -150,7 +150,7 @@ internal static class InjectionGenerator
                 var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
                 f.AppendLine($"{listName}.Clear();");
                 f.AppendLine($"{readyField} = false;");
-                f.AppendLine($"{member.Symbol.Name} = default;");
+                f.AppendLine($"{member.Symbol.Name} = default!;");
             }
         }
         f.EndBlock();
@@ -289,119 +289,52 @@ internal static class InjectionGenerator
             {
                 var memberType = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
+                var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
+                var listName = NamingHelper.GetInjectionCallbackListName(memberName);
+
                 f.AppendLine($"{GlobalNames.LocalScope}.ResolveDependency<{memberType}>(");
                 f.BeginLevel();
                 {
-                    // Parameter name "instance" corresponds to DependencyResolveGenerator.GenerateSetInjectionReady
                     f.AppendLine("instance =>");
                     f.BeginBlock();
                     {
-                        f.AppendLine("if (instance is not null)");
-                        f.BeginBlock();
+                        // Delegate to InjectionExecutor — all try-catch logic is in the runtime library
+                        f.AppendLine($"{GlobalNames.InjectionExecutor}.Execute(");
+                        f.BeginLevel();
                         {
-                            // Try-catch for assignment
-                            f.BeginTryCatch();
-                            {
-                                var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
-                                f.AppendLine($"{memberName} ??= instance;");
-                                f.AppendLine($"{fieldName} = true;");
-                            }
-                            f.CatchBlock("ex");
-                            {
-                                f.AppendLine(
-                                    $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\", \"{GeneratedStrings.ErrInjectionAssignFailed}\");"
-                                );
-                            }
-                            f.EndTryCatch();
+                            f.AppendLine($"v => {{ {memberName} ??= v; {fieldName} = true; }},");
+                            f.AppendLine("instance,");
 
-                            // Separate try-catch for ready callback
+                            // Ready callback
                             if (member.HasReadyCallback)
-                            {
-                                f.BeginTryCatch();
-                                {
-                                    f.AppendLine(
-                                        $"{NamingHelper.GetReadyCallbackMethodName(memberName)}(instance);"
-                                    );
-                                }
-                                f.CatchBlock("ex");
-                                {
-                                    f.AppendLine(
-                                        $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\", \"{GeneratedStrings.ErrInjectionReadyCallbackFailed}\");"
-                                    );
-                                }
-                                f.EndTryCatch();
-                            }
-                        }
-                        f.EndBlock();
-                        if (member.HasFailureCallback)
-                        {
-                            f.AppendLine("else");
-                            f.BeginBlock();
-                            {
-                                f.BeginTryCatch();
-                                {
-                                    f.AppendLine(
-                                        $"{NamingHelper.GetFailureCallbackMethodName(memberName)}();"
-                                    );
-                                }
-                                f.CatchBlock("ex");
-                                {
-                                    f.AppendLine(
-                                        $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\", \"{GeneratedStrings.ErrInjectionFailedCallbackFailed}\");"
-                                    );
-                                }
-                                f.EndTryCatch();
-                            }
-                            f.EndBlock();
-                        }
-                        f.AppendLine();
+                                f.AppendLine($"{NamingHelper.GetReadyCallbackMethodName(memberName)},");
+                            else
+                                f.AppendLine("null,");
 
-                        // Notify all WaitFor callbacks: injection result is ready (all executed on main thread)
-                        var listName = NamingHelper.GetInjectionCallbackListName(memberName);
-                        f.AppendLine("var resolved = instance is not null;");
-                        f.AppendLine($"foreach (var cb in {listName})");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine("cb.Invoke(resolved);");
-                        }
-                        f.EndBlock();
-                        f.AppendLine($"{listName}.Clear();");
+                            // Failure callback
+                            if (member.HasFailureCallback)
+                                f.AppendLine($"{NamingHelper.GetFailureCallbackMethodName(memberName)},");
+                            else
+                                f.AppendLine("null,");
 
-                        if (validatedType.ImplementsIDependenciesResolved)
-                        {
-                            f.AppendLine($"OnDependencyResolved<{memberType}>();");
+                            f.AppendLine($"{listName},");
+
+                            // onDependencyResolved
+                            if (validatedType.ImplementsIDependenciesResolved)
+                                f.AppendLine($"() => OnDependencyResolved<{memberType}>(),");
+                            else
+                                f.AppendLine("() => { },");
+
+                            f.AppendLine($"\"{validatedType.Symbol.Name}\",");
+                            f.AppendLine($"\"{memberName}\");");
                         }
+                        f.EndLevel();
                     }
                     f.EndBlock(",");
                     f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\"");
                 }
                 f.EndLevel();
                 f.AppendLine(");");
-            }
-
-            if (injectMembersList.Length > 0)
-            {
-                f.AppendLine();
-                f.AppendLine("return;");
-                f.AppendLine();
-
-                // PrintError local function
-                f.AppendLine("void PrintError(string exMsg, string memberName, string memberType, string errorContext)");
-                f.BeginBlock();
-                {
-                    f.BeginStringBuilderAppend("errorMessage", true);
-                    {
-                        f.StringBuilderAppendLine("{errorContext}");
-                        f.StringBuilderAppendLine($"  Type: {validatedType.Symbol.Name}");
-                        f.StringBuilderAppendLine("  Member: {memberName}");
-                        f.StringBuilderAppendLine("  Member Type: {memberType}");
-                        f.StringBuilderAppendLine("  Exception: {exMsg}");
-                    }
-                    f.EndStringBuilderAppend();
-                    f.AppendLine();
-                    f.PrintError("errorMessage.ToString()");
-                }
-                f.EndBlock();
             }
         }
         f.EndBlock();
