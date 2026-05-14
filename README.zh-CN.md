@@ -73,7 +73,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.3.2" />
+<PackageReference Include="GodotSharpDI" Version="1.3.3" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -140,7 +140,7 @@ public class PlayerStatsService : IPlayerStats
 ### 3. 定义 Scope
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager)])]
+[Modules(typeof(GameManager))]
 public partial class GameScope : Node, IScope
 {
     // 框架自动生成 IScope 实现
@@ -438,7 +438,7 @@ Scope 是 DI 容器，管理服务生命周期并协调依赖注入。
 #### 声明
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager), typeof(ServiceHost)])]
+[Modules(typeof(GameManager), typeof(ServiceHost))]
 public partial class GameScope : Node, IScope
 {
     // 框架生成所有实现
@@ -1264,11 +1264,12 @@ partial void OnDatabaseInjectionFailed()
 
 **参见**: [注入回调](#注入回调) 了解详细文档。
 
-#### `[Modules(Hosts = [...])]`
+#### `[Modules(...)]`
 定义哪些 Host 属于 Scope。
 
 ```csharp
-[Modules(Hosts = [typeof(Host1), typeof(Host2)])]
+// 构造函数参数（自 v1.3.3 起）
+[Modules(typeof(Host1), typeof(Host2))]
 public partial class GameScope : Node, IScope { }
 ```
 

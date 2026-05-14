@@ -8,7 +8,6 @@ namespace GodotSharpDI.Abstractions;
 /// </summary>
 /// <example>
 /// <code>
-/// // Using constructor parameters (recommended):
 /// [Modules(typeof(GameHost), typeof(PlayerHost))]
 /// public partial class GameScope : Node, IScope { }
 /// </code>

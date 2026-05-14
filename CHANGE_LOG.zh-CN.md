@@ -1,3 +1,76 @@
+# v1.3.3
+
+## ⚠️ 破坏性变更
+
+### `[Modules]` 特性语法变更
+
+命名属性语法 `Hosts = [...]` 已被移除。请改用新的构造函数参数语法。
+
+**迁移方式**：
+
+```csharp
+// ❌ 修改前（1.3.2）— 无法编译
+[Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
+public partial class GameScope : Node, IScope { }
+
+// ✅ 修改后（1.3.3）
+[Modules(typeof(GameManager), typeof(PlayerStatsCenter))]
+public partial class GameScope : Node, IScope { }
+```
+
+---
+
+## 🛠️ 内部改进
+
+### 统一代码注释为英文
+
+项目中所有代码注释已从中文翻译为英文，以提升国际协作和一致性：
+- 源生成器核心代码
+- 示例项目
+- 单元测试
+
+### 重建示例项目
+
+`GodotSharpDI.Sample` 已重建为完整的运行时参考示例，演示了：
+
+- `[Host]` / `[User]` / `[Scope]` 角色分离
+- `[Inject]` 和 `[Provide]` 使用模式
+- `WaitFor` 依赖排序
+- `FailureCallback` 和 `ReadyCallback` 注入回调
+- `IDependenciesResolved` 生命周期回调
+
+### 代码质量改进
+
+**Bug 修复**：
+- 修复 `CircularDependencyDetector.StrongConnect` 中节点在 early return 时未从栈中弹出的栈泄漏 Bug
+- 修复 `CrossHostCircularDependencyDetector` 多次调用时状态未重置的问题
+- 修复 `GeneratedMemberAccessAnalyzer` 中的 `CS8602` 空引用警告
+
+**生成代码质量**：
+
+- `ScopeInterfaceGenerator`：强制类型转换改为 `as` + null 检查，类型不匹配时报告详细错误
+- `InjectionGenerator`：`ResetInjectionState` 现在清除注入字段值，修复节点重新进入场景树时 `??=` 跳过注入的问题
+- `SourceEmitter`：`catch` 现在排除 `OperationCanceledException`，避免增量生成器正常取消时报告虚假错误
+- `WaitForPhase`：本地函数名现在使用 `NamingHelper.ToPascalCase` 统一命名
+- `ServiceProvisionPhase`：`ArgumentOutOfRangeException` 现在包含实际的 `MemberKind` 值
+- `ScopeGenerator`：`GenerateDependencyMonitoringMethods` 拆分为 5 个独立私有方法，提升可读性
+
+**性能与稳定性**：
+
+- 优化 `RawClassSemanticInfoFactory` 复用全局 `CachedSymbols` 实例
+- 提高性能测试阈值（1000ms → 3000ms）避免 CI 不稳定
+
+**文档与清理**：
+
+- 为 Abstractions 层所有属性类添加 XML 文档注释
+- 修复 `ClassValidator` 中硬编码的中文诊断消息
+- 移除 `NamingHelper` 中废弃的 `GetInjectionTcsName` 方法
+- 完善 `.gitignore`（添加 `.vs/`、`*.user`、`*.nupkg` 等）
+- 修正 `nuget-build.bat` 包名称显示
+- 测试项目添加 `LangVersion=latest`
+
+---
+
 # v1.3.2
 
 ## 功能增强

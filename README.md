@@ -73,7 +73,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.3.2" />
+<PackageReference Include="GodotSharpDI" Version="1.3.3" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -140,7 +140,7 @@ public class PlayerStatsService : IPlayerStats
 ### 3. Define a Scope
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager)])]
+[Modules(typeof(GameManager))]
 public partial class GameScope : Node, IScope
 {
     // Framework automatically generates IScope implementation
@@ -438,7 +438,7 @@ Scope is the DI container that manages service lifecycle and coordinates depende
 #### Declaration
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager), typeof(ServiceHost)])]
+[Modules(typeof(GameManager), typeof(ServiceHost))]
 public partial class GameScope : Node, IScope
 {
     // Framework generates all implementation
@@ -1264,11 +1264,12 @@ partial void OnDatabaseInjectionFailed()
 
 **See**: [Injection Callbacks](#injection-callbacks) for detailed documentation.
 
-#### `[Modules(Hosts = [...])]`
+#### `[Modules(...)]`
 Defines which Hosts belong to a Scope.
 
 ```csharp
-[Modules(Hosts = [typeof(Host1), typeof(Host2)])]
+// Constructor parameters (since v1.3.3)
+[Modules(typeof(Host1), typeof(Host2))]
 public partial class GameScope : Node, IScope { }
 ```
 

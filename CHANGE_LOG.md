@@ -1,3 +1,71 @@
+# v1.3.3
+
+## ⚠️ Breaking Changes
+
+### `[Modules]` Attribute Syntax Changed
+
+The named property syntax `Hosts = [...]` has been removed. Use the new constructor parameter syntax instead.
+
+**Migration**:
+```csharp
+// ❌ Before (1.3.2) — No longer compiles
+[Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
+public partial class GameScope : Node, IScope { }
+
+// ✅ After (1.3.3)
+[Modules(typeof(GameManager), typeof(PlayerStatsCenter))]
+public partial class GameScope : Node, IScope { }
+```
+
+---
+
+## 🛠️ Internal Improvements
+
+### Unified Code Comments to English
+
+All code comments across the project have been translated from Chinese to English for better international collaboration and consistency:
+- Source Generator core code
+- Sample project
+- Unit tests
+
+### Rebuilt Sample Project
+
+`GodotSharpDI.Sample` has been rebuilt as a complete runtime reference example, demonstrating:
+- `[Host]` / `[User]` / `[Scope]` role separation
+- `[Inject]` and `[Provide]` usage patterns
+- `WaitFor` dependency ordering
+- `FailureCallback` and `ReadyCallback` injection callbacks
+- `IDependenciesResolved` lifecycle callback
+
+### Code Quality Improvements
+
+**Bug Fixes**:
+- Fixed stack leak in `CircularDependencyDetector.StrongConnect` where nodes were not popped from stack on early return
+- Fixed state not reset in `CrossHostCircularDependencyDetector` when called multiple times
+- Fixed `CS8602` null reference warning in `GeneratedMemberAccessAnalyzer`
+
+**Generated Code Quality**:
+- `ScopeInterfaceGenerator`: Replaced forced type casts with `as` + null check, reports detailed error on type mismatch
+- `InjectionGenerator`: `ResetInjectionState` now clears injected field values, fixes `??=` skipping injection when node re-enters scene tree
+- `SourceEmitter`: `catch` now excludes `OperationCanceledException`, prevents false errors during normal incremental generator cancellation
+- `WaitForPhase`: Local function names now use `NamingHelper.ToPascalCase` for consistent naming
+- `ServiceProvisionPhase`: `ArgumentOutOfRangeException` now includes actual `MemberKind` value
+- `ScopeGenerator`: `GenerateDependencyMonitoringMethods` split into 5 independent private methods for better readability
+
+**Performance & Stability**:
+- Optimized `RawClassSemanticInfoFactory` to reuse global `CachedSymbols` instance
+- Increased performance test threshold (1000ms → 3000ms) to avoid CI instability
+
+**Documentation & Cleanup**:
+- Added XML documentation comments to all attribute classes in Abstractions layer
+- Fixed hardcoded Chinese diagnostic messages in `ClassValidator`
+- Removed deprecated `GetInjectionTcsName` method from `NamingHelper`
+- Improved `.gitignore` (added `.vs/`, `*.user`, `*.nupkg`, etc.)
+- Fixed package name display in `nuget-build.bat`
+- Added `LangVersion=latest` to test project
+
+---
+
 # v1.3.2
 
 ## Feature Enhancements
