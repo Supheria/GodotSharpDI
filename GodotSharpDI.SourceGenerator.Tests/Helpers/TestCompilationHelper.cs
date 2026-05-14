@@ -209,8 +209,12 @@ namespace GodotSharpDI.Abstractions
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class ModulesAttribute : Attribute
     {
-        public Type[] Services { get; set; } = Array.Empty<Type>();
-        public Type[] Hosts { get; set; } = Array.Empty<Type>();
+        public Type[] Hosts { get; }
+
+        public ModulesAttribute(params Type[] hosts)
+        {
+            Hosts = hosts;
+        }
     }
 
     public interface IScope

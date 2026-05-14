@@ -17,7 +17,7 @@ using GodotSharpDI.Abstractions;
 
 namespace GodotSharpDI.Sample;
 
-[Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter), typeof(HostB)])]
+[Modules(typeof(GameManager), typeof(PlayerStatsCenter), typeof(HostB))]
 public partial class GameScope : Node, IScope
 {
     public override partial void _Notification(int what);

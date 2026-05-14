@@ -26,7 +26,7 @@ namespace GodotSharpDI.Sample;
 /// HostC is contained in this Scope, but it depends on IServiceB provided by HostB in the parent Scope.
 /// Framework will automatically look up parent Scope's service cache.
 /// </summary>
-[Modules(Hosts = [typeof(HostC)])]
+[Modules(typeof(HostC))]
 public partial class ChildScope : Node, IScope
 {
     public override partial void _Notification(int what);
