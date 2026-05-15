@@ -21,16 +21,6 @@ internal static class GeneratedStrings
     public const string WarnUnresolvedDependencies =
         "[GodotSharpDI] {0} has unresolved dependencies.";
 
-    // ─── Assignment / callback errors ────────────────────────────────
-    // Moved to GodotSharpDI.Runtime.ErrorReporter — these constants are kept
-    // only for backward compatibility with any external references.
-    public const string ErrInjectionAssignFailed =
-        "[GodotSharpDI] Failed to assign injected value.";
-    public const string ErrInjectionReadyCallbackFailed =
-        "[GodotSharpDI] OnXxxInjectionReady callback threw an exception.";
-    public const string ErrInjectionFailedCallbackFailed =
-        "[GodotSharpDI] OnXxxInjectionFailed callback threw an exception.";
-
     // ─── Structured log field labels ─────────────────────────────────
     public const string LabelCurrentScope   = "  Scope: ";
     public const string LabelServiceType    = "  Service Type: ";

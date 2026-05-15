@@ -141,7 +141,7 @@ internal static class GeneratorHelper
 
     public static void PrintError(this CodeFormatter f, string target)
     {
-        f.AppendLine($"{GlobalNames.GodotGD}.PrintErr({target});");
+        f.AppendLine($"{GlobalNames.ErrorReporter}.ReportError({target});");
     }
 
     public static void AppendTypeConstraints(this CodeFormatter f, string typeConstraints)

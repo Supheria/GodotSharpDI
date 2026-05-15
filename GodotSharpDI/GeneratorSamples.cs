@@ -236,7 +236,7 @@ partial class CellManager // CellManager.DI.Host.g.cs
 partial class CellManager // CellManager.DI.User.g.cs
 {
     // Only generated when implementing IServicesReady
-    private readonly HashSet<Type> _unresolvedDependencies = new()
+    private readonly HashSet<Type> __unresolvedDependencies = new()
     {
         // List all types marked as [Inject] in fields or properties
         typeof(IDataReader),
@@ -246,8 +246,8 @@ partial class CellManager // CellManager.DI.User.g.cs
     // Only generated when implementing IServicesReady
     private void OnDependencyResolved<T>()
     {
-        _unresolvedDependencies.Remove(typeof(T));
-        if (_unresolvedDependencies.Count == 0)
+        __unresolvedDependencies.Remove(typeof(T));
+        if (__unresolvedDependencies.Count == 0)
         {
             ((IServicesReady)this).OnServicesReady();
         }

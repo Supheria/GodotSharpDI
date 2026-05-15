@@ -1563,7 +1563,7 @@ partial class MyHost
         IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
     
     // Unresolved dependency tracking
-    private readonly HashSet<Type> _unresolvedDependencies = new()
+    private readonly HashSet<Type> __unresolvedDependencies = new()
     {
         typeof(IConfig),
         typeof(ILogger),
@@ -1572,8 +1572,8 @@ partial class MyHost
     // Dependency resolution callback
     private void OnDependencyResolved<T>()
     {
-        _unresolvedDependencies.Remove(typeof(T));
-        if (_unresolvedDependencies.Count == 0)
+        __unresolvedDependencies.Remove(typeof(T));
+        if (__unresolvedDependencies.Count == 0)
         {
             ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
         }

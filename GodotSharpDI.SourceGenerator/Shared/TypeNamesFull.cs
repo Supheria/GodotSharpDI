@@ -1,5 +1,9 @@
 ﻿namespace GodotSharpDI.SourceGenerator.Shared;
 
+/// <summary>
+/// Metadata names for <see cref="Microsoft.CodeAnalysis.Compilation.GetTypeByMetadataName"/>.
+/// These are NOT <c>global::</c> qualified — for emitted code see <see cref="GlobalNames"/>.
+/// </summary>
 public static class TypeNamesFull
 {
     // Existing attributes (maintain backward compatibility)

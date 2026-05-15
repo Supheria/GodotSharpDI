@@ -350,7 +350,7 @@ internal static class InjectionGenerator
 
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
+            $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> __unresolvedDependencies = new()"
         );
         f.BeginBlock();
         {
@@ -364,8 +364,8 @@ internal static class InjectionGenerator
         f.AppendLine("private void OnDependencyResolved<T>()");
         f.BeginBlock();
         {
-            f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-            f.AppendLine("if (_unresolvedDependencies.Count == 0)");
+            f.AppendLine("__unresolvedDependencies.Remove(typeof(T));");
+            f.AppendLine("if (__unresolvedDependencies.Count == 0)");
             f.BeginBlock();
             {
                 f.AppendLine(

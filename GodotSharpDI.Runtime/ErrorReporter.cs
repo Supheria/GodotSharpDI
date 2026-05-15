@@ -11,10 +11,16 @@ namespace GodotSharpDI.Runtime;
 public static class ErrorReporter
 {
     /// <summary>
-    /// Error output callback. Defaults to <see cref="System.Diagnostics.Debug.WriteLine(string)"/>.
-    /// Users can override this to redirect errors (e.g., to Godot's GD.PrintErr).
+    /// Warning-level output callback. Defaults to <see cref="System.Diagnostics.Debug.WriteLine(string)"/>.
+    /// Users can override this to redirect warnings (e.g., to Godot's GD.PushWarning).
     /// </summary>
     public static Action<string> Output { get; set; } = msg => System.Diagnostics.Debug.WriteLine(msg);
+
+    /// <summary>
+    /// Error-level output callback. Defaults to <see cref="System.Diagnostics.Debug.WriteLine(string)"/>.
+    /// Users can override this to redirect errors (e.g., to Godot's GD.PrintErr).
+    /// </summary>
+    public static Action<string> ErrorOutput { get; set; } = msg => System.Diagnostics.Debug.WriteLine(msg);
 
     // ─── Injection errors ────────────────────────────────────────────
 
@@ -39,7 +45,7 @@ public static class ErrorReporter
             .AppendLine($"  Member: {memberName}")
             .AppendLine($"  Member Type: {memberType}")
             .AppendLine($"  Exception: {exMsg}");
-        Output(sb.ToString());
+        ErrorOutput(sb.ToString());
     }
 
     public static void ReportInjectionFailedCallbackFailed(
@@ -64,6 +70,24 @@ public static class ErrorReporter
     public static void ReportAsyncProviderThrew(string implType, string exMsg)
     {
         Output($"[GodotSharpDI] Async provider for {implType} threw: {exMsg}");
+    }
+
+    // ─── Convenience methods ──────────────────────────────────────────
+
+    /// <summary>
+    /// Report an error-level message via <see cref="ErrorOutput"/>.
+    /// </summary>
+    public static void ReportError(string message)
+    {
+        ErrorOutput(message);
+    }
+
+    /// <summary>
+    /// Report a warning-level message via <see cref="Output"/>.
+    /// </summary>
+    public static void ReportWarning(string message)
+    {
+        Output(message);
     }
 
     // ─── Scope errors ────────────────────────────────────────────────

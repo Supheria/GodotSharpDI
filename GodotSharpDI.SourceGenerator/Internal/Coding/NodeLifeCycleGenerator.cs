@@ -38,6 +38,13 @@ internal static class NodeLifeCycleGenerator
         GenerateNotification(f, validatedType);
     }
 
+    private static void GenerateErrorReporterInit(CodeFormatter f)
+    {
+        f.AppendLine(
+            $"{GlobalNames.ErrorReporter}.ErrorOutput = {GlobalNames.GodotGD}.PrintErr;",
+            "Initialize ErrorReporter to use Godot error output");
+    }
+
     private static void GenerateParentScopeField(CodeFormatter f)
     {
         f.AppendHiddenMemberCommentAndAttribute();
@@ -90,6 +97,7 @@ internal static class NodeLifeCycleGenerator
                 f.AppendLine("case NotificationEnterTree:");
                 f.BeginBlock();
                 {
+                    GenerateErrorReporterInit(f);
                     f.AppendLine("__parentScope = null;");
                     if (validatedType.Role == TypeRole.Host || validatedType.Role == TypeRole.User)
                     {

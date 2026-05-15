@@ -325,7 +325,7 @@ internal static class ScopeGenerator
                             f.EndStringBuilderAppend();
                             f.AppendLine();
 
-                            f.PrintError("message");
+                            f.PrintError("message.ToString()");
                         }
                         f.EndBlock();
                     }
@@ -397,7 +397,7 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.PrintError("message");
+            f.PrintError("message.ToString()");
         }
         f.EndBlock();
     }

@@ -55,7 +55,7 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
         "_waiters",
         "_disposableSingletons",
         // User IDependenciesResolved generated fields
-        "_unresolvedDependencies"
+        "__unresolvedDependencies"
     );
 
     /// <summary>
