@@ -6,7 +6,6 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <IsPackable>true</IsPackable>
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
     <!-- Package Metadata -->
     <PackageId>GodotSharpDI</PackageId>
     <Version>1.4.0</Version>

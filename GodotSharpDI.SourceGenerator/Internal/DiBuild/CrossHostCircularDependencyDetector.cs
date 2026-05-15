@@ -30,7 +30,7 @@ internal sealed class CrossHostCircularDependencyDetector
         // Convert to IReadOnlyDictionary for TarjanSCC
         // Note: SymbolEqualityComparer implements IEqualityComparer<ISymbol>,
         // which works for ITypeSymbol keys via covariance in Detect().
-        var graphForTarjan = new Dictionary<ITypeSymbol, IEnumerable<ITypeSymbol>>();
+        var graphForTarjan = new Dictionary<ITypeSymbol, IEnumerable<ITypeSymbol>>(SymbolEqualityComparer.Default);
         foreach (var kvp in _graph)
             graphForTarjan[kvp.Key] = kvp.Value;
 

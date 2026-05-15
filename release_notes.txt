@@ -1,4 +1,53 @@
 ==================
+v1.4.0
+==================
+
+NEW FEATURES
+------------
+
+1. GodotSharpDI.Runtime Runtime Library
+   ------------------------------------
+   Extracted runtime logic from generated Scope code into a standalone library.
+   This significantly reduces generated code size and improves maintainability.
+
+   New classes:
+     - InjectionExecutor:       Central injection execution with separate try-catch
+     - AsyncProviderRunner:     Runs async [Provide] methods
+     - SyncProviderRunner:      Runs synchronous [Provide] methods
+     - WaitForCoordinator:      Coordinates WaitFor with Interlocked countdown
+     - DeadlockDetector:        Runtime circular dependency detection (DEBUG only)
+     - ServiceCacheEntry:       Volatile state + instance cache entry
+     - DependencyWaitInfo:      WaitFor dependency metadata
+     - ErrorReporter:           Centralized error/warning reporting
+
+
+BUG FIXES
+---------
+
+1. InjectionExecutor assign failure reporting
+   -------------------------------------------
+   Fixed: When [Inject] member assignment threw an exception, WaitFor callbacks
+   were incorrectly notified as success. Now correctly reports failure and skips
+   ReadyCallback.
+
+
+INTERNAL IMPROVEMENTS
+---------------------
+
+- Code Generator: Reduced complexity by delegating to Runtime library
+- CircularDependencyDetector: Extracted reusable TarjanSCC<T> algorithm
+- Thread Safety: volatile fields, Interlocked operations
+- New Runtime test project with 35 tests
+- Documentation: Fixed callback signatures and descriptions
+
+
+BREAKING CHANGES (from v1.3.3, merged into this release)
+---------------------------------------------------------
+
+- [Modules] attribute: named property syntax removed, use constructor params
+
+
+==================
 v1.3.2
 ==================
 
