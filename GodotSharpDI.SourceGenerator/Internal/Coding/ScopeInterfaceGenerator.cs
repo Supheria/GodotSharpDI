@@ -28,7 +28,7 @@ internal static class ScopeInterfaceGenerator
         }
         f.EndClassDeclaration();
 
-        context.AddSource($"{fileName}.DI.IScope.g.cs", f.ToString());
+        context.AddSource($"{fileName}.DI.ScopeInterface.g.cs", f.ToString());
     }
 
     // =========================================================

@@ -444,7 +444,7 @@ partial class MyScope // MyContext.DI.Scope.g.cs
 }
 
 // Only generated when implementing IScope
-partial class MyScope // MyContext.DI.IScope.g.cs
+partial class MyScope // MyContext.DI.ScopeInterface.g.cs
 {
     void IScope.ResolveDependency<T>(Action<T> onResolved)
     {

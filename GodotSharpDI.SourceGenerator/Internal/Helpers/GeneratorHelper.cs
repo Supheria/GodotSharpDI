@@ -113,16 +113,29 @@ internal static class GeneratorHelper
         f.AppendLine("#endif");
     }
 
-    public static void BeginStringBuilderAppend(
-        this CodeFormatter f,
-        string stringBuilderName,
-        bool createNew
-    )
+    /// <summary>
+    /// Begin a fluent StringBuilder append chain by declaring a new StringBuilder variable.
+    /// Generates: var {name} = new StringBuilder()
+    ///             .AppendLine(...)
+    ///             .AppendLine(...);
+    /// Must be paired with <see cref="EndStringBuilderAppend"/>.
+    /// </summary>
+    public static void BeginNewStringBuilder(this CodeFormatter f, string stringBuilderName)
     {
-        var declare = createNew
-            ? $"var {stringBuilderName} = new {GlobalNames.StringBuilder}()"
-            : $"{stringBuilderName}";
-        f.AppendRaw(declare, true);
+        f.AppendRaw($"var {stringBuilderName} = new {GlobalNames.StringBuilder}()", true);
+        f.BeginLevel();
+    }
+
+    /// <summary>
+    /// Continue appending to an existing StringBuilder variable.
+    /// Generates: {name}
+    ///             .AppendLine(...)
+    ///             .AppendLine(...);
+    /// Must be paired with <see cref="EndStringBuilderAppend"/>.
+    /// </summary>
+    public static void ContinueStringBuilder(this CodeFormatter f, string stringBuilderName)
+    {
+        f.AppendRaw(stringBuilderName, true);
         f.BeginLevel();
     }
 

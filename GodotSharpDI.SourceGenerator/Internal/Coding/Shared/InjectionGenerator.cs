@@ -297,39 +297,7 @@ internal static class InjectionGenerator
                 {
                     f.AppendLine("instance =>");
                     f.BeginBlock();
-                    {
-                        // Delegate to InjectionExecutor — all try-catch logic is in the runtime library
-                        f.AppendLine($"{GlobalNames.InjectionExecutor}.Execute(");
-                        f.BeginLevel();
-                        {
-                            f.AppendLine($"v => {{ {memberName} ??= v; {fieldName} = true; }},");
-                            f.AppendLine("instance,");
-
-                            // Ready callback
-                            if (member.HasReadyCallback)
-                                f.AppendLine($"{NamingHelper.GetReadyCallbackMethodName(memberName)},");
-                            else
-                                f.AppendLine("null,");
-
-                            // Failure callback
-                            if (member.HasFailureCallback)
-                                f.AppendLine($"{NamingHelper.GetFailureCallbackMethodName(memberName)},");
-                            else
-                                f.AppendLine("null,");
-
-                            f.AppendLine($"{listName},");
-
-                            // onDependencyResolved
-                            if (validatedType.ImplementsIDependenciesResolved)
-                                f.AppendLine($"() => OnDependencyResolved<{memberType}>(),");
-                            else
-                                f.AppendLine("() => { },");
-
-                            f.AppendLine($"\"{validatedType.Symbol.Name}\",");
-                            f.AppendLine($"\"{memberName}\");");
-                        }
-                        f.EndLevel();
-                    }
+                    GenerateInjectionExecutorCall(f, validatedType, member, memberType, memberName, fieldName, listName);
                     f.EndBlock(",");
                     f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\"");
                 }
@@ -338,6 +306,46 @@ internal static class InjectionGenerator
             }
         }
         f.EndBlock();
+    }
+
+    private static void GenerateInjectionExecutorCall(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType,
+        MemberInfo member,
+        string memberType,
+        string memberName,
+        string fieldName,
+        string listName
+    )
+    {
+        // Delegate to InjectionExecutor — all try-catch logic is in the runtime library
+        f.AppendLine($"{GlobalNames.InjectionExecutor}.Execute(");
+        f.BeginLevel();
+        {
+            f.AppendLine($"v => {{ {memberName} ??= v; {fieldName} = true; }},");
+            f.AppendLine("instance,");
+
+            if (member.HasReadyCallback)
+                f.AppendLine($"{NamingHelper.GetReadyCallbackMethodName(memberName)},");
+            else
+                f.AppendLine("null,");
+
+            if (member.HasFailureCallback)
+                f.AppendLine($"{NamingHelper.GetFailureCallbackMethodName(memberName)},");
+            else
+                f.AppendLine("null,");
+
+            f.AppendLine($"{listName},");
+
+            if (validatedType.ImplementsIDependenciesResolved)
+                f.AppendLine($"() => OnDependencyResolved<{memberType}>(),");
+            else
+                f.AppendLine("() => { },");
+
+            f.AppendLine($"\"{validatedType.Symbol.Name}\",");
+            f.AppendLine($"\"{memberName}\");");
+        }
+        f.EndLevel();
     }
 
     private static void GenerateIDependenciesResolvedSpecific(

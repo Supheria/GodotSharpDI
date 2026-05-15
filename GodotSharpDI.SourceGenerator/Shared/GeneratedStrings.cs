@@ -15,6 +15,11 @@ internal static class GeneratedStrings
     public const string ErrProvisionFailed =
         "[GodotSharpDI] {0}: Service provision failed: {1}";
 
+    // ─── Generated code error messages ────────────────────────────────
+    // Note: Error messages that mix generation-time and runtime interpolation
+    // (e.g., scope name resolved at generation time + runtime variables like {implType.Name})
+    // are kept inline in the generators to avoid complex escaping.
+
     // ─── Timeout / monitoring messages ──────────────────────────────
     public const string WarnInjectionTimeout =
         "[GodotSharpDI] Dependency injection timeout.";

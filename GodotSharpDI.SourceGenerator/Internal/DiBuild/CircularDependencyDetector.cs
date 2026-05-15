@@ -113,61 +113,47 @@ internal sealed class CircularDependencyDetector
         _onStack.Add(serviceType);
 
         // Get the node and member providing this service
-        if (!_serviceToMember.TryGetValue(serviceType, out var memberInfo))
-        {
-            PopAndCheckScc(serviceType);
-            return;
-        }
+        TypeNode? node = null;
+        bool hasValidProvider = _serviceToMember.TryGetValue(serviceType, out var memberInfo)
+            && _serviceImplToNode.TryGetValue(memberInfo!.HostType, out node)
+            && node!.ValidatedTypeInfo.Members.Any(m =>
+                m.Symbol.Name == memberInfo.MemberName && m.IsProvideMember);
 
-        if (!_serviceImplToNode.TryGetValue(memberInfo.HostType, out var node))
+        if (hasValidProvider)
         {
-            PopAndCheckScc(serviceType);
-            return;
-        }
-
-        // Find the member providing this service
-        var providingMember = node.ValidatedTypeInfo.Members.FirstOrDefault(m =>
-            m.Symbol.Name == memberInfo.MemberName && m.IsProvideMember
-        );
-
-        if (providingMember == null)
-        {
-            PopAndCheckScc(serviceType);
-            return;
-        }
-
-        // Traverse this member's WaitFor dependencies
-        foreach (var dependency in node.Dependencies)
-        {
-            // Only process WaitFor dependencies from this member
-            if (
-                dependency.Source == DependencySource.WaitForMember
-                && dependency.SourceProvidedType != null
-                && SymbolEqualityComparer.Default.Equals(dependency.SourceProvidedType, serviceType)
-            )
+            // Traverse this member's WaitFor dependencies
+            foreach (var dependency in node!.Dependencies)
             {
-                var targetServiceType = dependency.TargetType;
-
-                // Ensure the target service has a provider
-                if (!_serviceToMember.ContainsKey(targetServiceType))
-                    continue;
-
-                if (!_indices.ContainsKey(targetServiceType))
+                // Only process WaitFor dependencies from this member
+                if (
+                    dependency.Source == DependencySource.WaitForMember
+                    && dependency.SourceProvidedType != null
+                    && SymbolEqualityComparer.Default.Equals(dependency.SourceProvidedType, serviceType)
+                )
                 {
-                    // Recursively visit unvisited dependencies
-                    StrongConnect(targetServiceType);
-                    _lowLinks[serviceType] = Math.Min(
-                        _lowLinks[serviceType],
-                        _lowLinks[targetServiceType]
-                    );
-                }
-                else if (_onStack.Contains(targetServiceType))
-                {
-                    // Found back edge (circular dependency)
-                    _lowLinks[serviceType] = Math.Min(
-                        _lowLinks[serviceType],
-                        _indices[targetServiceType]
-                    );
+                    var targetServiceType = dependency.TargetType;
+
+                    // Ensure the target service has a provider
+                    if (!_serviceToMember.ContainsKey(targetServiceType))
+                        continue;
+
+                    if (!_indices.ContainsKey(targetServiceType))
+                    {
+                        // Recursively visit unvisited dependencies
+                        StrongConnect(targetServiceType);
+                        _lowLinks[serviceType] = Math.Min(
+                            _lowLinks[serviceType],
+                            _lowLinks[targetServiceType]
+                        );
+                    }
+                    else if (_onStack.Contains(targetServiceType))
+                    {
+                        // Found back edge (circular dependency)
+                        _lowLinks[serviceType] = Math.Min(
+                            _lowLinks[serviceType],
+                            _indices[targetServiceType]
+                        );
+                    }
                 }
             }
         }
@@ -185,31 +171,6 @@ internal sealed class CircularDependencyDetector
             } while (!SymbolEqualityComparer.Default.Equals(w, serviceType));
 
             // If the strongly connected component contains multiple nodes, or has a self-loop, it's a circular dependency
-            if (component.Count > 1 || HasEdgeToSelf(serviceType))
-            {
-                _cycles.Add(new Cycle(component));
-            }
-        }
-    }
-
-    /// <summary>
-    /// Pop node and check if it forms an SCC root node.
-    /// Used for early return paths in StrongConnect to ensure consistent stack state.
-    /// </summary>
-    private void PopAndCheckScc(ITypeSymbol serviceType)
-    {
-        // If current node is SCC root, pop the entire SCC
-        if (_lowLinks[serviceType] == _indices[serviceType])
-        {
-            var component = new List<ITypeSymbol>();
-            ITypeSymbol w;
-            do
-            {
-                w = _stack.Pop();
-                _onStack.Remove(w);
-                component.Add(w);
-            } while (!SymbolEqualityComparer.Default.Equals(w, serviceType));
-
             if (component.Count > 1 || HasEdgeToSelf(serviceType))
             {
                 _cycles.Add(new Cycle(component));

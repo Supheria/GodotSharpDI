@@ -323,8 +323,7 @@ internal sealed class MemberProcessor
             HasFailureCallback: hasFailureCallback,
             HasReadyCallback: hasReadyCallback,
             WaitFor: waitFor,
-            IsAsync: isAsync,
-            UsesProvide: hasProvide
+            IsAsync: isAsync
         );
     }
 

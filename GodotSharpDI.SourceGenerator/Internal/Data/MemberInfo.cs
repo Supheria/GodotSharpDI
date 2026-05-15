@@ -15,9 +15,8 @@ internal sealed record MemberInfo(
     ImmutableArray<INamedTypeSymbol> ExposedTypes,
     bool HasFailureCallback,
     bool HasReadyCallback,
-    ImmutableArray<string> WaitFor, // New: Array of dependency field names to wait for
-    bool IsAsync = false, // New: Whether this is an async member
-    bool UsesProvide = false // New: Whether to use Provide attribute (instead of Singleton)
+    ImmutableArray<string> WaitFor,
+    bool IsAsync = false
 )
 {
     public bool IsInjectMember { get; } =

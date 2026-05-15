@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using GodotSharpDI.SourceGenerator.Internal.Data;
@@ -28,24 +29,39 @@ internal static class ScopeGenerator
         DiGraph graph
     )
     {
-        var f = new CodeFormatter();
-
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
+        try
         {
-            GenerateStaticCollections(f);
-            f.AppendLine();
+            var f = new CodeFormatter();
 
-            GenerateInstanceFields(f);
-            f.AppendLine();
+            f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
+            {
+                GenerateStaticCollections(f);
+                f.AppendLine();
 
-            GenerateStaticMethods(f, node, graph);
-            f.AppendLine();
+                GenerateInstanceFields(f);
+                f.AppendLine();
 
-            GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
+                GenerateStaticMethods(f, node, graph);
+                f.AppendLine();
+
+                GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
+            }
+            f.EndClassDeclaration();
+
+            context.AddSource($"{fileName}.DI.Scope.g.cs", f.ToString());
         }
-        f.EndClassDeclaration();
-
-        context.AddSource($"{fileName}.DI.Scope.g.cs", f.ToString());
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            context.ReportDiagnostic(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.CodeGenerationFailed,
+                    node.ValidatedTypeInfo.Location,
+                    "Scope",
+                    node.ValidatedTypeInfo.Symbol.Name,
+                    ex.Message
+                )
+            );
+        }
     }
 
     private static void GenerateStaticCollections(CodeFormatter f)
@@ -91,40 +107,51 @@ internal static class ScopeGenerator
 
     private static void GenerateStaticMethods(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
-        // ServiceCache uses "implementation type (TImpl)" as key, not the exposed interface type.
-        // ServiceImplementationMap is responsible for mapping from exposed type (TExposed) to implementation type (TImpl).
-        // Lookup flow: ResolveDependency<TExposed> → ServiceImplementationMap[TExposed] → implType
-        //         → ServiceCache[implType] → instance
-        // When exposed type and implementation type are the same (e.g., Host exposes itself), both point to the same Type key, behavior is correct.
-        // Collect all implementation types needed by this Scope
-        var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var data = CollectScopeServiceData(node, graph);
 
-        // Collect the mapping from service exposed type to implementation type for this Scope
+        GenerateCreateServiceCache(f, data.ImplementationTypes);
+        f.AppendLine();
+
+        GenerateCreateServiceImplementationMap(f, data.ServiceImplMap);
+        f.AppendLine();
+
+        GenerateCreateDeadlockDetector(f, data.ServiceImplMap);
+    }
+
+    /// <summary>
+    /// Collect service data for this Scope: implementation types and exposed→implementation mappings.
+    /// ServiceCache uses "implementation type (TImpl)" as key, not the exposed interface type.
+    /// ServiceImplementationMap maps from exposed type (TExposed) to implementation type (TImpl).
+    /// Lookup flow: ResolveDependency&lt;TExposed&gt; → ServiceImplementationMap[TExposed] → implType
+    ///         → ServiceCache[implType] → instance
+    /// </summary>
+    private static ScopeServiceData CollectScopeServiceData(ScopeNode node, DiGraph graph)
+    {
+        var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         var scopeServiceImplMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
             SymbolEqualityComparer.Default
         );
 
-        // Traverse all Hosts in this Scope
         foreach (var hostType in node.ExpectHosts)
         {
             if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
             {
-                // Collect service mappings provided by this Host
                 foreach (var kvp in hostNode.ServiceImplementationMap)
                 {
-                    var exposedType = kvp.Key;
-                    var implementationType = kvp.Value;
-
-                    // Add to Scope's service mapping
-                    scopeServiceImplMap[exposedType] = implementationType;
-
-                    // Add implementation type to set
-                    implementationTypes.Add(implementationType);
+                    scopeServiceImplMap[kvp.Key] = kvp.Value;
+                    implementationTypes.Add(kvp.Value);
                 }
             }
         }
 
-        // CreateServiceCache - Use implementation type as key
+        return new ScopeServiceData(implementationTypes, scopeServiceImplMap);
+    }
+
+    private static void GenerateCreateServiceCache(
+        CodeFormatter f,
+        HashSet<INamedTypeSymbol> implementationTypes
+    )
+    {
         f.AppendHiddenMethodCommentAndAttribute("Initialize all service caches (using implementation type as key)");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}> CreateServiceCache()"
@@ -145,8 +172,13 @@ internal static class ScopeGenerator
             f.AppendLine("return cache;");
         }
         f.EndBlock();
+    }
 
-        // CreateServiceImplementationMap - Mapping from exposed type to implementation type
+    private static void GenerateCreateServiceImplementationMap(
+        CodeFormatter f,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> scopeServiceImplMap
+    )
+    {
         f.AppendHiddenMethodCommentAndAttribute("Create mapping table from service exposed type to implementation type");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> CreateServiceImplementationMap()"
@@ -160,10 +192,8 @@ internal static class ScopeGenerator
 
             foreach (var kvp in scopeServiceImplMap)
             {
-                var exposedType = kvp.Key;
-                var implType = kvp.Value;
                 f.AppendLine(
-                    $"map[typeof({exposedType.ToFullyQualifiedName()})] = typeof({implType.ToFullyQualifiedName()});"
+                    $"map[typeof({kvp.Key.ToFullyQualifiedName()})] = typeof({kvp.Value.ToFullyQualifiedName()});"
                 );
             }
             f.AppendLine();
@@ -171,8 +201,13 @@ internal static class ScopeGenerator
             f.AppendLine("return map;");
         }
         f.EndBlock();
+    }
 
-        // CreateDeadlockDetector - Initialize deadlock detector with service-to-provider mappings (DEBUG only)
+    private static void GenerateCreateDeadlockDetector(
+        CodeFormatter f,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> scopeServiceImplMap
+    )
+    {
         f.BeginDebugRegion();
         {
             f.AppendHiddenMethodCommentAndAttribute("Initialize deadlock detector with service-to-provider mappings");
@@ -186,10 +221,8 @@ internal static class ScopeGenerator
 
                 foreach (var kvp in scopeServiceImplMap)
                 {
-                    var exposedType = kvp.Key;
-                    var implType = kvp.Value;
                     f.AppendLine(
-                        $"detector.RegisterServiceProvider(\"{implType.Name}\", \"{exposedType.Name}\");"
+                        $"detector.RegisterServiceProvider(\"{kvp.Value.Name}\", \"{kvp.Key.Name}\");"
                     );
                 }
 
@@ -200,6 +233,11 @@ internal static class ScopeGenerator
         }
         f.EndDebugRegion();
     }
+
+    private readonly record struct ScopeServiceData(
+        HashSet<INamedTypeSymbol> ImplementationTypes,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> ServiceImplMap
+    );
 
     private static void GenerateDependencyMonitoringMethods(
         CodeFormatter f,
@@ -290,7 +328,7 @@ internal static class ScopeGenerator
                             f.AppendLine(
                                 $"var elapsedSeconds = {GlobalNames.TimeSpan}.FromTicks(elapsed).TotalSeconds;"
                             );
-                            f.BeginStringBuilderAppend("message", true);
+                            f.BeginNewStringBuilder("message");
                             {
                                 f.StringBuilderAppendLine(GeneratedStrings.WarnInjectionTimeout);
                                 f.StringBuilderAppendLine(
@@ -332,7 +370,7 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.BeginStringBuilderAppend("message", true);
+            f.BeginNewStringBuilder("message");
             {
                 f.StringBuilderAppendLine(
                     string.Format(GeneratedStrings.WarnUnresolvedDependencies, validatedType.Symbol.Name)
@@ -346,7 +384,7 @@ internal static class ScopeGenerator
             {
                 f.AppendLine("var type = kvp.Key;");
                 f.AppendLine("var waiters = kvp.Value;");
-                f.BeginStringBuilderAppend("message", false);
+                f.ContinueStringBuilder("message");
                 {
                     f.StringBuilderAppendLine($"  > Missing service: {{type.Name}}");
                     f.StringBuilderAppendLine($"{GeneratedStrings.LabelWaiters}{{waiters.Count}}");
@@ -363,7 +401,7 @@ internal static class ScopeGenerator
                     f.AppendLine(
                         $"var elapsedSeconds = {GlobalNames.TimeSpan}.FromTicks(elapsed).TotalSeconds;"
                     );
-                    f.BeginStringBuilderAppend("message", false);
+                    f.ContinueStringBuilder("message");
                     {
                         f.StringBuilderAppendLine($"    {GeneratedStrings.LabelRequestor}{{waiter.RequestorType}}");
                         f.StringBuilderAppendLine($"    {GeneratedStrings.LabelElapsed}{{elapsedSeconds:F1}}s");
