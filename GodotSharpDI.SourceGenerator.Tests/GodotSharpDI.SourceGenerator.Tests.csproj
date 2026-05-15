@@ -21,5 +21,7 @@
     <ProjectReference Include="..\GodotSharpDI.SourceGenerator\GodotSharpDI.SourceGenerator.csproj" />
     <ProjectReference Include="..\GodotSharpDI.CodeFixes\GodotSharpDI.CodeFixes.csproj" />
     <ProjectReference Include="..\GodotSharpDI.Shared\GodotSharpDI.Shared.csproj" />
+    <ProjectReference Include="..\GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj" />
+    <ProjectReference Include="..\GodotSharpDI.Runtime\GodotSharpDI.Runtime.csproj" />
   </ItemGroup>
 </Project>

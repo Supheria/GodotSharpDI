@@ -3,15 +3,18 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using GodotSharpDI.SourceGenerator.Tests.Helpers.Mocks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace GodotSharpDI.SourceGenerator.Tests.Helpers;
 
 /// <summary>
-/// Helper for creating test compilations
+/// Helper for source generator diagnostic testing.
+/// Creates compilations with stub DI attributes and minimal Godot stubs.
+/// Does NOT run generated code — use <see cref="E2ETestHelper"/> for E2E tests.
 /// </summary>
-internal static class TestCompilationHelper
+internal static class DiagnosticCompilationHelper
 {
     public static CSharpCompilation CreateCompilation(
         string source,
@@ -229,28 +232,7 @@ namespace GodotSharpDI.Abstractions
         void OnDependenciesResolved();
     }
 }
-
-namespace Godot
-{
-    public class Node
-    {
-        public Node? GetParent() => null;
-        public virtual void _Notification(int what) { }
-        protected const int NotificationEnterTree = 10;
-        protected const int NotificationExitTree = 11;
-        protected const int NotificationReady = 13;
-        protected const int NotificationPredelete = 1;
-    }
-
-    public static class GD
-    {
-        public static void PushError(string message) { }
-        public static void PushError(Exception ex) { }
-        public static void PrintErr(string message) { }
-        public static void Print(string message) { }
-    }
-}
-";
+" + DiagnosticGodotStubs.GetSource();
     }
 
     public static INamedTypeSymbol? GetTypeSymbol(

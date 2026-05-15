@@ -115,7 +115,7 @@ namespace Test {
         public ImplA Create() => new ImplA();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var graph = BuildGraphFromCompilation(compilation).Graph;
         Assert.NotNull(graph);
 
@@ -183,7 +183,7 @@ namespace Test {
     // ============================================================
 
     private static DiGraphBuildResult BuildGraph(string source) =>
-        BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+        BuildGraphFromCompilation(DiagnosticCompilationHelper.CreateCompilationWithDI(source));
 
     private static DiGraphBuildResult BuildGraphFromCompilation(
         Compilation compilation

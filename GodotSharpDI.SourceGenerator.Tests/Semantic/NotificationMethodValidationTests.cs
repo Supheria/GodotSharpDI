@@ -34,8 +34,8 @@ public partial class TestHost : Node, ITestService
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -63,8 +63,8 @@ public partial class TestHost : Node, ITestService
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
@@ -90,8 +90,8 @@ public partial class TestUser : Node
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -118,8 +118,8 @@ public partial class TestUser : Node
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
@@ -144,8 +144,8 @@ public partial class TestScope : Node, IScope
     public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
 }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -171,8 +171,8 @@ public partial class TestScope : Node, IScope
     public void ResolveDependency<T>(System.Action<T> onResolved) where T : notnull { }
 }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
@@ -201,8 +201,8 @@ public partial class TestHost : Node, ITestService
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -230,8 +230,8 @@ public partial class TestHost : Node, ITestService
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -259,8 +259,8 @@ public partial class TestHost : Node, ITestService
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         // Non-partial definition version should trigger missing or signature error
         Assert.Contains(
@@ -289,8 +289,8 @@ public partial class TestHost : Node, ITestService
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -325,8 +325,8 @@ public partial class TestHostUser : Node, ITestService
 public interface ITestService { }
 public interface IAnotherService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.Contains(
             diagnostics,
@@ -359,8 +359,8 @@ public partial class TestHostUser : Node, ITestService
 public interface ITestService { }
 public interface IAnotherService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
 
         Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
     }
@@ -390,15 +390,15 @@ public partial class TestUser : Node
 
 public interface ITestService { }
 ";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
 
         // Core assertion: Correct _Notification signature should not trigger GDI_C060/C081
-        var diagnostics = TestCompilationHelper.GetGeneratorDiagnostics(compilation);
+        var diagnostics = DiagnosticCompilationHelper.GetGeneratorDiagnostics(compilation);
         Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C060");
         Assert.DoesNotContain(diagnostics, d => d.Id == "GDI_C061");
 
         // Generator should produce DI files for this class
-        var sources = TestCompilationHelper.GetGeneratedSources(compilation);
+        var sources = DiagnosticCompilationHelper.GetGeneratedSources(compilation);
         Assert.Contains(sources, s => s.HintName.Contains("TestUser") && s.HintName.Contains("DI"));
     }
 }

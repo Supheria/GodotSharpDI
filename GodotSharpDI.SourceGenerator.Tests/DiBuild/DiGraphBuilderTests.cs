@@ -167,7 +167,7 @@ namespace Test {
         public ImplA Create() => new ImplA();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var result = BuildGraphFromCompilation(compilation);
 
         Assert.NotNull(result.Graph);

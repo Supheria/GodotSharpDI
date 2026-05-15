@@ -21,7 +21,7 @@ internal static class GraphBuildHelper
     /// </summary>
     public static DiGraphBuildResult BuildGraph(string source)
     {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         return BuildGraphFromCompilation(compilation);
     }
 
@@ -42,7 +42,7 @@ internal static class GraphBuildHelper
     /// </summary>
     public static ImmutableArray<Diagnostic> BuildAllDiagnostics(string source)
     {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var symbols = new CachedSymbols(compilation);
         var classResults = CollectValidationResults(compilation, symbols);
         var graphResult = DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
@@ -58,7 +58,7 @@ internal static class GraphBuildHelper
     /// </summary>
     public static ServiceIndexes BuildServiceIndexes(string source)
     {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         return BuildServiceIndexesFromCompilation(compilation);
     }
 
@@ -68,7 +68,7 @@ internal static class GraphBuildHelper
     public static (ServiceIndexes Indexes, Compilation Compilation) BuildServiceIndexesWithCompilation(
         string source)
     {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         return (BuildServiceIndexesFromCompilation(compilation), compilation);
     }
 

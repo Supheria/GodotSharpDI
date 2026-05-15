@@ -198,7 +198,7 @@ namespace Test
         public MyImpl Create() => new MyImpl();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var tree = compilation.SyntaxTrees.First();
         var root = tree.GetRoot();
         var classDecl = root.DescendantNodes()
@@ -285,7 +285,7 @@ namespace Test
         string className
     )
     {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var tree = compilation.SyntaxTrees.First();
         var root = tree.GetRoot();
         var classDecl = root.DescendantNodes()
