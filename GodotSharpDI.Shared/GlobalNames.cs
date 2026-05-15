@@ -1,4 +1,4 @@
-﻿namespace GodotSharpDI.SourceGenerator.Shared;
+namespace GodotSharpDI.Shared;
 
 public static class GlobalNames
 {

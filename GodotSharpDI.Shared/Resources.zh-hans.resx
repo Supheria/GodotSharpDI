@@ -286,6 +286,13 @@
         <value>成员 '{0}' 标记了 [Inject(ReadyCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入成功的情况</value>
     </data>
 
+    <data name="M_InjectMemberIsUserType" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能被注入</value>
+    </data>
+    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能用作 [Provide] 成员</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- 代码修复消息 -->
     <!-- ============================================================ -->
@@ -301,10 +308,5 @@
     <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
         <value>实现 {0} 方法</value>
     </data>
-    <data name="M_InjectMemberIsUserType" xml:space="preserve">
-        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能被注入</value>
-    </data>
-    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
-        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能用作 [Provide] 成员</value>
-    </data>
+
 </root>

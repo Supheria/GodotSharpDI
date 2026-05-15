@@ -19,5 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GodotSharpDI.SourceGenerator\GodotSharpDI.SourceGenerator.csproj" />
+    <ProjectReference Include="..\GodotSharpDI.CodeFixes\GodotSharpDI.CodeFixes.csproj" />
+    <ProjectReference Include="..\GodotSharpDI.Shared\GodotSharpDI.Shared.csproj" />
   </ItemGroup>
 </Project>

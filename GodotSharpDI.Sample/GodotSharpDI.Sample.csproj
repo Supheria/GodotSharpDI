@@ -9,5 +9,7 @@
     <ProjectReference Include="..\GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj" />
     <ProjectReference Include="..\GodotSharpDI.Runtime\GodotSharpDI.Runtime.csproj" />
     <ProjectReference Include="..\GodotSharpDI.SourceGenerator\GodotSharpDI.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\GodotSharpDI.CodeFixes\GodotSharpDI.CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\GodotSharpDI.Shared\GodotSharpDI.Shared.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

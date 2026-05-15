@@ -1,4 +1,4 @@
-namespace GodotSharpDI.SourceGenerator.Shared;
+namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
 /// Runtime string constants used in generated code (centralized management, easy for internationalization)

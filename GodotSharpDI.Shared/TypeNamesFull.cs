@@ -1,4 +1,4 @@
-﻿namespace GodotSharpDI.SourceGenerator.Shared;
+namespace GodotSharpDI.Shared;
 
 /// <summary>
 /// Metadata names for <see cref="Microsoft.CodeAnalysis.Compilation.GetTypeByMetadataName"/>.

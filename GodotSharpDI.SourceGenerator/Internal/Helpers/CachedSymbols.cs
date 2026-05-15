@@ -1,4 +1,4 @@
-﻿using GodotSharpDI.SourceGenerator.Shared;
+﻿using GodotSharpDI.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;

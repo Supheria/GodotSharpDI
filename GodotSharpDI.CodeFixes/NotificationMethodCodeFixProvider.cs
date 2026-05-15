@@ -1,16 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GodotSharpDI.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace GodotSharpDI.SourceGenerator.CodeFixes;
+namespace GodotSharpDI.CodeFixes;
 
 /// <summary>
 /// Provides code fix for missing _Notification method

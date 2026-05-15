@@ -70,6 +70,16 @@
         <value>Type '{0}' has incorrect _Notification method signature. Expected: 'public override partial void _Notification(int what);'</value>
     </data>
 
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- M — Member-level Diagnostics -->
     <!-- ============================================================ -->
@@ -148,7 +158,6 @@
     <data name="M_WaitForFieldNotFound" xml:space="preserve">
         <value>WaitFor references field '{0}' on member '{1}', but no such member exists in this class</value>
     </data>
-
     <data name="M_WaitForFieldNotInjected" xml:space="preserve">
         <value>WaitFor references field '{0}', but it is not marked with [Inject]. The TCS used for synchronization will never be resolved, causing WaitFor to hang indefinitely at runtime</value>
     </data>
@@ -165,9 +174,23 @@
         <value>User '{0}' has no member marked as [Inject]</value>
     </data>
 
-    <!-- ============================================================ -->
-    <!-- S — Constructor-level Diagnostics -->
-    <!-- ============================================================ -->
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
+    </data>
+
+    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
+        <value>[Provide] method '{0}' cannot return void</value>
+    </data>
+    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
+        <value>[Provide] method '{0}' must be parameterless</value>
+    </data>
+    <data name="M_InjectMemberIsUserType" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
+    </data>
+    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is a [User] type and cannot be used as a Provide member</value>
+    </data>
+
     <!-- ============================================================ -->
     <!-- D — Dependency Graph Diagnostics -->
     <!-- ============================================================ -->
@@ -255,17 +278,9 @@
     <data name="U_ManualSetInjectionReadyField" xml:space="preserve">
         <value>Do not manually set injection ready field '{0}' on '{1}'. This field is managed by the DI framework and will be set automatically when the dependency is successfully injected</value>
     </data>
-    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
-        <value>[Inject] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
-    </data>
-    <data name="C_HostCannotBeGenericType" xml:space="preserve">
-        <value>Host cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
-    </data>
-    <data name="C_UserCannotBeGenericType" xml:space="preserve">
-        <value>User cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
-    </data>
-    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
-        <value>Scope cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+
+    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
+        <value>Member '{0}' is marked with [Inject(ReadyCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle successful injections</value>
     </data>
 
     <!-- ============================================================ -->
@@ -282,19 +297,5 @@
     <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
         <value>Implement {0} method</value>
     </data>
-    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
-        <value>Member '{0}' is marked with [Inject(ReadyCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle successful injections</value>
-    </data>
-    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
-        <value>[Provide] method '{0}' cannot return void</value>
-    </data>
-    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
-        <value>[Provide] method '{0}' must be parameterless</value>
-    </data>
-    <data name="M_InjectMemberIsUserType" xml:space="preserve">
-        <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
-    </data>
-    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
-        <value>[Provide] member '{0}' has type '{1}', which is a [User] type and cannot be used as a Provide member</value>
-    </data>
+
 </root>

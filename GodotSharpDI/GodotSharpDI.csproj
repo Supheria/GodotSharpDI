@@ -41,6 +41,18 @@
       Visible="false"
     />
     <None
+      Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.CodeFixes.dll"
+      Pack="true"
+      PackagePath="analyzers/dotnet/cs"
+      Visible="false"
+    />
+    <None
+      Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.Shared.dll"
+      Pack="true"
+      PackagePath="analyzers/dotnet/cs"
+      Visible="false"
+    />
+    <None
       Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.Abstractions.dll"
       Pack="true"
       PackagePath="lib/netstandard2.0"
@@ -53,7 +65,7 @@
       Visible="false"
     />
     <None
-      Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharpDI.SourceGenerator.resources.dll"
+      Include="$(OutputPath)/../netstandard2.0/zh-hans/GodotSharpDI.Shared.resources.dll"
       Pack="true"
       PackagePath="analyzers/dotnet/cs/zh-hans"
       Visible="false"
@@ -71,6 +83,14 @@
     />
     <ProjectReference
       Include="..\GodotSharpDI.SourceGenerator\GodotSharpDI.SourceGenerator.csproj"
+      PrivateAssets="all"
+    />
+    <ProjectReference
+      Include="..\GodotSharpDI.CodeFixes\GodotSharpDI.CodeFixes.csproj"
+      PrivateAssets="all"
+    />
+    <ProjectReference
+      Include="..\GodotSharpDI.Shared\GodotSharpDI.Shared.csproj"
       PrivateAssets="all"
     />
   </ItemGroup>
