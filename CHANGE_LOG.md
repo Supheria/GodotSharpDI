@@ -70,6 +70,12 @@ Extracted `TestCompilationHelper` from SourceGenerator tests for reuse.
 - Fixed `OnDependenciesResolved` signature in flow diagrams and code examples
 - Updated version references to 1.4.0
 
+### Architecture Changes
+
+- **New `GodotSharpDI.CodeFixes` project**: Extracted code fix providers (`InjectionFailureCallbackCodeFixProvider`, `NotificationMethodCodeFixProvider`) from SourceGenerator into an independent project
+- **New `GodotSharpDI.Shared` project**: Extracted shared resources and constants (`GlobalNames`, `ShortNames`, `TypeNamesFull`, `Resources`) from SourceGenerator into an independent project
+- `GeneratedStrings` moved from `Shared` to `Internal/Coding` namespace
+
 ---
 
 > ## Included from v1.3.3 (merged into this release)

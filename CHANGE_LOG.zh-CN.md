@@ -70,6 +70,12 @@
 - 修正流程图和代码示例中的 `OnDependenciesResolved` 签名
 - 更新版本引用至 1.4.0
 
+### 架构变更
+
+- **新增 `GodotSharpDI.CodeFixes` 项目**：将代码修复提供程序（`InjectionFailureCallbackCodeFixProvider`、`NotificationMethodCodeFixProvider`）从 SourceGenerator 提取为独立项目
+- **新增 `GodotSharpDI.Shared` 项目**：将共享资源和常量（`GlobalNames`、`ShortNames`、`TypeNamesFull`、`Resources`）从 SourceGenerator 提取为独立项目
+- `GeneratedStrings` 从 `Shared` 移至 `Internal/Coding` 命名空间
+
 ---
 
 > ## 包含自 v1.3.3 的内容（合并至本次发布）
