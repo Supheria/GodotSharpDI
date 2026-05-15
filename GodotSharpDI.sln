@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Runtime", "God
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Runtime.Tests", "GodotSharpDI.Runtime.Tests\GodotSharpDI.Runtime.Tests.csproj", "{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{683F6A9C-4F57-45B0-B026-EDB1A1CC0002}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,5 +113,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0} = {683F6A9C-4F57-45B0-B026-EDB1A1CC0002}
+		{6603205A-6272-4EBF-95C9-6766D8D65D8D} = {683F6A9C-4F57-45B0-B026-EDB1A1CC0002}
 	EndGlobalSection
 EndGlobal
