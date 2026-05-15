@@ -1,69 +1,108 @@
-# v1.3.3
+# v1.4.0
 
-## ⚠️ Breaking Changes
+## New Features
 
-### `[Modules]` Attribute Syntax Changed
+### `GodotSharpDI.Runtime` Runtime Library
 
-The named property syntax `Hosts = [...]` has been removed. Use the new constructor parameter syntax instead.
+Extracted runtime logic from generated Scope code into a standalone library. This significantly reduces generated code size and improves maintainability.
 
-**Migration**:
-```csharp
-// ❌ Before (1.3.2) — No longer compiles
-[Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
-public partial class GameScope : Node, IScope { }
+**New classes**:
 
-// ✅ After (1.3.3)
-[Modules(typeof(GameManager), typeof(PlayerStatsCenter))]
-public partial class GameScope : Node, IScope { }
-```
+| Class | Description |
+|-------|-------------|
+| `InjectionExecutor` | Central injection execution with separate try-catch for assign, `ReadyCallback`, and `FailureCallback` |
+| `AsyncProviderRunner` | Runs async `[Provide]` methods, marshals results back to main thread via `CallDeferred` |
+| `SyncProviderRunner` | Runs synchronous `[Provide]` methods with consistent error handling |
+| `WaitForCoordinator` | Coordinates `WaitFor` dependency resolution with `Interlocked` thread-safe countdown |
+| `DeadlockDetector` | Runtime DFS-based circular dependency detection (DEBUG builds only) |
+| `ServiceCacheEntry` | Volatile state + instance cache entry for thread-safe service tracking |
+| `DependencyWaitInfo` | Metadata for WaitFor dependency tracking |
+| `ErrorReporter` | Centralized error/warning reporting with configurable output delegates |
+
+Generated Scope code now delegates to these runtime classes instead of inlining all logic.
 
 ---
 
-## 🛠️ Internal Improvements
+## Bug Fixes
 
-### Unified Code Comments to English
+### `InjectionExecutor` assign failure reporting
 
-All code comments across the project have been translated from Chinese to English for better international collaboration and consistency:
-- Source Generator core code
-- Sample project
-- Unit tests
+**Fixed**: When `[Inject]` member assignment (`assign` delegate) threw an exception, WaitFor callbacks were incorrectly notified as success (`true`). Now correctly reports failure (`false`) and skips `ReadyCallback`.
 
-### Rebuilt Sample Project
+---
 
-`GodotSharpDI.Sample` has been rebuilt as a complete runtime reference example, demonstrating:
-- `[Host]` / `[User]` / `[Scope]` role separation
-- `[Inject]` and `[Provide]` usage patterns
-- `WaitFor` dependency ordering
-- `FailureCallback` and `ReadyCallback` injection callbacks
-- `IDependenciesResolved` lifecycle callback
+## Internal Improvements
 
-### Code Quality Improvements
+### Code Generator Complexity Reduction
 
-**Bug Fixes**:
-- Fixed stack leak in `CircularDependencyDetector.StrongConnect` where nodes were not popped from stack on early return
-- Fixed state not reset in `CrossHostCircularDependencyDetector` when called multiple times
-- Fixed `CS8602` null reference warning in `GeneratedMemberAccessAnalyzer`
+- `ScopeGenerator`: Simplified by delegating runtime logic to `GodotSharpDI.Runtime`
+- `ScopeInterfaceGenerator`: Reduced complexity, improved consistency
+- `InjectionGenerator`: Extracted injection execution to `InjectionExecutor`, reduced inline code
+- `ServiceProvisionPhase`: Delegated to `SyncProviderRunner` / `AsyncProviderRunner`
+- `WaitForPhase`: Delegated to `WaitForCoordinator`
 
-**Generated Code Quality**:
-- `ScopeInterfaceGenerator`: Replaced forced type casts with `as` + null check, reports detailed error on type mismatch
-- `InjectionGenerator`: `ResetInjectionState` now clears injected field values, fixes `??=` skipping injection when node re-enters scene tree
-- `InjectionGenerator`: Split single try-catch block into separate blocks for assignment, `OnXxxInjectionReady` callback, and `OnXxxInjectionFailed` callback, enabling better exception source distinction
-- `SourceEmitter`: `catch` now excludes `OperationCanceledException`, prevents false errors during normal incremental generator cancellation
-- `WaitForPhase`: Local function names now use `NamingHelper.ToPascalCase` for consistent naming
-- `ServiceProvisionPhase`: `ArgumentOutOfRangeException` now includes actual `MemberKind` value
-- `ScopeGenerator`: `GenerateDependencyMonitoringMethods` split into 5 independent private methods for better readability
+### CircularDependencyDetector Refactoring
 
-**Performance & Stability**:
-- Optimized `RawClassSemanticInfoFactory` to reuse global `CachedSymbols` instance
-- Increased performance test threshold (1000ms → 3000ms) to avoid CI instability
+- Extracted `TarjanSCC<T>` as a reusable generic algorithm
+- Extracted `CyclePathBuilder` for cycle path formatting
+- `CrossHostCircularDependencyDetector` now reuses `TarjanSCC<ITypeSymbol>` (~80 lines removed)
 
-**Documentation & Cleanup**:
-- Added XML documentation comments to all attribute classes in Abstractions layer
-- Fixed hardcoded Chinese diagnostic messages in `ClassValidator`
-- Removed deprecated `GetInjectionTcsName` method from `NamingHelper`
-- Improved `.gitignore` (added `.vs/`, `*.user`, `*.nupkg`, etc.)
-- Fixed package name display in `nuget-build.bat`
-- Added `LangVersion=latest` to test project
+### Thread Safety
+
+- `ServiceCacheEntry.State` and `ServiceCacheEntry.Instance` marked `volatile` for cross-thread visibility
+- `WaitForCoordinator` uses `Interlocked.Decrement` for thread-safe countdown
+
+### Runtime Tests
+
+New test project `GodotSharpDI.Runtime.Tests` with comprehensive coverage:
+
+- `InjectionExecutorTests` — assign success/failure, callback invocation, error reporting
+- `AsyncProviderRunnerTests` — async provider execution, cancellation, error handling
+- `SyncProviderRunnerTests` — sync provider execution, error handling
+- `WaitForCoordinatorTests` — countdown coordination, error propagation
+- `DeadlockDetectorTests` — cycle detection, path reporting
+
+Extracted `TestCompilationHelper` from SourceGenerator tests for reuse.
+
+### Documentation
+
+- Fixed `ReadyCallback` description: was "Parameterless", now correctly states it receives a non-null typed parameter
+- Fixed `OnDependenciesResolved` signature in flow diagrams and code examples
+- Updated version references to 1.4.0
+
+---
+
+> ## Included from v1.3.3 (merged into this release)
+>
+> ### ⚠️ Breaking Changes
+>
+> #### `[Modules]` Attribute Syntax Changed
+>
+> The named property syntax `Hosts = [...]` has been removed. Use the new constructor parameter syntax instead.
+>
+> **Migration**:
+> ```csharp
+> // ❌ Before (1.3.2) — No longer compiles
+> [Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
+> public partial class GameScope : Node, IScope { }
+>
+> // ✅ After (1.3.3 / 1.4.0)
+> [Modules(typeof(GameManager), typeof(PlayerStatsCenter))]
+> public partial class GameScope : Node, IScope { }
+> ```
+>
+> ### Internal Improvements
+>
+> - Unified all code comments from Chinese to English
+> - Rebuilt `GodotSharpDI.Sample` as a complete runtime reference example
+> - Fixed stack leak in `CircularDependencyDetector.StrongConnect`
+> - Fixed state not reset in `CrossHostCircularDependencyDetector` on repeated calls
+> - Fixed `CS8602` null reference warning in `GeneratedMemberAccessAnalyzer`
+> - `ScopeInterfaceGenerator`: forced casts → `as` + null check
+> - `InjectionGenerator`: `ResetInjectionState` now clears field values; split single try-catch into separate blocks per callback
+> - `SourceEmitter`: `catch` excludes `OperationCanceledException`
+> - Added XML doc comments to all Abstractions attribute classes
+> - Improved `.gitignore`, fixed `nuget-build.bat`, added `LangVersion=latest` to tests
 
 ---
 

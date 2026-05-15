@@ -73,7 +73,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.3.3" />
+<PackageReference Include="GodotSharpDI" Version="1.4.0" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -423,7 +423,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
 
 **Key Features**:
 - **FailureCallback**: Parameterless — called when injection fails (check `IsXxxInjectionReady` for status)
-- **ReadyCallback**: Parameterless, called immediately after successful injection
+- **ReadyCallback**: Receives a non-null reference to the injected value — called immediately after successful injection
 - **Optional Implementation**: Partial methods - implement only when needed
 - **IDE Support**: Smart analyzers detect missing implementations and offer one-click fixes (GDI_U004, GDI_U006)
 
@@ -926,7 +926,7 @@ Child scopes inherit services from parent scopes but can also override them.
    ├─ Dependency B: Success → IsBInjectionReady = true
    └─ Dependency C: Failed → IsCInjectionReady = false
    ↓
-4. OnDependenciesResolved(false) called after all dependencies resolved
+4. OnDependenciesResolved() called after all dependencies resolved
    ↓
 5. Provide all [Provide] services concurrently
 ```
@@ -959,7 +959,7 @@ Child scopes inherit services from parent scopes but can also override them.
       └─ All complete → Provide service Z
          (Must check IsBInjectionReady)
    ↓
-5. OnDependenciesResolved(false) called after all dependencies resolved
+5. OnDependenciesResolved() called after all dependencies resolved
 ```
 
 #### Key Concepts
@@ -1393,9 +1393,9 @@ public partial class GameManager : Node
 For a single `[Inject]` member, the callback execution follows this order:
 
 1. **Injection attempted** by the framework
-2. **On Success**: `OnXxxInjectionReady()` called (if `ReadyCallback = true`)
+2. **On Success**: `OnXxxInjectionReady(TService value)` called (if `ReadyCallback = true`)
 3. **On Failure**: `OnXxxInjectionFailed()` called (if `FailureCallback = true`)
-4. **Finally**: `IDependenciesResolved.OnDependenciesResolved(bool)` called after all injections complete
+4. **Finally**: `IDependenciesResolved.OnDependenciesResolved()` called after all injections complete
 
 #### IDE Support
 
@@ -1575,7 +1575,7 @@ partial class MyHost
         __unresolvedDependencies.Remove(typeof(T));
         if (__unresolvedDependencies.Count == 0)
         {
-            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+            ((IDependenciesResolved)this).OnDependenciesResolved();
         }
     }
 }
