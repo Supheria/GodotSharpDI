@@ -45,6 +45,10 @@ public static class GlobalNames
     public const string AsyncProviderRunner = "global::GodotSharpDI.Runtime.AsyncProviderRunner";
     public const string WaitForCoordinator = "global::GodotSharpDI.Runtime.WaitForCoordinator";
     public const string ErrorReporter = "global::GodotSharpDI.Runtime.ErrorReporter";
+    public const string DeadlockDetector = "global::GodotSharpDI.Runtime.DeadlockDetector";
+    public const string ServiceState = "global::GodotSharpDI.Runtime.ServiceState";
+    public const string ServiceCacheEntry = "global::GodotSharpDI.Runtime.ServiceCacheEntry";
+    public const string DependencyWaitInfo = "global::GodotSharpDI.Runtime.DependencyWaitInfo";
 
     // ─── Generated code local variable name conventions ─────────────────────
     // Centralized management through constants, ensuring all generators use the same local variable names, avoiding string inconsistencies

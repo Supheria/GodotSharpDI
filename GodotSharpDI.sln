@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Sample", "Godo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Runtime", "GodotSharpDI.Runtime\GodotSharpDI.Runtime.csproj", "{34AA5AF0-9F36-4BD8-BCF5-D41A37FDDAE1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GodotSharpDI.Runtime.Tests", "GodotSharpDI.Runtime.Tests\GodotSharpDI.Runtime.Tests.csproj", "{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -94,6 +96,18 @@ Global
 		{34AA5AF0-9F36-4BD8-BCF5-D41A37FDDAE1}.Release|x64.Build.0 = Release|Any CPU
 		{34AA5AF0-9F36-4BD8-BCF5-D41A37FDDAE1}.Release|x86.ActiveCfg = Release|Any CPU
 		{34AA5AF0-9F36-4BD8-BCF5-D41A37FDDAE1}.Release|x86.Build.0 = Release|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Debug|x64.Build.0 = Debug|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Debug|x86.Build.0 = Debug|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Release|x64.ActiveCfg = Release|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Release|x64.Build.0 = Release|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Release|x86.ActiveCfg = Release|Any CPU
+		{1A8635F3-66F5-460B-8EFD-63D0B3C18AF0}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

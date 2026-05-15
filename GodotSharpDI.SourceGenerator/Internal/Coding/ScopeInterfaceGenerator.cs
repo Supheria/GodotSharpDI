@@ -100,14 +100,14 @@ internal static class ScopeInterfaceGenerator
     private static void GenerateProvideNullHandling(CodeFormatter f)
     {
         f.AppendLine("// Failure scenario: service creation failed");
-        f.AppendLine("if (cacheEntry.State == ServiceState.Created)");
+        f.AppendLine($"if (cacheEntry.State == {GlobalNames.ServiceState}.Created)");
         f.BeginBlock();
         {
             // Already succeeded, ignore subsequent failures (don't overwrite success state)
             f.AppendLine("return;");
         }
         f.EndBlock();
-        f.AppendLine("cacheEntry.State = ServiceState.Failed;");
+        f.AppendLine($"cacheEntry.State = {GlobalNames.ServiceState}.Failed;");
         f.AppendLine();
         f.PrintError(
             "$\"[GodotSharpDI] Host '{providerType}' failed to provide service"
@@ -143,7 +143,7 @@ internal static class ScopeInterfaceGenerator
     private static void GenerateProvideSuccess(CodeFormatter f)
     {
         f.AppendLine("// Success scenario");
-        f.AppendLine("if (cacheEntry.State == ServiceState.Created)");
+        f.AppendLine($"if (cacheEntry.State == {GlobalNames.ServiceState}.Created)");
         f.BeginBlock();
         {
             f.PrintError(
@@ -154,7 +154,7 @@ internal static class ScopeInterfaceGenerator
         }
         f.EndBlock();
         f.AppendLine();
-        f.AppendLine("cacheEntry.State = ServiceState.Created;");
+        f.AppendLine($"cacheEntry.State = {GlobalNames.ServiceState}.Created;");
         f.AppendLine("cacheEntry.Instance = instance;");
     }
 
@@ -278,7 +278,7 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateCreatedCase(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
-        f.AppendLine("case ServiceState.Created:");
+        f.AppendLine($"case {GlobalNames.ServiceState}.Created:");
         f.BeginBlock();
         {
             f.BeginTryCatch();
@@ -320,7 +320,7 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateFailedCase(CodeFormatter f, ValidatedTypeInfo validatedType)
     {
-        f.AppendLine("case ServiceState.Failed:");
+        f.AppendLine($"case {GlobalNames.ServiceState}.Failed:");
         f.BeginBlock();
         {
             f.PrintError(
@@ -352,32 +352,32 @@ internal static class ScopeInterfaceGenerator
 
     private static void GenerateNotCreatedCase(CodeFormatter f)
     {
-        f.AppendLine("case ServiceState.NotCreated:");
+        f.AppendLine($"case {GlobalNames.ServiceState}.NotCreated:");
         f.BeginBlock();
         {
             f.AppendLine("if (!_waiters.TryGetValue(implType, out var waiterList))");
             f.BeginBlock();
             {
-                f.AppendLine($"waiterList = new {GlobalNames.List}<DependencyWaitInfo>();");
+                f.AppendLine($"waiterList = new {GlobalNames.List}<{GlobalNames.DependencyWaitInfo}>();");
                 f.AppendLine("_waiters[implType] = waiterList;");
             }
             f.EndBlock();
             f.AppendLine();
 
             f.BeginDebugRegion();
-            f.AppendLine("TryTrackAndDetectDeadlock(requestorType, exposedType.Name);");
+            f.AppendLine($"_deadlockDetector.TrackAndDetect(requestorType, exposedType.Name);");
             f.EndDebugRegion();
             f.AppendLine();
 
             // ResultCallback: Downcast object? to TExposed?, pass to caller's callback
-            f.AppendLine("waiterList.Add(new DependencyWaitInfo(");
+            f.AppendLine($"waiterList.Add(new {GlobalNames.DependencyWaitInfo}(");
             f.BeginLevel();
             {
-                f.AppendLine("ResultCallback: obj => onResult.Invoke((TExposed?)obj),");
-                f.AppendLine($"RequestTicks: {GlobalNames.DateTime}.Now.Ticks,");
-                f.AppendLine("RequestorType: requestorType,");
-                f.AppendLine("ScopeChain: currentScopeChain,");
-                f.AppendLine("DependencyChain: currentDependencyChain)");
+                f.AppendLine("resultCallback: obj => onResult.Invoke((TExposed?)obj),");
+                f.AppendLine($"requestTicks: {GlobalNames.DateTime}.Now.Ticks,");
+                f.AppendLine("requestorType: requestorType,");
+                f.AppendLine("scopeChain: currentScopeChain,");
+                f.AppendLine("dependencyChain: currentDependencyChain)");
             }
             f.EndLevel();
             f.AppendLine(");");

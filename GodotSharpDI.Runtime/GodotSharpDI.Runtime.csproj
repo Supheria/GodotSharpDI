@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="GodotSharpDI.Runtime.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj" />
   </ItemGroup>
 </Project>

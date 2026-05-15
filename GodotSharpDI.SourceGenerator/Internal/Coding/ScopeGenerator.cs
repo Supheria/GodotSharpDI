@@ -32,9 +32,6 @@ internal static class ScopeGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            GenerateDataModels(f);
-            f.AppendLine();
-
             GenerateStaticCollections(f);
             f.AppendLine();
 
@@ -51,47 +48,6 @@ internal static class ScopeGenerator
         context.AddSource($"{fileName}.DI.Scope.g.cs", f.ToString());
     }
 
-    private static void GenerateDataModels(CodeFormatter f)
-    {
-        // ServiceState enum
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private enum ServiceState");
-        f.BeginBlock();
-        {
-            f.AppendLine("NotCreated,  // not yet created");
-            f.AppendLine("Created,     // successfully created");
-            f.AppendLine("Failed       // creation failed");
-        }
-        f.EndBlock();
-        f.AppendLine();
-
-        // ServiceCacheEntry class
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private sealed class ServiceCacheEntry");
-        f.BeginBlock();
-        {
-            f.AppendLine("public ServiceState State = ServiceState.NotCreated;");
-            f.AppendLine($"public {GlobalNames.Object}? Instance = null;");
-        }
-        f.EndBlock();
-        f.AppendLine();
-
-        // DependencyWaitInfo record
-        // ResultCallback: Action<object?> — null means injection failed, non-null means the injected instance
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private sealed record DependencyWaitInfo(");
-        f.BeginLevel();
-        {
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}?> ResultCallback,");
-            f.AppendLine($"{GlobalNames.Long} RequestTicks,");
-            f.AppendLine($"{GlobalNames.String} RequestorType,");
-            f.AppendLine($"{GlobalNames.String} ScopeChain,");
-            f.AppendLine($"{GlobalNames.String} DependencyChain");
-        }
-        f.EndLevel();
-        f.AppendLine(");");
-    }
-
     private static void GenerateStaticCollections(CodeFormatter f)
     {
         // ServiceImplementationMap
@@ -106,24 +62,23 @@ internal static class ScopeGenerator
         // ServiceCache
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> ServiceCache = CreateServiceCache();"
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}> ServiceCache = CreateServiceCache();"
         );
         f.AppendLine();
 
         // _waiters
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<DependencyWaitInfo>> _waiters = new();"
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.DependencyWaitInfo}>> _waiters = new();"
         );
         f.AppendLine();
 
-        // P1-runtime: _waitForGraph (DEBUG mode only), for deadlock DFS detection
+        // Deadlock detector (DEBUG mode only)
         f.BeginDebugRegion();
         {
-            f.AppendHiddenMemberCommentAndAttribute("Runtime WaitFor wait graph for deadlock DFS detection (DEBUG only)");
+            f.AppendHiddenMemberCommentAndAttribute("Runtime WaitFor deadlock detector (DEBUG only)");
             f.AppendLine(
-                $"private readonly {GlobalNames.Dictionary}<{GlobalNames.String}," +
-                $" {GlobalNames.HashSet}<{GlobalNames.String}>> _waitForGraph = new();"
+                $"private readonly {GlobalNames.DeadlockDetector} _deadlockDetector = CreateDeadlockDetector();"
             );
         }
         f.EndDebugRegion();
@@ -172,12 +127,12 @@ internal static class ScopeGenerator
         // CreateServiceCache - Use implementation type as key
         f.AppendHiddenMethodCommentAndAttribute("Initialize all service caches (using implementation type as key)");
         f.AppendLine(
-            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> CreateServiceCache()"
+            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}> CreateServiceCache()"
         );
         f.BeginBlock();
         {
             f.AppendLine(
-                $"var cache = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry>();"
+                $"var cache = new {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}>();"
             );
             f.AppendLine();
 
@@ -216,6 +171,34 @@ internal static class ScopeGenerator
             f.AppendLine("return map;");
         }
         f.EndBlock();
+
+        // CreateDeadlockDetector - Initialize deadlock detector with service-to-provider mappings (DEBUG only)
+        f.BeginDebugRegion();
+        {
+            f.AppendHiddenMethodCommentAndAttribute("Initialize deadlock detector with service-to-provider mappings");
+            f.AppendLine(
+                $"private static {GlobalNames.DeadlockDetector} CreateDeadlockDetector()"
+            );
+            f.BeginBlock();
+            {
+                f.AppendLine($"var detector = new {GlobalNames.DeadlockDetector}();");
+                f.AppendLine();
+
+                foreach (var kvp in scopeServiceImplMap)
+                {
+                    var exposedType = kvp.Key;
+                    var implType = kvp.Value;
+                    f.AppendLine(
+                        $"detector.RegisterServiceProvider(\"{implType.Name}\", \"{exposedType.Name}\");"
+                    );
+                }
+
+                f.AppendLine();
+                f.AppendLine("return detector;");
+            }
+            f.EndBlock();
+        }
+        f.EndDebugRegion();
     }
 
     private static void GenerateDependencyMonitoringMethods(
@@ -233,9 +216,6 @@ internal static class ScopeGenerator
         f.AppendLine();
 
         GenerateReportUnresolvedDependencies(f, validatedType);
-        f.AppendLine();
-
-        GenerateWaitForDeadlockDetection(f, validatedType);
     }
 
     private static void GenerateStartDependencyMonitoring(CodeFormatter f)
@@ -402,82 +382,4 @@ internal static class ScopeGenerator
         f.EndBlock();
     }
 
-    private static void GenerateWaitForDeadlockDetection(CodeFormatter f, ValidatedTypeInfo validatedType)
-    {
-        f.BeginDebugRegion();
-        {
-            f.AppendHiddenMethodCommentAndAttribute("Runtime WaitFor deadlock tracking and DFS detection (DEBUG only)");
-            f.AppendLine($"private void TryTrackAndDetectDeadlock(");
-            f.AppendLine($"    {GlobalNames.String} requestorType,");
-            f.AppendLine($"    {GlobalNames.String} waitingForTypeName)");
-            f.BeginBlock();
-            {
-                f.AppendLine("const string prefix = \"GDI_WF:\";");
-                f.AppendLine("if (!requestorType.StartsWith(prefix)) return;");
-                f.AppendLine("var rest = requestorType.Substring(prefix.Length);");
-                f.AppendLine("var colonIdx = rest.IndexOf(':');");
-                f.AppendLine("if (colonIdx < 0) return;");
-                f.AppendLine("var providerName = rest.Substring(0, colonIdx);");
-                f.AppendLine();
-                f.AppendLine($"if (!_waitForGraph.TryGetValue(providerName, out var edges))");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"edges = new {GlobalNames.HashSet}<{GlobalNames.String}>();");
-                    f.AppendLine("_waitForGraph[providerName] = edges;");
-                }
-                f.EndBlock();
-                f.AppendLine("edges.Add(waitingForTypeName);");
-                f.AppendLine();
-                f.AppendLine("var cycle = FindWaitForCycle(");
-                f.AppendLine("    waitingForTypeName, providerName,");
-                f.AppendLine($"    new {GlobalNames.HashSet}<{GlobalNames.String}>(),");
-                f.AppendLine($"    new {GlobalNames.List}<{GlobalNames.String}>());");
-                f.AppendLine("if (cycle != null)");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"var path = providerName + \" -> \" + " +
-                                 "string.Join(\" -> \", cycle);");
-                    f.PrintError(
-                        $"$\"[GodotSharpDI] Runtime WaitFor Deadlock in " +
-                        $"{validatedType.Symbol.Name}: \" + path");
-                }
-                f.EndBlock();
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            f.AppendHiddenMethodCommentAndAttribute("DFS search for cycle in wait graph, returns cycle path or null");
-            f.AppendLine($"private {GlobalNames.List}<{GlobalNames.String}>? FindWaitForCycle(");
-            f.AppendLine($"    {GlobalNames.String} current,");
-            f.AppendLine($"    {GlobalNames.String} target,");
-            f.AppendLine($"    {GlobalNames.HashSet}<{GlobalNames.String}> visited,");
-            f.AppendLine($"    {GlobalNames.List}<{GlobalNames.String}> path)");
-            f.BeginBlock();
-            {
-                f.AppendLine("if (current == target)");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"var result = new {GlobalNames.List}<{GlobalNames.String}>(path);");
-                    f.AppendLine("result.Add(current);");
-                    f.AppendLine("return result;");
-                }
-                f.EndBlock();
-                f.AppendLine("if (visited.Contains(current)) return null;");
-                f.AppendLine("if (!_waitForGraph.TryGetValue(current, out var nbrs)) return null;");
-                f.AppendLine("visited.Add(current);");
-                f.AppendLine("path.Add(current);");
-                f.AppendLine("foreach (var nb in nbrs)");
-                f.BeginBlock();
-                {
-                    f.AppendLine("var r = FindWaitForCycle(nb, target, visited, path);");
-                    f.AppendLine("if (r != null) return r;");
-                }
-                f.EndBlock();
-                f.AppendLine("path.RemoveAt(path.Count - 1);");
-                f.AppendLine("return null;");
-            }
-            f.EndBlock();
-        }
-        f.EndDebugRegion();
-    }
 }
