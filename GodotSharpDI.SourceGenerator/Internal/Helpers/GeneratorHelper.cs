@@ -1,5 +1,5 @@
-﻿using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.Shared;
+﻿using GodotSharpDI.Shared;
+using GodotSharpDI.SourceGenerator.Internal.Data;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 

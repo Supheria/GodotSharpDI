@@ -186,7 +186,7 @@ namespace Test {
         BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
 
     private static DiGraphBuildResult BuildGraphFromCompilation(
-        Microsoft.CodeAnalysis.Compilation compilation
+        Compilation compilation
     )
     {
         var symbols = new CachedSymbols(compilation);

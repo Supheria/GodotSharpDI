@@ -107,11 +107,11 @@ public sealed class InjectionFailureCallbackCodeFixProvider : CodeFixProvider
 
                         if (memberSymbol is IFieldSymbol fs)
                             memberTypeName = fs.Type.ToDisplayString(
-                                Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat
+                                SymbolDisplayFormat.FullyQualifiedFormat
                             );
                         else if (memberSymbol is IPropertySymbol ps)
                             memberTypeName = ps.Type.ToDisplayString(
-                                Microsoft.CodeAnalysis.SymbolDisplayFormat.FullyQualifiedFormat
+                                SymbolDisplayFormat.FullyQualifiedFormat
                             );
 
                         // Remove nullable ? suffix

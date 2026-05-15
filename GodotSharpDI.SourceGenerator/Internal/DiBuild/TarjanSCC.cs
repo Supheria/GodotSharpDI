@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
@@ -69,11 +70,11 @@ internal static class TarjanSCC<T>
                 if (!s.Index.ContainsKey(w))
                 {
                     StrongConnect(w, graph, s);
-                    s.LowLink[v] = System.Math.Min(s.LowLink[v], s.LowLink[w]);
+                    s.LowLink[v] = Math.Min(s.LowLink[v], s.LowLink[w]);
                 }
                 else if (s.OnStack.Contains(w))
                 {
-                    s.LowLink[v] = System.Math.Min(s.LowLink[v], s.Index[w]);
+                    s.LowLink[v] = Math.Min(s.LowLink[v], s.Index[w]);
                 }
             }
         }

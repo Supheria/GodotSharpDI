@@ -1,7 +1,7 @@
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
+using Microsoft.CodeAnalysis;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -186,7 +186,7 @@ namespace Test
         var result = BuildGraph(source);
 
         var errorDiags = result
-            .Diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
         _output.WriteLine($"\n=== Total diagnostics: {result.Diagnostics.Length} ===");

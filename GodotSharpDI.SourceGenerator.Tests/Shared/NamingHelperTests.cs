@@ -1,6 +1,5 @@
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.Shared;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.Shared;

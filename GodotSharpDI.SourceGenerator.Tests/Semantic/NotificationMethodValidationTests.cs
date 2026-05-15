@@ -1,5 +1,4 @@
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
-using Microsoft.CodeAnalysis;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.Semantic;

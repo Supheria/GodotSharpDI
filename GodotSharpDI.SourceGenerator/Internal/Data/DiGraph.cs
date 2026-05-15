@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Data;

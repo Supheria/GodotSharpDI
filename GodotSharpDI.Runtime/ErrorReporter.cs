@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Text;
 
 namespace GodotSharpDI.Runtime;
@@ -14,13 +15,13 @@ public static class ErrorReporter
     /// Warning-level output callback. Defaults to <see cref="System.Diagnostics.Debug.WriteLine(string)"/>.
     /// Users can override this to redirect warnings (e.g., to Godot's GD.PushWarning).
     /// </summary>
-    public static Action<string> Output { get; set; } = msg => System.Diagnostics.Debug.WriteLine(msg);
+    public static Action<string> Output { get; set; } = msg => Debug.WriteLine(msg);
 
     /// <summary>
     /// Error-level output callback. Defaults to <see cref="System.Diagnostics.Debug.WriteLine(string)"/>.
     /// Users can override this to redirect errors (e.g., to Godot's GD.PrintErr).
     /// </summary>
-    public static Action<string> ErrorOutput { get; set; } = msg => System.Diagnostics.Debug.WriteLine(msg);
+    public static Action<string> ErrorOutput { get; set; } = msg => Debug.WriteLine(msg);
 
     // ─── Injection errors ────────────────────────────────────────────
 
