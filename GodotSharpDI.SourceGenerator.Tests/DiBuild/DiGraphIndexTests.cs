@@ -12,12 +12,12 @@ using Xunit;
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// DiGraph 索引的正确性测试
+/// DiGraph index correctness tests
 ///
-/// 测试重点：
-/// - HostNodeMap（Host 类型 → TypeNode）的完整性和准确性
-/// - UserNodes 是否被正确分类（不在 HostNodeMap 中）
-/// - ProvidedServices 的服务类型追踪
+/// Test focus:
+/// - HostNodeMap (Host type → TypeNode) completeness and accuracy
+/// - UserNodes are correctly classified (not in HostNodeMap)
+/// - ProvidedServices service type tracking
 /// </summary>
 public class DiGraphIndexTests
 {
@@ -72,7 +72,7 @@ namespace Test {
         var graph = BuildGraph(source).Graph;
         Assert.NotNull(graph);
         Assert.Equal(2, graph!.UserNodes.Length);
-        // User 节点不应存在于 HostNodeMap 中
+        // User nodes should not exist in HostNodeMap
         foreach (var userNode in graph.UserNodes)
             Assert.False(graph.HostNodeMap.ContainsKey(userNode.ValidatedTypeInfo.Symbol));
     }
@@ -115,11 +115,11 @@ namespace Test {
         public ImplA Create() => new ImplA();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var graph = BuildGraphFromCompilation(compilation).Graph;
         Assert.NotNull(graph);
 
-        // 获取同一编译中的符号，验证 SymbolEqualityComparer 工作正常
+        // Get symbol from the same compilation to verify SymbolEqualityComparer works correctly
         var hostASymbol = compilation.GetTypeByMetadataName("Test.HostA");
         Assert.NotNull(hostASymbol);
 
@@ -174,19 +174,19 @@ namespace Test {
         Assert.NotNull(graph);
         var hostNode = graph!.HostNodes.FirstOrDefault();
         Assert.NotNull(hostNode);
-        // 有 WaitFor 的成员应产生 DependencyEdge
+        // Members with WaitFor should produce DependencyEdge
         Assert.NotEmpty(hostNode!.Dependencies);
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
     private static DiGraphBuildResult BuildGraph(string source) =>
-        BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+        BuildGraphFromCompilation(DiagnosticCompilationHelper.CreateCompilationWithDI(source));
 
     private static DiGraphBuildResult BuildGraphFromCompilation(
-        Microsoft.CodeAnalysis.Compilation compilation
+        Compilation compilation
     )
     {
         var symbols = new CachedSymbols(compilation);

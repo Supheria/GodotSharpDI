@@ -1,14 +1,14 @@
 ﻿using System.Collections.Immutable;
 using System.Linq;
+using GodotSharpDI.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Semantic;
 
 /// <summary>
-/// 类验证器 - 负责验证和分类 DI 相关的类
+/// Class validator - Responsible for validating and classifying DI-related classes
 /// </summary>
 internal sealed class ClassValidator
 {
@@ -24,26 +24,26 @@ internal sealed class ClassValidator
     }
 
     /// <summary>
-    /// 执行验证并返回结果
+    /// Execute validation and return result
     /// </summary>
     public ClassValidationResult Validate()
     {
-        // 1. 验证 partial
+        // 1. Validate partial
         if (!ValidatePartial())
             return CreateFailureResult();
 
-        // 2. 确定角色和生命周期
+        // 2. Determine role and lifecycle
         var role = DetermineRole();
         if (role == TypeRole.None)
             return CreateFailureResult();
 
-        // 3. 验证角色约束
+        // 3. Validate role constraints
         ValidateRoleConstraints(role);
 
-        // 4. 处理成员
+        // 4. Process members
         var members = ProcessMembers(role);
 
-        // 5. 处理 Modules
+        // 5. Process Modules
         var modulesInfo = ProcessModules();
 
         return CreateSuccessResult(role, members, modulesInfo);
@@ -107,7 +107,7 @@ internal sealed class ClassValidator
             );
         }
 
-        // Host 和 User 不应该同时使用
+        // Host and User should not be used simultaneously
         if (_raw.HasHostAttribute && _raw.HasUserAttribute)
         {
             _diagnostics.Add(
@@ -115,10 +115,10 @@ internal sealed class ClassValidator
                     DiagnosticDescriptors.HostInvalidAttribute,
                     _raw.Location,
                     _raw.Symbol.Name,
-                    "User (Host 和 User 不应同时使用)"
+                    ShortNames.User
                 )
             );
-            // 优先作为 Host 处理
+            // Prioritize as Host
             return TypeRole.Host;
         }
 

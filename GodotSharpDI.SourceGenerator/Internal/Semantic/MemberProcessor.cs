@@ -1,14 +1,14 @@
 using System.Collections.Immutable;
 using System.Linq;
+using GodotSharpDI.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Semantic;
 
 /// <summary>
-/// 成员处理器 - 负责处理和验证类成员
+/// Member processor - responsible for processing and validating class members
 /// </summary>
 internal sealed class MemberProcessor
 {
@@ -42,7 +42,7 @@ internal sealed class MemberProcessor
             if (!hasInject && !hasProvide)
                 continue;
 
-            // 检查冲突的特性组合
+            // Check for conflicting attribute combinations
             if (hasInject && hasProvide)
             {
                 _diagnostics.Add(
@@ -86,7 +86,7 @@ internal sealed class MemberProcessor
 
         CheckMembersEmpty(members);
 
-        // 验证 WaitFor 依赖
+        // Validate WaitFor dependencies
         var validator = new WaitForValidator(members.ToImmutable(), _diagnostics);
         validator.ValidateAll();
 
@@ -97,7 +97,7 @@ internal sealed class MemberProcessor
     {
         var location = member.Locations.FirstOrDefault() ?? Location.None;
 
-        // 检查 static 成员
+        // Check static members
         if (member.IsStatic)
         {
             if (hasInject)
@@ -128,7 +128,7 @@ internal sealed class MemberProcessor
         MemberKind kind = MemberKind.None;
         bool isAsync = false;
 
-        // 确定成员类型和Kind
+        // Determine member type and kind
         if (member is IFieldSymbol field && field.Type is INamedTypeSymbol)
         {
             memberType = (INamedTypeSymbol)field.Type;
@@ -187,18 +187,18 @@ internal sealed class MemberProcessor
                 }
                 kind = MemberKind.ProvideProperty;
 
-                // 检查是否是 Task<T>
+                // Check if it is Task<T>
                 isAsync = _symbols.IsAsyncType(property.Type);
                 if (isAsync && property.Type is INamedTypeSymbol taskType && taskType.IsGenericType)
                 {
-                    // Task<T> 的 T 就是实际类型
+                    // The T in Task<T> is the actual type
                     memberType = taskType.TypeArguments[0] as INamedTypeSymbol;
                 }
             }
         }
         else if (member is IMethodSymbol method && hasProvide)
         {
-            // [Provide] 可以用在方法上
+            // [Provide] can be used on methods
             if (method.ReturnsVoid)
             {
                 _diagnostics.Add(
@@ -231,7 +231,7 @@ internal sealed class MemberProcessor
                 memberType = returnType;
                 if (isAsync && returnType.IsGenericType)
                 {
-                    // Task<T> 的 T 就是实际类型
+                    // The T in Task<T> is the actual type
                     memberType = returnType.TypeArguments[0] as INamedTypeSymbol;
                 }
             }
@@ -240,14 +240,14 @@ internal sealed class MemberProcessor
         if (memberType == null)
             return null;
 
-        // 验证 Inject 成员
+        // Validate Inject members
         bool hasFailureCallback = false;
         bool hasReadyCallback = false;
         if (hasInject)
         {
             if (!ValidateInjectMemberType(memberType, member, location))
                 return null;
-            // 读取 FailureCallback 和 ReadyCallback 属性
+            // Read FailureCallback and ReadyCallback attributes
             var injectAttr = member.GetAttribute(_symbols.InjectAttribute);
             foreach (var namedArg in injectAttr!.NamedArguments)
             {
@@ -268,7 +268,7 @@ internal sealed class MemberProcessor
             }
         }
 
-        // 验证和提取 Provide 成员
+        // Validate and extract Provide members
         var exposedTypes = ImmutableArray<INamedTypeSymbol>.Empty;
         var waitFor = ImmutableArray<string>.Empty;
 
@@ -277,14 +277,14 @@ internal sealed class MemberProcessor
             if (!ValidateProvideMemberType(memberType, member, location))
                 return null;
 
-            // 从 Provide 特性提取信息
+            // Extract information from Provide attribute
             var provideAttr = member.GetAttribute(_symbols.ProvideAttribute);
             if (provideAttr != null)
             {
-                // 提取 ServiceType
+                // Extract ServiceType
                 exposedTypes = AttributeHelper.GetMemberExposedTypes(member, _symbols);
 
-                // 提取 WaitFor
+                // Extract WaitFor
                 foreach (var namedArg in provideAttr.NamedArguments)
                 {
                     if (
@@ -323,14 +323,13 @@ internal sealed class MemberProcessor
             HasFailureCallback: hasFailureCallback,
             HasReadyCallback: hasReadyCallback,
             WaitFor: waitFor,
-            IsAsync: isAsync,
-            UsesProvide: hasProvide
+            IsAsync: isAsync
         );
     }
 
     private bool ValidateInjectMemberType(ITypeSymbol memberType, ISymbol member, Location location)
     {
-        // 必须是接口或具体类
+        // Must be an interface or concrete class
         if (!memberType.IsInterfaceOrConcreteClass())
         {
             _diagnostics.Add(
@@ -344,7 +343,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 不能是开放泛型类型（封闭泛型是允许的，如 List<int>）
+        // Cannot be an open generic type (closed generics are allowed, e.g., List<int>)
         if (memberType is INamedTypeSymbol namedType && namedType.IsUnboundGenericType())
         {
             _diagnostics.Add(
@@ -358,7 +357,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 可以是 Host 类型，但不推荐并产生警告
+        // Can be a Host type, but not recommended and produces warning
         if (_symbols.IsHostType(memberType))
         {
             _diagnostics.Add(
@@ -372,7 +371,7 @@ internal sealed class MemberProcessor
             return true;
         }
 
-        // 不能是 User 类型
+        // Cannot be User type
         if (_symbols.IsUserType(memberType))
         {
             _diagnostics.Add(
@@ -386,7 +385,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 不能是 Scope 类型
+        // Cannot be Scope type
         if (_symbols.ImplementsIScope(memberType))
         {
             _diagnostics.Add(
@@ -400,7 +399,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 可以是非接口，但不推荐并产生警告
+        // Can be non-interface, but not recommended and produces warning
         if (memberType.TypeKind != TypeKind.Interface)
         {
             _diagnostics.Add(
@@ -422,7 +421,7 @@ internal sealed class MemberProcessor
         Location location
     )
     {
-        // 必须是接口或具体类
+        // Must be an interface or concrete class
         if (!memberType.IsInterfaceOrConcreteClass())
         {
             _diagnostics.Add(
@@ -436,7 +435,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 不能是开放泛型类型（封闭泛型是允许的，如 List<int>）
+        // Cannot be an open generic type (closed generics are allowed, e.g., List<int>)
         if (memberType is INamedTypeSymbol namedType && namedType.IsUnboundGenericType())
         {
             _diagnostics.Add(
@@ -450,10 +449,10 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 检查 Host 类型
+        // Check Host type
         if (_symbols.IsHostType(memberType))
         {
-            // 不允许除自身类型之外的 Host 类型
+            // Host types other than self are not allowed
             if (!SymbolEqualityComparer.Default.Equals(memberType, _raw.Symbol))
             {
                 _diagnostics.Add(
@@ -469,7 +468,7 @@ internal sealed class MemberProcessor
             return true;
         }
 
-        // 不能是 User 类型
+        // Cannot be User type
         if (_symbols.IsUserType(memberType))
         {
             _diagnostics.Add(
@@ -483,7 +482,7 @@ internal sealed class MemberProcessor
             return false;
         }
 
-        // 不能是 Scope 类型
+        // Cannot be Scope type
         if (_symbols.ImplementsIScope(memberType))
         {
             _diagnostics.Add(
@@ -509,7 +508,7 @@ internal sealed class MemberProcessor
     {
         foreach (var exposedType in exposedTypes)
         {
-            // 不能是开放泛型类型（封闭泛型是允许的，如 IList<int>）
+            // Cannot be an open generic type (closed generics are allowed, e.g., IList<int>)
             if (exposedType.IsUnboundGenericType())
             {
                 _diagnostics.Add(
@@ -522,7 +521,7 @@ internal sealed class MemberProcessor
                 );
             }
 
-            // 可以是非接口，但不推荐并产生警告
+            // Can be non-interface, but not recommended and produces warning
             if (exposedType.TypeKind != TypeKind.Interface)
             {
                 _diagnostics.Add(
@@ -534,7 +533,7 @@ internal sealed class MemberProcessor
                 );
             }
 
-            // 检查是否实现了暴露的接口
+            // Check if the exposed interface is implemented
             if (exposedType.TypeKind == TypeKind.Interface)
             {
                 if (!memberType.ImplementsInterface(exposedType))
@@ -550,7 +549,7 @@ internal sealed class MemberProcessor
                     );
                 }
             }
-            // 检查是否是继承关系
+            // Check if it is an inheritance relationship
             else if (exposedType.TypeKind == TypeKind.Class)
             {
                 if (
@@ -576,7 +575,7 @@ internal sealed class MemberProcessor
     {
         if (_role == TypeRole.Host)
         {
-            // Host 需要至少有一个 Provide 成员
+            // Host needs at least one Provide member
             var provideMembers = memberInfos.Where(m => m.IsProvideMember).ToArray();
             if (provideMembers.Length == 0)
             {

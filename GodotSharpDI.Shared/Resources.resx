@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+    <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+        <xsd:element name="root" msdata:IsDataSet="true">
+
+        </xsd:element>
+    </xsd:schema>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+
+    <!-- ============================================================ -->
+    <!-- C — Class-level Diagnostics -->
+    <!-- ============================================================ -->
+
+    <data name="C_HostInvalidAttribute" xml:space="preserve">
+        <value>Host '{0}' cannot use [{1}]</value>
+    </data>
+
+    <data name="C_UserInvalidAttribute" xml:space="preserve">
+        <value>User '{0}' cannot use [{1}]</value>
+    </data>
+
+    <data name="C_ScopeInvalidAttribute" xml:space="preserve">
+        <value>Scope '{0}' cannot use [{1}]</value>
+    </data>
+
+    <data name="C_OnlyScopeCanUseModules" xml:space="preserve">
+        <value>To use [Modules], Type '{0}' must implement IScope</value>
+    </data>
+
+    <data name="C_HostMustBeNode" xml:space="preserve">
+        <value>Host '{0}' must inherit from Godot.Node</value>
+    </data>
+
+    <data name="C_UserMustBeNode" xml:space="preserve">
+        <value>User '{0}' must inherit from Godot.Node</value>
+    </data>
+
+    <data name="C_ScopeMustBeNode" xml:space="preserve">
+        <value>Scope '{0}' must inherit from Godot.Node</value>
+    </data>
+
+    <data name="C_IDependenciesResolvedInvalid" xml:space="preserve">
+        <value>Type '{0}' implements IDependenciesResolved but is not marked with [User] or [Host]</value>
+    </data>
+
+    <data name="C_ScopeMissingModules" xml:space="preserve">
+        <value>Scope '{0}' must specify [Modules]</value>
+    </data>
+
+    <data name="C_DiClassMustBePartial" xml:space="preserve">
+        <value>DI-relative class '{0}' must be declared as partial to enable code generation</value>
+    </data>
+    <data name="C_MissingNotificationMethod" xml:space="preserve">
+        <value>Type '{0}' must define 'public override partial void _Notification(int what);' in the script file attached to Node. This method is required for DI framework lifecycle management</value>
+    </data>
+
+    <data name="C_InvalidNotificationMethodSignature" xml:space="preserve">
+        <value>Type '{0}' has incorrect _Notification method signature. Expected: 'public override partial void _Notification(int what);'</value>
+    </data>
+
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope cannot be generic type '{0}'. Generic types cannot be instantiated or used as stable service identifiers. Define a concrete class that inherits from the generic type instead</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- M — Member-level Diagnostics -->
+    <!-- ============================================================ -->
+
+    <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
+        <value>Type '{0}' must be marked as [Host] or [User] to use [Provide] on members</value>
+    </data>
+
+    <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
+        <value>Type '{0}' must be marked as [Service], [Host] or [User] to use [Inject] on members</value>
+    </data>
+
+    <data name="M_MemberConflictWithProvideAndInject" xml:space="preserve">
+        <value>[Provide] and [Inject] cannot be applied to the same member '{0}'</value>
+    </data>
+
+    <data name="M_InjectMemberNotAssignable" xml:space="preserve">
+        <value>[Inject] member '{0}' must be writable (field must not be readonly, property must have setter)</value>
+    </data>
+
+    <data name="M_ProvidePropertyNotAccessible" xml:space="preserve">
+        <value>[Provide] property '{0}' must have a getter</value>
+    </data>
+
+    <data name="M_InjectMemberIsStatic" xml:space="preserve">
+        <value>[Inject] member '{0}' cannot be static</value>
+    </data>
+    <data name="M_InjectMemberTypeIsInvalid" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}', which is not a valid injectable type. Injectable types must be interfaces or concrete classes (non-abstract, non-static)</value>
+    </data>
+
+    <data name="M_InjectMemberIsHostType" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}', which is a [Host] type. While allowed, injecting Host types directly is not recommended - consider injecting an interface exposed by the Host instead</value>
+    </data>
+    <data name="M_InjectMemberIsScopeType" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}', which is an IScope type and cannot be injected</value>
+    </data>
+
+    <data name="M_InjectMemberTypeShouldBeInterface" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}' which is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
+    </data>
+
+    <data name="M_ProvideMemberIsStatic" xml:space="preserve">
+        <value>[Provide] member '{0}' cannot be static</value>
+    </data>
+
+    <data name="M_ProvideMemberTypeIsInvalid" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is not a valid type. Provide member types must be interfaces or concrete classes (non-abstract, non-static)</value>
+    </data>
+    <data name="M_ProvideMemberIsHostType" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is a Host type. Host can only expose itself through [Provide] members, not other Host types</value>
+    </data>
+    <data name="M_ProvideMemberIsScopeType" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is an IScope type and cannot be used as a Provide member</value>
+    </data>
+    <data name="M_ProvideMemberExposedTypeNotImplemented" xml:space="preserve">
+        <value>[Provide] member '{0}' has exposed type '{1}', but type '{2}' does not implement it</value>
+    </data>
+
+    <data name="M_ProvideMemberExposedTypeShouldBeInterface" xml:space="preserve">
+        <value>[Provide] member exposed type '{0}' is a concrete class. Consider using an interface instead for better testability and loose coupling</value>
+    </data>
+
+    <data name="M_HostMissingProvideMember" xml:space="preserve">
+        <value>Host '{0}' has no member marked as [Provide]. A Host must expose at least one service via [Provide]</value>
+    </data>
+
+    <data name="M_ProvideMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Provide] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
+    </data>
+
+    <data name="M_ProvideMemberExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Provide] member '{0}' cannot expose unbound generic type '{1}'. Unbound generic types (e.g., IList&lt;T&gt;) cannot be used as stable service identifiers. Closed generic types (e.g., IList&lt;int&gt;) are allowed</value>
+    </data>
+
+    <data name="M_WaitForFieldNotFound" xml:space="preserve">
+        <value>WaitFor references field '{0}' on member '{1}', but no such member exists in this class</value>
+    </data>
+    <data name="M_WaitForFieldNotInjected" xml:space="preserve">
+        <value>WaitFor references field '{0}', but it is not marked with [Inject]. The TCS used for synchronization will never be resolved, causing WaitFor to hang indefinitely at runtime</value>
+    </data>
+
+    <data name="M_WaitForCircularDependency" xml:space="preserve">
+        <value>Member '{0}' has a circular WaitFor dependency chain. This will cause a deadlock at runtime</value>
+    </data>
+
+    <data name="D_CrossHostDeadlockDetected" xml:space="preserve">
+        <value>Cross-Host WaitFor deadlock detected: {0}. Multiple Hosts form a circular wait chain that will deadlock at runtime. Break the cycle by removing one WaitFor dependency or restructuring service provision</value>
+    </data>
+
+    <data name="M_UserMissingInjectMember" xml:space="preserve">
+        <value>User '{0}' has no member marked as [Inject]</value>
+    </data>
+
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] member '{0}' cannot be unbound generic type '{1}'. Unbound generic types (e.g., List&lt;T&gt;) cannot be instantiated or used as stable service identifiers. Closed generic types (e.g., List&lt;int&gt;) are allowed. Or define a concrete class that inherits from the generic type instead</value>
+    </data>
+
+    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
+        <value>[Provide] method '{0}' cannot return void</value>
+    </data>
+    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
+        <value>[Provide] method '{0}' must be parameterless</value>
+    </data>
+    <data name="M_InjectMemberIsUserType" xml:space="preserve">
+        <value>[Inject] member '{0}' has type '{1}', which is a [User] type and cannot be injected</value>
+    </data>
+    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
+        <value>[Provide] member '{0}' has type '{1}', which is a [User] type and cannot be used as a Provide member</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- D — Dependency Graph Diagnostics -->
+    <!-- ============================================================ -->
+
+    <data name="D_ScopeModulesEmpty" xml:space="preserve">
+        <value>Scope '{0}' specifies no Services or Hosts in [Modules]</value>
+    </data>
+    <data name="D_ScopeModulesHostMustBeHost" xml:space="preserve">
+        <value>Scope '{0}' Modules Host type '{1}' must be a Host</value>
+    </data>
+
+    <data name="D_CircularDependencyDetected" xml:space="preserve">
+        <value>Circular dependency detected: {0}</value>
+    </data>
+    <data name="D_ScopeServiceTypeDuplicated" xml:space="preserve">
+        <value>In Scope '{0}', Service type '{1}' is registered by multiple providers: {2}. Each service type must have exactly one provider within a Scope</value>
+    </data>
+
+    <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
+        <value>[Inject] member '{0}' requests type '{1}', but no service exposes this type</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- E — Internal Error Diagnostics -->
+    <!-- ============================================================ -->
+    <data name="E_GeneratorInitializationFailed" xml:space="preserve">
+        <value>Source generator failed to initialize: {0}</value>
+    </data>
+
+    <data name="E_ClassAnalysisFailed" xml:space="preserve">
+        <value>Failed to analyze class '{0}': {1}</value>
+    </data>
+
+    <data name="E_SymbolCacheUnavailable" xml:space="preserve">
+        <value>Symbol cache unavailable for class '{0}'. Code generation may be incomplete</value>
+    </data>
+
+    <data name="E_ClassValidationFailed" xml:space="preserve">
+        <value>Failed to validate class '{0}': {1}</value>
+    </data>
+
+    <data name="E_GraphBuildFailed" xml:space="preserve">
+        <value>Failed to build dependency graph: {0}</value>
+    </data>
+
+    <data name="E_GraphBuildPhaseFailed" xml:space="preserve">
+        <value>Failed during graph build phase '{0}': {1}</value>
+    </data>
+    <data name="E_NodeBuildFailed" xml:space="preserve">
+        <value>Failed to build {0} node for '{1}': {2}</value>
+    </data>
+
+    <data name="E_GraphValidationFailed" xml:space="preserve">
+        <value>Failed to validate dependency graph at phase '{0}': {1}</value>
+    </data>
+
+    <data name="E_CodeGenerationFailed" xml:space="preserve">
+        <value>Failed to generate code for {0} '{1}': {2}</value>
+    </data>
+
+    <data name="E_SourceOutputFailed" xml:space="preserve">
+        <value>Failed to output generated source code: {0}</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- U — User Behavior Diagnostics -->
+    <!-- ============================================================ -->
+
+    <data name="U_ManualCallGeneratedMethod" xml:space="preserve">
+        <value>Do not manually call generated method '{0}' on '{1}'. This method is managed by the DI framework and will be called automatically at the appropriate time</value>
+    </data>
+
+    <data name="U_ManualAccessGeneratedField" xml:space="preserve">
+        <value>Do not manually access generated field '{0}' on '{1}'. This field is managed by the DI framework and should not be accessed directly by user code</value>
+    </data>
+
+    <data name="U_ManualAccessGeneratedProperty" xml:space="preserve">
+        <value>Do not manually access generated property '{0}' on '{1}'. This property is managed by the DI framework and should not be accessed directly by user code</value>
+    </data>
+
+    <data name="U_MissingInjectionFailureCallbackImplementation" xml:space="preserve">
+        <value>Member '{0}' is marked with [Inject(FailureCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle injection failures</value>
+    </data>
+
+    <data name="U_ManualSetInjectionReadyField" xml:space="preserve">
+        <value>Do not manually set injection ready field '{0}' on '{1}'. This field is managed by the DI framework and will be set automatically when the dependency is successfully injected</value>
+    </data>
+
+    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
+        <value>Member '{0}' is marked with [Inject(ReadyCallback = true)] but the required callback method '{1}' is not implemented. Please implement this partial method to handle successful injections</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- Code Fix Messages -->
+    <!-- ============================================================ -->
+
+    <data name="CodeFix_Notification" xml:space="preserve">
+        <value>Add _Notification method declaration</value>
+    </data>
+
+    <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
+        <value>Implement {0} method</value>
+    </data>
+    <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
+        <value>Implement {0} method</value>
+    </data>
+
+</root>

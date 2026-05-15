@@ -5,12 +5,12 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
-/// 诊断构建器 - 统一诊断创建接口
+/// Diagnostic builder - Unified diagnostic creation interface
 /// </summary>
 internal static class DiagnosticBuilder
 {
     /// <summary>
-    /// 创建诊断
+    /// Create diagnostic
     /// </summary>
     public static Diagnostic Create(
         DiagnosticDescriptor descriptor,
@@ -22,7 +22,7 @@ internal static class DiagnosticBuilder
     }
 
     /// <summary>
-    /// 创建诊断（使用默认位置）
+    /// Create diagnostic (using default location)
     /// </summary>
     public static Diagnostic CreateAtNone(
         DiagnosticDescriptor descriptor,
@@ -33,7 +33,7 @@ internal static class DiagnosticBuilder
     }
 
     /// <summary>
-    /// 为符号创建诊断
+    /// Create diagnostic for a symbol
     /// </summary>
     public static Diagnostic CreateForSymbol(
         DiagnosticDescriptor descriptor,
@@ -46,7 +46,7 @@ internal static class DiagnosticBuilder
     }
 
     /// <summary>
-    /// 批量创建诊断
+    /// Create multiple diagnostics in batch
     /// </summary>
     public static IEnumerable<Diagnostic> CreateMultiple(
         DiagnosticDescriptor descriptor,

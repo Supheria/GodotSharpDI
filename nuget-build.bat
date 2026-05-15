@@ -1,6 +1,6 @@
 @echo off
 echo =========================================
-echo Packing GodotSharpDI.Generator NuGet Package
+echo Packing GodotSharpDI NuGet Package
 echo =========================================
 
 set PROJECT=GodotSharpDI\GodotSharpDI.csproj

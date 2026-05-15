@@ -1,3 +1,137 @@
+# v1.4.0
+
+## New Features
+
+### `GodotSharpDI.Runtime` Runtime Library
+
+Extracted runtime logic from generated Scope code into a standalone library. This significantly reduces generated code size and improves maintainability.
+
+**New classes**:
+
+| Class | Description |
+|-------|-------------|
+| `InjectionExecutor` | Central injection execution with separate try-catch for assign, `ReadyCallback`, and `FailureCallback` |
+| `AsyncProviderRunner` | Runs async `[Provide]` methods, marshals results back to main thread via `CallDeferred` |
+| `SyncProviderRunner` | Runs synchronous `[Provide]` methods with consistent error handling |
+| `WaitForCoordinator` | Coordinates `WaitFor` dependency resolution with `Interlocked` thread-safe countdown |
+| `DeadlockDetector` | Runtime DFS-based circular dependency detection (DEBUG builds only) |
+| `ServiceCacheEntry` | Volatile state + instance cache entry for thread-safe service tracking |
+| `DependencyWaitInfo` | Metadata for WaitFor dependency tracking |
+| `ErrorReporter` | Centralized error/warning reporting with configurable output delegates |
+
+Generated Scope code now delegates to these runtime classes instead of inlining all logic.
+
+---
+
+## Bug Fixes
+
+### `InjectionExecutor` assign failure reporting
+
+**Fixed**: When `[Inject]` member assignment (`assign` delegate) threw an exception, WaitFor callbacks were incorrectly notified as success (`true`). Now correctly reports failure (`false`) and skips `ReadyCallback`.
+
+---
+
+## Internal Improvements
+
+### Code Generator Complexity Reduction
+
+- `ScopeGenerator`: Simplified by delegating runtime logic to `GodotSharpDI.Runtime`
+- `ScopeInterfaceGenerator`: Reduced complexity, improved consistency
+- `InjectionGenerator`: Extracted injection execution to `InjectionExecutor`, reduced inline code
+- `ServiceProvisionPhase`: Delegated to `SyncProviderRunner` / `AsyncProviderRunner`
+- `WaitForPhase`: Delegated to `WaitForCoordinator`
+
+### CircularDependencyDetector Refactoring
+
+- Extracted `TarjanSCC<T>` as a reusable generic algorithm
+- Extracted `CyclePathBuilder` for cycle path formatting
+- `CrossHostCircularDependencyDetector` now reuses `TarjanSCC<ITypeSymbol>` (~80 lines removed)
+
+### Thread Safety
+
+- `ServiceCacheEntry.State` and `ServiceCacheEntry.Instance` marked `volatile` for cross-thread visibility
+- `WaitForCoordinator` uses `Interlocked.Decrement` for thread-safe countdown
+
+### Runtime Tests
+
+New test project `GodotSharpDI.Runtime.Tests` with comprehensive coverage:
+
+- `InjectionExecutorTests` — assign success/failure, callback invocation, error reporting
+- `AsyncProviderRunnerTests` — async provider execution, cancellation, error handling
+- `SyncProviderRunnerTests` — sync provider execution, error handling
+- `WaitForCoordinatorTests` — countdown coordination, error propagation
+- `DeadlockDetectorTests` — cycle detection, path reporting
+
+### SourceGenerator E2E Tests
+
+New end-to-end integration tests in `GodotSharpDI.SourceGenerator.Tests/E2E/` that verify the complete pipeline: source code → source generator → generated code → runtime execution.
+
+**Test infrastructure**:
+
+- `E2ETestHelper` — runs the source generator, compiles generated code with real Runtime/Abstractions DLLs + Godot mocks, provides reflection helpers for instantiation and lifecycle simulation
+- `Mocks/E2EGodotMocks` — full Godot mock types (Node with parent-child wiring, Callable, Timer, GD) for E2E compilation
+- `Mocks/DiagnosticGodotStubs` — minimal Godot stubs for generator diagnostic testing
+
+**E2E test coverage** (11 tests):
+
+- `BasicInjectionTests` — sync Provide, method provider, multiple services, Host self-exposure, cross-Host injection
+- `CallbackTests` — ReadyCallback, FailureCallback (provider throws), IDependenciesResolved
+- `WaitForTests` — single WaitFor dependency, multiple dependencies, failed dependency still provides
+
+**Helper refactoring**:
+
+- `TestCompilationHelper` renamed to `DiagnosticCompilationHelper` — clarifies its role for generator diagnostic testing (stub DI attributes + minimal Godot stubs)
+- `GodotMockSource` renamed to `Mocks/E2EGodotMocks` — clarifies its role for E2E testing
+- Godot stubs extracted from `DiagnosticCompilationHelper` into `Mocks/DiagnosticGodotStubs` — eliminates duplication
+
+### Documentation
+
+- Fixed `ReadyCallback` description: was "Parameterless", now correctly states it receives a non-null typed parameter
+- Fixed `OnDependenciesResolved` signature in flow diagrams and code examples
+- Updated version references to 1.4.0
+
+### Architecture Changes
+
+- **New `GodotSharpDI.CodeFixes` project**: Extracted code fix providers (`InjectionFailureCallbackCodeFixProvider`, `NotificationMethodCodeFixProvider`) from SourceGenerator into an independent project
+- **New `GodotSharpDI.Shared` project**: Extracted shared resources and constants (`GlobalNames`, `ShortNames`, `TypeNamesFull`, `Resources`) from SourceGenerator into an independent project
+- `GeneratedStrings` moved from `Shared` to `Internal/Coding` namespace
+
+---
+
+> ## Included from v1.3.3 (merged into this release)
+>
+> ### ⚠️ Breaking Changes
+>
+> #### `[Modules]` Attribute Syntax Changed
+>
+> The named property syntax `Hosts = [...]` has been removed. Use the new constructor parameter syntax instead.
+>
+> **Migration**:
+> ```csharp
+> // ❌ Before (1.3.2) — No longer compiles
+> [Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
+> public partial class GameScope : Node, IScope { }
+>
+> // ✅ After (1.3.3 / 1.4.0)
+> [Modules(typeof(GameManager), typeof(PlayerStatsCenter))]
+> public partial class GameScope : Node, IScope { }
+> ```
+>
+> ### Internal Improvements
+>
+> - Unified all code comments from Chinese to English
+> - Rebuilt `GodotSharpDI.Sample` as a complete runtime reference example
+> - Fixed stack leak in `CircularDependencyDetector.StrongConnect`
+> - Fixed state not reset in `CrossHostCircularDependencyDetector` on repeated calls
+> - Fixed `CS8602` null reference warning in `GeneratedMemberAccessAnalyzer`
+> - `ScopeInterfaceGenerator`: forced casts → `as` + null check
+> - `InjectionGenerator`: `ResetInjectionState` now clears field values; split single try-catch into separate blocks per callback
+> - `SourceEmitter`: `catch` excludes `OperationCanceledException`
+> - Added XML doc comments to all Abstractions attribute classes
+> - Improved `.gitignore`, fixed `nuget-build.bat`, added `LangVersion=latest` to tests
+
+---
+
 # v1.3.2
 
 ## Feature Enhancements

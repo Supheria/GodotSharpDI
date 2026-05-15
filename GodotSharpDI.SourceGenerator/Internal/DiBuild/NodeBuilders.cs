@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 节点构建器集合
-/// 职责:为各种角色类型构建对应的节点
+/// Node builder collection
+/// Responsibility: Build corresponding nodes for various role types
 /// </summary>
 internal static class NodeBuilders
 {
@@ -77,7 +77,7 @@ internal static class NodeBuilders
     }
 
     /// <summary>
-    /// 构建 Scope 节点
+    /// Build Scope nodes
     /// </summary>
     public static ImmutableArray<ScopeNode> BuildScopeNodes(
         ImmutableArray<ValidatedTypeInfo> scopes,
@@ -119,12 +119,12 @@ internal static class NodeBuilders
     {
         var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
         var providedServices = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-        // 新增：收集服务暴露类型到实现类型的映射
+        // New: Collect mapping from service exposed type to implementation type
         var serviceImplMap = ImmutableDictionary.CreateBuilder<INamedTypeSymbol, INamedTypeSymbol>(
             SymbolEqualityComparer.Default
         );
 
-        // 收集 Inject 成员依赖
+        // Collect Inject member dependencies
         foreach (var member in host.Members)
         {
             if (member.IsInjectMember)
@@ -139,17 +139,17 @@ internal static class NodeBuilders
             }
         }
 
-        // 收集 Provide 成员的 WaitFor 依赖
+        // Collect WaitFor dependencies from Provide members
         foreach (var member in host.Members)
         {
             if (member.IsProvideMember && member.HasWaitFor)
             {
-                // 获取该Provide成员提供的第一个服务类型（用于标识这个成员）
+                // Get the first service type provided by this Provide member (used to identify this member)
                 var providedType = member.ExposedTypes.FirstOrDefault();
 
                 foreach (var waitForFieldName in member.WaitFor)
                 {
-                    // 查找 WaitFor 引用的字段
+                    // Find the field referenced by WaitFor
                     var waitForField = host.Members.FirstOrDefault(m =>
                         m.Symbol.Name == waitForFieldName
                     );
@@ -161,8 +161,8 @@ internal static class NodeBuilders
                                 TargetType: waitForField.MemberType,
                                 Location: member.Location,
                                 Source: DependencySource.WaitForMember,
-                                SourceMemberName: member.Symbol.Name, // 记录源成员名称
-                                SourceProvidedType: providedType // 记录源成员提供的服务类型
+                                SourceMemberName: member.Symbol.Name, // Record source member name
+                                SourceProvidedType: providedType // Record the service type provided by the source member
                             )
                         );
                     }
@@ -170,22 +170,22 @@ internal static class NodeBuilders
             }
         }
 
-        // 收集 Provides 成员提供的服务，同时建立暴露类型到实现类型的映射
+        // Collect services provided by Provide members, and build mapping from exposed types to implementation types
         foreach (var member in host.Members)
         {
             if (member.IsProvideMember)
             {
-                // 添加所有暴露类型
+                // Add all exposed types
                 providedServices.AddRange(member.ExposedTypes);
 
-                // 建立映射：暴露类型 -> 实现类型
-                // member.MemberType 是该成员返回的实际实现类型
+                // Build mapping: exposed type -> implementation type
+                // member.MemberType is the actual implementation type returned by this member
                 var implementationType = member.MemberType;
 
                 foreach (var exposedType in member.ExposedTypes)
                 {
-                    // 如果暴露类型和实现类型不同，建立映射
-                    // （如果相同，也可以添加映射以保持一致性）
+                    // If exposed type and implementation type are different, build mapping
+                    // (If they are the same, mapping can also be added for consistency)
                     serviceImplMap[exposedType] = implementationType;
                 }
             }
@@ -203,7 +203,7 @@ internal static class NodeBuilders
     {
         var dependencies = ImmutableArray.CreateBuilder<DependencyEdge>();
 
-        // 收集注入依赖
+        // Collect injection dependencies
         foreach (var member in user.Members)
         {
             if (member.IsInjectMember)
@@ -238,13 +238,13 @@ internal static class NodeBuilders
 
         var hosts = scope.ModulesInfo.Hosts;
 
-        // 验证 Hosts
+        // Validate Hosts
         ValidateScopeHosts(scope, hosts, symbols, diagnostics);
 
-        // 验证 Scope 内的服务类型冲突
+        // Validate service type conflicts within Scope
         ValidateScopeServiceConflicts(scope, hosts, indexes, diagnostics);
 
-        // 检查是否为空
+        // Check if empty
         if (hosts.IsEmpty)
         {
             diagnostics.Add(
@@ -285,8 +285,8 @@ internal static class NodeBuilders
     }
 
     /// <summary>
-    /// 验证 Scope 内的服务类型冲突
-    /// 重构版：直接使用索引，逻辑更清晰
+    /// Validate service type conflicts within Scope
+    /// Refactored version: Uses indexes directly, logic is clearer
     /// </summary>
     private static void ValidateScopeServiceConflicts(
         ValidatedTypeInfo scope,
@@ -295,18 +295,18 @@ internal static class NodeBuilders
         ImmutableArray<Diagnostic>.Builder diagnostics
     )
     {
-        // 收集该Scope内所有Host提供的服务
+        // Collect all services provided by Hosts within this Scope
         var scopeServices = new Dictionary<ITypeSymbol, List<ServiceProvider>>(
             SymbolEqualityComparer.Default
         );
 
         foreach (var hostType in hosts)
         {
-            // 查找Host节点
+            // Find Host node
             if (!indexes.HostTypeToNode.TryGetValue(hostType, out var hostNode))
                 continue;
 
-            // 收集该Host提供的所有服务
+            // Collect all services provided by this Host
             foreach (var providedService in hostNode.ProvidedServices)
             {
                 if (!scopeServices.ContainsKey(providedService))
@@ -320,7 +320,7 @@ internal static class NodeBuilders
             }
         }
 
-        // 检测冲突：如果一个服务有多个提供者，报告错误
+        // Detect conflicts: If a service has multiple providers, report error
         foreach (var kvp in scopeServices)
         {
             var serviceType = kvp.Key;
@@ -328,7 +328,7 @@ internal static class NodeBuilders
 
             if (providers.Count > 1)
             {
-                // 构建提供者列表字符串
+                // Build provider list string
                 var providerDescriptions = providers
                     .Select(p => $"{p.HostType.ToDisplayString()}.{p.MemberName}")
                     .ToList();
@@ -349,7 +349,7 @@ internal static class NodeBuilders
     }
 
     /// <summary>
-    /// 查找提供特定服务类型的成员名称
+    /// Find the member name that provides a specific service type
     /// </summary>
     private static string FindProviderMemberName(TypeNode hostNode, ITypeSymbol exposedType)
     {
@@ -371,7 +371,7 @@ internal static class NodeBuilders
     }
 
     /// <summary>
-    /// 服务提供者信息
+    /// Service provider information
     /// </summary>
     private record ServiceProvider(ITypeSymbol HostType, TypeNode HostNode, string MemberName);
 }

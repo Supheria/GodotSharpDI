@@ -1,18 +1,14 @@
-using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// WaitFor 机制的集成测试（含可观察的诊断输出）
+/// Integration tests for WaitFor mechanism (with observable diagnostic output)
 /// </summary>
 public class WaitForIntegrationTests
 {
@@ -24,7 +20,7 @@ public class WaitForIntegrationTests
     }
 
     // ============================================================
-    //  WaitFor 成员信息被正确解析到 MemberInfo
+    //  WaitFor member info correctly parsed into MemberInfo
     // ============================================================
 
     [Fact]
@@ -54,12 +50,12 @@ namespace Test
 }";
         var result = BuildGraph(source);
 
-        // 图构建应该成功
+        // Graph construction should succeed
         Assert.NotNull(result.Graph);
         var hostNode = result.Graph!.HostNodes.FirstOrDefault();
         Assert.NotNull(hostNode);
 
-        // 应该有一个 WaitFor 依赖边
+        // Should have one WaitFor dependency edge
         var waitForEdges = hostNode!
             .Dependencies.Where(d => d.Source == DependencySource.WaitForMember)
             .ToList();
@@ -106,14 +102,14 @@ namespace Test
         var waitForEdges = hostNode!
             .Dependencies.Where(d => d.Source == DependencySource.WaitForMember)
             .ToList();
-        // 两个 WaitFor 目标 → 两条依赖边
+        // Two WaitFor targets → two dependency edges
         Assert.Equal(2, waitForEdges.Count);
 
         _output.WriteLine($"WaitFor edges count: {waitForEdges.Count}");
     }
 
     // ============================================================
-    //  WaitFor 诊断整合验证
+    //  WaitFor diagnostic integration verification
     // ============================================================
 
     [Fact]
@@ -154,7 +150,7 @@ namespace Test
         foreach (var diag in cycleDiags)
         {
             _output.WriteLine($"  [{diag.Id}] {diag.GetMessage()}");
-            // 消息包含依赖路径箭头
+            // Message contains dependency path arrows
             Assert.Contains("->", diag.GetMessage());
         }
     }
@@ -190,7 +186,7 @@ namespace Test
         var result = BuildGraph(source);
 
         var errorDiags = result
-            .Diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
         _output.WriteLine($"\n=== Total diagnostics: {result.Diagnostics.Length} ===");
@@ -201,26 +197,9 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
-    private static DiGraphBuildResult BuildGraph(string source)
-    {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var symbols = new CachedSymbols(compilation);
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
-            }
-        }
-
-        return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-    }
+    private static DiGraphBuildResult BuildGraph(string source) =>
+        GraphBuildHelper.BuildGraph(source);
 }

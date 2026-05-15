@@ -1,3 +1,137 @@
+# v1.4.0
+
+## 新功能
+
+### `GodotSharpDI.Runtime` 运行时库
+
+将 Scope 生成代码中的运行时逻辑提取为独立库，显著减少生成代码体积并提升可维护性。
+
+**新增类**：
+
+| 类 | 说明 |
+|----|------|
+| `InjectionExecutor` | 集中执行注入，为赋值、`ReadyCallback`、`FailureCallback` 分别提供独立的 try-catch |
+| `AsyncProviderRunner` | 执行异步 `[Provide]` 方法，通过 `CallDeferred` 将结果调度回主线程 |
+| `SyncProviderRunner` | 执行同步 `[Provide]` 方法，统一错误处理 |
+| `WaitForCoordinator` | 协调 `WaitFor` 依赖解析，使用 `Interlocked` 保证线程安全的倒计时 |
+| `DeadlockDetector` | 运行时 DFS 循环依赖检测（仅 DEBUG 构建） |
+| `ServiceStateCache` | 带 `volatile` 的状态+实例缓存条目，用于线程安全的服务追踪 |
+| `DependencyWaitInfo` | WaitFor 依赖追踪的元数据 |
+| `ErrorReporter` | 集中错误/警告报告，支持可配置的输出委托 |
+
+生成的 Scope 代码现在委托给这些运行时类，而非内联所有逻辑。
+
+---
+
+## Bug 修复
+
+### `InjectionExecutor` 赋值失败报告
+
+**修复**：当 `[Inject]` 成员赋值（`assign` 委托）抛出异常时，WaitFor 回调被错误地通知为成功（`true`）。现在正确报告失败（`false`）并跳过 `ReadyCallback`。
+
+---
+
+## 内部改进
+
+### 代码生成器复杂度降低
+
+- `ScopeGenerator`：通过委托运行时逻辑到 `GodotSharpDI.Runtime` 简化
+- `ScopeInterfaceGenerator`：降低复杂度，提升一致性
+- `InjectionGenerator`：将注入执行提取到 `InjectionExecutor`，减少内联代码
+- `ServiceProvisionPhase`：委托给 `SyncProviderRunner` / `AsyncProviderRunner`
+- `WaitForPhase`：委托给 `WaitForCoordinator`
+
+### CircularDependencyDetector 重构
+
+- 提取 `TarjanSCC<T>` 为可复用的泛型算法
+- 提取 `CyclePathBuilder` 用于环路路径格式化
+- `CrossHostCircularDependencyDetector` 现在复用 `TarjanSCC<ITypeSymbol>`（移除约 80 行代码）
+
+### 线程安全
+
+- `ServiceCacheEntry.State` 和 `ServiceCacheEntry.Instance` 标记 `volatile` 保证跨线程可见性
+- `WaitForCoordinator` 使用 `Interlocked.Decrement` 保证线程安全的倒计时
+
+### 运行时测试
+
+新增 `GodotSharpDI.Runtime.Tests` 测试项目，覆盖全面：
+
+- `InjectionExecutorTests` — 赋值成功/失败、回调调用、错误报告
+- `AsyncProviderRunnerTests` — 异步提供者执行、取消、错误处理
+- `SyncProviderRunnerTests` — 同步提供者执行、错误处理
+- `WaitForCoordinatorTests` — 倒计时协调、错误传播
+- `DeadlockDetectorTests` — 循环检测、路径报告
+
+### SourceGenerator 端到端测试
+
+在 `GodotSharpDI.SourceGenerator.Tests/E2E/` 中新增端到端集成测试，验证完整流水线：源码 → 源码生成器 → 生成代码 → 运行时执行。
+
+**测试基础设施**：
+
+- `E2ETestHelper` — 运行源码生成器，将生成代码与真实 Runtime/Abstractions DLL + Godot mock 一起编译，提供反射辅助方法用于实例化和生命周期模拟
+- `Mocks/E2EGodotMocks` — 完整 Godot mock 类型（含父子关系的 Node、Callable、Timer、GD），用于 E2E 编译
+- `Mocks/DiagnosticGodotStubs` — 最小 Godot stub，用于生成器诊断测试
+
+**E2E 测试覆盖**（11 个测试）：
+
+- `BasicInjectionTests` — 同步 Provide、方法 Provider、多服务注入、Host 自暴露、跨 Host 注入
+- `CallbackTests` — ReadyCallback、FailureCallback（Provider 抛异常）、IDependenciesResolved
+- `WaitForTests` — 单依赖 WaitFor、多依赖 WaitFor、依赖失败仍提供
+
+**Helpers 重构**：
+
+- `TestCompilationHelper` 重命名为 `DiagnosticCompilationHelper` — 明确其用于生成器诊断测试（stub DI 属性 + 最小 Godot stub）
+- `GodotMockSource` 重命名为 `Mocks/E2EGodotMocks` — 明确其用于 E2E 测试
+- 从 `DiagnosticCompilationHelper` 中提取 Godot stub 到 `Mocks/DiagnosticGodotStubs` — 消除重复
+
+### 文档
+
+- 修正 `ReadyCallback` 描述：原文"无参数"，现正确说明接收带类型的非空参数
+- 修正流程图和代码示例中的 `OnDependenciesResolved` 签名
+- 更新版本引用至 1.4.0
+
+### 架构变更
+
+- **新增 `GodotSharpDI.CodeFixes` 项目**：将代码修复提供程序（`InjectionFailureCallbackCodeFixProvider`、`NotificationMethodCodeFixProvider`）从 SourceGenerator 提取为独立项目
+- **新增 `GodotSharpDI.Shared` 项目**：将共享资源和常量（`GlobalNames`、`ShortNames`、`TypeNamesFull`、`Resources`）从 SourceGenerator 提取为独立项目
+- `GeneratedStrings` 从 `Shared` 移至 `Internal/Coding` 命名空间
+
+---
+
+> ## 包含自 v1.3.3 的内容（合并至本次发布）
+>
+> ### ⚠️ 破坏性变更
+>
+> #### `[Modules]` 特性语法变更
+>
+> 命名属性语法 `Hosts = [...]` 已被移除。请改用新的构造函数参数语法。
+>
+> **迁移方式**：
+> ```csharp
+> // ❌ 修改前（1.3.2）— 无法编译
+> [Modules(Hosts = [typeof(GameManager), typeof(PlayerStatsCenter)])]
+> public partial class GameScope : Node, IScope { }
+>
+> // ✅ 修改后（1.3.3 / 1.4.0）
+> [Modules(typeof(GameManager), typeof(PlayerStatsCenter))]
+> public partial class GameScope : Node, IScope { }
+> ```
+>
+> ### 内部改进
+>
+> - 统一所有代码注释为英文
+> - 重建 `GodotSharpDI.Sample` 为完整运行时参考示例
+> - 修复 `CircularDependencyDetector.StrongConnect` 栈泄漏 Bug
+> - 修复 `CrossHostCircularDependencyDetector` 多次调用时状态未重置
+> - 修复 `GeneratedMemberAccessAnalyzer` 的 `CS8602` 空引用警告
+> - `ScopeInterfaceGenerator`：强制类型转换改为 `as` + null 检查
+> - `InjectionGenerator`：`ResetInjectionState` 清除字段值；拆分单个 try-catch 为各回调独立块
+> - `SourceEmitter`：`catch` 排除 `OperationCanceledException`
+> - 为 Abstractions 层所有属性类添加 XML 文档注释
+> - 完善 `.gitignore`、修正 `nuget-build.bat`、测试项目添加 `LangVersion=latest`
+
+---
+
 # v1.3.2
 
 ## 功能增强

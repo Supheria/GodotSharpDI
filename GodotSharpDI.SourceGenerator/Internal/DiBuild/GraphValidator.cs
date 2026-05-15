@@ -8,14 +8,14 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.DiBuild;
 
 /// <summary>
-/// 依赖图验证器 - 重构版
-/// 职责：验证全局依赖关系的正确性（循环依赖、缺失服务等）
-/// 不包含Scope级别的验证（Scope验证在NodeBuilders中）
+/// Dependency graph validator - refactored version
+/// Responsibility: Validate the correctness of global dependencies (circular dependencies, missing services, etc.)
+/// Does not include Scope-level validation (Scope validation is in NodeBuilders)
 /// </summary>
 internal static class GraphValidator
 {
     /// <summary>
-    /// 验证依赖图
+    /// Validate dependency graph
     /// </summary>
     public static void ValidateDependencyGraph(
         ImmutableArray<TypeNode> allHostNodes,
@@ -27,16 +27,16 @@ internal static class GraphValidator
     {
         try
         {
-            // 1. 检测 Host 节点的循环依赖（包括 WaitFor 循环）
+            // 1. Detect circular dependencies in Host nodes (including WaitFor cycles)
             DetectCircularDependencies(allHostNodes, indexes, diagnostics);
 
-            // 1b. P1: 跨 Host 全局 WaitFor 死锁检测（GDI_D011）
+            // 1b. P1: Cross-Host global WaitFor deadlock detection (GDI_D011)
             DetectCrossHostDeadlocks(indexes, diagnostics);
 
-            // 2. 验证 Host 的注入成员
+            // 2. Validate Host injection members
             ValidateHostInjections(allHostNodes, indexes, diagnostics);
 
-            // 3. 验证 User 注入成员
+            // 3. Validate User injection members
             ValidateUserInjections(allUserNodes, indexes, diagnostics);
         }
         catch (Exception ex)
@@ -52,7 +52,7 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// 检测循环依赖（包括 WaitFor 形成的循环）
+    /// Detect circular dependencies (including cycles formed by WaitFor)
     /// </summary>
     private static void DetectCircularDependencies(
         ImmutableArray<TypeNode> hostNodes,
@@ -62,10 +62,10 @@ internal static class GraphValidator
     {
         try
         {
-            // 构建服务类型到提供者的映射（用于循环检测）
+            // Build service type to provider mapping (for circular dependency detection)
             var serviceTypeToProvider = BuildServiceTypeToProviderMap(indexes);
 
-            // 使用 CircularDependencyDetector 检测循环
+            // Use CircularDependencyDetector to detect cycles
             var detector = new CircularDependencyDetector(
                 indexes.HostTypeToNode.ToImmutableDictionary(SymbolEqualityComparer.Default),
                 serviceTypeToProvider
@@ -87,8 +87,8 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// 构建服务类型到提供者的映射（用于循环依赖检测）
-    /// 如果有多个提供者，使用第一个（循环检测只需要知道类型间的依赖关系）
+    /// Build service type to provider mapping (for circular dependency detection)
+    /// If there are multiple providers, use the first one (cycle detection only needs to know dependencies between types)
     /// </summary>
     private static ImmutableDictionary<
         ITypeSymbol,
@@ -111,7 +111,7 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// P1: 跨 Host WaitFor 死锁检测
+    /// P1: Cross-Host WaitFor deadlock detection
     /// </summary>
     private static void DetectCrossHostDeadlocks(
         ServiceIndexes indexes,
@@ -152,7 +152,7 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// 验证 Host 注入成员
+    /// Validate Host injection members
     /// </summary>
     private static void ValidateHostInjections(
         ImmutableArray<TypeNode> hostNodes,
@@ -181,7 +181,7 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// 验证 User 注入成员
+    /// Validate User injection members
     /// </summary>
     private static void ValidateUserInjections(
         ImmutableArray<TypeNode> allUserNodes,
@@ -210,7 +210,7 @@ internal static class GraphValidator
     }
 
     /// <summary>
-    /// 验证单个节点的注入（Host 和 User 共用）
+    /// Validate injection for a single node (shared by Host and User)
     /// </summary>
     private static void ValidateNodeInjections(
         TypeNode node,
@@ -220,8 +220,8 @@ internal static class GraphValidator
     {
         foreach (var dep in node.Dependencies)
         {
-            // 只检查 Inject 成员依赖
-            // WaitFor 依赖会在循环检测中处理
+            // Only check Inject member dependencies
+            // WaitFor dependencies will be handled in cycle detection
             if (dep.Source == DependencySource.InjectMember)
             {
                 if (!indexes.HasProvider(dep.TargetType))

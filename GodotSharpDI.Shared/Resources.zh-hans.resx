@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+    <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+        <xsd:element name="root" msdata:IsDataSet="true">
+
+        </xsd:element>
+    </xsd:schema>
+    <resheader name="resmimetype">
+        <value>text/microsoft-resx</value>
+    </resheader>
+    <resheader name="version">
+        <value>1.3</value>
+    </resheader>
+    <resheader name="reader">
+        <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+    <resheader name="writer">
+        <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    </resheader>
+
+    <!-- ============================================================ -->
+    <!-- C — 类级别诊断 -->
+    <!-- ============================================================ -->
+
+    <data name="C_HostInvalidAttribute" xml:space="preserve">
+        <value>Host '{0}' 不能使用 [{1}]</value>
+    </data>
+
+    <data name="C_UserInvalidAttribute" xml:space="preserve">
+        <value>User '{0}' 不能使用 [{1}]</value>
+    </data>
+
+    <data name="C_ScopeInvalidAttribute" xml:space="preserve">
+        <value>Scope '{0}' 不能使用 [{1}]</value>
+    </data>
+
+    <data name="C_OnlyScopeCanUseModules" xml:space="preserve">
+        <value>要使用 [Modules]，类型 '{0}' 必须实现 IScope</value>
+    </data>
+
+    <data name="C_HostMustBeNode" xml:space="preserve">
+        <value>Host '{0}' 必须继承自 Godot.Node</value>
+    </data>
+
+    <data name="C_UserMustBeNode" xml:space="preserve">
+        <value>User '{0}' 必须继承自 Godot.Node</value>
+    </data>
+
+    <data name="C_ScopeMustBeNode" xml:space="preserve">
+        <value>Scope '{0}' 必须继承自 Godot.Node</value>
+    </data>
+
+    <data name="C_IDependenciesResolvedInvalid" xml:space="preserve">
+        <value>类型 '{0}' 实现了 IDependenciesResolved，但未标记 [User] 或 [Host]</value>
+    </data>
+
+    <data name="C_ScopeMissingModules" xml:space="preserve">
+        <value>Scope '{0}' 必须指定 [Modules]</value>
+    </data>
+
+    <data name="C_DiClassMustBePartial" xml:space="preserve">
+        <value>DI 相关类 '{0}' 必须声明为 partial 以启用代码生成</value>
+    </data>
+
+    <data name="C_MissingNotificationMethod" xml:space="preserve">
+        <value>类型 '{0}' 必须在附加到 Node 的脚本文件中定义 'public override partial void _Notification(int what);'。DI 框架需要此方法进行生命周期管理</value>
+    </data>
+
+    <data name="C_InvalidNotificationMethodSignature" xml:space="preserve">
+        <value>类型 '{0}' 的 _Notification 方法签名不正确。期望: 'public override partial void _Notification(int what);'</value>
+    </data>
+
+    <data name="C_HostCannotBeGenericType" xml:space="preserve">
+        <value>Host 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="C_UserCannotBeGenericType" xml:space="preserve">
+        <value>User 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="C_ScopeCannotBeGenericType" xml:space="preserve">
+        <value>Scope 不能是泛型类型 '{0}'。泛型类型无法实例化，也不能作为稳定的服务标识。请定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- M — 成员级别诊断 -->
+    <!-- ============================================================ -->
+
+    <data name="M_ProvideMemberNotInServiceOrHost" xml:space="preserve">
+        <value>类型 '{0}' 必须标记为 [Host] 或 [User] 才能在成员上使用 [Provide]</value>
+    </data>
+
+    <data name="M_InjectMemberNotInServiceHostOrUser" xml:space="preserve">
+        <value>类型 '{0}' 必须标记为 [Host] 或 [User] 才能在成员上使用 [Inject]</value>
+    </data>
+
+    <data name="M_MemberConflictWithProvideAndInject" xml:space="preserve">
+        <value>[Provide] 和 [Inject] 不能同时应用于同一成员 '{0}'</value>
+    </data>
+
+    <data name="M_InjectMemberNotAssignable" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 必须可写（字段不能是 readonly，属性必须有 setter）</value>
+    </data>
+
+    <data name="M_ProvidePropertyNotAccessible" xml:space="preserve">
+        <value>[Provide] 属性 '{0}' 必须有 getter</value>
+    </data>
+
+    <data name="M_ProvideMethodReturnVoid" xml:space="preserve">
+        <value>[Provide] 方法 '{0}' 的返回值不能是 void</value>
+    </data>
+
+    <data name="M_ProvideMethodNotParameterless" xml:space="preserve">
+        <value>[Provide] 方法 '{0}' 必须是无参方法</value>
+    </data>
+
+    <data name="M_InjectMemberIsStatic" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 不能是静态的</value>
+    </data>
+    <data name="M_InjectMemberTypeIsInvalid" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 不是有效的可注入类型。可注入类型必须是接口或具体类（非抽象、非静态）</value>
+    </data>
+
+    <data name="M_InjectMemberIsHostType" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [Host] 类型。虽然允许，但不推荐直接注入 Host 类型——建议注入 Host 暴露的接口</value>
+    </data>
+    <data name="M_InjectMemberIsScopeType" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能被注入</value>
+    </data>
+
+    <data name="M_InjectMemberTypeShouldBeInterface" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
+    </data>
+
+    <data name="M_InjectMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="M_ProvideMemberIsStatic" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能是静态的</value>
+    </data>
+
+    <data name="M_ProvideMemberTypeIsInvalid" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 不是有效类型。[Provide] 成员类型必须是接口或具体类（非抽象、非静态）</value>
+    </data>
+
+    <data name="M_ProvideMemberIsHostType" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 Host 类型。Host 只能通过 [Provide] 成员暴露自身，不能暴露其他 Host 类型</value>
+    </data>
+    <data name="M_ProvideMemberIsScopeType" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 IScope 类型，不能用作 [Provide] 成员</value>
+    </data>
+    <data name="M_ProvideMemberExposedTypeNotImplemented" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的暴露类型为 '{1}'，但类型 '{2}' 未实现该类型</value>
+    </data>
+
+    <data name="M_ProvideMemberExposedTypeShouldBeInterface" xml:space="preserve">
+        <value>[Provide] 成员暴露类型 '{0}' 是具体类。建议使用接口以获得更好的可测试性和松耦合</value>
+    </data>
+
+    <data name="M_ProvideMemberTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能是开放泛型类型 '{1}'。开放泛型类型（如 List&lt;T&gt;）无法实例化，也不能作为稳定的服务标识。封闭泛型类型（如 List&lt;int&gt;）是允许的。或者定义一个继承该泛型类型的具体类</value>
+    </data>
+
+    <data name="M_ProvideMemberExposedTypeCannotBeGeneric" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 不能暴露开放泛型类型 '{1}'。开放泛型类型（如 IList&lt;T&gt;）不能作为稳定的服务标识。封闭泛型类型（如 IList&lt;int&gt;）是允许的</value>
+    </data>
+
+    <data name="M_HostMissingProvideMember" xml:space="preserve">
+        <value>Host '{0}' 没有标记为 [Provide] 的成员。Host 必须通过至少一个 [Provide] 成员暴露服务</value>
+    </data>
+
+    <data name="M_UserMissingInjectMember" xml:space="preserve">
+        <value>User '{0}' 没有标记为 [Inject] 的成员</value>
+    </data>
+
+    <data name="M_WaitForFieldNotFound" xml:space="preserve">
+        <value>WaitFor 在成员 '{1}' 上引用了字段 '{0}'，但本类中不存在该成员</value>
+    </data>
+
+    <data name="M_WaitForFieldNotInjected" xml:space="preserve">
+        <value>WaitFor 引用了字段 '{0}'，但该字段未标记 [Inject]。用于同步的 TCS 将永远不会被解析，导致 WaitFor 在运行时无限等待</value>
+    </data>
+
+    <data name="M_WaitForCircularDependency" xml:space="preserve">
+        <value>成员 '{0}' 存在循环的 WaitFor 依赖链，将在运行时导致死锁</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- D — 依赖图诊断 -->
+    <!-- ============================================================ -->
+
+    <data name="D_ScopeModulesEmpty" xml:space="preserve">
+        <value>Scope '{0}' 在 [Modules] 中未指定任何 Host</value>
+    </data>
+
+    <data name="D_ScopeModulesHostMustBeHost" xml:space="preserve">
+        <value>Scope '{0}' Modules Host 类型 '{1}' 必须是 [Host]</value>
+    </data>
+
+    <data name="D_CircularDependencyDetected" xml:space="preserve">
+        <value>检测到循环依赖: {0}</value>
+    </data>
+
+    <data name="D_CrossHostDeadlockDetected" xml:space="preserve">
+        <value>检测到跨 Host WaitFor 死锁: {0}。多个 Host 形成了循环等待链，将在运行时死锁。请删除其中一个 WaitFor 依赖或重新设计服务提供关系</value>
+    </data>
+
+    <data name="D_ScopeServiceTypeDuplicated" xml:space="preserve">
+        <value>在 Scope '{0}' 中，服务类型 '{1}' 由多个提供者注册：{2}。每个服务类型在 Scope 内必须只有一个提供者</value>
+    </data>
+    <data name="D_InjectMemberTypeIsNotExposed" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 请求类型 '{1}'，但没有任何服务暴露此类型</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- E — 内部错误诊断 -->
+    <!-- ============================================================ -->
+
+    <data name="E_GeneratorInitializationFailed" xml:space="preserve">
+        <value>源生成器初始化失败: {0}</value>
+    </data>
+
+    <data name="E_ClassAnalysisFailed" xml:space="preserve">
+        <value>分析类 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_SymbolCacheUnavailable" xml:space="preserve">
+        <value>类 '{0}' 的符号缓存不可用。代码生成可能不完整</value>
+    </data>
+
+    <data name="E_ClassValidationFailed" xml:space="preserve">
+        <value>验证类 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_GraphBuildFailed" xml:space="preserve">
+        <value>构建依赖图失败: {0}</value>
+    </data>
+
+    <data name="E_GraphBuildPhaseFailed" xml:space="preserve">
+        <value>依赖图构建阶段 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_NodeBuildFailed" xml:space="preserve">
+        <value>为 '{1}' 构建 {0} 节点失败: {2}</value>
+    </data>
+
+    <data name="E_GraphValidationFailed" xml:space="preserve">
+        <value>依赖图验证在阶段 '{0}' 失败: {1}</value>
+    </data>
+
+    <data name="E_CodeGenerationFailed" xml:space="preserve">
+        <value>为 {0} '{1}' 生成代码失败: {2}</value>
+    </data>
+
+    <data name="E_SourceOutputFailed" xml:space="preserve">
+        <value>输出生成的源代码失败: {0}</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- U — 用户行为诊断 -->
+    <!-- ============================================================ -->
+
+    <data name="U_ManualCallGeneratedMethod" xml:space="preserve">
+        <value>不要手动调用生成的方法 '{0}'（在 '{1}' 上）。此方法由 DI 框架管理，会在适当时机自动调用</value>
+    </data>
+
+    <data name="U_ManualAccessGeneratedField" xml:space="preserve">
+        <value>不要手动访问生成的字段 '{0}'（在 '{1}' 上）。此字段由 DI 框架管理，不应由用户代码直接访问</value>
+    </data>
+
+    <data name="U_ManualAccessGeneratedProperty" xml:space="preserve">
+        <value>不要手动访问生成的属性 '{0}'（在 '{1}' 上）。此属性由 DI 框架管理，不应由用户代码直接访问</value>
+    </data>
+
+    <data name="U_MissingInjectionFailureCallbackImplementation" xml:space="preserve">
+        <value>成员 '{0}' 标记了 [Inject(FailureCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入失败</value>
+    </data>
+
+    <data name="U_ManualSetInjectionReadyField" xml:space="preserve">
+        <value>不要手动设置注入准备字段 '{0}'（在 '{1}' 上）。此字段由 DI 框架管理，会在依赖成功注入时自动设置</value>
+    </data>
+
+    <data name="U_MissingInjectionReadyCallbackImplementation" xml:space="preserve">
+        <value>成员 '{0}' 标记了 [Inject(ReadyCallback = true)]，但未实现所需的回调方法 '{1}'。请实现此 partial 方法以处理注入成功的情况</value>
+    </data>
+
+    <data name="M_InjectMemberIsUserType" xml:space="preserve">
+        <value>[Inject] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能被注入</value>
+    </data>
+    <data name="M_ProvideMemberIsUserType" xml:space="preserve">
+        <value>[Provide] 成员 '{0}' 的类型 '{1}' 是 [User] 类型，不能用作 [Provide] 成员</value>
+    </data>
+
+    <!-- ============================================================ -->
+    <!-- 代码修复消息 -->
+    <!-- ============================================================ -->
+
+    <data name="CodeFix_Notification" xml:space="preserve">
+        <value>添加 _Notification 方法声明</value>
+    </data>
+
+    <data name="CodeFix_InjectionFailureCallback" xml:space="preserve">
+        <value>实现 {0} 方法</value>
+    </data>
+
+    <data name="CodeFix_InjectionReadyCallback" xml:space="preserve">
+        <value>实现 {0} 方法</value>
+    </data>
+
+</root>

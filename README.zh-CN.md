@@ -73,7 +73,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.3.2" />
+<PackageReference Include="GodotSharpDI" Version="1.4.0" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -140,7 +140,7 @@ public class PlayerStatsService : IPlayerStats
 ### 3. 定义 Scope
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager)])]
+[Modules(typeof(GameManager))]
 public partial class GameScope : Node, IScope
 {
     // 框架自动生成 IScope 实现
@@ -423,7 +423,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
 
 **关键特性**：
 - **FailureCallback**：无参数 — 注入失败时调用（通过 `IsXxxInjectionReady` 检查状态）
-- **ReadyCallback**：无参数，在注入成功后立即调用
+- **ReadyCallback**：接收注入值的非空引用作为参数 — 在注入成功后立即调用
 - **可选实现**：Partial 方法 - 仅在需要时实现
 - **IDE 支持**：智能分析器检测缺失的实现并提供一键修复（GDI_U004，GDI_U006）
 
@@ -438,7 +438,7 @@ Scope 是 DI 容器，管理服务生命周期并协调依赖注入。
 #### 声明
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager), typeof(ServiceHost)])]
+[Modules(typeof(GameManager), typeof(ServiceHost))]
 public partial class GameScope : Node, IScope
 {
     // 框架生成所有实现
@@ -926,7 +926,7 @@ RootScope
    ├─ 依赖 B: 成功 → IsBInjectionReady = true
    └─ 依赖 C: 失败 → IsCInjectionReady = false
    ↓
-4. 所有依赖解析完成后调用 OnDependenciesResolved(false)
+4. 所有依赖解析完成后调用 OnDependenciesResolved()
    ↓
 5. 并发提供所有 [Provide] 服务
 ```
@@ -959,7 +959,7 @@ RootScope
       └─ 全部完成后 → 提供服务 Z
          （需检查 IsBInjectionReady）
    ↓
-5. 所有依赖解析完成后调用 OnDependenciesResolved(false)
+5. 所有依赖解析完成后调用 OnDependenciesResolved()
 ```
 
 #### 关键概念
@@ -1264,11 +1264,12 @@ partial void OnDatabaseInjectionFailed()
 
 **参见**: [注入回调](#注入回调) 了解详细文档。
 
-#### `[Modules(Hosts = [...])]`
+#### `[Modules(...)]`
 定义哪些 Host 属于 Scope。
 
 ```csharp
-[Modules(Hosts = [typeof(Host1), typeof(Host2)])]
+// 构造函数参数（自 v1.3.3 起）
+[Modules(typeof(Host1), typeof(Host2))]
 public partial class GameScope : Node, IScope { }
 ```
 
@@ -1392,9 +1393,9 @@ public partial class GameManager : Node
 对于单个 `[Inject]` 成员，回调执行遵循以下顺序：
 
 1. **框架尝试注入**
-2. **成功时**：调用 `OnXxxInjectionReady()`（如果 `ReadyCallback = true`）
-3. **失败时**：调用 `OnXxxInjectionFailed(error)`（如果 `FailureCallback = true`）
-4. **最后**：所有注入完成后调用 `IDependenciesResolved.OnDependenciesResolved(bool)`
+2. **成功时**：调用 `OnXxxInjectionReady(TService value)`（如果 `ReadyCallback = true`）
+3. **失败时**：调用 `OnXxxInjectionFailed()`（如果 `FailureCallback = true`）
+4. **最后**：所有注入完成后调用 `IDependenciesResolved.OnDependenciesResolved()`
 
 #### IDE 支持
 
@@ -1423,7 +1424,7 @@ private IService _service;
 // 3. 你按 Ctrl+. 并选择"实现 OnServiceInjectionReady 方法"
 
 // 4. 框架生成：
-partial void OnServiceInjectionReady()
+partial void OnServiceInjectionReady(IService service)
 {
     GD.Print("依赖注入就绪");
 }
@@ -1562,7 +1563,7 @@ partial class MyHost
         IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
     
     // 未解析依赖追踪
-    private readonly HashSet<Type> _unresolvedDependencies = new()
+    private readonly HashSet<Type> __unresolvedDependencies = new()
     {
         typeof(IConfig),
         typeof(ILogger),
@@ -1571,10 +1572,10 @@ partial class MyHost
     // 依赖解析回调
     private void OnDependencyResolved<T>()
     {
-        _unresolvedDependencies.Remove(typeof(T));
-        if (_unresolvedDependencies.Count == 0)
+        __unresolvedDependencies.Remove(typeof(T));
+        if (__unresolvedDependencies.Count == 0)
         {
-            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+            ((IDependenciesResolved)this).OnDependenciesResolved();
         }
     }
 }

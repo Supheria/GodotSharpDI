@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// 原始类语义信息（Raw）
+/// Raw class semantic information (Raw)
 /// </summary>
 internal sealed record RawClassSemanticInfo(
     INamedTypeSymbol Symbol,

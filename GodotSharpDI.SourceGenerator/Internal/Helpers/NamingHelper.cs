@@ -3,24 +3,24 @@ using System.Text;
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
-/// 命名转换辅助类
+/// Naming conversion helper class
 /// </summary>
 internal static class NamingHelper
 {
     /// <summary>
-    /// 将成员名转换为大写驼峰格式
-    /// 规则：
-    /// 1. 忽略前导下划线
-    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
+    /// Convert member name to PascalCase format
+    /// Rules:
+    /// 1. Ignore leading underscores
+    /// 2. Convert remaining part to PascalCase format (remove underscores in between)
     /// </summary>
-    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
-    /// <returns>大写驼峰格式的名称，如 "MyField", "MyService", "MyProperty"</returns>
+    /// <param name="memberName">Member name, e.g., "_myField", "my_service", "MyProperty"</param>
+    /// <returns>PascalCase formatted name, e.g., "MyField", "MyService", "MyProperty"</returns>
     public static string ToPascalCase(string memberName)
     {
         if (string.IsNullOrEmpty(memberName))
             return string.Empty;
 
-        // 去除前导下划线
+        // Remove leading underscores
         int startIndex = 0;
         while (startIndex < memberName.Length && memberName[startIndex] == '_')
         {
@@ -32,15 +32,15 @@ internal static class NamingHelper
 
         var sb = new StringBuilder();
 
-        // 转换为大写驼峰格式，去除下划线
-        bool capitalizeNext = true; // 第一个字符大写
+        // Convert to PascalCase format, remove underscores
+        bool capitalizeNext = true; // Capitalize first character
         for (int i = startIndex; i < memberName.Length; i++)
         {
             char c = memberName[i];
 
             if (c == '_')
             {
-                // 遇到下划线，下一个字符需要大写
+                // Underscore encountered, next character needs to be capitalized
                 capitalizeNext = true;
             }
             else if (capitalizeNext)
@@ -58,14 +58,14 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 将成员名转换为失败回调方法名
-    /// 规则：
-    /// 1. 忽略前导下划线
-    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
-    /// 3. 添加 "On" 前缀和 "InjectionFailed" 后缀
+    /// Convert member name to failure callback method name
+    /// Rules:
+    /// 1. Ignore leading underscores
+    /// 2. Convert remaining part to PascalCase format (remove underscores in between)
+    /// 3. Add "On" prefix and "InjectionFailed" suffix
     /// </summary>
-    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
-    /// <returns>失败回调方法名，如 "OnMyFieldInjectionFailed"</returns>
+    /// <param name="memberName">Member name, e.g., "_myField", "my_service", "MyProperty"</param>
+    /// <returns>Failure callback method name, e.g., "OnMyFieldInjectionFailed"</returns>
     public static string GetFailureCallbackMethodName(string memberName)
     {
         var pascalCase = ToPascalCase(memberName);
@@ -76,14 +76,14 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 将成员名转换为就绪回调方法名
-    /// 规则：
-    /// 1. 忽略前导下划线
-    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
-    /// 3. 添加 "On" 前缀和 "InjectionReady" 后缀
+    /// Convert member name to ready callback method name
+    /// Rules:
+    /// 1. Ignore leading underscores
+    /// 2. Convert remaining part to PascalCase format (remove underscores in between)
+    /// 3. Add "On" prefix and "InjectionReady" suffix
     /// </summary>
-    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
-    /// <returns>就绪回调方法名，如 "OnMyFieldInjectionReady"</returns>
+    /// <param name="memberName">Member name, e.g., "_myField", "my_service", "MyProperty"</param>
+    /// <returns>Ready callback method name, e.g., "OnMyFieldInjectionReady"</returns>
     public static string GetReadyCallbackMethodName(string memberName)
     {
         var pascalCase = ToPascalCase(memberName);
@@ -94,22 +94,10 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 将成员名转换为注入结果 TCS 局部变量名（已废弃，仅保留以防旧代码引用）
-    /// 例: "_config" → "__config_tcs"
-    /// </summary>
-    [global::System.Obsolete("TCS pattern replaced by callback list. Use GetInjectionCallbackListName instead.")]
-    public static string GetInjectionTcsName(string memberName)
-    {
-        var pascal = ToPascalCase(memberName);
-        if (string.IsNullOrEmpty(pascal)) return "__tcs";
-        return $"__{char.ToLower(pascal[0])}{pascal.Substring(1)}_tcs";
-    }
-
-    /// <summary>
-    /// 将成员名转换为注入回调列表字段名。
-    /// 用于 WaitFor 机制：每个 [Inject] 成员对应一个 List&lt;Action&lt;bool&gt;&gt;，
-    /// 在主线程上直接调用，无需跨线程跳转。
-    /// 例: "_config" → "__config_callbacks"
+    /// Convert member name to injection callback list field name.
+    /// Used for WaitFor mechanism: Each [Inject] member corresponds to a List&lt;Action&lt;bool&gt;&gt;,
+    /// called directly on the main thread, no cross-thread jumping needed.
+    /// Example: "_config" → "__config_callbacks"
     /// </summary>
     public static string GetInjectionCallbackListName(string memberName)
     {
@@ -119,13 +107,13 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 将成员名转换为方法参数名（camelCase，去除前导下划线）
-    /// 规则：
-    /// 1. 忽略前导下划线
-    /// 2. 将剩余部分转换为小写驼峰格式（去除中间的下划线）
+    /// Convert member name to method parameter name (camelCase, remove leading underscores)
+    /// Rules:
+    /// 1. Ignore leading underscores
+    /// 2. Convert remaining part to camelCase format (remove underscores in between)
     /// </summary>
-    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
-    /// <returns>camelCase 参数名，如 "myField", "myService", "myProperty"</returns>
+    /// <param name="memberName">Member name, e.g., "_myField", "my_service", "MyProperty"</param>
+    /// <returns>camelCase parameter name, e.g., "myField", "myService", "myProperty"</returns>
     public static string ToParameterName(string memberName)
     {
         var pascal = ToPascalCase(memberName);
@@ -135,13 +123,13 @@ internal static class NamingHelper
     }
 
     /// <summary>
-    /// 规则：
-    /// 1. 忽略前导下划线
-    /// 2. 将剩余部分转换为大写驼峰格式（去除中间的下划线）
-    /// 3. 添加 "Is" 前缀和 "InjectionReady" 后缀
+    /// Rules:
+    /// 1. Ignore leading underscores
+    /// 2. Convert remaining part to PascalCase format (remove underscores in between)
+    /// 3. Add "Is" prefix and "InjectionReady" suffix
     /// </summary>
-    /// <param name="memberName">成员名，如 "_myField", "my_service", "MyProperty"</param>
-    /// <returns>注入准备标识字段名，如 "IsMyFieldInjectionReady"</returns>
+    /// <param name="memberName">Member name, e.g., "_myField", "my_service", "MyProperty"</param>
+    /// <returns>Injection ready flag field name, e.g., "IsMyFieldInjectionReady"</returns>
     public static string GetInjectionReadyFieldName(string memberName)
     {
         var pascalCase = ToPascalCase(memberName);

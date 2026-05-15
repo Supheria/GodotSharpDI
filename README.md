@@ -73,7 +73,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.3.2" />
+<PackageReference Include="GodotSharpDI" Version="1.4.0" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -140,7 +140,7 @@ public class PlayerStatsService : IPlayerStats
 ### 3. Define a Scope
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager)])]
+[Modules(typeof(GameManager))]
 public partial class GameScope : Node, IScope
 {
     // Framework automatically generates IScope implementation
@@ -423,7 +423,7 @@ public partial class DatabaseManager : Node, IDependenciesResolved
 
 **Key Features**:
 - **FailureCallback**: Parameterless — called when injection fails (check `IsXxxInjectionReady` for status)
-- **ReadyCallback**: Parameterless, called immediately after successful injection
+- **ReadyCallback**: Receives a non-null reference to the injected value — called immediately after successful injection
 - **Optional Implementation**: Partial methods - implement only when needed
 - **IDE Support**: Smart analyzers detect missing implementations and offer one-click fixes (GDI_U004, GDI_U006)
 
@@ -438,7 +438,7 @@ Scope is the DI container that manages service lifecycle and coordinates depende
 #### Declaration
 
 ```csharp
-[Modules(Hosts = [typeof(GameManager), typeof(ServiceHost)])]
+[Modules(typeof(GameManager), typeof(ServiceHost))]
 public partial class GameScope : Node, IScope
 {
     // Framework generates all implementation
@@ -926,7 +926,7 @@ Child scopes inherit services from parent scopes but can also override them.
    ├─ Dependency B: Success → IsBInjectionReady = true
    └─ Dependency C: Failed → IsCInjectionReady = false
    ↓
-4. OnDependenciesResolved(false) called after all dependencies resolved
+4. OnDependenciesResolved() called after all dependencies resolved
    ↓
 5. Provide all [Provide] services concurrently
 ```
@@ -959,7 +959,7 @@ Child scopes inherit services from parent scopes but can also override them.
       └─ All complete → Provide service Z
          (Must check IsBInjectionReady)
    ↓
-5. OnDependenciesResolved(false) called after all dependencies resolved
+5. OnDependenciesResolved() called after all dependencies resolved
 ```
 
 #### Key Concepts
@@ -1264,11 +1264,12 @@ partial void OnDatabaseInjectionFailed()
 
 **See**: [Injection Callbacks](#injection-callbacks) for detailed documentation.
 
-#### `[Modules(Hosts = [...])]`
+#### `[Modules(...)]`
 Defines which Hosts belong to a Scope.
 
 ```csharp
-[Modules(Hosts = [typeof(Host1), typeof(Host2)])]
+// Constructor parameters (since v1.3.3)
+[Modules(typeof(Host1), typeof(Host2))]
 public partial class GameScope : Node, IScope { }
 ```
 
@@ -1392,9 +1393,9 @@ public partial class GameManager : Node
 For a single `[Inject]` member, the callback execution follows this order:
 
 1. **Injection attempted** by the framework
-2. **On Success**: `OnXxxInjectionReady()` called (if `ReadyCallback = true`)
+2. **On Success**: `OnXxxInjectionReady(TService value)` called (if `ReadyCallback = true`)
 3. **On Failure**: `OnXxxInjectionFailed()` called (if `FailureCallback = true`)
-4. **Finally**: `IDependenciesResolved.OnDependenciesResolved(bool)` called after all injections complete
+4. **Finally**: `IDependenciesResolved.OnDependenciesResolved()` called after all injections complete
 
 #### IDE Support
 
@@ -1562,7 +1563,7 @@ partial class MyHost
         IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
     
     // Unresolved dependency tracking
-    private readonly HashSet<Type> _unresolvedDependencies = new()
+    private readonly HashSet<Type> __unresolvedDependencies = new()
     {
         typeof(IConfig),
         typeof(ILogger),
@@ -1571,10 +1572,10 @@ partial class MyHost
     // Dependency resolution callback
     private void OnDependencyResolved<T>()
     {
-        _unresolvedDependencies.Remove(typeof(T));
-        if (_unresolvedDependencies.Count == 0)
+        __unresolvedDependencies.Remove(typeof(T));
+        if (__unresolvedDependencies.Count == 0)
         {
-            ((IDependenciesResolved)this).OnDependenciesResolved(IsAllDependenciesReady);
+            ((IDependenciesResolved)this).OnDependenciesResolved();
         }
     }
 }

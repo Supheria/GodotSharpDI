@@ -1,0 +1,82 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GodotSharpDI.Runtime;
+
+/// <summary>
+/// Coordinates WaitFor dependency resolution for a single [Provide] member.
+/// Replaces the lambda + ContinueWith pattern in WaitForPhase.GenerateForMember.
+///
+/// Godot-specific operations (Callable.From, GD.PrintErr) are injected as delegates
+/// to keep this class compatible with netstandard2.0.
+///
+/// Thread Safety: <see cref="_remaining"/> uses <see cref="Interlocked.Decrement"/>
+/// because callbacks may fire from background threads (e.g. async providers).
+/// </summary>
+public class WaitForCoordinator
+{
+    private int _remaining;
+    private readonly Func<Task> _onAllResolved;
+
+    /// <summary>
+    /// Create a new WaitFor coordinator.
+    /// </summary>
+    /// <param name="depCount">Number of dependencies to wait for.</param>
+    /// <param name="onAllResolved">
+    /// Async callback invoked when all dependencies have settled (success or failure).
+    /// </param>
+    public WaitForCoordinator(int depCount, Func<Task> onAllResolved)
+    {
+        _remaining = depCount;
+        _onAllResolved = onAllResolved;
+    }
+
+    /// <summary>
+    /// Register a callback on a dependency's callback list.
+    /// When the dependency resolves (success or failure), this callback decrements the
+    /// remaining count. When it reaches zero, <see cref="_onAllResolved"/> is invoked.
+    /// </summary>
+    /// <param name="callbackList">
+    /// The dependency's callback list (from InjectionGenerator).
+    /// </param>
+    /// <param name="depName">The dependency member name, for error reporting.</param>
+    /// <param name="memberName">The Provide member name, for error reporting.</param>
+    /// <param name="reportError">
+    /// Error reporting callback. Typically <c>msg => GD.PrintErr(msg)</c>.
+    /// </param>
+    /// <param name="dispatchToMainThread">
+    /// Main-thread dispatcher. Typically <c>action => Callable.From(action).CallDeferred()</c>.
+    /// </param>
+    public void Register(
+        List<Action<bool>> callbackList,
+        string depName,
+        string memberName,
+        Action<string> reportError,
+        Action<Action> dispatchToMainThread)
+    {
+        callbackList.Add(ok =>
+        {
+            if (!ok)
+            {
+                reportError(
+                    $"[GodotSharpDI] WaitFor: dependency '{depName}' for '{memberName}' failed");
+            }
+
+            if (Interlocked.Decrement(ref _remaining) == 0)
+            {
+                _ = _onAllResolved().ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        var errMsg = t.Exception?.GetBaseException().Message;
+                        dispatchToMainThread(() =>
+                            reportError(
+                                $"[GodotSharpDI] WaitFor callback threw: {errMsg}"));
+                    }
+                }, TaskScheduler.Default);
+            }
+        });
+    }
+}

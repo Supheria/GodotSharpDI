@@ -1,14 +1,14 @@
+using System;
 using System.Collections.Generic;
-using System.Text;
+using GodotSharpDI.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Coding;
 
 /// <summary>
-/// Scope 代码生成器
+/// Scope code generator
 /// </summary>
 internal static class ScopeGenerator
 {
@@ -18,7 +18,7 @@ internal static class ScopeGenerator
 
         ScopeInterfaceGenerator.GenerateInterface(context, node);
 
-        // 生成 Scope 特定代码
+        // Generate Scope specific code
         GenerateScopeSpecific(context, node, graph);
     }
 
@@ -28,74 +28,45 @@ internal static class ScopeGenerator
         DiGraph graph
     )
     {
-        var f = new CodeFormatter();
-
-        f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
+        try
         {
-            GenerateDataModels(f);
-            f.AppendLine();
+            var f = new CodeFormatter();
 
-            GenerateStaticCollections(f);
-            f.AppendLine();
+            f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
+            {
+                GenerateStaticCollections(f);
+                f.AppendLine();
 
-            GenerateInstanceFields(f);
-            f.AppendLine();
+                GenerateInstanceFields(f);
+                f.AppendLine();
 
-            GenerateStaticMethods(f, node, graph);
-            f.AppendLine();
+                GenerateStaticMethods(f, node, graph);
+                f.AppendLine();
 
-            GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
+                GenerateDependencyMonitoringMethods(f, node.ValidatedTypeInfo);
+            }
+            f.EndClassDeclaration();
+
+            context.AddSource($"{fileName}.DI.Scope.g.cs", f.ToString());
         }
-        f.EndClassDeclaration();
-
-        context.AddSource($"{fileName}.DI.Scope.g.cs", f.ToString());
-    }
-
-    private static void GenerateDataModels(CodeFormatter f)
-    {
-        // ServiceState 枚举
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private enum ServiceState");
-        f.BeginBlock();
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            f.AppendLine("NotCreated,  // not yet created");
-            f.AppendLine("Created,     // successfully created");
-            f.AppendLine("Failed       // creation failed");
+            context.ReportDiagnostic(
+                DiagnosticBuilder.Create(
+                    DiagnosticDescriptors.CodeGenerationFailed,
+                    node.ValidatedTypeInfo.Location,
+                    "Scope",
+                    node.ValidatedTypeInfo.Symbol.Name,
+                    ex.Message
+                )
+            );
         }
-        f.EndBlock();
-        f.AppendLine();
-
-        // ServiceCacheEntry 类
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private sealed class ServiceCacheEntry");
-        f.BeginBlock();
-        {
-            f.AppendLine("public ServiceState State = ServiceState.NotCreated;");
-            f.AppendLine($"public {GlobalNames.Object}? Instance = null;");
-        }
-        f.EndBlock();
-        f.AppendLine();
-
-        // DependencyWaitInfo 记录
-        // ResultCallback: Action<object?> — null 表示注入失败，非 null 表示注入成功的实例
-        f.AppendHiddenMemberCommentAndAttribute();
-        f.AppendLine("private sealed record DependencyWaitInfo(");
-        f.BeginLevel();
-        {
-            f.AppendLine($"{GlobalNames.Action}<{GlobalNames.Object}?> ResultCallback,");
-            f.AppendLine($"{GlobalNames.Long} RequestTicks,");
-            f.AppendLine($"{GlobalNames.String} RequestorType,");
-            f.AppendLine($"{GlobalNames.String} ScopeChain,");
-            f.AppendLine($"{GlobalNames.String} DependencyChain");
-        }
-        f.EndLevel();
-        f.AppendLine(");");
     }
 
     private static void GenerateStaticCollections(CodeFormatter f)
     {
         // ServiceImplementationMap
-        f.AppendHiddenMemberCommentAndAttribute("服务类型映射表：暴露类型 -> 实现类型");
+        f.AppendHiddenMemberCommentAndAttribute("Service type mapping table: exposed type -> implementation type");
         f.AppendLine(
             $"private static readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> ServiceImplementationMap = CreateServiceImplementationMap();"
         );
@@ -106,24 +77,23 @@ internal static class ScopeGenerator
         // ServiceCache
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> ServiceCache = CreateServiceCache();"
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}> ServiceCache = CreateServiceCache();"
         );
         f.AppendLine();
 
         // _waiters
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<DependencyWaitInfo>> _waiters = new();"
+            $"private readonly {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.List}<{GlobalNames.DependencyWaitInfo}>> _waiters = new();"
         );
         f.AppendLine();
 
-        // P1-runtime: _waitForGraph（仅 DEBUG 模式），用于死锁 DFS 检测
+        // Deadlock detector (DEBUG mode only)
         f.BeginDebugRegion();
         {
-            f.AppendHiddenMemberCommentAndAttribute("Runtime WaitFor wait graph for deadlock DFS detection (DEBUG only)");
+            f.AppendHiddenMemberCommentAndAttribute("Runtime WaitFor deadlock detector (DEBUG only)");
             f.AppendLine(
-                $"private readonly {GlobalNames.Dictionary}<{GlobalNames.String}," +
-                $" {GlobalNames.HashSet}<{GlobalNames.String}>> _waitForGraph = new();"
+                $"private readonly {GlobalNames.DeadlockDetector} _deadlockDetector = CreateDeadlockDetector();"
             );
         }
         f.EndDebugRegion();
@@ -136,48 +106,59 @@ internal static class ScopeGenerator
 
     private static void GenerateStaticMethods(CodeFormatter f, ScopeNode node, DiGraph graph)
     {
-        // ServiceCache 以「实现类型（TImpl）」为键，而非暴露的接口类型。
-        // ServiceImplementationMap 负责从暴露类型（TExposed）映射到实现类型（TImpl）。
-        // 查找流程：ResolveDependency<TExposed> → ServiceImplementationMap[TExposed] → implType
-        //         → ServiceCache[implType] → instance
-        // 当暴露类型与实现类型相同时（如 Host 暴露自身），两者指向同一 Type key，行为正确。
-        // 收集该 Scope 需要的所有实现类型
-        var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var data = CollectScopeServiceData(node, graph);
 
-        // 收集该 Scope 的服务暴露类型到实现类型的映射
+        GenerateCreateServiceCache(f, data.ImplementationTypes);
+        f.AppendLine();
+
+        GenerateCreateServiceImplementationMap(f, data.ServiceImplMap);
+        f.AppendLine();
+
+        GenerateCreateDeadlockDetector(f, data.ServiceImplMap);
+    }
+
+    /// <summary>
+    /// Collect service data for this Scope: implementation types and exposed→implementation mappings.
+    /// ServiceCache uses "implementation type (TImpl)" as key, not the exposed interface type.
+    /// ServiceImplementationMap maps from exposed type (TExposed) to implementation type (TImpl).
+    /// Lookup flow: ResolveDependency&lt;TExposed&gt; → ServiceImplementationMap[TExposed] → implType
+    ///         → ServiceCache[implType] → instance
+    /// </summary>
+    private static ScopeServiceData CollectScopeServiceData(ScopeNode node, DiGraph graph)
+    {
+        var implementationTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         var scopeServiceImplMap = new Dictionary<INamedTypeSymbol, INamedTypeSymbol>(
             SymbolEqualityComparer.Default
         );
 
-        // 遍历该 Scope 的所有 Host
         foreach (var hostType in node.ExpectHosts)
         {
             if (graph.HostNodeMap.TryGetValue(hostType, out var hostNode))
             {
-                // 收集该 Host 提供的服务映射
                 foreach (var kvp in hostNode.ServiceImplementationMap)
                 {
-                    var exposedType = kvp.Key;
-                    var implementationType = kvp.Value;
-
-                    // 添加到 Scope 的服务映射
-                    scopeServiceImplMap[exposedType] = implementationType;
-
-                    // 添加实现类型到集合
-                    implementationTypes.Add(implementationType);
+                    scopeServiceImplMap[kvp.Key] = kvp.Value;
+                    implementationTypes.Add(kvp.Value);
                 }
             }
         }
 
-        // CreateServiceCache - 以实现类型作为键
-        f.AppendHiddenMethodCommentAndAttribute("初始化所有服务缓存（以实现类型作为键值）");
+        return new ScopeServiceData(implementationTypes, scopeServiceImplMap);
+    }
+
+    private static void GenerateCreateServiceCache(
+        CodeFormatter f,
+        HashSet<INamedTypeSymbol> implementationTypes
+    )
+    {
+        f.AppendHiddenMethodCommentAndAttribute("Initialize all service caches (using implementation type as key)");
         f.AppendLine(
-            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry> CreateServiceCache()"
+            $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}> CreateServiceCache()"
         );
         f.BeginBlock();
         {
             f.AppendLine(
-                $"var cache = new {GlobalNames.Dictionary}<{GlobalNames.Type}, ServiceCacheEntry>();"
+                $"var cache = new {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.ServiceCacheEntry}>();"
             );
             f.AppendLine();
 
@@ -190,9 +171,14 @@ internal static class ScopeGenerator
             f.AppendLine("return cache;");
         }
         f.EndBlock();
+    }
 
-        // CreateServiceImplementationMap - 暴露类型到实现类型的映射
-        f.AppendHiddenMethodCommentAndAttribute("创建服务暴露类型到实现类型的映射表");
+    private static void GenerateCreateServiceImplementationMap(
+        CodeFormatter f,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> scopeServiceImplMap
+    )
+    {
+        f.AppendHiddenMethodCommentAndAttribute("Create mapping table from service exposed type to implementation type");
         f.AppendLine(
             $"private static {GlobalNames.Dictionary}<{GlobalNames.Type}, {GlobalNames.Type}> CreateServiceImplementationMap()"
         );
@@ -205,10 +191,8 @@ internal static class ScopeGenerator
 
             foreach (var kvp in scopeServiceImplMap)
             {
-                var exposedType = kvp.Key;
-                var implType = kvp.Value;
                 f.AppendLine(
-                    $"map[typeof({exposedType.ToFullyQualifiedName()})] = typeof({implType.ToFullyQualifiedName()});"
+                    $"map[typeof({kvp.Key.ToFullyQualifiedName()})] = typeof({kvp.Value.ToFullyQualifiedName()});"
                 );
             }
             f.AppendLine();
@@ -218,12 +202,61 @@ internal static class ScopeGenerator
         f.EndBlock();
     }
 
+    private static void GenerateCreateDeadlockDetector(
+        CodeFormatter f,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> scopeServiceImplMap
+    )
+    {
+        f.BeginDebugRegion();
+        {
+            f.AppendHiddenMethodCommentAndAttribute("Initialize deadlock detector with service-to-provider mappings");
+            f.AppendLine(
+                $"private static {GlobalNames.DeadlockDetector} CreateDeadlockDetector()"
+            );
+            f.BeginBlock();
+            {
+                f.AppendLine($"var detector = new {GlobalNames.DeadlockDetector}();");
+                f.AppendLine();
+
+                foreach (var kvp in scopeServiceImplMap)
+                {
+                    f.AppendLine(
+                        $"detector.RegisterServiceProvider(\"{kvp.Value.Name}\", \"{kvp.Key.Name}\");"
+                    );
+                }
+
+                f.AppendLine();
+                f.AppendLine("return detector;");
+            }
+            f.EndBlock();
+        }
+        f.EndDebugRegion();
+    }
+
+    private readonly record struct ScopeServiceData(
+        HashSet<INamedTypeSymbol> ImplementationTypes,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> ServiceImplMap
+    );
+
     private static void GenerateDependencyMonitoringMethods(
         CodeFormatter f,
         ValidatedTypeInfo validatedType
     )
     {
-        // StartDependencyMonitoring
+        GenerateStartDependencyMonitoring(f);
+        f.AppendLine();
+
+        GenerateStopDependencyMonitoring(f);
+        f.AppendLine();
+
+        GenerateCheckPendingDependencies(f, validatedType);
+        f.AppendLine();
+
+        GenerateReportUnresolvedDependencies(f, validatedType);
+    }
+
+    private static void GenerateStartDependencyMonitoring(CodeFormatter f)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Start dependency monitoring (debug only)");
         f.AppendLine("private void StartDependencyMonitoring()");
         f.BeginBlock();
@@ -241,9 +274,10 @@ internal static class ScopeGenerator
             f.EndDebugRegion();
         }
         f.EndBlock();
-        f.AppendLine();
+    }
 
-        // StopDependencyMonitoring
+    private static void GenerateStopDependencyMonitoring(CodeFormatter f)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Stop dependency monitoring (debug only)");
         f.AppendLine("private void StopDependencyMonitoring()");
         f.BeginBlock();
@@ -262,9 +296,10 @@ internal static class ScopeGenerator
             f.EndDebugRegion();
         }
         f.EndBlock();
-        f.AppendLine();
+    }
 
-        // CheckPendingDependencies
+    private static void GenerateCheckPendingDependencies(CodeFormatter f, ValidatedTypeInfo validatedType)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Check pending dependencies (called periodically in debug)");
         f.AppendLine("private void CheckPendingDependencies()");
         f.BeginBlock();
@@ -292,7 +327,7 @@ internal static class ScopeGenerator
                             f.AppendLine(
                                 $"var elapsedSeconds = {GlobalNames.TimeSpan}.FromTicks(elapsed).TotalSeconds;"
                             );
-                            f.BeginStringBuilderAppend("message", true);
+                            f.BeginNewStringBuilder("message");
                             {
                                 f.StringBuilderAppendLine(GeneratedStrings.WarnInjectionTimeout);
                                 f.StringBuilderAppendLine(
@@ -307,7 +342,7 @@ internal static class ScopeGenerator
                             f.EndStringBuilderAppend();
                             f.AppendLine();
 
-                            f.PrintError("message");
+                            f.PrintError("message.ToString()");
                         }
                         f.EndBlock();
                     }
@@ -318,9 +353,10 @@ internal static class ScopeGenerator
             f.EndDebugRegion();
         }
         f.EndBlock();
-        f.AppendLine();
+    }
 
-        // ReportUnresolvedDependencies
+    private static void GenerateReportUnresolvedDependencies(CodeFormatter f, ValidatedTypeInfo validatedType)
+    {
         f.AppendHiddenMethodCommentAndAttribute("Report all unresolved dependencies (debug only)");
         f.AppendLine("public void ReportUnresolvedDependencies()");
         f.BeginBlock();
@@ -333,7 +369,7 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.BeginStringBuilderAppend("message", true);
+            f.BeginNewStringBuilder("message");
             {
                 f.StringBuilderAppendLine(
                     string.Format(GeneratedStrings.WarnUnresolvedDependencies, validatedType.Symbol.Name)
@@ -347,7 +383,7 @@ internal static class ScopeGenerator
             {
                 f.AppendLine("var type = kvp.Key;");
                 f.AppendLine("var waiters = kvp.Value;");
-                f.BeginStringBuilderAppend("message", false);
+                f.ContinueStringBuilder("message");
                 {
                     f.StringBuilderAppendLine($"  > Missing service: {{type.Name}}");
                     f.StringBuilderAppendLine($"{GeneratedStrings.LabelWaiters}{{waiters.Count}}");
@@ -364,7 +400,7 @@ internal static class ScopeGenerator
                     f.AppendLine(
                         $"var elapsedSeconds = {GlobalNames.TimeSpan}.FromTicks(elapsed).TotalSeconds;"
                     );
-                    f.BeginStringBuilderAppend("message", false);
+                    f.ContinueStringBuilder("message");
                     {
                         f.StringBuilderAppendLine($"    {GeneratedStrings.LabelRequestor}{{waiter.RequestorType}}");
                         f.StringBuilderAppendLine($"    {GeneratedStrings.LabelElapsed}{{elapsedSeconds:F1}}s");
@@ -378,88 +414,9 @@ internal static class ScopeGenerator
             f.EndBlock();
             f.AppendLine();
 
-            f.PrintError("message");
+            f.PrintError("message.ToString()");
         }
         f.EndBlock();
-
-        // P1-runtime: TryTrackAndDetectDeadlock (entire method in #if DEBUG)
-        f.AppendLine();
-        f.BeginDebugRegion();
-        {
-            f.AppendHiddenMethodCommentAndAttribute("Runtime WaitFor deadlock tracking and DFS detection (DEBUG only)");
-            f.AppendLine($"private void TryTrackAndDetectDeadlock(");
-            f.AppendLine($"    {GlobalNames.String} requestorType,");
-            f.AppendLine($"    {GlobalNames.String} waitingForTypeName)");
-            f.BeginBlock();
-            {
-                f.AppendLine("const string prefix = \"GDI_WF:\";");
-                f.AppendLine("if (!requestorType.StartsWith(prefix)) return;");
-                f.AppendLine("var rest = requestorType.Substring(prefix.Length);");
-                f.AppendLine("var colonIdx = rest.IndexOf(':');");
-                f.AppendLine("if (colonIdx < 0) return;");
-                f.AppendLine("var providerName = rest.Substring(0, colonIdx);");
-                f.AppendLine();
-                f.AppendLine($"if (!_waitForGraph.TryGetValue(providerName, out var edges))");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"edges = new {GlobalNames.HashSet}<{GlobalNames.String}>();");
-                    f.AppendLine("_waitForGraph[providerName] = edges;");
-                }
-                f.EndBlock();
-                f.AppendLine("edges.Add(waitingForTypeName);");
-                f.AppendLine();
-                f.AppendLine("var cycle = FindWaitForCycle(");
-                f.AppendLine("    waitingForTypeName, providerName,");
-                f.AppendLine($"    new {GlobalNames.HashSet}<{GlobalNames.String}>(),");
-                f.AppendLine($"    new {GlobalNames.List}<{GlobalNames.String}>());");
-                f.AppendLine("if (cycle != null)");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"var path = providerName + \" -> \" + " +
-                                 "string.Join(\" -> \", cycle);");
-                    f.PrintError(
-                        $"$\"[GodotSharpDI] Runtime WaitFor Deadlock in " +
-                        $"{validatedType.Symbol.Name}: \" + path");
-                }
-                f.EndBlock();
-            }
-            f.EndBlock();
-            f.AppendLine();
-
-            // P1-runtime: FindWaitForCycle (also in #if DEBUG)
-            f.AppendHiddenMethodCommentAndAttribute("DFS search for cycle in wait graph, returns cycle path or null");
-            f.AppendLine($"private {GlobalNames.List}<{GlobalNames.String}>? FindWaitForCycle(");
-            f.AppendLine($"    {GlobalNames.String} current,");
-            f.AppendLine($"    {GlobalNames.String} target,");
-            f.AppendLine($"    {GlobalNames.HashSet}<{GlobalNames.String}> visited,");
-            f.AppendLine($"    {GlobalNames.List}<{GlobalNames.String}> path)");
-            f.BeginBlock();
-            {
-                f.AppendLine("if (current == target)");
-                f.BeginBlock();
-                {
-                    f.AppendLine($"var result = new {GlobalNames.List}<{GlobalNames.String}>(path);");
-                    f.AppendLine("result.Add(current);");
-                    f.AppendLine("return result;");
-                }
-                f.EndBlock();
-                f.AppendLine("if (visited.Contains(current)) return null;");
-                f.AppendLine("if (!_waitForGraph.TryGetValue(current, out var nbrs)) return null;");
-                f.AppendLine("visited.Add(current);");
-                f.AppendLine("path.Add(current);");
-                f.AppendLine("foreach (var nb in nbrs)");
-                f.BeginBlock();
-                {
-                    f.AppendLine("var r = FindWaitForCycle(nb, target, visited, path);");
-                    f.AppendLine("if (r != null) return r;");
-                }
-                f.EndBlock();
-                f.AppendLine("path.RemoveAt(path.Count - 1);");
-                f.AppendLine("return null;");
-            }
-            f.EndBlock();
-            f.AppendLine();
-        }
-        f.EndDebugRegion();
     }
+
 }

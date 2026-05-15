@@ -1,23 +1,18 @@
-using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// DiGraphBuilder 整合测试
+/// DiGraphBuilder integration tests
 ///
-/// 当前 DiGraph 结构：
-/// - HostNodes（[Host] 节点）、UserNodes（[User] 节点）、ScopeNodes（[Modules] 节点）
-/// - 服务通过 Host 的 [Provide] 成员暴露，不存在独立 ServiceNode
-/// - HostNodeMap = Host 类型符号 → TypeNode 快速索引
+/// Current DiGraph structure:
+/// - HostNodes ([Host] nodes), UserNodes ([User] nodes), ScopeNodes ([Modules] nodes)
+/// - Services are exposed via Host's [Provide] members; no standalone ServiceNode exists
+/// - HostNodeMap = Host type symbol → TypeNode fast lookup
 /// </summary>
 public class DiGraphBuilderTests
 {
@@ -172,7 +167,7 @@ namespace Test {
         public ImplA Create() => new ImplA();
     }
 }";
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
+        var compilation = DiagnosticCompilationHelper.CreateCompilationWithDI(source);
         var result = BuildGraphFromCompilation(compilation);
 
         Assert.NotNull(result.Graph);
@@ -184,27 +179,13 @@ namespace Test {
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
     private static DiGraphBuildResult BuildGraph(string source) =>
-        BuildGraphFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
+        GraphBuildHelper.BuildGraph(source);
 
     private static DiGraphBuildResult BuildGraphFromCompilation(
-        Microsoft.CodeAnalysis.Compilation compilation
-    )
-    {
-        var symbols = new CachedSymbols(compilation);
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
-            }
-        }
-        return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-    }
+        Compilation compilation
+    ) =>
+        GraphBuildHelper.BuildGraphFromCompilation(compilation);
 }

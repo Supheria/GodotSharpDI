@@ -1,15 +1,15 @@
-﻿using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Shared;
+﻿using GodotSharpDI.Shared;
+using GodotSharpDI.SourceGenerator.Internal.Data;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Helpers;
 
 /// <summary>
-/// 代码生成辅助方法 - 减少生成器之间的代码重复
+/// Code generation helper methods - Reduces code duplication between generators
 /// </summary>
 internal static class GeneratorHelper
 {
     /// <summary>
-    /// 开始类声明（包含 auto-generated 注释、命名空间和 partial class 声明）
+    /// Begin class declaration (includes auto-generated comment, namespace, and partial class declaration)
     /// </summary>
     public static void BeginClassDeclaration(
         this CodeFormatter f,
@@ -34,7 +34,7 @@ internal static class GeneratorHelper
     }
 
     /// <summary>
-    /// 结束类声明
+    /// End class declaration
     /// </summary>
     public static void EndClassDeclaration(this CodeFormatter f)
     {
@@ -42,7 +42,7 @@ internal static class GeneratorHelper
     }
 
     /// <summary>
-    /// 添加不可手动调用的生成方法的简介和特性
+    /// Add summary and attribute for generated methods that should not be called manually
     /// </summary>
     public static void AppendHiddenMethodCommentAndAttribute(
         this CodeFormatter f,
@@ -62,7 +62,7 @@ internal static class GeneratorHelper
     }
 
     /// <summary>
-    /// 添加不可手动调用的生成成员的简介和特性
+    /// Add summary and attribute for generated members that should not be called manually
     /// </summary>
     public static void AppendHiddenMemberCommentAndAttribute(
         this CodeFormatter f,
@@ -113,16 +113,29 @@ internal static class GeneratorHelper
         f.AppendLine("#endif");
     }
 
-    public static void BeginStringBuilderAppend(
-        this CodeFormatter f,
-        string stringBuilderName,
-        bool createNew
-    )
+    /// <summary>
+    /// Begin a fluent StringBuilder append chain by declaring a new StringBuilder variable.
+    /// Generates: var {name} = new StringBuilder()
+    ///             .AppendLine(...)
+    ///             .AppendLine(...);
+    /// Must be paired with <see cref="EndStringBuilderAppend"/>.
+    /// </summary>
+    public static void BeginNewStringBuilder(this CodeFormatter f, string stringBuilderName)
     {
-        var declare = createNew
-            ? $"var {stringBuilderName} = new {GlobalNames.StringBuilder}()"
-            : $"{stringBuilderName}";
-        f.AppendRaw(declare, true);
+        f.AppendRaw($"var {stringBuilderName} = new {GlobalNames.StringBuilder}()", true);
+        f.BeginLevel();
+    }
+
+    /// <summary>
+    /// Continue appending to an existing StringBuilder variable.
+    /// Generates: {name}
+    ///             .AppendLine(...)
+    ///             .AppendLine(...);
+    /// Must be paired with <see cref="EndStringBuilderAppend"/>.
+    /// </summary>
+    public static void ContinueStringBuilder(this CodeFormatter f, string stringBuilderName)
+    {
+        f.AppendRaw(stringBuilderName, true);
         f.BeginLevel();
     }
 
@@ -141,7 +154,7 @@ internal static class GeneratorHelper
 
     public static void PrintError(this CodeFormatter f, string target)
     {
-        f.AppendLine($"{GlobalNames.GodotGD}.PrintErr({target});");
+        f.AppendLine($"{GlobalNames.ErrorReporter}.ReportError({target});");
     }
 
     public static void AppendTypeConstraints(this CodeFormatter f, string typeConstraints)

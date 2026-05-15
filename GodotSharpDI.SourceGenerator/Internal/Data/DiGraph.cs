@@ -1,11 +1,10 @@
 ﻿using System.Collections.Immutable;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// DI 依赖图
+/// DI dependency graph
 /// </summary>
 internal sealed record DiGraph(
     ImmutableArray<TypeNode> HostNodes,

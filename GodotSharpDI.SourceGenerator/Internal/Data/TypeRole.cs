@@ -1,7 +1,7 @@
 ﻿namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// 类型角色
+/// Type role
 /// </summary>
 internal enum TypeRole
 {

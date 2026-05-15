@@ -1,32 +1,27 @@
-using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
 
 /// <summary>
-/// 测试 P1 修复：跨 Host WaitFor 死锁编译期检测（GDI_D011）
+/// Tests P1 fix: compile-time detection of cross-Host WaitFor deadlocks (GDI_D011)
 ///
-/// 场景：
-///   HostA 提供 IServiceA，且其 WaitFor 等待 IServiceB 注入
-///   HostB 提供 IServiceB，且其 WaitFor 等待 IServiceA 注入
-///   → IServiceA → IServiceB → IServiceA 形成跨 Host 循环等待
-///   → GDI_D011（编译期发出 Error）
+/// Scenario:
+///   HostA provides IServiceA and its WaitFor waits for IServiceB injection
+///   HostB provides IServiceB and its WaitFor waits for IServiceA injection
+///   → IServiceA → IServiceB → IServiceA forms a cross-Host circular wait
+///   → GDI_D011 (compile-time Error)
 ///
-/// GDI_D010 vs GDI_D011：
-///   D010 - 同一 Host 内的 WaitFor 环（单机死锁）
-///   D011 - 跨不同 Host 的 WaitFor 环（分布式死锁）
+/// GDI_D010 vs GDI_D011:
+///   D010 - WaitFor cycle within the same Host (local deadlock)
+///   D011 - WaitFor cycle across different Hosts (distributed deadlock)
 /// </summary>
 public class CrossHostDeadlockTests
 {
     // ============================================================
-    //  应触发 GDI_D011 的场景
+    //  Scenarios that should trigger GDI_D011
     // ============================================================
 
     [Fact]
@@ -34,7 +29,7 @@ public class CrossHostDeadlockTests
     {
         // HostA provides IServiceA, waits for IServiceB
         // HostB provides IServiceB, waits for IServiceA
-        // → 跨 Host 死锁
+        // → cross-Host deadlock
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -75,7 +70,7 @@ namespace Test
 
         var msg = deadlockDiags[0].GetMessage();
         Assert.Contains("->", msg);
-        // 应包含两个服务名
+        // Should contain both service names
         Assert.True(
             msg.Contains("IServiceA") || msg.Contains("IServiceB"),
             $"Expected IServiceA or IServiceB in message: {msg}"
@@ -88,7 +83,7 @@ namespace Test
         // HostA provides IA, waits for IB
         // HostB provides IB, waits for IC
         // HostC provides IC, waits for IA
-        // → 三节点跨 Host 环
+        // → three-node cross-Host cycle
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -137,7 +132,7 @@ namespace Test
     }
 
     // ============================================================
-    //  不应触发 GDI_D011 的场景
+    //  Scenarios that should NOT trigger GDI_D011
     // ============================================================
 
     [Fact]
@@ -145,7 +140,7 @@ namespace Test
     {
         // HostA provides IA (no WaitFor)
         // HostB provides IB, waits for IA
-        // → 单向等待，无环
+        // → unidirectional wait, no cycle
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -185,7 +180,7 @@ namespace Test
         // HostA provides IA (no WaitFor)
         // HostB provides IB (no WaitFor)
         // HostC provides IC, waits for IA and IB
-        // → 钻石形无环图
+        // → diamond-shaped acyclic graph
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -232,7 +227,7 @@ namespace Test
     [Fact]
     public void SameHost_WaitForCycle_ReportsD010_NotD011()
     {
-        // 同一 Host 内的循环 → GDI_D010（非 GDI_D011）
+        // Cycle within the same Host → GDI_D010 (not GDI_D011)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -261,15 +256,15 @@ namespace Test
 }";
         var result = BuildGraph(source);
         Assert.NotEmpty(result.Diagnostics.Where(d => d.Id == "GDI_D010"));
-        // 同一 Host 内的环不触发 GDI_D011（跨 Host 死锁检测器不报告单节点 SCC）
+        // Cycle within the same Host does not trigger GDI_D011 (cross-Host deadlock detector does not report single-node SCCs)
         Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D011"));
     }
 
     [Fact]
     public void HostA_WaitsForUnregisteredService_NoDeadlock()
     {
-        // HostA 等待 IUnregistered，但没有任何 Host 提供它
-        // 这是运行时问题，不是编译期死锁
+        // HostA waits for IUnregistered, but no Host provides it
+        // This is a runtime issue, not a compile-time deadlock
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -292,16 +287,16 @@ namespace Test
     }
 }";
         var result = BuildGraph(source);
-        // 等待一个没有提供者的服务不构成死锁（CrossHostDeadlockDetector 只分析有提供者的服务）
+        // Waiting for a service with no provider does not constitute a deadlock (CrossHostDeadlockDetector only analyzes services with providers)
         Assert.Empty(result.Diagnostics.Where(d => d.Id == "GDI_D011"));
     }
 
     [Fact]
     public void TwoIndependentCycles_BothReported()
     {
-        // 两组互不相关的跨 Host 死锁同时存在 → 两组都应报告 GDI_D011
-        // 组1：HostA(IA) ↔ HostB(IB)
-        // 组2：HostC(IC) ↔ HostD(ID)
+        // Two unrelated cross-Host deadlocks coexist → both should report GDI_D011
+        // Group 1: HostA(IA) ↔ HostB(IB)
+        // Group 2: HostC(IC) ↔ HostD(ID)
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -350,17 +345,17 @@ namespace Test
         var result = BuildGraph(source);
 
         var deadlocks = result.Diagnostics.Where(d => d.Id == "GDI_D011").ToList();
-        // 两组死锁应各自产生至少一个 GDI_D011
+        // Each deadlock group should produce at least one GDI_D011
         Assert.NotEmpty(deadlocks);
-        // 应覆盖两个独立环（每个环至少两个诊断节点）
+        // Should cover two independent cycles (at least two diagnostic nodes per cycle)
         Assert.True(deadlocks.Count >= 2, $"Expected ≥2 GDI_D011 but got {deadlocks.Count}");
     }
 
     [Fact]
     public void MixedSameHostAndCrossHostCycles_BothD010AndD011Reported()
     {
-        // SingleHost 内部有 WaitFor 循环 → GDI_D010
-        // HostA ↔ HostB 跨 Host 循环   → GDI_D011
+        // SingleHost has an internal WaitFor cycle → GDI_D010
+        // HostA ↔ HostB cross-Host cycle   → GDI_D011
         var source =
             @"
 using GodotSharpDI.Abstractions;
@@ -374,7 +369,7 @@ namespace Test
     public class X : IX { }  public class Y : IY { }
     public class A : IA { }  public class B : IB { }
 
-    // 同 Host 内循环
+    // Same-Host cycle
     [Host]
     public partial class SingleHost : Node
     {
@@ -388,7 +383,7 @@ namespace Test
         public Y CreateY() => new Y();
     }
 
-    // 跨 Host 循环
+    // Cross-Host cycle
     [Host]
     public partial class HostA : Node
     {
@@ -412,26 +407,9 @@ namespace Test
     }
 
     // ============================================================
-    //  辅助
+    //  Helpers
     // ============================================================
 
-    private static DiGraphBuildResult BuildGraph(string source)
-    {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var symbols = new CachedSymbols(compilation);
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
-            }
-        }
-
-        return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-    }
+    private static DiGraphBuildResult BuildGraph(string source) =>
+        GraphBuildHelper.BuildGraph(source);
 }

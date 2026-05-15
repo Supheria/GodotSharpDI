@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Linq;
+using GodotSharpDI.Shared;
 using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Shared;
 using Microsoft.CodeAnalysis;
 
 namespace GodotSharpDI.SourceGenerator.Internal.Coding.Shared;
@@ -19,8 +19,8 @@ internal static class InjectionGenerator
 
         f.BeginClassDeclaration(node.ValidatedTypeInfo, out var fileName);
         {
-            // __lifetime_cancellation_tokens 字段无论是否有 Inject 成员都需要生成
-            // 异步 Provider 依赖此 CancellationTokenSource
+            // __lifetime_cancellation_tokens field needs to be generated regardless of whether there are Inject members
+            // Async Provider depends on this CancellationTokenSource
             GenerateLifetimeCancellationTokens(f);
             f.AppendLine();
 
@@ -48,7 +48,7 @@ internal static class InjectionGenerator
                 GenerateIsAllDependenciesReadyProperty(f, injectMembers);
                 f.AppendLine();
 
-                // 回调列表字段由 WaitForPhase 注册，由 ResolveDependencies 触发
+                // Callback list fields are registered by WaitForPhase, triggered by ResolveDependencies
                 GenerateInjectionCallbackListFields(f, injectMembers);
 
                 if (node.ValidatedTypeInfo.ImplementsIDependenciesResolved)
@@ -64,12 +64,12 @@ internal static class InjectionGenerator
     }
 
     // ──────────────────────────────────────────────────────────────
-    // 公开方法（供其他 Generator 调用）
+    // Public methods (called by other Generators)
     // ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 生成 __lifetime_cancellation_tokens 字段。
-    /// 在 ExitTree/EnterTree 时 Cancel 并重建，令所有飞行中的异步 Provider 自动中止。
+    /// Generate __lifetime_cancellation_tokens field.
+    /// Cancel and recreate on ExitTree/EnterTree to automatically abort all in-flight async Providers.
     /// </summary>
     public static void GenerateLifetimeCancellationTokens(CodeFormatter f)
     {
@@ -82,10 +82,10 @@ internal static class InjectionGenerator
     }
 
     /// <summary>
-    /// 生成注入回调列表字段。
-    /// 类型为 List&lt;Action&lt;bool&gt;&gt;：true = 注入成功，false = 注入失败。
-    /// WaitFor 机制直接向列表注册回调，当注入完成时在主线程上同步调用，
-    /// 不再需要 ContinueWith / CallDeferred 跨线程跳转。
+    /// Generate injection callback list fields.
+    /// Type is List&lt;Action&lt;bool&gt;&gt;: true = injection success, false = injection failure.
+    /// WaitFor mechanism directly registers callbacks to the list, synchronously called on main thread when injection completes,
+    /// no longer needs ContinueWith / CallDeferred cross-thread jumping.
     /// </summary>
     public static void GenerateInjectionCallbackListFields(
         CodeFormatter f,
@@ -107,11 +107,11 @@ internal static class InjectionGenerator
     }
 
     /// <summary>
-    /// 生成 ResetInjectionState() 方法。
-    /// 在 EnterTree / ExitTree 时调用：
-    ///   1. 取消并重建 __lifetime_cancellation_tokens，使所有飞行中的异步 Provider 收到 OperationCanceledException
-    ///   2. 清空所有注入回调列表，丢弃已注册但尚未触发的 WaitFor 回调
-    ///   3. 重置 ready 标识
+    /// Generate ResetInjectionState() method.
+    /// Called on EnterTree / ExitTree:
+    ///   1. Cancel and recreate __lifetime_cancellation_tokens, causing all in-flight async Providers to receive OperationCanceledException
+    ///   2. Clear all injection callback lists, discarding registered but not yet triggered WaitFor callbacks
+    ///   3. Reset ready flags
     /// </summary>
     public static void GenerateResetInjectionState(
         CodeFormatter f,
@@ -124,7 +124,7 @@ internal static class InjectionGenerator
         f.AppendLine("private void ResetInjectionState()");
         f.BeginBlock();
         {
-            // 取消并重建 CTS，令所有飞行中的异步 Provider 自动中止
+            // Cancel and recreate CTS to automatically abort all in-flight async Providers
             f.AppendLine("__lifetime_cancellation_tokens.Cancel();");
             f.AppendLine("__lifetime_cancellation_tokens.Dispose();");
             f.AppendLine(
@@ -150,6 +150,7 @@ internal static class InjectionGenerator
                 var readyField = NamingHelper.GetInjectionReadyFieldName(member.Symbol.Name);
                 f.AppendLine($"{listName}.Clear();");
                 f.AppendLine($"{readyField} = false;");
+                f.AppendLine($"{member.Symbol.Name} = default!;");
             }
         }
         f.EndBlock();
@@ -219,11 +220,11 @@ internal static class InjectionGenerator
     }
 
     // ──────────────────────────────────────────────────────────────
-    // 私有方法
+    // Private methods
     // ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 生成 FailureCallback 的 partial 方法声明。
+    /// Generate partial method declaration for FailureCallback.
     /// </summary>
     private static void GenerateFailureCallbackDeclarations(CodeFormatter f, MemberInfo[] members)
     {
@@ -244,7 +245,7 @@ internal static class InjectionGenerator
         {
             var methodName = NamingHelper.GetReadyCallbackMethodName(member.Symbol.Name);
             var memberType = member.MemberType.ToFullyQualifiedName();
-            // 参数名：去前导下划线后首字母小写的驼峰名
+            // Parameter name: camelCase with leading underscores removed, first letter lowercase
             var paramName = NamingHelper.ToParameterName(member.Symbol.Name);
             f.AppendLine(
                 $"/// <summary>Called when injection of {member.Symbol.Name} succeeds. The parameter provides a non-null reference to the injected value.</summary>"
@@ -255,12 +256,12 @@ internal static class InjectionGenerator
     }
 
     /// <summary>
-    /// 生成 ResolveDependencies() 方法。
+    /// Generate ResolveDependencies() method.
     ///
-    /// 对每个 Inject 成员调用 scope.ResolveDependency&lt;T&gt;(instance =&gt; { ... })。
-    /// 回调参数 "instance" 类型为 TExposed?：
-    ///   null     → 解析失败
-    ///   非 null  → 解析成功，值即为实际服务实例
+    /// Call scope.ResolveDependency&lt;T&gt;(instance =&gt; { ... }) for each Inject member.
+    /// Callback parameter "instance" is of type TExposed?:
+    ///   null     → resolution failed
+    ///   non-null → resolution succeeded, value is the actual service instance
     /// </summary>
     private static void GenerateResolveDependencies(
         CodeFormatter f,
@@ -288,101 +289,63 @@ internal static class InjectionGenerator
             {
                 var memberType = member.MemberType.ToFullyQualifiedName();
                 var memberName = member.Symbol.Name;
+                var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
+                var listName = NamingHelper.GetInjectionCallbackListName(memberName);
+
                 f.AppendLine($"{GlobalNames.LocalScope}.ResolveDependency<{memberType}>(");
                 f.BeginLevel();
                 {
-                    // 参数名 "instance" 与 DependencyResolveGenerator.GenerateSetInjectionReady 对应
                     f.AppendLine("instance =>");
                     f.BeginBlock();
-                    {
-                        f.AppendLine("if (instance is not null)");
-                        f.BeginBlock();
-                        {
-                            f.BeginTryCatch();
-                            {
-                                var fieldName = NamingHelper.GetInjectionReadyFieldName(memberName);
-                                f.AppendLine($"{memberName} ??= instance;");
-                                f.AppendLine($"{fieldName} = true;");
-                                if (member.HasReadyCallback)
-                                {
-                                    f.AppendLine(
-                                        $"{NamingHelper.GetReadyCallbackMethodName(memberName)}(instance);"
-                                    );
-                                }
-                            }
-                            f.CatchBlock("ex");
-                            {
-                                f.AppendLine(
-                                    $"PrintError(ex.Message, \"{memberName}\", \"{member.MemberType.Name}\");"
-                                );
-                            }
-                            f.EndTryCatch();
-                        }
-                        f.EndBlock();
-                        if (member.HasFailureCallback)
-                        {
-                            f.AppendLine("else");
-                            f.BeginBlock();
-                            {
-                                {
-                                    f.AppendLine(
-                                        $"{NamingHelper.GetFailureCallbackMethodName(memberName)}();"
-                                    );
-                                }
-                            }
-                            f.EndBlock();
-                        }
-                        f.AppendLine();
-
-                        // 通知所有 WaitFor 回调：注入结果已就绪（全部在主线程上执行）
-                        var listName = NamingHelper.GetInjectionCallbackListName(memberName);
-                        f.AppendLine("var resolved = instance is not null;");
-                        f.AppendLine($"foreach (var cb in {listName})");
-                        f.BeginBlock();
-                        {
-                            f.AppendLine("cb.Invoke(resolved);");
-                        }
-                        f.EndBlock();
-                        f.AppendLine($"{listName}.Clear();");
-
-                        if (validatedType.ImplementsIDependenciesResolved)
-                        {
-                            f.AppendLine($"OnDependencyResolved<{memberType}>();");
-                        }
-                    }
+                    GenerateInjectionExecutorCall(f, validatedType, member, memberType, memberName, fieldName, listName);
                     f.EndBlock(",");
                     f.AppendLine($"requestorType: \"{validatedType.Symbol.Name}\"");
                 }
                 f.EndLevel();
                 f.AppendLine(");");
             }
-
-            if (injectMembersList.Length > 0)
-            {
-                f.AppendLine();
-                f.AppendLine("return;");
-                f.AppendLine();
-
-                // PrintError 本地函数
-                f.AppendLine("void PrintError(string exMsg, string memberName, string memberType)");
-                f.BeginBlock();
-                {
-                    f.BeginStringBuilderAppend("errorMessage", true);
-                    {
-                        f.StringBuilderAppendLine(GeneratedStrings.ErrInjectionAssignFailed);
-                        f.StringBuilderAppendLine($"  Type: {validatedType.Symbol.Name}");
-                        f.StringBuilderAppendLine("  Member: {memberName}");
-                        f.StringBuilderAppendLine("  Member Type: {memberType}");
-                        f.StringBuilderAppendLine("  Exception: {exMsg}");
-                    }
-                    f.EndStringBuilderAppend();
-                    f.AppendLine();
-                    f.PrintError("errorMessage.ToString()");
-                }
-                f.EndBlock();
-            }
         }
         f.EndBlock();
+    }
+
+    private static void GenerateInjectionExecutorCall(
+        CodeFormatter f,
+        ValidatedTypeInfo validatedType,
+        MemberInfo member,
+        string memberType,
+        string memberName,
+        string fieldName,
+        string listName
+    )
+    {
+        // Delegate to InjectionExecutor — all try-catch logic is in the runtime library
+        f.AppendLine($"{GlobalNames.InjectionExecutor}.Execute(");
+        f.BeginLevel();
+        {
+            f.AppendLine($"v => {{ {memberName} ??= v; {fieldName} = true; }},");
+            f.AppendLine("instance,");
+
+            if (member.HasReadyCallback)
+                f.AppendLine($"{NamingHelper.GetReadyCallbackMethodName(memberName)},");
+            else
+                f.AppendLine("null,");
+
+            if (member.HasFailureCallback)
+                f.AppendLine($"{NamingHelper.GetFailureCallbackMethodName(memberName)},");
+            else
+                f.AppendLine("null,");
+
+            f.AppendLine($"{listName},");
+
+            if (validatedType.ImplementsIDependenciesResolved)
+                f.AppendLine($"() => OnDependencyResolved<{memberType}>(),");
+            else
+                f.AppendLine("() => { },");
+
+            f.AppendLine($"\"{validatedType.Symbol.Name}\",");
+            f.AppendLine($"\"{memberName}\");");
+        }
+        f.EndLevel();
     }
 
     private static void GenerateIDependenciesResolvedSpecific(
@@ -395,7 +358,7 @@ internal static class InjectionGenerator
 
         f.AppendHiddenMemberCommentAndAttribute();
         f.AppendLine(
-            $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> _unresolvedDependencies = new()"
+            $"private readonly {GlobalNames.HashSet}<{GlobalNames.Type}> __unresolvedDependencies = new()"
         );
         f.BeginBlock();
         {
@@ -409,8 +372,8 @@ internal static class InjectionGenerator
         f.AppendLine("private void OnDependencyResolved<T>()");
         f.BeginBlock();
         {
-            f.AppendLine("_unresolvedDependencies.Remove(typeof(T));");
-            f.AppendLine("if (_unresolvedDependencies.Count == 0)");
+            f.AppendLine("__unresolvedDependencies.Remove(typeof(T));");
+            f.AppendLine("if (__unresolvedDependencies.Count == 0)");
             f.BeginBlock();
             {
                 f.AppendLine(

@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 namespace GodotSharpDI.SourceGenerator.Internal.Data;
 
 /// <summary>
-/// 类型信息（验证后）
+/// Type information (after validation)
 /// </summary>
 internal sealed record ValidatedTypeInfo(
     INamedTypeSymbol Symbol,
