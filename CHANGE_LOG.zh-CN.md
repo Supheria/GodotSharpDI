@@ -62,7 +62,27 @@
 - `WaitForCoordinatorTests` — 倒计时协调、错误传播
 - `DeadlockDetectorTests` — 循环检测、路径报告
 
-提取 `TestCompilationHelper` 供 SourceGenerator 测试复用。
+### SourceGenerator 端到端测试
+
+在 `GodotSharpDI.SourceGenerator.Tests/E2E/` 中新增端到端集成测试，验证完整流水线：源码 → 源码生成器 → 生成代码 → 运行时执行。
+
+**测试基础设施**：
+
+- `E2ETestHelper` — 运行源码生成器，将生成代码与真实 Runtime/Abstractions DLL + Godot mock 一起编译，提供反射辅助方法用于实例化和生命周期模拟
+- `Mocks/E2EGodotMocks` — 完整 Godot mock 类型（含父子关系的 Node、Callable、Timer、GD），用于 E2E 编译
+- `Mocks/DiagnosticGodotStubs` — 最小 Godot stub，用于生成器诊断测试
+
+**E2E 测试覆盖**（11 个测试）：
+
+- `BasicInjectionTests` — 同步 Provide、方法 Provider、多服务注入、Host 自暴露、跨 Host 注入
+- `CallbackTests` — ReadyCallback、FailureCallback（Provider 抛异常）、IDependenciesResolved
+- `WaitForTests` — 单依赖 WaitFor、多依赖 WaitFor、依赖失败仍提供
+
+**Helpers 重构**：
+
+- `TestCompilationHelper` 重命名为 `DiagnosticCompilationHelper` — 明确其用于生成器诊断测试（stub DI 属性 + 最小 Godot stub）
+- `GodotMockSource` 重命名为 `Mocks/E2EGodotMocks` — 明确其用于 E2E 测试
+- 从 `DiagnosticCompilationHelper` 中提取 Godot stub 到 `Mocks/DiagnosticGodotStubs` — 消除重复
 
 ### 文档
 

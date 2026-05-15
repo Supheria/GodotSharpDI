@@ -62,7 +62,27 @@ New test project `GodotSharpDI.Runtime.Tests` with comprehensive coverage:
 - `WaitForCoordinatorTests` — countdown coordination, error propagation
 - `DeadlockDetectorTests` — cycle detection, path reporting
 
-Extracted `TestCompilationHelper` from SourceGenerator tests for reuse.
+### SourceGenerator E2E Tests
+
+New end-to-end integration tests in `GodotSharpDI.SourceGenerator.Tests/E2E/` that verify the complete pipeline: source code → source generator → generated code → runtime execution.
+
+**Test infrastructure**:
+
+- `E2ETestHelper` — runs the source generator, compiles generated code with real Runtime/Abstractions DLLs + Godot mocks, provides reflection helpers for instantiation and lifecycle simulation
+- `Mocks/E2EGodotMocks` — full Godot mock types (Node with parent-child wiring, Callable, Timer, GD) for E2E compilation
+- `Mocks/DiagnosticGodotStubs` — minimal Godot stubs for generator diagnostic testing
+
+**E2E test coverage** (11 tests):
+
+- `BasicInjectionTests` — sync Provide, method provider, multiple services, Host self-exposure, cross-Host injection
+- `CallbackTests` — ReadyCallback, FailureCallback (provider throws), IDependenciesResolved
+- `WaitForTests` — single WaitFor dependency, multiple dependencies, failed dependency still provides
+
+**Helper refactoring**:
+
+- `TestCompilationHelper` renamed to `DiagnosticCompilationHelper` — clarifies its role for generator diagnostic testing (stub DI attributes + minimal Godot stubs)
+- `GodotMockSource` renamed to `Mocks/E2EGodotMocks` — clarifies its role for E2E testing
+- Godot stubs extracted from `DiagnosticCompilationHelper` into `Mocks/DiagnosticGodotStubs` — eliminates duplication
 
 ### Documentation
 
