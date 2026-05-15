@@ -14,9 +14,11 @@ public enum ServiceState
 /// <summary>
 /// Cache entry for a single service implementation type.
 /// Used internally by generated Scope classes.
+/// Fields are volatile to ensure visibility if accessed from background threads
+/// (e.g. async provider completions dispatched via CallDeferred).
 /// </summary>
 public sealed class ServiceCacheEntry
 {
-    public ServiceState State = ServiceState.NotCreated;
-    public object? Instance = null;
+    public volatile ServiceState State = ServiceState.NotCreated;
+    public volatile object? Instance = null;
 }

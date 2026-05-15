@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GodotSharpDI.Runtime;
@@ -10,6 +11,9 @@ namespace GodotSharpDI.Runtime;
 ///
 /// Godot-specific operations (Callable.From, GD.PrintErr) are injected as delegates
 /// to keep this class compatible with netstandard2.0.
+///
+/// Thread Safety: <see cref="_remaining"/> uses <see cref="Interlocked.Decrement"/>
+/// because callbacks may fire from background threads (e.g. async providers).
 /// </summary>
 public class WaitForCoordinator
 {
@@ -60,7 +64,7 @@ public class WaitForCoordinator
                     $"[GodotSharpDI] WaitFor: dependency '{depName}' for '{memberName}' failed");
             }
 
-            if (--_remaining == 0)
+            if (Interlocked.Decrement(ref _remaining) == 0)
             {
                 _ = _onAllResolved().ContinueWith(t =>
                 {

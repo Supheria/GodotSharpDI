@@ -78,28 +78,30 @@ public class InjectionExecutorTests
     }
 
     [Fact]
-    public void Execute_AssignThrows_StillNotifiesCallbacksAndReportsError()
+    public void Execute_AssignThrows_NotifiesCallbackAsFailureAndReportsError()
     {
         var (_, warnings, restore) = CaptureErrorReporter();
         try
         {
             var resolvedCalled = false;
+            var readyCalled = false;
             var callbackResults = new List<bool>();
             var callbackList = new List<Action<bool>> { ok => callbackResults.Add(ok) };
 
             InjectionExecutor.Execute<string>(
                 assign: v => throw new InvalidOperationException("assign broke"),
                 value: "val",
-                readyCallback: null,
+                readyCallback: v => readyCalled = true,
                 failedCallback: null,
                 callbackList: callbackList,
                 onDependencyResolved: () => resolvedCalled = true,
                 typeName: "MyType",
                 memberName: "_field");
 
-            // Callbacks still notified with success (value was non-null)
+            // Assign failed → callback notified with false, readyCallback not called
             Assert.Single(callbackResults);
-            Assert.True(callbackResults[0]);
+            Assert.False(callbackResults[0]);
+            Assert.False(readyCalled);
             Assert.True(resolvedCalled);
             Assert.NotEmpty(warnings);
             Assert.Contains("assign broke", warnings[0]);

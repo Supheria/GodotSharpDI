@@ -219,9 +219,8 @@ namespace GodotSharpDI.Abstractions
 
     public interface IScope
     {
-        void RegisterService<T>(T instance) where T : notnull;
-        void UnregisterService<T>() where T : notnull;
-        void ResolveDependency<T>(Action<T> onResolved) where T : notnull;
+        void ProvideService<TImpl>(TImpl? instance, string providerType) where TImpl : class;
+        void ResolveDependency<TExposed>(Action<TExposed?> onResult, string requestorType) where TExposed : class;
     }
 
     /// <summary>Callback interface invoked after all dependency injection is complete</summary>

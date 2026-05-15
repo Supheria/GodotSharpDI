@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -18,13 +17,6 @@ internal sealed class CrossHostCircularDependencyDetector
     private readonly ImmutableDictionary<ITypeSymbol, ImmutableArray<ITypeSymbol>> _graph;
     private readonly ServiceIndexes _indexes;
 
-    private Dictionary<ITypeSymbol, int> _disc  = new(SymbolEqualityComparer.Default);
-    private Dictionary<ITypeSymbol, int> _low   = new(SymbolEqualityComparer.Default);
-    private HashSet<ITypeSymbol>         _onStack = new(SymbolEqualityComparer.Default);
-    private Stack<ITypeSymbol>            _stack = new();
-    private int _timer = 0;
-    private List<List<ITypeSymbol>> _cycles = new();
-
     public CrossHostCircularDependencyDetector(
         ImmutableDictionary<ITypeSymbol, ImmutableArray<ITypeSymbol>> graph,
         ServiceIndexes indexes)
@@ -35,69 +27,51 @@ internal sealed class CrossHostCircularDependencyDetector
 
     public ImmutableArray<Diagnostic> Detect()
     {
-        _disc  = new Dictionary<ITypeSymbol, int>(SymbolEqualityComparer.Default);
-        _low   = new Dictionary<ITypeSymbol, int>(SymbolEqualityComparer.Default);
-        _onStack = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-        _stack = new Stack<ITypeSymbol>();
-        _timer = 0;
-        _cycles = new List<List<ITypeSymbol>>();
+        // Convert to IReadOnlyDictionary for TarjanSCC
+        // Note: SymbolEqualityComparer implements IEqualityComparer<ISymbol>,
+        // which works for ITypeSymbol keys via covariance in Detect().
+        var graphForTarjan = new Dictionary<ITypeSymbol, IEnumerable<ITypeSymbol>>();
+        foreach (var kvp in _graph)
+            graphForTarjan[kvp.Key] = kvp.Value;
 
-        foreach (var node in _graph.Keys)
-            if (!_disc.ContainsKey(node)) Tarjan(node);
+        var allSccs = TarjanSCC<ITypeSymbol>.Detect(graphForTarjan, SymbolEqualityComparer.Default);
 
-        return BuildDiagnostics();
+        // Filter: keep multi-node SCCs where services are provided by different Hosts
+        var crossHostCycles = FilterCrossHostCycles(allSccs);
+
+        return BuildDiagnostics(crossHostCycles);
     }
 
-    private void Tarjan(ITypeSymbol v)
+    /// <summary>
+    /// Filter SCCs: keep multi-node SCCs where services span multiple Hosts.
+    /// Single-node SCCs and same-Host SCCs are excluded (same-Host cycles are handled by GDI_D010).
+    /// </summary>
+    private List<List<ITypeSymbol>> FilterCrossHostCycles(List<List<ITypeSymbol>> sccs)
     {
-        _disc[v] = _low[v] = _timer++;
-        _stack.Push(v);
-        _onStack.Add(v);
+        var result = new List<List<ITypeSymbol>>();
 
-        if (_graph.TryGetValue(v, out var neighbors))
+        foreach (var scc in sccs)
         {
-            foreach (var w in neighbors)
-            {
-                if (!_disc.ContainsKey(w))
-                {
-                    Tarjan(w);
-                    _low[v] = Math.Min(_low[v], _low[w]);
-                }
-                else if (_onStack.Contains(w))
-                    _low[v] = Math.Min(_low[v], _disc[w]);
-            }
+            if (scc.Count <= 1)
+                continue;
+
+            var distinctHosts = scc
+                .SelectMany(s => _indexes.FindProviders(s))
+                .Select(n => n.ValidatedTypeInfo.Symbol)
+                .Distinct(SymbolEqualityComparer.Default)
+                .Count();
+
+            if (distinctHosts > 1)
+                result.Add(scc);
         }
 
-        if (_low[v] != _disc[v]) return; // Not SCC root, continue
-
-        var scc = new List<ITypeSymbol>();
-        ITypeSymbol w2;
-        do
-        {
-            w2 = _stack.Pop();
-            _onStack.Remove(w2);
-            scc.Add(w2);
-        }
-        while (!SymbolEqualityComparer.Default.Equals(w2, v));
-
-        if (scc.Count <= 1) return; // Single node, no cycle
-
-        // Check if all services are provided by the "same" Host
-        // If so, it's a WaitFor cycle within the same Host (already handled by GDI_D010), should not report GDI_D011
-        var distinctHosts = scc
-            .SelectMany(s => _indexes.FindProviders(s))
-            .Select(n => n.ValidatedTypeInfo.Symbol)
-            .Distinct(SymbolEqualityComparer.Default)
-            .Count();
-
-        if (distinctHosts > 1)
-            _cycles.Add(scc);
+        return result;
     }
 
-    private ImmutableArray<Diagnostic> BuildDiagnostics()
+    private ImmutableArray<Diagnostic> BuildDiagnostics(List<List<ITypeSymbol>> cycles)
     {
         var diags = ImmutableArray.CreateBuilder<Diagnostic>();
-        foreach (var cycle in _cycles)
+        foreach (var cycle in cycles)
         {
             // Build readable path: IServiceA -> IServiceB -> IServiceA
             var path = string.Join(" -> ", cycle.Select(t => t.Name))

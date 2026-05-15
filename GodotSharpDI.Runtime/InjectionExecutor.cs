@@ -46,12 +46,15 @@ public static class InjectionExecutor
         string typeName,
         string memberName) where T : class
     {
+        var assignSucceeded = false;
+
         if (value is not null)
         {
             // Try-catch for assignment
             try
             {
                 assign(value);
+                assignSucceeded = true;
             }
             catch (Exception ex)
             {
@@ -59,15 +62,18 @@ public static class InjectionExecutor
                     typeName, memberName, typeof(T).Name, ex.Message);
             }
 
-            // Separate try-catch for ready callback
-            try
+            // Separate try-catch for ready callback (only if assign succeeded)
+            if (assignSucceeded)
             {
-                readyCallback?.Invoke(value);
-            }
-            catch (Exception ex)
-            {
-                ErrorReporter.ReportInjectionReadyCallbackFailed(
-                    typeName, memberName, typeof(T).Name, ex.Message);
+                try
+                {
+                    readyCallback?.Invoke(value);
+                }
+                catch (Exception ex)
+                {
+                    ErrorReporter.ReportInjectionReadyCallbackFailed(
+                        typeName, memberName, typeof(T).Name, ex.Message);
+                }
             }
         }
         else
@@ -84,8 +90,8 @@ public static class InjectionExecutor
             }
         }
 
-        // Notify WaitFor callbacks
-        var resolved = value is not null;
+        // Notify WaitFor callbacks — only report success if assign actually succeeded
+        var resolved = assignSucceeded;
         foreach (var cb in callbackList)
             cb.Invoke(resolved);
         callbackList.Clear();
