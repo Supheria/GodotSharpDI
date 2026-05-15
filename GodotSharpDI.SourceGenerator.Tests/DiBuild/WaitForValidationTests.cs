@@ -1,12 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
-using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
@@ -200,57 +195,9 @@ namespace Test
     }
 
     // ============================================================
-    //  Helpers — merge class-level and graph-level diagnostics
+    //  Helpers
     // ============================================================
 
-    /// <summary>
-    /// Builds the graph and returns all diagnostics (class-level + graph-level).
-    /// GDI_M080/M081 come from ClassValidationResult, GDI_D010/D011 come from graph validation.
-    /// Both need to be merged to assert in a single result.
-    /// </summary>
-    private static ImmutableArray<Diagnostic> BuildAllDiagnostics(string source)
-    {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var symbols = new CachedSymbols(compilation);
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
-            }
-        }
-
-        var graphResult = DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-
-        // Merge: class-level diagnostics (GDI_M0xx) + graph-level diagnostics (GDI_D0xx)
-        return classResults
-            .SelectMany(r => r.Diagnostics)
-            .Concat(graphResult.Diagnostics)
-            .ToImmutableArray();
-    }
-
-    private static DiGraphBuildResult BuildGraph(string source)
-    {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var symbols = new CachedSymbols(compilation);
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
-            }
-        }
-
-        return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-    }
+    private static ImmutableArray<Diagnostic> BuildAllDiagnostics(string source) =>
+        GraphBuildHelper.BuildAllDiagnostics(source);
 }

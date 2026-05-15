@@ -1,11 +1,6 @@
-using System.Collections.Immutable;
 using System.Linq;
 using GodotSharpDI.SourceGenerator.Internal.Data;
-using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
@@ -415,23 +410,6 @@ namespace Test
     //  Helpers
     // ============================================================
 
-    private static DiGraphBuildResult BuildGraph(string source)
-    {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        var symbols = new CachedSymbols(compilation);
-        var classResults = ImmutableArray.CreateBuilder<ClassValidationResult>();
-
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info != null)
-                    classResults.Add(ClassPipeline.ValidateAndClassify(raw.Info, symbols));
-            }
-        }
-
-        return DiGraphBuilder.Build(classResults.ToImmutable(), symbols);
-    }
+    private static DiGraphBuildResult BuildGraph(string source) =>
+        GraphBuildHelper.BuildGraph(source);
 }

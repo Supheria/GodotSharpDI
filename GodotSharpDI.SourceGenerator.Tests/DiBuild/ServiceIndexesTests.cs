@@ -1,12 +1,7 @@
-using System.Collections.Immutable;
 using System.Linq;
-using GodotSharpDI.SourceGenerator.Internal.Data;
 using GodotSharpDI.SourceGenerator.Internal.DiBuild;
-using GodotSharpDI.SourceGenerator.Internal.Helpers;
-using GodotSharpDI.SourceGenerator.Internal.Semantic;
 using GodotSharpDI.SourceGenerator.Tests.Helpers;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace GodotSharpDI.SourceGenerator.Tests.DiBuild;
@@ -397,53 +392,12 @@ namespace Test
     //  Helpers
     // ============================================================
 
-    /// <summary>
-    /// Builds indexes and also returns the compilation instance for tests that need cross-symbol comparison.
-    /// SymbolEqualityComparer is only valid within a single compilation; cross-compilation must use the same instance.
-    /// </summary>
     private static (
         ServiceIndexes Indexes,
-        Microsoft.CodeAnalysis.Compilation Compilation
-    ) BuildIndexesWithCompilation(string source)
-    {
-        var compilation = TestCompilationHelper.CreateCompilationWithDI(source);
-        return (BuildIndexesFromCompilation(compilation), compilation);
-    }
+        Compilation Compilation
+    ) BuildIndexesWithCompilation(string source) =>
+        GraphBuildHelper.BuildServiceIndexesWithCompilation(source);
 
     private static ServiceIndexes BuildIndexes(string source) =>
-        BuildIndexesFromCompilation(TestCompilationHelper.CreateCompilationWithDI(source));
-
-    private static ServiceIndexes BuildIndexesFromCompilation(
-        Microsoft.CodeAnalysis.Compilation compilation
-    )
-    {
-        var symbols = new CachedSymbols(compilation);
-        var hosts = ImmutableArray.CreateBuilder<ValidatedTypeInfo>();
-        var users = ImmutableArray.CreateBuilder<ValidatedTypeInfo>();
-
-        foreach (var tree in compilation.SyntaxTrees)
-        {
-            var root = tree.GetRoot();
-            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
-                var raw = RawClassSemanticInfoFactory.CreateWithDiagnostics(compilation, classDecl);
-                if (raw.Info == null)
-                    continue;
-
-                var result = ClassPipeline.ValidateAndClassify(raw.Info, symbols);
-                if (result.TypeInfo == null)
-                    continue;
-
-                if (result.TypeInfo.Role == TypeRole.Host)
-                    hosts.Add(result.TypeInfo);
-                else if (result.TypeInfo.Role == TypeRole.User)
-                    users.Add(result.TypeInfo);
-            }
-        }
-
-        var diagBuilder = ImmutableArray.CreateBuilder<Diagnostic>();
-        var hostNodes = NodeBuilders.BuildHostNodes(hosts.ToImmutable(), diagBuilder);
-        var userNodes = NodeBuilders.BuildUserNodes(users.ToImmutable(), diagBuilder);
-        return ServiceIndexes.Build(hostNodes, userNodes);
-    }
+        GraphBuildHelper.BuildServiceIndexes(source);
 }
