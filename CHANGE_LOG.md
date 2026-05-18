@@ -1,3 +1,53 @@
+# v1.4.1
+
+## Bug Fixes
+
+### Error messages now include `RequestorType` when callbacks throw
+
+**Fixed**: When `DependencyWaitInfo.ResultCallback` threw an exception in generated IScope code, the error message did not include the `RequestorType`. All catch blocks in generated scope code now report the requestor type through `ErrorReporter.ReportWaiterCallbackException` and `ErrorReporter.ReportResolveDependencyCallbackException`.
+
+---
+
+## Breaking Changes
+
+### `ErrorReporter` API refactored
+
+- `Output` and `ErrorOutput` changed from `public` to `internal`
+- Default output changed from `Debug.WriteLine` to `GD.PushWarning` / `GD.PrintErr`
+- All `Report*` methods now accept `Exception` instead of `string exMsg`
+- `BuildServiceNotFoundMessage` / `BuildServiceErrorMessage` replaced by `ReportServiceNotFound` / `ReportServiceError` (void, output directly)
+- New methods: `ReportParentScopeNotFound`, `ReportWaiterCallbackException`, `ReportResolveDependencyCallbackException`, `ReportError`, `ReportWarning`
+
+### `AsyncProviderRunner.Run` / `WaitForCoordinator.Register` parameter removed
+
+The `reportError` parameter has been removed from both methods. Error reporting is now handled internally through `ErrorReporter`.
+
+**Migration**: Remove the `reportError` argument from all call sites. Generated code is updated automatically.
+
+### Target framework upgraded to `net8.0`
+
+`GodotSharpDI.Runtime` and `GodotSharpDI` now target `net8.0` instead of `netstandard2.0`. This allows direct use of Godot APIs (`GD.PushWarning`, `GD.PrintErr`) without delegate injection.
+
+---
+
+## Internal Improvements
+
+### Source generator error reporting centralized
+
+All `f.PrintError(...)` calls in generated scope code replaced with `ErrorReporter.Report*` methods. This ensures consistent error message formatting and includes structured context (type names, requestor, scope chain, dependency chain).
+
+### Removed `ErrorReporter` initialization from generated code
+
+`GenerateErrorReporterInit` has been removed from `NodeLifeCycleGenerator`. Since `ErrorReporter` now defaults to Godot's `GD.PushWarning` / `GD.PrintErr`, no runtime initialization is needed.
+
+### Test helper extraction
+
+- Extracted `ErrorReporterHelper` into `GodotSharpDI.Runtime.Tests/Helpers/` and `GodotSharpDI.SourceGenerator.Tests/Helpers/`
+- Provides `Capture()` (errors + warnings) and `CaptureErrors()` (errors only)
+- All test files now use the shared helper instead of inline capture patterns
+
+---
+
 # v1.4.0
 
 ## New Features

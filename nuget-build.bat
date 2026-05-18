@@ -11,7 +11,14 @@ if exist %OUTPUT% rmdir /s /q %OUTPUT%
 
 echo.
 echo Cleaning previous builds...
-dotnet clean %PROJECT%
+dotnet clean GodotSharpDI.sln -c Release
+
+echo.
+echo Removing bin/obj directories...
+for %%p in (GodotSharpDI GodotSharpDI.SourceGenerator GodotSharpDI.CodeFixes GodotSharpDI.Shared GodotSharpDI.Abstractions GodotSharpDI.Runtime) do (
+    if exist %%p\bin rmdir /s /q %%p\bin
+    if exist %%p\obj rmdir /s /q %%p\obj
+)
 
 echo.
 echo Packing...
