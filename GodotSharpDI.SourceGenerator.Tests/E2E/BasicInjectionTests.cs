@@ -16,10 +16,7 @@ public class BasicInjectionTests
     [Fact]
     public void BasicSyncProvide_InjectsIntoUser()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -52,41 +49,36 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            // Instantiate scope and host
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.MyHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        // Instantiate scope and host
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.MyHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            // Wire parent: host→scope, user→scope
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        // Wire parent: host→scope, user→scope
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            // Trigger lifecycle: EnterTree → Ready
-            E2ETestHelper.Notify(host, 10); // EnterTree
-            E2ETestHelper.Notify(host, 13); // Ready → ProvideServices + ResolveDependencies
-            E2ETestHelper.Notify(user, 10); // EnterTree
-            E2ETestHelper.Notify(user, 13); // Ready → ResolveDependencies
+        // Trigger lifecycle: EnterTree → Ready
+        E2ETestHelper.Notify(host, 10); // EnterTree
+        E2ETestHelper.Notify(host, 13); // Ready → ProvideServices + ResolveDependencies
+        E2ETestHelper.Notify(user, 10); // EnterTree
+        E2ETestHelper.Notify(user, 13); // Ready → ResolveDependencies
 
-            // Verify: _service should be injected
-            var serviceValue = E2ETestHelper.GetFieldValue(user, "_service");
-            Assert.NotNull(serviceValue);
+        // Verify: _service should be injected
+        var serviceValue = E2ETestHelper.GetFieldValue(user, "_service");
+        Assert.NotNull(serviceValue);
 
-            // Verify it's the right type
-            var valueProp = serviceValue!.GetType().GetProperty("Value");
-            Assert.Equal("hello", valueProp!.GetValue(serviceValue));
-        }
-        finally { restore(); }
+        // Verify it's the right type
+        var valueProp = serviceValue!.GetType().GetProperty("Value");
+        Assert.Equal("hello", valueProp!.GetValue(serviceValue));
     }
 
     [Fact]
     public void MethodProvider_InjectsIntoUser()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -119,33 +111,28 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.AppScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.ConfigHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.App");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.AppScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.ConfigHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.App");
 
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(host, 10);
-            E2ETestHelper.Notify(host, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(host, 10);
+        E2ETestHelper.Notify(host, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            var config = E2ETestHelper.GetFieldValue(user, "_config");
-            Assert.NotNull(config);
-        }
-        finally { restore(); }
+        var config = E2ETestHelper.GetFieldValue(user, "_config");
+        Assert.NotNull(config);
     }
 
     [Fact]
     public void MultipleServices_AllInjected()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -184,33 +171,28 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MultiScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.MultiHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MultiUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MultiScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.MultiHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MultiUser");
 
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(host, 10);
-            E2ETestHelper.Notify(host, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(host, 10);
+        E2ETestHelper.Notify(host, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_a"));
-            Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_b"));
-        }
-        finally { restore(); }
+        Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_a"));
+        Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_b"));
     }
 
     [Fact]
     public void HostSelfExposure_Works()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -242,34 +224,29 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.GameScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.GameHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.GameUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.GameScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.GameHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.GameUser");
 
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(host, 10);
-            E2ETestHelper.Notify(host, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(host, 10);
+        E2ETestHelper.Notify(host, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            var injectedHost = E2ETestHelper.GetFieldValue(user, "_host");
-            Assert.NotNull(injectedHost);
-            Assert.Same(host, injectedHost);
-        }
-        finally { restore(); }
+        var injectedHost = E2ETestHelper.GetFieldValue(user, "_host");
+        Assert.NotNull(injectedHost);
+        Assert.Same(host, injectedHost);
     }
 
     [Fact]
     public void TwoHosts_CrossInjection_Works()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -314,27 +291,25 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.CrossScope");
-            var hostA = E2ETestHelper.Instantiate(asm, "Test.HostA");
-            var hostB = E2ETestHelper.Instantiate(asm, "Test.HostB");
-            var user = E2ETestHelper.Instantiate(asm, "Test.CrossUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.CrossScope");
+        var hostA = E2ETestHelper.Instantiate(asm, "Test.HostA");
+        var hostB = E2ETestHelper.Instantiate(asm, "Test.HostB");
+        var user = E2ETestHelper.Instantiate(asm, "Test.CrossUser");
 
-            E2ETestHelper.WireParent(hostA, scope);
-            E2ETestHelper.WireParent(hostB, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(hostA, scope);
+        E2ETestHelper.WireParent(hostB, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(hostA, 10);
-            E2ETestHelper.Notify(hostA, 13);
-            E2ETestHelper.Notify(hostB, 10);
-            E2ETestHelper.Notify(hostB, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(hostA, 10);
+        E2ETestHelper.Notify(hostA, 13);
+        E2ETestHelper.Notify(hostB, 10);
+        E2ETestHelper.Notify(hostB, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_x"));
-            Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_y"));
-        }
-        finally { restore(); }
+        Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_x"));
+        Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_y"));
     }
 }

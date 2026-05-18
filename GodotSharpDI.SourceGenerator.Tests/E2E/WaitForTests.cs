@@ -17,10 +17,7 @@ public class WaitForTests
     [Fact]
     public void WaitFor_SingleDep_ServiceProvidedAfterInjection()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -72,47 +69,42 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var configHost = E2ETestHelper.Instantiate(asm, "Test.ConfigHost");
-            var serviceHost = E2ETestHelper.Instantiate(asm, "Test.ServiceHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var configHost = E2ETestHelper.Instantiate(asm, "Test.ConfigHost");
+        var serviceHost = E2ETestHelper.Instantiate(asm, "Test.ServiceHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            E2ETestHelper.WireParent(configHost, scope);
-            E2ETestHelper.WireParent(serviceHost, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(configHost, scope);
+        E2ETestHelper.WireParent(serviceHost, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            // ConfigHost lifecycle
-            E2ETestHelper.Notify(configHost, 10);
-            E2ETestHelper.Notify(configHost, 13);
+        // ConfigHost lifecycle
+        E2ETestHelper.Notify(configHost, 10);
+        E2ETestHelper.Notify(configHost, 13);
 
-            // ServiceHost lifecycle (has Inject + Provide with WaitFor)
-            E2ETestHelper.Notify(serviceHost, 10);
-            E2ETestHelper.Notify(serviceHost, 13);
+        // ServiceHost lifecycle (has Inject + Provide with WaitFor)
+        E2ETestHelper.Notify(serviceHost, 10);
+        E2ETestHelper.Notify(serviceHost, 13);
 
-            // User lifecycle
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        // User lifecycle
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            // Verify injection succeeded
-            var service = E2ETestHelper.GetFieldValue(user, "_service");
-            Assert.NotNull(service);
+        // Verify injection succeeded
+        var service = E2ETestHelper.GetFieldValue(user, "_service");
+        Assert.NotNull(service);
 
-            // Verify the service was built with the injected config
-            var configName = service!.GetType().GetProperty("ConfigName")!.GetValue(service);
-            Assert.Equal("prod", configName);
-        }
-        finally { restore(); }
+        // Verify the service was built with the injected config
+        var configName = service!.GetType().GetProperty("ConfigName")!.GetValue(service);
+        Assert.Equal("prod", configName);
     }
 
     [Fact]
     public void WaitFor_MultipleDeps_AllResolvedBeforeProviding()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -175,42 +167,37 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var configHost = E2ETestHelper.Instantiate(asm, "Test.ConfigHost");
-            var loggerHost = E2ETestHelper.Instantiate(asm, "Test.LoggerHost");
-            var serviceHost = E2ETestHelper.Instantiate(asm, "Test.ServiceHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var configHost = E2ETestHelper.Instantiate(asm, "Test.ConfigHost");
+        var loggerHost = E2ETestHelper.Instantiate(asm, "Test.LoggerHost");
+        var serviceHost = E2ETestHelper.Instantiate(asm, "Test.ServiceHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            E2ETestHelper.WireParent(configHost, scope);
-            E2ETestHelper.WireParent(loggerHost, scope);
-            E2ETestHelper.WireParent(serviceHost, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(configHost, scope);
+        E2ETestHelper.WireParent(loggerHost, scope);
+        E2ETestHelper.WireParent(serviceHost, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(configHost, 10);
-            E2ETestHelper.Notify(configHost, 13);
-            E2ETestHelper.Notify(loggerHost, 10);
-            E2ETestHelper.Notify(loggerHost, 13);
-            E2ETestHelper.Notify(serviceHost, 10);
-            E2ETestHelper.Notify(serviceHost, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(configHost, 10);
+        E2ETestHelper.Notify(configHost, 13);
+        E2ETestHelper.Notify(loggerHost, 10);
+        E2ETestHelper.Notify(loggerHost, 13);
+        E2ETestHelper.Notify(serviceHost, 10);
+        E2ETestHelper.Notify(serviceHost, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            // Verify injection succeeded
-            var service = E2ETestHelper.GetFieldValue(user, "_service");
-            Assert.NotNull(service);
-        }
-        finally { restore(); }
+        // Verify injection succeeded
+        var service = E2ETestHelper.GetFieldValue(user, "_service");
+        Assert.NotNull(service);
     }
 
     [Fact]
     public void WaitFor_FailedDep_StillProvides()
     {
-        var (_, _, restore) = ErrorReporterHelper.Capture();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -256,29 +243,27 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var failingHost = E2ETestHelper.Instantiate(asm, "Test.FailingDepHost");
-            var serviceHost = E2ETestHelper.Instantiate(asm, "Test.ServiceHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var failingHost = E2ETestHelper.Instantiate(asm, "Test.FailingDepHost");
+        var serviceHost = E2ETestHelper.Instantiate(asm, "Test.ServiceHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            E2ETestHelper.WireParent(failingHost, scope);
-            E2ETestHelper.WireParent(serviceHost, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(failingHost, scope);
+        E2ETestHelper.WireParent(serviceHost, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(failingHost, 10);
-            E2ETestHelper.Notify(failingHost, 13);
-            E2ETestHelper.Notify(serviceHost, 10);
-            E2ETestHelper.Notify(serviceHost, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(failingHost, 10);
+        E2ETestHelper.Notify(failingHost, 13);
+        E2ETestHelper.Notify(serviceHost, 10);
+        E2ETestHelper.Notify(serviceHost, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            // WaitForCoordinator fires even when a dep fails.
-            // The service should still be provided (with null dep).
-            var service = E2ETestHelper.GetFieldValue(user, "_service");
-            Assert.NotNull(service);
-        }
-        finally { restore(); }
+        // WaitForCoordinator fires even when a dep fails.
+        // The service should still be provided (with null dep).
+        var service = E2ETestHelper.GetFieldValue(user, "_service");
+        Assert.NotNull(service);
     }
 }

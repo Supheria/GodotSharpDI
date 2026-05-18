@@ -87,7 +87,8 @@ internal static class HostGenerator
             {
                 f.AppendLine(
                     $"{GlobalNames.ErrorReporter}.ReportParentScopeNotFound("
-                    + $"\"{validatedType.Symbol.Name}\");"
+                    + $"\"{validatedType.Symbol.Name}\","
+                    + $" {GlobalNames.GodotGD}.PrintErr);"
                 );
                 f.AppendLine("return;");
             }

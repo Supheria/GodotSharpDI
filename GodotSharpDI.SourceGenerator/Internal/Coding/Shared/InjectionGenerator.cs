@@ -279,7 +279,8 @@ internal static class InjectionGenerator
             {
                 f.AppendLine(
                     $"{GlobalNames.ErrorReporter}.ReportParentScopeNotFound("
-                    + $"\"{validatedType.Symbol.Name}\");"
+                    + $"\"{validatedType.Symbol.Name}\","
+                    + $" {GlobalNames.GodotGD}.PrintErr);"
                 );
                 f.AppendLine("return;");
             }
@@ -344,7 +345,8 @@ internal static class InjectionGenerator
                 f.AppendLine("() => { },");
 
             f.AppendLine($"\"{validatedType.Symbol.Name}\",");
-            f.AppendLine($"\"{memberName}\");");
+            f.AppendLine($"\"{memberName}\",");
+            f.AppendLine($"{GlobalNames.GodotGD}.PrintErr);");
         }
         f.EndLevel();
     }

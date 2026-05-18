@@ -1,16 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="GodotSharpDI.Runtime.Tests" />
     <InternalsVisibleTo Include="GodotSharpDI.SourceGenerator.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="GodotSharp" Version="4.6.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj" />

@@ -90,7 +90,8 @@ internal static class ScopeInterfaceGenerator
                 $"{GlobalNames.ErrorReporter}.ReportServiceError("
                 + "\"Host cannot provide service\","
                 + "\"No Scope in scene tree contains implementation type: \" + implType.Name,"
-                + "providerType, implType.Name, \"-\", \"-\", \"-\");"
+                + "providerType, implType.Name, \"-\", \"-\", \"-\","
+                + $" {GlobalNames.GodotGD}.PrintErr);"
             );
             f.AppendLine("return;");
         }
@@ -114,7 +115,8 @@ internal static class ScopeInterfaceGenerator
             $"{GlobalNames.ErrorReporter}.ReportServiceError("
             + "\"Host failed to provide service\","
             + "\"Null reference provided for implementation type: \" + implType.Name,"
-            + "providerType, implType.Name, \"-\", \"-\", \"-\");"
+            + "providerType, implType.Name, \"-\", \"-\", \"-\","
+            + $" {GlobalNames.GodotGD}.PrintErr);"
         );
         f.AppendLine();
         f.AppendLine("// Notify waiting waiters: service creation failed, pass null to callback");
@@ -132,7 +134,8 @@ internal static class ScopeInterfaceGenerator
                 {
                     f.AppendLine(
                         $"{GlobalNames.ErrorReporter}.ReportWaiterCallbackException("
-                        + "implType.Name, waiter.RequestorType, ex);"
+                        + "implType.Name, waiter.RequestorType, ex,"
+                        + $" {GlobalNames.GodotGD}.PrintErr);"
                     );
                 }
                 f.EndTryCatch();
@@ -153,7 +156,8 @@ internal static class ScopeInterfaceGenerator
                 $"{GlobalNames.ErrorReporter}.ReportServiceError("
                 + "\"Duplicate service provision\","
                 + "\"Service \" + implType.Name + \" has already been provided\","
-                + "\"-\", implType.Name, \"-\", \"-\", \"-\");"
+                + "\"-\", implType.Name, \"-\", \"-\", \"-\","
+                + $" {GlobalNames.GodotGD}.PrintErr);"
             );
             f.AppendLine("return;");
         }
@@ -180,7 +184,8 @@ internal static class ScopeInterfaceGenerator
                 {
                     f.AppendLine(
                         $"{GlobalNames.ErrorReporter}.ReportWaiterCallbackException("
-                        + "implType.Name, waiter.RequestorType, ex);"
+                        + "implType.Name, waiter.RequestorType, ex,"
+                        + $" {GlobalNames.GodotGD}.PrintErr);"
                     );
                 }
                 f.EndTryCatch();
@@ -259,7 +264,8 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine(
             $"{GlobalNames.ErrorReporter}.ReportServiceNotFound("
             + $"\"{validatedType.Symbol.Name}\", exposedType.Name, requestorType,"
-            + "currentScopeChain, currentDependencyChain);"
+            + "currentScopeChain, currentDependencyChain,"
+            + $" {GlobalNames.GodotGD}.PrintErr);"
         );
         f.AppendLine();
 
@@ -271,7 +277,8 @@ internal static class ScopeInterfaceGenerator
         {
             f.AppendLine(
                 $"{GlobalNames.ErrorReporter}.ReportResolveDependencyCallbackException("
-                + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex);"
+                + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex,"
+                + $" {GlobalNames.GodotGD}.PrintErr);"
             );
         }
         f.EndTryCatch();
@@ -300,7 +307,8 @@ internal static class ScopeInterfaceGenerator
                         + "\"Type mismatch in dependency injection\","
                         + "\"Service implementation type \" + implType.Name + \" cannot be cast to \" + exposedType.Name,"
                         + $"\"{validatedType.Symbol.Name}\", implType.Name, requestorType,"
-                        + "currentScopeChain, currentDependencyChain);"
+                        + "currentScopeChain, currentDependencyChain,"
+                        + $" {GlobalNames.GodotGD}.PrintErr);"
                     );
                     f.AppendLine("onResult.Invoke(null);");
                 }
@@ -310,7 +318,8 @@ internal static class ScopeInterfaceGenerator
             {
                 f.AppendLine(
                     $"{GlobalNames.ErrorReporter}.ReportResolveDependencyCallbackException("
-                    + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex);"
+                    + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex,"
+                    + $" {GlobalNames.GodotGD}.PrintErr);"
                 );
             }
             f.EndTryCatch();
@@ -329,7 +338,8 @@ internal static class ScopeInterfaceGenerator
                 + "\"Previous creation of service \" + exposedType.Name + \" failed\","
                 + "\"The Host reported a null instance\","
                 + $"\"{validatedType.Symbol.Name}\", exposedType.Name, requestorType,"
-                + "currentScopeChain, currentDependencyChain);"
+                + "currentScopeChain, currentDependencyChain,"
+                + $" {GlobalNames.GodotGD}.PrintErr);"
             );
             f.AppendLine();
 
@@ -341,7 +351,8 @@ internal static class ScopeInterfaceGenerator
             {
                 f.AppendLine(
                     $"{GlobalNames.ErrorReporter}.ReportResolveDependencyCallbackException("
-                    + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex);"
+                    + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex,"
+                    + $" {GlobalNames.GodotGD}.PrintErr);"
                 );
             }
             f.EndTryCatch();
@@ -365,7 +376,7 @@ internal static class ScopeInterfaceGenerator
             f.AppendLine();
 
             f.BeginDebugRegion();
-            f.AppendLine($"_deadlockDetector.TrackAndDetect(requestorType, exposedType.Name);");
+            f.AppendLine($"_deadlockDetector.TrackAndDetect(requestorType, exposedType.Name, {GlobalNames.GodotGD}.PrintErr);");
             f.EndDebugRegion();
             f.AppendLine();
 

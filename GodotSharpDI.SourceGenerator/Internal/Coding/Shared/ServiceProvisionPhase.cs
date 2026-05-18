@@ -88,6 +88,7 @@ internal static class ServiceProvisionPhase
                 f.AppendLine($"(inst, pt) => scope.ProvideService<{implType}>(inst, pt),");
                 f.AppendLine($"\"{providerTypeName}\",");
                 f.AppendLine("ct,");
+                f.AppendLine($"{GlobalNames.GodotGD}.PrintErr,");
                 f.AppendLine($"action => {GlobalNames.GodotCallable}.From(action).CallDeferred());");
             }
             f.EndLevel();
@@ -112,7 +113,8 @@ internal static class ServiceProvisionPhase
         {
             f.AppendLine($"() => {memberAccess},");
             f.AppendLine($"(inst, pt) => {scopeField}.ProvideService<{implType}>(inst, pt),");
-            f.AppendLine($"\"{providerTypeName}\");");
+            f.AppendLine($"\"{providerTypeName}\",");
+            f.AppendLine($"{GlobalNames.GodotGD}.PrintErr);");
         }
         f.EndLevel();
     }

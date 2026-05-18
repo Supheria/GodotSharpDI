@@ -20,10 +20,12 @@ public static class SyncProviderRunner
     /// Registration callback. Typically <c>(inst, pt) => scope.ProvideService&lt;T&gt;(inst, pt)</c>
     /// </param>
     /// <param name="providerType">The provider type name, for diagnostics.</param>
+    /// <param name="errorOutput">Error output callback. Typically <c>GD.PrintErr</c>.</param>
     public static void Run<T>(
         Func<T> factory,
         Action<T?, string> provide,
-        string providerType) where T : class
+        string providerType,
+        Action<string> errorOutput) where T : class
     {
         try
         {
@@ -32,7 +34,7 @@ public static class SyncProviderRunner
         }
         catch (Exception ex)
         {
-            ErrorReporter.ReportProviderThrew(typeof(T).Name, ex);
+            ErrorReporter.ReportProviderThrew(typeof(T).Name, ex, errorOutput);
             provide(null, providerType);
         }
     }

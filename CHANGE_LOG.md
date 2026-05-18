@@ -2,49 +2,35 @@
 
 ## Bug Fixes
 
-### Error messages now include `RequestorType` when callbacks throw
-
-**Fixed**: When `DependencyWaitInfo.ResultCallback` threw an exception in generated IScope code, the error message did not include the `RequestorType`. All catch blocks in generated scope code now report the requestor type through `ErrorReporter.ReportWaiterCallbackException` and `ErrorReporter.ReportResolveDependencyCallbackException`.
-
----
+- Fixed: callback exception error messages now include `RequestorType`
+- Fixed: NuGet package could contain stale DLLs due to incorrect path references in `GodotSharpDI.csproj`
 
 ## Breaking Changes
 
 ### `ErrorReporter` API refactored
 
-- `Output` and `ErrorOutput` changed from `public` to `internal`
-- Default output changed from `Debug.WriteLine` to `GD.PushWarning` / `GD.PrintErr`
-- All `Report*` methods now accept `Exception` instead of `string exMsg`
-- `BuildServiceNotFoundMessage` / `BuildServiceErrorMessage` replaced by `ReportServiceNotFound` / `ReportServiceError` (void, output directly)
-- New methods: `ReportParentScopeNotFound`, `ReportWaiterCallbackException`, `ReportResolveDependencyCallbackException`, `ReportError`, `ReportWarning`
+- Removed `Output` / `ErrorOutput` static fields
+- Removed `ReportWarning` method
+- All `Report*` methods accept `Exception` instead of `string exMsg`, and `Action<string> errorOutput` as the last parameter
+- `BuildServiceNotFoundMessage` / `BuildServiceErrorMessage` replaced by `ReportServiceNotFound` / `ReportServiceError`
+- New methods: `ReportParentScopeNotFound`, `ReportWaiterCallbackException`, `ReportResolveDependencyCallbackException`, `ReportError`
 
-### `AsyncProviderRunner.Run` / `WaitForCoordinator.Register` parameter removed
+### Runtime class method signatures updated
 
-The `reportError` parameter has been removed from both methods. Error reporting is now handled internally through `ErrorReporter`.
+The following runtime classes now require an `Action<string> errorOutput` parameter for error reporting (previously used `ErrorReporter` static fields):
 
-**Migration**: Remove the `reportError` argument from all call sites. Generated code is updated automatically.
+- `AsyncProviderRunner.Run`
+- `SyncProviderRunner.Run`
+- `InjectionExecutor.Execute`
+- `WaitForCoordinator.Register`
+- `DeadlockDetector.TrackAndDetect`
 
-### Target framework upgraded to `net8.0`
-
-`GodotSharpDI.Runtime` and `GodotSharpDI` now target `net8.0` instead of `netstandard2.0`. This allows direct use of Godot APIs (`GD.PushWarning`, `GD.PrintErr`) without delegate injection.
-
----
+**Migration**: If you call these methods directly, add a `GD.PrintErr` (or equivalent) delegate as the `errorOutput` parameter. Generated code is updated automatically.
 
 ## Internal Improvements
 
-### Source generator error reporting centralized
-
-All `f.PrintError(...)` calls in generated scope code replaced with `ErrorReporter.Report*` methods. This ensures consistent error message formatting and includes structured context (type names, requestor, scope chain, dependency chain).
-
-### Removed `ErrorReporter` initialization from generated code
-
-`GenerateErrorReporterInit` has been removed from `NodeLifeCycleGenerator`. Since `ErrorReporter` now defaults to Godot's `GD.PushWarning` / `GD.PrintErr`, no runtime initialization is needed.
-
-### Test helper extraction
-
-- Extracted `ErrorReporterHelper` into `GodotSharpDI.Runtime.Tests/Helpers/` and `GodotSharpDI.SourceGenerator.Tests/Helpers/`
-- Provides `Capture()` (errors + warnings) and `CaptureErrors()` (errors only)
-- All test files now use the shared helper instead of inline capture patterns
+- Extracted `ErrorReporterHelper` test helper for capturing error output in tests
+- Cleaned up `nuget-build.bat` to properly clean all project outputs
 
 ---
 

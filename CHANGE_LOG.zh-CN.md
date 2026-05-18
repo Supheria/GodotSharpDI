@@ -2,49 +2,35 @@
 
 ## Bug 修复
 
-### 错误信息现在包含 `RequestorType`
-
-**修复**：当生成的 IScope 代码中 `DependencyWaitInfo.ResultCallback` 抛出异常时，错误信息未包含 `RequestorType`。现在生成的 Scope 代码中所有 catch 块均通过 `ErrorReporter.ReportWaiterCallbackException` 和 `ErrorReporter.ReportResolveDependencyCallbackException` 报告请求者类型。
-
----
+- 修复：回调异常的错误信息现在包含 `RequestorType`
+- 修复：NuGet 包可能包含旧 DLL，原因是 `GodotSharpDI.csproj` 中的路径引用不正确
 
 ## 破坏性变更
 
 ### `ErrorReporter` API 重构
 
-- `Output` 和 `ErrorOutput` 从 `public` 改为 `internal`
-- 默认输出从 `Debug.WriteLine` 改为 `GD.PushWarning` / `GD.PrintErr`
-- 所有 `Report*` 方法现在接受 `Exception` 而非 `string exMsg`
-- `BuildServiceNotFoundMessage` / `BuildServiceErrorMessage` 替换为 `ReportServiceNotFound` / `ReportServiceError`（直接输出，无返回值）
-- 新增方法：`ReportParentScopeNotFound`、`ReportWaiterCallbackException`、`ReportResolveDependencyCallbackException`、`ReportError`、`ReportWarning`
+- 移除 `Output` / `ErrorOutput` 静态字段
+- 移除 `ReportWarning` 方法
+- 所有 `Report*` 方法接受 `Exception` 而非 `string exMsg`，新增 `Action<string> errorOutput` 作为最后一个参数
+- `BuildServiceNotFoundMessage` / `BuildServiceErrorMessage` 替换为 `ReportServiceNotFound` / `ReportServiceError`
+- 新增方法：`ReportParentScopeNotFound`、`ReportWaiterCallbackException`、`ReportResolveDependencyCallbackException`、`ReportError`
 
-### `AsyncProviderRunner.Run` / `WaitForCoordinator.Register` 移除参数
+### 运行时类方法签名更新
 
-两个方法的 `reportError` 参数已移除，错误报告现通过 `ErrorReporter` 内部处理。
+以下运行时类现要求传入 `Action<string> errorOutput` 参数用于错误报告（此前使用 `ErrorReporter` 静态字段）：
 
-**迁移方式**：从所有调用处移除 `reportError` 参数。生成代码已自动更新。
+- `AsyncProviderRunner.Run`
+- `SyncProviderRunner.Run`
+- `InjectionExecutor.Execute`
+- `WaitForCoordinator.Register`
+- `DeadlockDetector.TrackAndDetect`
 
-### 目标框架升级至 `net8.0`
-
-`GodotSharpDI.Runtime` 和 `GodotSharpDI` 现目标框架为 `net8.0`（原为 `netstandard2.0`）。这使得可以直接使用 Godot API（`GD.PushWarning`、`GD.PrintErr`），无需委托注入。
-
----
+**迁移方式**：如直接调用这些方法，需添加 `GD.PrintErr`（或等效委托）作为 `errorOutput` 参数。生成代码已自动更新。
 
 ## 内部改进
 
-### 源生成器错误报告集中化
-
-生成的 Scope 代码中所有 `f.PrintError(...)` 调用替换为 `ErrorReporter.Report*` 方法，确保错误信息格式一致，并包含结构化上下文（类型名、请求者、作用域链、依赖链）。
-
-### 移除生成代码中的 `ErrorReporter` 初始化
-
-`NodeLifeCycleGenerator` 中的 `GenerateErrorReporterInit` 已移除。由于 `ErrorReporter` 现默认使用 Godot 的 `GD.PushWarning` / `GD.PrintErr`，运行时无需初始化。
-
-### 测试辅助类提取
-
-- 将 `ErrorReporterHelper` 提取至 `GodotSharpDI.Runtime.Tests/Helpers/` 和 `GodotSharpDI.SourceGenerator.Tests/Helpers/`
-- 提供 `Capture()`（错误 + 警告）和 `CaptureErrors()`（仅错误）方法
-- 所有测试文件现使用共享辅助类，替代内联捕获模式
+- 提取 `ErrorReporterHelper` 测试辅助类，用于在测试中捕获错误输出
+- 清理 `nuget-build.bat`，正确清理所有项目输出
 
 ---
 

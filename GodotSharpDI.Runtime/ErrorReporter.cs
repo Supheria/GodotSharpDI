@@ -1,35 +1,23 @@
 using System;
 using System.Text;
-using Godot;
 
 namespace GodotSharpDI.Runtime;
 
 /// <summary>
 /// Centralized error message formatting for GodotSharpDI runtime.
 /// All error messages follow a consistent structured format.
-/// The actual output is delegated to a configurable callback (defaults to System.Diagnostics.Debug.WriteLine).
+/// The actual output is delegated to a configurable callback passed by the caller.
 /// </summary>
 public static class ErrorReporter
 {
-    /// <summary>
-    /// Warning-level output callback. Defaults to <see cref="Godot.GD.PushWarning(object?[])"/>.
-    /// Users can override this to redirect warnings.
-    /// </summary>
-    internal static Action<string> Output { get; set; } = GD.PushWarning;
-
-    /// <summary>
-    /// Error-level output callback. Defaults to <see cref="Godot.GD.PrintErr(object?[])"/>.
-    /// Users can override this to redirect errors.
-    /// </summary>
-    internal static Action<string> ErrorOutput { get; set; } = GD.PrintErr;
-
     // ─── Injection errors ────────────────────────────────────────────
 
     public static void ReportInjectionAssignFailed(
         string typeName,
         string memberName,
         string memberType,
-        Exception ex
+        Exception ex,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -38,14 +26,15 @@ public static class ErrorReporter
             .AppendLine($"  Member: {memberName}")
             .AppendLine($"  Member Type: {memberType}")
             .AppendLine($"  Exception: {ex}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 
     public static void ReportInjectionReadyCallbackFailed(
         string typeName,
         string memberName,
         string memberType,
-        Exception ex
+        Exception ex,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -54,14 +43,15 @@ public static class ErrorReporter
             .AppendLine($"  Member: {memberName}")
             .AppendLine($"  Member Type: {memberType}")
             .AppendLine($"  Exception: {ex}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 
     public static void ReportInjectionFailedCallbackFailed(
         string typeName,
         string memberName,
         string memberType,
-        Exception ex
+        Exception ex,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -70,37 +60,29 @@ public static class ErrorReporter
             .AppendLine($"  Member: {memberName}")
             .AppendLine($"  Member Type: {memberType}")
             .AppendLine($"  Exception: {ex}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 
     // ─── Provider errors ─────────────────────────────────────────────
 
-    public static void ReportProviderThrew(string implType, Exception ex)
+    public static void ReportProviderThrew(string implType, Exception ex, Action<string> errorOutput)
     {
-        ErrorOutput($"[GodotSharpDI] Provider for {implType} threw: {ex}");
+        errorOutput($"[GodotSharpDI] Provider for {implType} threw: {ex}");
     }
 
-    public static void ReportAsyncProviderThrew(string implType, Exception ex)
+    public static void ReportAsyncProviderThrew(string implType, Exception ex, Action<string> errorOutput)
     {
-        ErrorOutput($"[GodotSharpDI] Async provider for {implType} threw: {ex}");
+        errorOutput($"[GodotSharpDI] Async provider for {implType} threw: {ex}");
     }
 
     // ─── Convenience methods ──────────────────────────────────────────
 
     /// <summary>
-    /// Report an error-level message via <see cref="ErrorOutput"/>.
+    /// Report an error-level message via the provided callback.
     /// </summary>
-    public static void ReportError(string message)
+    public static void ReportError(string message, Action<string> errorOutput)
     {
-        ErrorOutput(message);
-    }
-
-    /// <summary>
-    /// Report a warning-level message via <see cref="Output"/>.
-    /// </summary>
-    public static void ReportWarning(string message)
-    {
-        Output(message);
+        errorOutput(message);
     }
 
     // ─── Scope callback errors ───────────────────────────────────────
@@ -108,7 +90,8 @@ public static class ErrorReporter
     public static void ReportWaiterCallbackException(
         string implType,
         string requestor,
-        Exception ex
+        Exception ex,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -116,7 +99,7 @@ public static class ErrorReporter
             .AppendLine($"  Impl Type: {implType}")
             .AppendLine($"  Requestor: {requestor}")
             .AppendLine($"  Exception: {ex}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 
     public static void ReportResolveDependencyCallbackException(
@@ -124,7 +107,8 @@ public static class ErrorReporter
         string requestor,
         string scopeChain,
         string depChain,
-        Exception ex
+        Exception ex,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -134,14 +118,14 @@ public static class ErrorReporter
             .AppendLine($"  Scope Chain: {scopeChain}")
             .AppendLine($"  Dependency Chain: {depChain}")
             .AppendLine($"  Exception: {ex}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 
     // ─── Scope errors ────────────────────────────────────────────────
 
-    public static void ReportParentScopeNotFound(string typeName)
+    public static void ReportParentScopeNotFound(string typeName, Action<string> errorOutput)
     {
-        ErrorOutput($"[GodotSharpDI] {typeName}: Cannot find parent Scope in scene tree.");
+        errorOutput($"[GodotSharpDI] {typeName}: Cannot find parent Scope in scene tree.");
     }
 
     public static void ReportServiceNotFound(
@@ -149,7 +133,8 @@ public static class ErrorReporter
         string exposedType,
         string requestor,
         string scopeChain,
-        string depChain
+        string depChain,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -160,7 +145,7 @@ public static class ErrorReporter
             .AppendLine($"  Requestor: {requestor}")
             .AppendLine($"  Scope Chain: {scopeChain}")
             .AppendLine($"  Dependency Chain: {depChain}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 
     public static void ReportServiceError(
@@ -170,7 +155,8 @@ public static class ErrorReporter
         string implType,
         string requestor,
         string scopeChain,
-        string depChain
+        string depChain,
+        Action<string> errorOutput
     )
     {
         var sb = new StringBuilder()
@@ -181,6 +167,6 @@ public static class ErrorReporter
             .AppendLine($"  Requestor: {requestor}")
             .AppendLine($"  Scope Chain: {scopeChain}")
             .AppendLine($"  Dependency Chain: {depChain}");
-        ErrorOutput(sb.ToString());
+        errorOutput(sb.ToString());
     }
 }
