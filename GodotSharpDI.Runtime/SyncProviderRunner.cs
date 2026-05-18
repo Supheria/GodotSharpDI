@@ -32,7 +32,7 @@ public static class SyncProviderRunner
         }
         catch (Exception ex)
         {
-            ErrorReporter.ReportProviderThrew(typeof(T).Name, ex.Message);
+            ErrorReporter.ReportProviderThrew(typeof(T).Name, ex);
             provide(null, providerType);
         }
     }

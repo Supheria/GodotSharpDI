@@ -9,9 +9,6 @@ namespace GodotSharpDI.Runtime;
 /// Coordinates WaitFor dependency resolution for a single [Provide] member.
 /// Replaces the lambda + ContinueWith pattern in WaitForPhase.GenerateForMember.
 ///
-/// Godot-specific operations (Callable.From, GD.PrintErr) are injected as delegates
-/// to keep this class compatible with netstandard2.0.
-///
 /// Thread Safety: <see cref="_remaining"/> uses <see cref="Interlocked.Decrement"/>
 /// because callbacks may fire from background threads (e.g. async providers).
 /// </summary>
@@ -43,9 +40,6 @@ public class WaitForCoordinator
     /// </param>
     /// <param name="depName">The dependency member name, for error reporting.</param>
     /// <param name="memberName">The Provide member name, for error reporting.</param>
-    /// <param name="reportError">
-    /// Error reporting callback. Typically <c>msg => GD.PrintErr(msg)</c>.
-    /// </param>
     /// <param name="dispatchToMainThread">
     /// Main-thread dispatcher. Typically <c>action => Callable.From(action).CallDeferred()</c>.
     /// </param>
@@ -53,14 +47,13 @@ public class WaitForCoordinator
         List<Action<bool>> callbackList,
         string depName,
         string memberName,
-        Action<string> reportError,
         Action<Action> dispatchToMainThread)
     {
         callbackList.Add(ok =>
         {
             if (!ok)
             {
-                reportError(
+                ErrorReporter.ReportError(
                     $"[GodotSharpDI] WaitFor: dependency '{depName}' for '{memberName}' failed");
             }
 
@@ -70,10 +63,10 @@ public class WaitForCoordinator
                 {
                     if (t.IsFaulted)
                     {
-                        var errMsg = t.Exception?.GetBaseException().Message;
+                        var ex = t.Exception?.GetBaseException();
                         dispatchToMainThread(() =>
-                            reportError(
-                                $"[GodotSharpDI] WaitFor callback threw: {errMsg}"));
+                            ErrorReporter.ReportError(
+                                $"[GodotSharpDI] WaitFor callback threw: {ex}"));
                     }
                 }, TaskScheduler.Default);
             }

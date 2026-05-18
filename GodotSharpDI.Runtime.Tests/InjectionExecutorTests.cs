@@ -1,26 +1,16 @@
 using System;
 using System.Collections.Generic;
+using GodotSharpDI.Runtime.Tests.Helpers;
 using Xunit;
 
 namespace GodotSharpDI.Runtime.Tests;
 
 public class InjectionExecutorTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public void Execute_SuccessfulInjection_AssignAndReadyCallbackCalled()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             string? assigned = null;
@@ -50,7 +40,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_NullValue_FailedCallbackCalled()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             string? assigned = null;
@@ -80,7 +70,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_AssignThrows_NotifiesCallbackAsFailureAndReportsError()
     {
-        var (_, warnings, restore) = CaptureErrorReporter();
+        var errors = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var resolvedCalled = false;
@@ -103,8 +93,8 @@ public class InjectionExecutorTests
             Assert.False(callbackResults[0]);
             Assert.False(readyCalled);
             Assert.True(resolvedCalled);
-            Assert.NotEmpty(warnings);
-            Assert.Contains("assign broke", warnings[0]);
+            Assert.NotEmpty(errors);
+            Assert.Contains("assign broke", errors[0]);
         }
         finally { restore(); }
     }
@@ -112,7 +102,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_ReadyCallbackThrows_StillNotifiesCallbacksAndReportsError()
     {
-        var (errors, _, restore) = CaptureErrorReporter();
+        var errors = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var resolvedCalled = false;
@@ -141,7 +131,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_NullValue_FailedCallbackThrows_StillReportsError()
     {
-        var (_, warnings, restore) = CaptureErrorReporter();
+        var errors = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var resolvedCalled = false;
@@ -158,8 +148,8 @@ public class InjectionExecutorTests
                 memberName: "_field");
 
             Assert.True(resolvedCalled);
-            Assert.NotEmpty(warnings);
-            Assert.Contains("fail broke", warnings[0]);
+            Assert.NotEmpty(errors);
+            Assert.Contains("fail broke", errors[0]);
         }
         finally { restore(); }
     }
@@ -167,7 +157,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_CallbackListReceivesTrueOnSuccess()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var results = new List<bool>();
@@ -192,7 +182,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_CallbackListReceivesFalseOnFailure()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var results = new List<bool>();
@@ -217,7 +207,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_CallbackListClearedAfterNotification()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var callbackList = new List<Action<bool>> { _ => { }, _ => { } };
@@ -240,7 +230,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_MultipleCallbacks_AllNotified()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var count = 0;
@@ -269,7 +259,7 @@ public class InjectionExecutorTests
     [Fact]
     public void Execute_OnDependencyResolved_AlwaysCalled()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var _ = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
             var callCount = 0;

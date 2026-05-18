@@ -2,27 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GodotSharpDI.Runtime.Tests.Helpers;
 using Xunit;
 
 namespace GodotSharpDI.Runtime.Tests;
 
 public class WaitForCoordinatorTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public void SingleDependency_Triggered_OnAllResolvedCalled()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var resolved = false;
@@ -34,7 +24,7 @@ public class WaitForCoordinatorTests
                 return Task.CompletedTask;
             });
 
-            coordinator.Register(list, "dep", "member", ErrorReporter.ErrorOutput, a => a());
+            coordinator.Register(list, "dep", "member", a => a());
 
             Assert.Single(list);
             Assert.False(resolved);
@@ -52,7 +42,7 @@ public class WaitForCoordinatorTests
     [Fact]
     public void MultipleDependencies_AllTriggered_OnAllResolvedCalled()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var resolved = false;
@@ -66,9 +56,9 @@ public class WaitForCoordinatorTests
                 return Task.CompletedTask;
             });
 
-            coordinator.Register(list1, "dep1", "member", ErrorReporter.ErrorOutput, a => a());
-            coordinator.Register(list2, "dep2", "member", ErrorReporter.ErrorOutput, a => a());
-            coordinator.Register(list3, "dep3", "member", ErrorReporter.ErrorOutput, a => a());
+            coordinator.Register(list1, "dep1", "member", a => a());
+            coordinator.Register(list2, "dep2", "member", a => a());
+            coordinator.Register(list3, "dep3", "member", a => a());
 
             list1[0].Invoke(true);
             Thread.Sleep(20);
@@ -88,7 +78,7 @@ public class WaitForCoordinatorTests
     [Fact]
     public void DependencyFails_StillDecrementsCount()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var resolved = false;
@@ -101,8 +91,8 @@ public class WaitForCoordinatorTests
                 return Task.CompletedTask;
             });
 
-            coordinator.Register(list1, "dep1", "member", ErrorReporter.ErrorOutput, a => a());
-            coordinator.Register(list2, "dep2", "member", ErrorReporter.ErrorOutput, a => a());
+            coordinator.Register(list1, "dep1", "member", a => a());
+            coordinator.Register(list2, "dep2", "member", a => a());
 
             // First dependency fails
             list1[0].Invoke(false);
@@ -120,13 +110,13 @@ public class WaitForCoordinatorTests
     [Fact]
     public void DependencyFails_ReportsError()
     {
-        var (errors, _, restore) = CaptureErrorReporter();
+        var (errors, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var list = new List<Action<bool>>();
 
             var coordinator = new WaitForCoordinator(1, () => Task.CompletedTask);
-            coordinator.Register(list, "myDep", "myMember", ErrorReporter.ErrorOutput, a => a());
+            coordinator.Register(list, "myDep", "myMember", a => a());
 
             list[0].Invoke(false);
 
@@ -141,7 +131,7 @@ public class WaitForCoordinatorTests
     [Fact]
     public void OnAllResolvedThrows_ErrorReportedViaDispatch()
     {
-        var (errors, _, restore) = CaptureErrorReporter();
+        var (errors, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var list = new List<Action<bool>>();
@@ -151,7 +141,7 @@ public class WaitForCoordinatorTests
             var coordinator = new WaitForCoordinator(1, () =>
                 Task.FromException(new InvalidOperationException("callback broke")));
 
-            coordinator.Register(list, "dep", "member", ErrorReporter.ErrorOutput, a => a());
+            coordinator.Register(list, "dep", "member", a => a());
 
             list[0].Invoke(true);
 
@@ -166,7 +156,7 @@ public class WaitForCoordinatorTests
     [Fact]
     public void EmptyDependencyCount_OnAllResolvedCalledImmediately()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             // Edge case: 0 dependencies — onAllResolved should never be called

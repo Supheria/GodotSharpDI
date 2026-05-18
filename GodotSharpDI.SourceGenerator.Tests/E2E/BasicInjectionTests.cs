@@ -13,21 +13,10 @@ namespace GodotSharpDI.SourceGenerator.Tests.E2E;
 /// </summary>
 public class BasicInjectionTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public void BasicSyncProvide_InjectsIntoUser()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -94,7 +83,7 @@ namespace Test
     [Fact]
     public void MethodProvider_InjectsIntoUser()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -153,7 +142,7 @@ namespace Test
     [Fact]
     public void MultipleServices_AllInjected()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -218,7 +207,7 @@ namespace Test
     [Fact]
     public void HostSelfExposure_Works()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -277,7 +266,7 @@ namespace Test
     [Fact]
     public void TwoHosts_CrossInjection_Works()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"

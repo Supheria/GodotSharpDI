@@ -12,21 +12,10 @@ namespace GodotSharpDI.SourceGenerator.Tests.E2E;
 /// </summary>
 public class CallbackTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public void ReadyCallback_FiresOnSuccessfulInjection()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -97,7 +86,7 @@ namespace Test
     [Fact]
     public void FailureCallback_FiresWhenProviderFails()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -167,7 +156,7 @@ namespace Test
     [Fact]
     public void IDependenciesResolved_CalledAfterAllInjections()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"

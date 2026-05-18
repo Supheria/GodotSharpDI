@@ -76,7 +76,7 @@ public sealed class DeadlockDetector
             if (targetProvider == providerName)
             {
                 // Self-dependency
-                ErrorReporter.ErrorOutput(
+                ErrorReporter.ReportError(
                     "[GodotSharpDI] Runtime WaitFor Deadlock: " + providerName + " -> " + waitingForTypeName);
                 continue;
             }
@@ -90,7 +90,7 @@ public sealed class DeadlockDetector
             if (cycle != null)
             {
                 var path = providerName + " -> " + string.Join(" -> ", cycle);
-                ErrorReporter.ErrorOutput("[GodotSharpDI] Runtime WaitFor Deadlock: " + path);
+                ErrorReporter.ReportError("[GodotSharpDI] Runtime WaitFor Deadlock: " + path);
             }
         }
     }

@@ -61,7 +61,6 @@ internal static class WaitForPhase
                 $"{coordinatorVar}.Register({listName}, \"{depName}\", \"{memberName}\",");
             f.BeginLevel();
             {
-                f.AppendLine($"{GlobalNames.ErrorReporter}.ErrorOutput,");
                 f.AppendLine($"action => {GlobalNames.GodotCallable}.From(action).CallDeferred());");
             }
             f.EndLevel();

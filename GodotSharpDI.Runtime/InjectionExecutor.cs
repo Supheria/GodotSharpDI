@@ -59,7 +59,7 @@ public static class InjectionExecutor
             catch (Exception ex)
             {
                 ErrorReporter.ReportInjectionAssignFailed(
-                    typeName, memberName, typeof(T).Name, ex.Message);
+                    typeName, memberName, typeof(T).Name, ex);
             }
 
             // Separate try-catch for ready callback (only if assign succeeded)
@@ -72,7 +72,7 @@ public static class InjectionExecutor
                 catch (Exception ex)
                 {
                     ErrorReporter.ReportInjectionReadyCallbackFailed(
-                        typeName, memberName, typeof(T).Name, ex.Message);
+                        typeName, memberName, typeof(T).Name, ex);
                 }
             }
         }
@@ -86,7 +86,7 @@ public static class InjectionExecutor
             catch (Exception ex)
             {
                 ErrorReporter.ReportInjectionFailedCallbackFailed(
-                    typeName, memberName, typeof(T).Name, ex.Message);
+                    typeName, memberName, typeof(T).Name, ex);
             }
         }
 

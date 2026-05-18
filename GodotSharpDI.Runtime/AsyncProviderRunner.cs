@@ -7,9 +7,6 @@ namespace GodotSharpDI.Runtime;
 /// <summary>
 /// Runs an asynchronous service provider with cancellation and error handling.
 /// Replaces the ~35-line ProvideAsync_xxx method generated per async member.
-///
-/// Godot-specific operations (Callable.From, GD.PrintErr) are injected as delegates
-/// to keep this class compatible with netstandard2.0.
 /// </summary>
 public static class AsyncProviderRunner
 {
@@ -28,9 +25,6 @@ public static class AsyncProviderRunner
     /// Cancellation token (typically __lifetime_cancellation_tokens.Token).
     /// Cancelled when the node exits the scene tree.
     /// </param>
-    /// <param name="reportError">
-    /// Error reporting callback. Typically <c>msg => GD.PrintErr(msg)</c>.
-    /// </param>
     /// <param name="dispatchToMainThread">
     /// Main-thread dispatcher. Typically <c>action => Callable.From(action).CallDeferred()</c>.
     /// </param>
@@ -39,7 +33,6 @@ public static class AsyncProviderRunner
         Action<T?, string> provide,
         string providerType,
         CancellationToken ct,
-        Action<string> reportError,
         Action<Action> dispatchToMainThread) where T : class
     {
         try
@@ -61,7 +54,7 @@ public static class AsyncProviderRunner
         {
             if (ct.IsCancellationRequested) return;
 
-            reportError($"[GodotSharpDI] Async provider for {typeof(T).Name} threw: {ex.Message}");
+            ErrorReporter.ReportAsyncProviderThrew(typeof(T).Name, ex);
 
             dispatchToMainThread(() =>
             {

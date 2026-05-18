@@ -86,9 +86,11 @@ internal static class ScopeInterfaceGenerator
             }
             f.EndBlock();
             f.AppendLine();
-            f.PrintError(
-                "$\"[GodotSharpDI] Host '{providerType}' cannot provide service"
-                + "\\n  Reason: No Scope in scene tree contains implementation type: {implType.Name}\""
+            f.AppendLine(
+                $"{GlobalNames.ErrorReporter}.ReportServiceError("
+                + "\"Host cannot provide service\","
+                + "\"No Scope in scene tree contains implementation type: \" + implType.Name,"
+                + "providerType, implType.Name, \"-\", \"-\", \"-\");"
             );
             f.AppendLine("return;");
         }
@@ -108,9 +110,11 @@ internal static class ScopeInterfaceGenerator
         f.EndBlock();
         f.AppendLine($"cacheEntry.State = {GlobalNames.ServiceState}.Failed;");
         f.AppendLine();
-        f.PrintError(
-            "$\"[GodotSharpDI] Host '{providerType}' failed to provide service"
-            + "\\n  Reason: Null reference provided for implementation type: {implType.Name}\""
+        f.AppendLine(
+            $"{GlobalNames.ErrorReporter}.ReportServiceError("
+            + "\"Host failed to provide service\","
+            + "\"Null reference provided for implementation type: \" + implType.Name,"
+            + "providerType, implType.Name, \"-\", \"-\", \"-\");"
         );
         f.AppendLine();
         f.AppendLine("// Notify waiting waiters: service creation failed, pass null to callback");
@@ -126,9 +130,9 @@ internal static class ScopeInterfaceGenerator
                 }
                 f.CatchBlock("ex");
                 {
-                    f.PrintError(
-                        "$\"[GodotSharpDI] Exception in dependency injection callback (on failure)"
-                        + "\\n  Reason: {ex.Message}\""
+                    f.AppendLine(
+                        $"{GlobalNames.ErrorReporter}.ReportWaiterCallbackException("
+                        + "implType.Name, waiter.RequestorType, ex);"
                     );
                 }
                 f.EndTryCatch();
@@ -145,9 +149,11 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine($"if (cacheEntry.State == {GlobalNames.ServiceState}.Created)");
         f.BeginBlock();
         {
-            f.PrintError(
-                "$\"[GodotSharpDI] Duplicate service provision"
-                + "\\n  Reason: Service {implType.Name} has already been provided\""
+            f.AppendLine(
+                $"{GlobalNames.ErrorReporter}.ReportServiceError("
+                + "\"Duplicate service provision\","
+                + "\"Service \" + implType.Name + \" has already been provided\","
+                + "\"-\", implType.Name, \"-\", \"-\", \"-\");"
             );
             f.AppendLine("return;");
         }
@@ -172,9 +178,9 @@ internal static class ScopeInterfaceGenerator
                 }
                 f.CatchBlock("ex");
                 {
-                    f.PrintError(
-                        "$\"[GodotSharpDI] Exception in dependency injection callback"
-                        + "\\n  Reason: {ex.Message}\""
+                    f.AppendLine(
+                        $"{GlobalNames.ErrorReporter}.ReportWaiterCallbackException("
+                        + "implType.Name, waiter.RequestorType, ex);"
                     );
                 }
                 f.EndTryCatch();
@@ -250,13 +256,10 @@ internal static class ScopeInterfaceGenerator
         f.EndBlock();
         f.AppendLine();
 
-        f.PrintError(
-            "$\"[GodotSharpDI] Cannot find service {exposedType.Name}"
-            + "\\n  Reason: No Scope in scene tree contains this service"
-            + $"\\n  Scope: {validatedType.Symbol.Name}"
-            + "\\n  Requestor: {requestorType}"
-            + "\\n  Scope Chain: {currentScopeChain}"
-            + "\\n  Dependency Chain: {currentDependencyChain}\""
+        f.AppendLine(
+            $"{GlobalNames.ErrorReporter}.ReportServiceNotFound("
+            + $"\"{validatedType.Symbol.Name}\", exposedType.Name, requestorType,"
+            + "currentScopeChain, currentDependencyChain);"
         );
         f.AppendLine();
 
@@ -266,9 +269,9 @@ internal static class ScopeInterfaceGenerator
         }
         f.CatchBlock("ex");
         {
-            f.PrintError(
-                "$\"[GodotSharpDI] Exception in dependency injection callback"
-                + "\\n  Reason: {ex.Message}\""
+            f.AppendLine(
+                $"{GlobalNames.ErrorReporter}.ReportResolveDependencyCallbackException("
+                + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex);"
             );
         }
         f.EndTryCatch();
@@ -292,13 +295,12 @@ internal static class ScopeInterfaceGenerator
                 f.AppendLine("else");
                 f.BeginBlock();
                 {
-                    f.PrintError(
-                        "$\"[GodotSharpDI] Type mismatch in dependency injection"
-                        + "\\n  Reason: Service implementation type {implType.Name} cannot be cast to {exposedType.Name}"
-                        + $"\\n  Scope: {validatedType.Symbol.Name}"
-                        + "\\n  Requestor: {requestorType}"
-                        + "\\n  Scope Chain: {currentScopeChain}"
-                        + "\\n  Dependency Chain: {currentDependencyChain}\""
+                    f.AppendLine(
+                        $"{GlobalNames.ErrorReporter}.ReportServiceError("
+                        + "\"Type mismatch in dependency injection\","
+                        + "\"Service implementation type \" + implType.Name + \" cannot be cast to \" + exposedType.Name,"
+                        + $"\"{validatedType.Symbol.Name}\", implType.Name, requestorType,"
+                        + "currentScopeChain, currentDependencyChain);"
                     );
                     f.AppendLine("onResult.Invoke(null);");
                 }
@@ -306,9 +308,9 @@ internal static class ScopeInterfaceGenerator
             }
             f.CatchBlock("ex");
             {
-                f.PrintError(
-                    "$\"[GodotSharpDI] Exception in dependency injection callback"
-                    + "\\n  Reason: {ex.Message}\""
+                f.AppendLine(
+                    $"{GlobalNames.ErrorReporter}.ReportResolveDependencyCallbackException("
+                    + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex);"
                 );
             }
             f.EndTryCatch();
@@ -322,13 +324,12 @@ internal static class ScopeInterfaceGenerator
         f.AppendLine($"case {GlobalNames.ServiceState}.Failed:");
         f.BeginBlock();
         {
-            f.PrintError(
-                "$\"[GodotSharpDI] Previous creation of service {exposedType.Name} failed"
-                + "\\n  Reason: The Host reported a null instance"
-                + $"\\n  Scope: {validatedType.Symbol.Name}"
-                + "\\n  Requestor: {requestorType}"
-                + "\\n  Scope Chain: {currentScopeChain}"
-                + "\\n  Dependency Chain: {currentDependencyChain}\""
+            f.AppendLine(
+                $"{GlobalNames.ErrorReporter}.ReportServiceError("
+                + "\"Previous creation of service \" + exposedType.Name + \" failed\","
+                + "\"The Host reported a null instance\","
+                + $"\"{validatedType.Symbol.Name}\", exposedType.Name, requestorType,"
+                + "currentScopeChain, currentDependencyChain);"
             );
             f.AppendLine();
 
@@ -338,9 +339,9 @@ internal static class ScopeInterfaceGenerator
             }
             f.CatchBlock("ex");
             {
-                f.PrintError(
-                    "$\"[GodotSharpDI] Exception in dependency injection callback"
-                    + "\\n  Reason: {ex.Message}\""
+                f.AppendLine(
+                    $"{GlobalNames.ErrorReporter}.ReportResolveDependencyCallbackException("
+                    + "exposedType.Name, requestorType, currentScopeChain, currentDependencyChain, ex);"
                 );
             }
             f.EndTryCatch();

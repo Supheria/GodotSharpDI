@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GodotSharpDI.Runtime.Tests.Helpers;
 using Xunit;
 
 namespace GodotSharpDI.Runtime.Tests;
@@ -8,27 +9,22 @@ public class DeadlockDetectorTests
 {
     private static (DeadlockDetector detector, List<string> errors, Action restore) CreateDetector()
     {
-        var errors = new List<string>();
-        var detector = new DeadlockDetector();
-        var prev = ErrorReporter.ErrorOutput;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        return (detector, errors, () => ErrorReporter.ErrorOutput = prev);
+        var errors = ErrorReporterHelper.CaptureErrors(out var restore);
+        return (new DeadlockDetector(), errors, restore);
     }
 
     [Fact]
-    public void ErrorOutput_CallbackWorks()
+    public void ReportError_CapturesOutput()
     {
-        var prev = ErrorReporter.ErrorOutput;
+        var errors = ErrorReporterHelper.CaptureErrors(out var restore);
         try
         {
-            var errors = new List<string>();
-            ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-            ErrorReporter.ErrorOutput("test");
+            ErrorReporter.ReportError("test");
 
             Assert.Single(errors);
             Assert.Equal("test", errors[0]);
         }
-        finally { ErrorReporter.ErrorOutput = prev; }
+        finally { restore(); }
     }
 
     [Fact]

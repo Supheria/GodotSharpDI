@@ -14,21 +14,10 @@ namespace GodotSharpDI.SourceGenerator.Tests.E2E;
 /// </summary>
 public class WaitForTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public void WaitFor_SingleDep_ServiceProvidedAfterInjection()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -120,7 +109,7 @@ namespace Test
     [Fact]
     public void WaitFor_MultipleDeps_AllResolvedBeforeProviding()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"
@@ -218,7 +207,7 @@ namespace Test
     [Fact]
     public void WaitFor_FailedDep_StillProvides()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             var source = @"

@@ -2,53 +2,41 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GodotSharpDI.Runtime.Tests.Helpers;
 using Xunit;
 
 namespace GodotSharpDI.Runtime.Tests;
 
 public class AsyncProviderRunnerTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public async Task Run_Success_InstanceProvidedViaDispatch()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            var instance = new object();
-            object? provided = null;
-            Action<Action>? capturedDispatch = null;
+        var instance = new object();
+        object? provided = null;
+        Action<Action>? capturedDispatch = null;
 
-            await AsyncProviderRunner.Run(
-                Task.FromResult(instance),
-                (inst, _) => provided = inst,
-                "TestProvider",
-                CancellationToken.None,
-                _ => { },
-                action => { capturedDispatch = a => action(); });
+        await AsyncProviderRunner.Run(
+            Task.FromResult(instance),
+            (inst, _) => provided = inst,
+            "TestProvider",
+            CancellationToken.None,
+            action =>
+            {
+                capturedDispatch = a => action();
+            }
+        );
 
-            // Simulate main-thread dispatch
-            Assert.NotNull(capturedDispatch);
-            capturedDispatch!(() => { });
-            Assert.Same(instance, provided);
-        }
-        finally { restore(); }
+        // Simulate main-thread dispatch
+        Assert.NotNull(capturedDispatch);
+        capturedDispatch!(() => { });
+        Assert.Same(instance, provided);
     }
 
     [Fact]
     public async Task Run_TaskThrows_ErrorReportedAndNullProvided()
     {
-        var (errors, _, restore) = CaptureErrorReporter();
+        var (errors, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             object? provided = null;
@@ -59,8 +47,11 @@ public class AsyncProviderRunnerTests
                 (inst, _) => provided = inst,
                 "TestProvider",
                 CancellationToken.None,
-                msg => ErrorReporter.ErrorOutput(msg),
-                action => { capturedDispatch = a => action(); });
+                action =>
+                {
+                    capturedDispatch = a => action();
+                }
+            );
 
             Assert.NotEmpty(errors);
             Assert.Contains("async broke", errors[0]);
@@ -76,7 +67,7 @@ public class AsyncProviderRunnerTests
     [Fact]
     public async Task Run_Cancelled_SilentExit()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             object? provided = null;
@@ -90,19 +81,22 @@ public class AsyncProviderRunnerTests
                 (inst, _) => provided = inst,
                 "TestProvider",
                 cts.Token,
-                _ => { },
-                _ => dispatchCalled = true);
+                _ => dispatchCalled = true
+            );
 
             Assert.Null(provided);
             Assert.False(dispatchCalled);
         }
-        finally { restore(); }
+        finally
+        {
+            restore();
+        }
     }
 
     [Fact]
     public async Task Run_CancelledAfterTask_CompletesButSkipsDispatch()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             object? provided = null;
@@ -122,19 +116,22 @@ public class AsyncProviderRunnerTests
                 (inst, _) => provided = inst,
                 "TestProvider",
                 cts.Token,
-                _ => { },
-                _ => dispatchCalled = true);
+                _ => dispatchCalled = true
+            );
 
             Assert.Null(provided);
             Assert.False(dispatchCalled);
         }
-        finally { restore(); }
+        finally
+        {
+            restore();
+        }
     }
 
     [Fact]
     public async Task Run_ProviderTypePassedToProvide()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             string? capturedType = null;
@@ -145,19 +142,25 @@ public class AsyncProviderRunnerTests
                 (_, pt) => capturedType = pt,
                 "MyHost",
                 CancellationToken.None,
-                _ => { },
-                action => { capturedDispatch = a => action(); });
+                action =>
+                {
+                    capturedDispatch = a => action();
+                }
+            );
 
             capturedDispatch!(() => { });
             Assert.Equal("MyHost", capturedType);
         }
-        finally { restore(); }
+        finally
+        {
+            restore();
+        }
     }
 
     [Fact]
     public async Task Run_DispatchThrowsOnCancelled_DoesNotProvide()
     {
-        var (_, _, restore) = CaptureErrorReporter();
+        var (_, _, restore) = ErrorReporterHelper.Capture();
         try
         {
             object? provided = null;
@@ -171,11 +174,16 @@ public class AsyncProviderRunnerTests
                 (inst, _) => provided = inst,
                 "TestProvider",
                 cts.Token,
-                _ => { },
-                action => { /* Don't call action since cancelled */ });
+                action =>
+                { /* Don't call action since cancelled */
+                }
+            );
 
             Assert.Null(provided);
         }
-        finally { restore(); }
+        finally
+        {
+            restore();
+        }
     }
 }

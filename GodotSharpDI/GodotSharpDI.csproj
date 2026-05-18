@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -53,15 +53,15 @@
       Visible="false"
     />
     <None
-      Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.Abstractions.dll"
+      Include="$(OutputPath)/../net8.0/GodotSharpDI.Abstractions.dll"
       Pack="true"
-      PackagePath="lib/netstandard2.0"
+      PackagePath="lib/net8.0"
       Visible="false"
     />
     <None
-      Include="$(OutputPath)/../netstandard2.0/GodotSharpDI.Runtime.dll"
+      Include="$(OutputPath)/../net8.0/GodotSharpDI.Runtime.dll"
       Pack="true"
-      PackagePath="lib/netstandard2.0"
+      PackagePath="lib/net8.0"
       Visible="false"
     />
     <None
