@@ -85,8 +85,10 @@ internal static class HostGenerator
             f.AppendLine($"if ({GlobalNames.LocalScope} is null)");
             f.BeginBlock();
             {
-                f.PrintError(
-                    $"\"[GodotSharpDI] {validatedType.Symbol.Name}: Cannot find parent Scope in scene tree.\""
+                f.AppendLine(
+                    $"{GlobalNames.ErrorReporter}.ReportParentScopeNotFound("
+                    + $"\"{validatedType.Symbol.Name}\","
+                    + $" {GlobalNames.GodotGD}.PrintErr);"
                 );
                 f.AppendLine("return;");
             }

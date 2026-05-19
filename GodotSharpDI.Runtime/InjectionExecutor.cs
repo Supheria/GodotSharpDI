@@ -36,6 +36,7 @@ public static class InjectionExecutor
     /// </param>
     /// <param name="typeName">The containing type name, for error reporting.</param>
     /// <param name="memberName">The member name, for error reporting.</param>
+    /// <param name="errorOutput">Error output callback. Typically <c>GD.PrintErr</c>.</param>
     public static void Execute<T>(
         Action<T> assign,
         T? value,
@@ -44,7 +45,8 @@ public static class InjectionExecutor
         List<Action<bool>> callbackList,
         Action onDependencyResolved,
         string typeName,
-        string memberName) where T : class
+        string memberName,
+        Action<string> errorOutput) where T : class
     {
         var assignSucceeded = false;
 
@@ -59,7 +61,7 @@ public static class InjectionExecutor
             catch (Exception ex)
             {
                 ErrorReporter.ReportInjectionAssignFailed(
-                    typeName, memberName, typeof(T).Name, ex.Message);
+                    typeName, memberName, typeof(T).Name, ex, errorOutput);
             }
 
             // Separate try-catch for ready callback (only if assign succeeded)
@@ -72,7 +74,7 @@ public static class InjectionExecutor
                 catch (Exception ex)
                 {
                     ErrorReporter.ReportInjectionReadyCallbackFailed(
-                        typeName, memberName, typeof(T).Name, ex.Message);
+                        typeName, memberName, typeof(T).Name, ex, errorOutput);
                 }
             }
         }
@@ -86,7 +88,7 @@ public static class InjectionExecutor
             catch (Exception ex)
             {
                 ErrorReporter.ReportInjectionFailedCallbackFailed(
-                    typeName, memberName, typeof(T).Name, ex.Message);
+                    typeName, memberName, typeof(T).Name, ex, errorOutput);
             }
         }
 

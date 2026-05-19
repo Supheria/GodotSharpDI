@@ -48,10 +48,7 @@ public sealed partial class GameManager : Node, IGameState, IDependenciesResolve
     //   Wait for _playerStatsCenter injection to complete (success or failure) before calling this method.
     // This ensures _playerStatsCenter can be safely used in GetPlayerStatsService().
 
-    [Provide(
-        ExposedTypes = [typeof(IPlayerStats)],
-        WaitFor = [nameof(_playerStatsCenter)]
-    )]
+    [Provide(ExposedTypes = [typeof(IPlayerStats)], WaitFor = [nameof(_playerStatsCenter)])]
     public async Task<PlayerStatsService> GetPlayerStatsService()
     {
         // Asynchronously create service instance, waits for _playerStatsCenter injection to complete before executing

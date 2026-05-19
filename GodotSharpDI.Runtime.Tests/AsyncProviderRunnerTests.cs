@@ -2,180 +2,161 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GodotSharpDI.Runtime.Tests.Helpers;
 using Xunit;
 
 namespace GodotSharpDI.Runtime.Tests;
 
 public class AsyncProviderRunnerTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
+    private static readonly Action<string> NoOp = _ => { };
 
     [Fact]
     public async Task Run_Success_InstanceProvidedViaDispatch()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            var instance = new object();
-            object? provided = null;
-            Action<Action>? capturedDispatch = null;
+        var instance = new object();
+        object? provided = null;
+        Action<Action>? capturedDispatch = null;
 
-            await AsyncProviderRunner.Run(
-                Task.FromResult(instance),
-                (inst, _) => provided = inst,
-                "TestProvider",
-                CancellationToken.None,
-                _ => { },
-                action => { capturedDispatch = a => action(); });
+        await AsyncProviderRunner.Run(
+            Task.FromResult(instance),
+            (inst, _) => provided = inst,
+            "TestProvider",
+            CancellationToken.None,
+            NoOp,
+            action =>
+            {
+                capturedDispatch = a => action();
+            }
+        );
 
-            // Simulate main-thread dispatch
-            Assert.NotNull(capturedDispatch);
-            capturedDispatch!(() => { });
-            Assert.Same(instance, provided);
-        }
-        finally { restore(); }
+        // Simulate main-thread dispatch
+        Assert.NotNull(capturedDispatch);
+        capturedDispatch!(() => { });
+        Assert.Same(instance, provided);
     }
 
     [Fact]
     public async Task Run_TaskThrows_ErrorReportedAndNullProvided()
     {
-        var (errors, _, restore) = CaptureErrorReporter();
-        try
-        {
-            object? provided = null;
-            Action<Action>? capturedDispatch = null;
+        var errors = new List<string>();
+        var errorOutput = ErrorReporterHelper.CreateErrorCollector(errors);
+        object? provided = null;
+        Action<Action>? capturedDispatch = null;
 
-            await AsyncProviderRunner.Run<object>(
-                Task.FromException<object>(new InvalidOperationException("async broke")),
-                (inst, _) => provided = inst,
-                "TestProvider",
-                CancellationToken.None,
-                msg => ErrorReporter.ErrorOutput(msg),
-                action => { capturedDispatch = a => action(); });
+        await AsyncProviderRunner.Run<object>(
+            Task.FromException<object>(new InvalidOperationException("async broke")),
+            (inst, _) => provided = inst,
+            "TestProvider",
+            CancellationToken.None,
+            errorOutput,
+            action =>
+            {
+                capturedDispatch = a => action();
+            }
+        );
 
-            Assert.NotEmpty(errors);
-            Assert.Contains("async broke", errors[0]);
+        Assert.NotEmpty(errors);
+        Assert.Contains("async broke", errors[0]);
 
-            // Simulate main-thread dispatch for the failure path
-            Assert.NotNull(capturedDispatch);
-            capturedDispatch!(() => { });
-            Assert.Null(provided);
-        }
-        finally { restore(); }
+        // Simulate main-thread dispatch for the failure path
+        Assert.NotNull(capturedDispatch);
+        capturedDispatch!(() => { });
+        Assert.Null(provided);
     }
 
     [Fact]
     public async Task Run_Cancelled_SilentExit()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            object? provided = null;
-            var dispatchCalled = false;
+        object? provided = null;
+        var dispatchCalled = false;
 
-            using var cts = new CancellationTokenSource();
-            cts.Cancel();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
 
-            await AsyncProviderRunner.Run(
-                Task.FromResult(new object()),
-                (inst, _) => provided = inst,
-                "TestProvider",
-                cts.Token,
-                _ => { },
-                _ => dispatchCalled = true);
+        await AsyncProviderRunner.Run(
+            Task.FromResult(new object()),
+            (inst, _) => provided = inst,
+            "TestProvider",
+            cts.Token,
+            NoOp,
+            _ => dispatchCalled = true
+        );
 
-            Assert.Null(provided);
-            Assert.False(dispatchCalled);
-        }
-        finally { restore(); }
+        Assert.Null(provided);
+        Assert.False(dispatchCalled);
     }
 
     [Fact]
     public async Task Run_CancelledAfterTask_CompletesButSkipsDispatch()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            object? provided = null;
-            var dispatchCalled = false;
+        object? provided = null;
+        var dispatchCalled = false;
 
-            using var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
-            // Create a task that completes, then cancel before dispatch
-            var task = Task.FromResult(new object());
-            await task;
+        // Create a task that completes, then cancel before dispatch
+        var task = Task.FromResult(new object());
+        await task;
 
-            // Cancel before the runner processes the result
-            cts.Cancel();
+        // Cancel before the runner processes the result
+        cts.Cancel();
 
-            await AsyncProviderRunner.Run(
-                task,
-                (inst, _) => provided = inst,
-                "TestProvider",
-                cts.Token,
-                _ => { },
-                _ => dispatchCalled = true);
+        await AsyncProviderRunner.Run(
+            task,
+            (inst, _) => provided = inst,
+            "TestProvider",
+            cts.Token,
+            NoOp,
+            _ => dispatchCalled = true
+        );
 
-            Assert.Null(provided);
-            Assert.False(dispatchCalled);
-        }
-        finally { restore(); }
+        Assert.Null(provided);
+        Assert.False(dispatchCalled);
     }
 
     [Fact]
     public async Task Run_ProviderTypePassedToProvide()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            string? capturedType = null;
-            Action<Action>? capturedDispatch = null;
+        string? capturedType = null;
+        Action<Action>? capturedDispatch = null;
 
-            await AsyncProviderRunner.Run(
-                Task.FromResult(new object()),
-                (_, pt) => capturedType = pt,
-                "MyHost",
-                CancellationToken.None,
-                _ => { },
-                action => { capturedDispatch = a => action(); });
+        await AsyncProviderRunner.Run(
+            Task.FromResult(new object()),
+            (_, pt) => capturedType = pt,
+            "MyHost",
+            CancellationToken.None,
+            NoOp,
+            action =>
+            {
+                capturedDispatch = a => action();
+            }
+        );
 
-            capturedDispatch!(() => { });
-            Assert.Equal("MyHost", capturedType);
-        }
-        finally { restore(); }
+        capturedDispatch!(() => { });
+        Assert.Equal("MyHost", capturedType);
     }
 
     [Fact]
     public async Task Run_DispatchThrowsOnCancelled_DoesNotProvide()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            object? provided = null;
+        object? provided = null;
 
-            using var cts = new CancellationTokenSource();
-            cts.Cancel();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
 
-            // Dispatch that throws when cancelled — should not propagate
-            await AsyncProviderRunner.Run(
-                Task.FromResult(new object()),
-                (inst, _) => provided = inst,
-                "TestProvider",
-                cts.Token,
-                _ => { },
-                action => { /* Don't call action since cancelled */ });
+        // Dispatch that throws when cancelled — should not propagate
+        await AsyncProviderRunner.Run(
+            Task.FromResult(new object()),
+            (inst, _) => provided = inst,
+            "TestProvider",
+            cts.Token,
+            NoOp,
+            action =>
+            { /* Don't call action since cancelled */
+            }
+        );
 
-            Assert.Null(provided);
-        }
-        finally { restore(); }
+        Assert.Null(provided);
     }
 }

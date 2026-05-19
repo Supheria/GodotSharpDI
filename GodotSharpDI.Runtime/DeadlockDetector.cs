@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace GodotSharpDI.Runtime;
@@ -37,9 +38,9 @@ public sealed class DeadlockDetector
     /// <summary>
     /// Parse the <c>GDI_WF:</c> prefix from <paramref name="requestorType"/>,
     /// record the edge, and run DFS to detect a cycle.
-    /// If a cycle is found, an error is reported via <see cref="ErrorReporter.ErrorOutput"/>.
+    /// If a cycle is found, an error is reported via <paramref name="errorOutput"/>.
     /// </summary>
-    public void TrackAndDetect(string requestorType, string waitingForTypeName)
+    public void TrackAndDetect(string requestorType, string waitingForTypeName, Action<string> errorOutput)
     {
         const string prefix = "GDI_WF:";
         if (!requestorType.StartsWith(prefix))
@@ -76,8 +77,9 @@ public sealed class DeadlockDetector
             if (targetProvider == providerName)
             {
                 // Self-dependency
-                ErrorReporter.ErrorOutput(
-                    "[GodotSharpDI] Runtime WaitFor Deadlock: " + providerName + " -> " + waitingForTypeName);
+                ErrorReporter.ReportError(
+                    "[GodotSharpDI] Runtime WaitFor Deadlock: " + providerName + " -> " + waitingForTypeName,
+                    errorOutput);
                 continue;
             }
 
@@ -90,7 +92,7 @@ public sealed class DeadlockDetector
             if (cycle != null)
             {
                 var path = providerName + " -> " + string.Join(" -> ", cycle);
-                ErrorReporter.ErrorOutput("[GodotSharpDI] Runtime WaitFor Deadlock: " + path);
+                ErrorReporter.ReportError("[GodotSharpDI] Runtime WaitFor Deadlock: " + path, errorOutput);
             }
         }
     }

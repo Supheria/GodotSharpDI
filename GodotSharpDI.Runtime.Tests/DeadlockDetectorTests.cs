@@ -1,193 +1,160 @@
 using System;
 using System.Collections.Generic;
+using GodotSharpDI.Runtime.Tests.Helpers;
 using Xunit;
 
 namespace GodotSharpDI.Runtime.Tests;
 
 public class DeadlockDetectorTests
 {
-    private static (DeadlockDetector detector, List<string> errors, Action restore) CreateDetector()
+    private static (DeadlockDetector detector, List<string> errors, Action<string> errorOutput) CreateDetector()
     {
         var errors = new List<string>();
-        var detector = new DeadlockDetector();
-        var prev = ErrorReporter.ErrorOutput;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        return (detector, errors, () => ErrorReporter.ErrorOutput = prev);
+        return (new DeadlockDetector(), errors, ErrorReporterHelper.CreateErrorCollector(errors));
     }
 
     [Fact]
-    public void ErrorOutput_CallbackWorks()
+    public void ReportError_CapturesOutput()
     {
-        var prev = ErrorReporter.ErrorOutput;
-        try
-        {
-            var errors = new List<string>();
-            ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-            ErrorReporter.ErrorOutput("test");
+        var errors = new List<string>();
+        var errorOutput = ErrorReporterHelper.CreateErrorCollector(errors);
 
-            Assert.Single(errors);
-            Assert.Equal("test", errors[0]);
-        }
-        finally { ErrorReporter.ErrorOutput = prev; }
+        ErrorReporter.ReportError("test", errorOutput);
+
+        Assert.Single(errors);
+        Assert.Equal("test", errors[0]);
     }
 
     [Fact]
     public void NoCycle_SingleEdge_NoError()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            // ProviderA provides ServiceA, ProviderB provides ServiceB
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
-            detector.RegisterServiceProvider("ProviderB", "ServiceB");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            // ProviderA waits for ServiceB (provided by ProviderB)
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB");
+        // ProviderA provides ServiceA, ProviderB provides ServiceB
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        detector.RegisterServiceProvider("ProviderB", "ServiceB");
 
-            Assert.Empty(errors);
-        }
-        finally { restore(); }
+        // ProviderA waits for ServiceB (provided by ProviderB)
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB", errorOutput);
+
+        Assert.Empty(errors);
     }
 
     [Fact]
     public void DirectCycle_Detected()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            // ProviderA provides ServiceA, ProviderB provides ServiceB
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
-            detector.RegisterServiceProvider("ProviderB", "ServiceB");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            // ProviderA waits for ServiceB - no cycle yet
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB");
-            Assert.Empty(errors);
+        // ProviderA provides ServiceA, ProviderB provides ServiceB
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        detector.RegisterServiceProvider("ProviderB", "ServiceB");
 
-            // ProviderB waits for ServiceA - creates cycle A→B→A
-            detector.TrackAndDetect("GDI_WF:ProviderB:Ctx", "ServiceA");
+        // ProviderA waits for ServiceB - no cycle yet
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB", errorOutput);
+        Assert.Empty(errors);
 
-            Assert.True(errors.Count > 0,
-                "Expected cycle error. ProviderA waits for ServiceB, ProviderB waits for ServiceA.");
-            Assert.Contains("Deadlock", errors[0]);
-        }
-        finally { restore(); }
+        // ProviderB waits for ServiceA - creates cycle A→B→A
+        detector.TrackAndDetect("GDI_WF:ProviderB:Ctx", "ServiceA", errorOutput);
+
+        Assert.True(errors.Count > 0,
+            "Expected cycle error. ProviderA waits for ServiceB, ProviderB waits for ServiceA.");
+        Assert.Contains("Deadlock", errors[0]);
     }
 
     [Fact]
     public void LongerCycle_ABCA_Detected()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
-            detector.RegisterServiceProvider("ProviderB", "ServiceB");
-            detector.RegisterServiceProvider("ProviderC", "ServiceC");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB");
-            detector.TrackAndDetect("GDI_WF:ProviderB:Ctx", "ServiceC");
-            detector.TrackAndDetect("GDI_WF:ProviderC:Ctx", "ServiceA");
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        detector.RegisterServiceProvider("ProviderB", "ServiceB");
+        detector.RegisterServiceProvider("ProviderC", "ServiceC");
 
-            Assert.Single(errors);
-            Assert.Contains("Deadlock", errors[0]);
-        }
-        finally { restore(); }
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB", errorOutput);
+        detector.TrackAndDetect("GDI_WF:ProviderB:Ctx", "ServiceC", errorOutput);
+        detector.TrackAndDetect("GDI_WF:ProviderC:Ctx", "ServiceA", errorOutput);
+
+        Assert.Single(errors);
+        Assert.Contains("Deadlock", errors[0]);
     }
 
     [Fact]
     public void NoPrefix_Ignored()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            detector.TrackAndDetect("SomeRandomType", "ServiceB");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            Assert.Empty(errors);
-        }
-        finally { restore(); }
+        detector.TrackAndDetect("SomeRandomType", "ServiceB", errorOutput);
+
+        Assert.Empty(errors);
     }
 
     [Fact]
     public void InvalidPrefixFormat_NoColon_Ignored()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            detector.TrackAndDetect("GDI_WF:NoColonHere", "ServiceB");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            Assert.Empty(errors);
-        }
-        finally { restore(); }
+        detector.TrackAndDetect("GDI_WF:NoColonHere", "ServiceB", errorOutput);
+
+        Assert.Empty(errors);
     }
 
     [Fact]
     public void MultipleEdges_NoCycle_NoError()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
-            detector.RegisterServiceProvider("ProviderB", "ServiceB");
-            detector.RegisterServiceProvider("ProviderC", "ServiceC");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            // ProviderA waits for both ServiceB and ServiceC — no cycle
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB");
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceC");
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        detector.RegisterServiceProvider("ProviderB", "ServiceB");
+        detector.RegisterServiceProvider("ProviderC", "ServiceC");
 
-            Assert.Empty(errors);
-        }
-        finally { restore(); }
+        // ProviderA waits for both ServiceB and ServiceC — no cycle
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB", errorOutput);
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceC", errorOutput);
+
+        Assert.Empty(errors);
     }
 
     [Fact]
     public void SelfReference_Detected()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            // ProviderA provides ServiceA and waits for ServiceA
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceA");
+        // ProviderA provides ServiceA and waits for ServiceA
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
 
-            Assert.Single(errors);
-            Assert.Contains("Deadlock", errors[0]);
-        }
-        finally { restore(); }
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceA", errorOutput);
+
+        Assert.Single(errors);
+        Assert.Contains("Deadlock", errors[0]);
     }
 
     [Fact]
     public void DuplicateEdges_NoExtraError()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
-            detector.RegisterServiceProvider("ProviderB", "ServiceB");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            // Same edge registered twice
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB");
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB");
-            detector.TrackAndDetect("GDI_WF:ProviderB:Ctx", "ServiceA");
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        detector.RegisterServiceProvider("ProviderB", "ServiceB");
 
-            // Should detect cycle once, not multiple times
-            Assert.Single(errors);
-        }
-        finally { restore(); }
+        // Same edge registered twice
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB", errorOutput);
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "ServiceB", errorOutput);
+        detector.TrackAndDetect("GDI_WF:ProviderB:Ctx", "ServiceA", errorOutput);
+
+        // Should detect cycle once, not multiple times
+        Assert.Single(errors);
     }
 
     [Fact]
     public void UnknownService_NoCycle_NoError()
     {
-        var (detector, errors, restore) = CreateDetector();
-        try
-        {
-            detector.RegisterServiceProvider("ProviderA", "ServiceA");
+        var (detector, errors, errorOutput) = CreateDetector();
 
-            // ProviderA waits for an unknown service (no provider registered)
-            detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "UnknownService");
+        detector.RegisterServiceProvider("ProviderA", "ServiceA");
 
-            Assert.Empty(errors);
-        }
-        finally { restore(); }
+        // ProviderA waits for an unknown service (no provider registered)
+        detector.TrackAndDetect("GDI_WF:ProviderA:Ctx", "UnknownService", errorOutput);
+
+        Assert.Empty(errors);
     }
 }

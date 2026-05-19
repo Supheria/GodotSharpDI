@@ -73,7 +73,7 @@ GodotSharpDI 的核心设计理念是**将 Godot 的场景树生命周期与传�
 ## 安装
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.4.0" />
+<PackageReference Include="GodotSharpDI" Version="1.4.1" />
 ```
 ⚠️ **确保项目中同时添加了 GodotSharp 软件包**：生成的代码依赖 Godot.Node 和 Godot.GD。
 
@@ -918,17 +918,19 @@ RootScope
 ```
 1. Node.EnterTree
    ↓
-2. 查找父 Scope
+2. 重置注入状态（取消进行中的异步操作，清空回调列表）
    ↓
-3. 并发解析所有 [Inject] 依赖
+3. Node.Ready
+   ↓
+4. 提供所有 [Provide] 服务（同步 provider 立即执行，异步 provider fire-and-forget）
+   ↓
+5. 并发解析所有 [Inject] 依赖
    │
    ├─ 依赖 A: 成功 → IsAInjectionReady = true
    ├─ 依赖 B: 成功 → IsBInjectionReady = true
    └─ 依赖 C: 失败 → IsCInjectionReady = false
    ↓
-4. 所有依赖解析完成后调用 OnDependenciesResolved()
-   ↓
-5. 并发提供所有 [Provide] 服务
+6. 所有依赖解析完成后调用 OnDependenciesResolved()
 ```
 
 #### WaitFor 注入流程（1.1.0 新增）
@@ -936,15 +938,11 @@ RootScope
 ```
 1. Node.EnterTree
    ↓
-2. 查找父 Scope
+2. 重置注入状态（取消进行中的异步操作，清空回调列表）
    ↓
-3. 阶段 1: 并发解析所有 [Inject] 依赖（不阻塞服务提供）
-   │
-   ├─ 依赖 A: 成功 → IsAInjectionReady = true
-   ├─ 依赖 B: 失败 → IsBInjectionReady = false
-   └─ 依赖 C: 成功 → IsCInjectionReady = true
+3. Node.Ready
    ↓
-4. 阶段 2: 提供服务（独立于依赖注入）
+4. 阶段 1: 提供服务（独立于依赖注入）
    │
    ├─ 服务 X (无 WaitFor): 立即提供
    │
@@ -959,7 +957,13 @@ RootScope
       └─ 全部完成后 → 提供服务 Z
          （需检查 IsBInjectionReady）
    ↓
-5. 所有依赖解析完成后调用 OnDependenciesResolved()
+5. 阶段 2: 并发解析所有 [Inject] 依赖
+   │
+   ├─ 依赖 A: 成功 → IsAInjectionReady = true
+   ├─ 依赖 B: 失败 → IsBInjectionReady = false
+   └─ 依赖 C: 成功 → IsCInjectionReady = true
+   ↓
+6. 所有依赖解析完成后调用 OnDependenciesResolved()
 ```
 
 #### 关键概念
@@ -1027,9 +1031,9 @@ public partial class ExampleHost : Node, IDependenciesResolved
 }
 
 // 时间线：
-// T1: _config 开始解析, _logger 开始解析, CreateMetrics 开始提供
-// T2: _config 解析完成 → CreateDatabase 开始提供
-// T3: _logger 和 _config 都解析完成 → CreateRepository 开始提供  
+// T1: CreateMetrics 开始提供（NotificationReady 中 ProvideServices 执行）
+// T2: _config 开始解析, _logger 开始解析（ResolveDependencies 执行）
+// T3: _config 解析完成 → CreateDatabase 开始提供（WaitFor 满足）
 // T4: _config 和 _logger 都解析完成 → OnDependenciesResolved 被调用
 ```
 
@@ -1546,7 +1550,7 @@ public partial class MyHost : Node, IDependenciesResolved
     // ... 其他代码
 }
 
-// 生成的代码（在 MyHost.DI.Host.g.cs 中）
+// 生成的代码（在 MyHost.DI.Inject.g.cs 中）
 partial class MyHost
 {
     // 为每个 Inject 成员生成的就绪标志
@@ -1560,7 +1564,7 @@ partial class MyHost
     [MemberNotNullWhen(true, nameof(_config))]
     [MemberNotNullWhen(true, nameof(_logger))]
     private bool IsAllDependenciesReady => 
-        IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
+        IsConfigInjectionReady && IsLoggerInjectionReady;
     
     // 未解析依赖追踪
     private readonly HashSet<Type> __unresolvedDependencies = new()
@@ -1576,6 +1580,44 @@ partial class MyHost
         if (__unresolvedDependencies.Count == 0)
         {
             ((IDependenciesResolved)this).OnDependenciesResolved();
+        }
+    }
+}
+
+// 生成的代码（在 MyHost.DI.Lifecycle.g.cs 中）
+partial class MyHost
+{
+    private IScope? __parentScope;
+
+    private IScope? GetParentScope()
+    {
+        if (__parentScope is not null) return __parentScope;
+        var parent = GetParent();
+        while (parent is not null)
+        {
+            if (parent is IScope scope) { __parentScope = scope; return __parentScope; }
+            parent = parent.GetParent();
+        }
+        return null;
+    }
+
+    public override partial void _Notification(int what)
+    {
+        base._Notification(what);
+        switch ((long)what)
+        {
+            case NotificationEnterTree:
+                __parentScope = null;
+                ResetInjectionState();
+                break;
+            case NotificationReady:
+                ProvideServices();
+                ResolveDependencies();
+                break;
+            case NotificationExitTree:
+                __parentScope = null;
+                ResetInjectionState();
+                break;
         }
     }
 }
@@ -1738,8 +1780,8 @@ public partial class DataManager : Node, IDependenciesResolved
 `OnDependenciesResolved` 在以下时机被调用：
 
 1. **所有 `[Inject]` 依赖都已尝试解析**（成功或失败）
-2. **在节点的 `_Notification(NotificationEnterTree)` 之后**
-3. **在任何 `[Provide]` 服务被实际使用之前**
+2. **在节点的 `_Notification(NotificationReady)` 之后**
+3. **在异步 `[Provide]` 服务完成初始化之前**（异步 provider 可能仍在运行）
 
 #### 最佳实践
 
@@ -1840,20 +1882,32 @@ public partial class MyHost : Node
 框架通过 `_Notification` 与 Godot 的生命周期集成：
 
 ```csharp
+// Host/User 类型生成的 _Notification：
 public override partial void _Notification(int what)
 {
     base._Notification(what);
     switch ((long)what)
     {
         case NotificationEnterTree:
-            AttachToScope();
+            __parentScope = null;
+            ResetInjectionState();
+            break;
+        case NotificationReady:
+            // Host: ProvideServices() + ResolveDependencies()
+            // User: ResolveDependencies()
             break;
         case NotificationExitTree:
-            DetachFromScope();
+            __parentScope = null;
+            ResetInjectionState();
             break;
     }
 }
 ```
+
+**生命周期阶段**：
+- **EnterTree**：重置注入状态 — 取消进行中的异步 provider，清空回调列表，重置就绪标志
+- **Ready**：提供服务并解析依赖（Host 先提供再解析，User 仅解析）
+- **ExitTree**：再次重置注入状态，中止所有待处理操作
 
 ---
 
@@ -2090,7 +2144,7 @@ public class EnemyFactory : IEnemyFactory
 
 ## 诊断代码
 
-框架提供全面的编译时错误检查。完整的诊断代码列表，请参考 [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md)。
+框架提供全面的编译时错误检查。
 
 **诊断代码类别**：
 
@@ -2145,7 +2199,7 @@ public partial class GameManager : Node
     public IGameState Self => this;
 }
 
-// 生成的文件：GameManager.DI.g.cs（Godot 不扫描）
+// 生成的文件：GameManager.DI.Lifecycle.g.cs（Godot 不扫描）
 partial class GameManager
 {
     // 框架提供实现
@@ -2155,10 +2209,16 @@ partial class GameManager
         switch ((long)what)
         {
             case NotificationEnterTree:
-                AttachToScope();
+                __parentScope = null;
+                ResetInjectionState();
+                break;
+            case NotificationReady:
+                ProvideServices();
+                ResolveDependencies();
                 break;
             case NotificationExitTree:
-                DetachFromScope();
+                __parentScope = null;
+                ResetInjectionState();
                 break;
         }
     }

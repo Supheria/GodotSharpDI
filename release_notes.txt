@@ -1,3 +1,48 @@
+======
+v1.4.1
+======
+
+BUG FIXES
+---------
+
+1. Callback exception error messages now include RequestorType
+2. NuGet package could contain stale DLLs due to incorrect path references
+   in GodotSharpDI.csproj
+
+
+BREAKING CHANGES
+----------------
+
+1. ErrorReporter API refactored
+   - Removed Output / ErrorOutput static fields
+   - Removed ReportWarning method
+   - All Report* methods accept Exception instead of string exMsg,
+     and Action<string> errorOutput as the last parameter
+   - BuildServiceNotFoundMessage / BuildServiceErrorMessage replaced by
+     ReportServiceNotFound / ReportServiceError
+   - New methods: ReportParentScopeNotFound, ReportWaiterCallbackException,
+     ReportResolveDependencyCallbackException, ReportError
+
+2. Runtime class method signatures updated
+   The following runtime classes now require an Action<string> errorOutput
+   parameter for error reporting (previously used ErrorReporter static fields):
+     - AsyncProviderRunner.Run
+     - SyncProviderRunner.Run
+     - InjectionExecutor.Execute
+     - WaitForCoordinator.Register
+     - DeadlockDetector.TrackAndDetect
+   Migration: If you call these methods directly, add a GD.PrintErr (or
+   equivalent) delegate as the errorOutput parameter. Generated code is
+   updated automatically.
+
+
+INTERNAL IMPROVEMENTS
+---------------------
+
+- Extracted ErrorReporterHelper test helper for capturing error output in tests
+- Cleaned up nuget-build.bat to properly clean all project outputs
+
+
 ==================
 v1.4.0 && v1.3.3
 ==================

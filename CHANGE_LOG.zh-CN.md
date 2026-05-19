@@ -1,3 +1,39 @@
+# v1.4.1
+
+## Bug 修复
+
+- 修复：回调异常的错误信息现在包含 `RequestorType`
+- 修复：NuGet 包可能包含旧 DLL，原因是 `GodotSharpDI.csproj` 中的路径引用不正确
+
+## 破坏性变更
+
+### `ErrorReporter` API 重构
+
+- 移除 `Output` / `ErrorOutput` 静态字段
+- 移除 `ReportWarning` 方法
+- 所有 `Report*` 方法接受 `Exception` 而非 `string exMsg`，新增 `Action<string> errorOutput` 作为最后一个参数
+- `BuildServiceNotFoundMessage` / `BuildServiceErrorMessage` 替换为 `ReportServiceNotFound` / `ReportServiceError`
+- 新增方法：`ReportParentScopeNotFound`、`ReportWaiterCallbackException`、`ReportResolveDependencyCallbackException`、`ReportError`
+
+### 运行时类方法签名更新
+
+以下运行时类现要求传入 `Action<string> errorOutput` 参数用于错误报告（此前使用 `ErrorReporter` 静态字段）：
+
+- `AsyncProviderRunner.Run`
+- `SyncProviderRunner.Run`
+- `InjectionExecutor.Execute`
+- `WaitForCoordinator.Register`
+- `DeadlockDetector.TrackAndDetect`
+
+**迁移方式**：如直接调用这些方法，需添加 `GD.PrintErr`（或等效委托）作为 `errorOutput` 参数。生成代码已自动更新。
+
+## 内部改进
+
+- 提取 `ErrorReporterHelper` 测试辅助类，用于在测试中捕获错误输出
+- 清理 `nuget-build.bat`，正确清理所有项目输出
+
+---
+
 # v1.4.0
 
 ## 新功能

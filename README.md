@@ -73,7 +73,7 @@ The core design philosophy of GodotSharpDI is to **merge Godot's scene tree life
 ## Installation
 
 ```xml
-<PackageReference Include="GodotSharpDI" Version="1.4.0" />
+<PackageReference Include="GodotSharpDI" Version="1.4.1" />
 ```
 ⚠️ **Make sure to also add the GodotSharp package to your project**: The generated code depends on Godot.Node and Godot.GD.
 
@@ -918,17 +918,19 @@ Child scopes inherit services from parent scopes but can also override them.
 ```
 1. Node.EnterTree
    ↓
-2. Find parent Scope
+2. Reset injection state (cancel in-flight async ops, clear callback lists)
    ↓
-3. Resolve all [Inject] dependencies concurrently
+3. Node.Ready
+   ↓
+4. Provide all [Provide] services (sync providers run immediately, async providers fire-and-forget)
+   ↓
+5. Resolve all [Inject] dependencies concurrently
    │
    ├─ Dependency A: Success → IsAInjectionReady = true
    ├─ Dependency B: Success → IsBInjectionReady = true
    └─ Dependency C: Failed → IsCInjectionReady = false
    ↓
-4. OnDependenciesResolved() called after all dependencies resolved
-   ↓
-5. Provide all [Provide] services concurrently
+6. OnDependenciesResolved() called after all dependencies resolved
 ```
 
 #### WaitFor Injection Flow (New in 1.1.0)
@@ -936,15 +938,11 @@ Child scopes inherit services from parent scopes but can also override them.
 ```
 1. Node.EnterTree
    ↓
-2. Find parent Scope
+2. Reset injection state (cancel in-flight async ops, clear callback lists)
    ↓
-3. Phase 1: Resolve all [Inject] dependencies concurrently (doesn't block service provision)
-   │
-   ├─ Dependency A: Success → IsAInjectionReady = true
-   ├─ Dependency B: Failed → IsBInjectionReady = false
-   └─ Dependency C: Success → IsCInjectionReady = true
+3. Node.Ready
    ↓
-4. Phase 2: Provide services (independent of dependency injection)
+4. Phase 1: Provide services (independent of dependency injection)
    │
    ├─ Service X (no WaitFor): Provide immediately
    │
@@ -959,7 +957,13 @@ Child scopes inherit services from parent scopes but can also override them.
       └─ All complete → Provide service Z
          (Must check IsBInjectionReady)
    ↓
-5. OnDependenciesResolved() called after all dependencies resolved
+5. Phase 2: Resolve all [Inject] dependencies concurrently
+   │
+   ├─ Dependency A: Success → IsAInjectionReady = true
+   ├─ Dependency B: Failed → IsBInjectionReady = false
+   └─ Dependency C: Success → IsCInjectionReady = true
+   ↓
+6. OnDependenciesResolved() called after all dependencies resolved
 ```
 
 #### Key Concepts
@@ -1027,9 +1031,9 @@ public partial class ExampleHost : Node, IDependenciesResolved
 }
 
 // Timeline:
-// T1: _config starts resolving, _logger starts resolving, CreateMetrics starts providing
-// T2: _config resolution complete → CreateDatabase starts providing
-// T3: both _logger and _config resolution complete → CreateRepository starts providing  
+// T1: CreateMetrics starts providing (ProvideServices in NotificationReady)
+// T2: _config starts resolving, _logger starts resolving (ResolveDependencies)
+// T3: _config resolution complete → CreateDatabase starts providing (WaitFor satisfied)
 // T4: both _config and _logger resolved → OnDependenciesResolved is called
 ```
 
@@ -1546,7 +1550,7 @@ public partial class MyHost : Node, IDependenciesResolved
     // ... other code
 }
 
-// Generated code (in MyHost.DI.Host.g.cs)
+// Generated code (in MyHost.DI.Inject.g.cs)
 partial class MyHost
 {
     // Readiness flag generated for each Inject member
@@ -1560,7 +1564,7 @@ partial class MyHost
     [MemberNotNullWhen(true, nameof(_config))]
     [MemberNotNullWhen(true, nameof(_logger))]
     private bool IsAllDependenciesReady => 
-        IsConfigInjectionReady == true && IsLoggerInjectionReady == true;
+        IsConfigInjectionReady && IsLoggerInjectionReady;
     
     // Unresolved dependency tracking
     private readonly HashSet<Type> __unresolvedDependencies = new()
@@ -1576,6 +1580,44 @@ partial class MyHost
         if (__unresolvedDependencies.Count == 0)
         {
             ((IDependenciesResolved)this).OnDependenciesResolved();
+        }
+    }
+}
+
+// Generated code (in MyHost.DI.Lifecycle.g.cs)
+partial class MyHost
+{
+    private IScope? __parentScope;
+
+    private IScope? GetParentScope()
+    {
+        if (__parentScope is not null) return __parentScope;
+        var parent = GetParent();
+        while (parent is not null)
+        {
+            if (parent is IScope scope) { __parentScope = scope; return __parentScope; }
+            parent = parent.GetParent();
+        }
+        return null;
+    }
+
+    public override partial void _Notification(int what)
+    {
+        base._Notification(what);
+        switch ((long)what)
+        {
+            case NotificationEnterTree:
+                __parentScope = null;
+                ResetInjectionState();
+                break;
+            case NotificationReady:
+                ProvideServices();
+                ResolveDependencies();
+                break;
+            case NotificationExitTree:
+                __parentScope = null;
+                ResetInjectionState();
+                break;
         }
     }
 }
@@ -1738,7 +1780,7 @@ public partial class DataManager : Node, IDependenciesResolved
 `OnDependenciesResolved` is called at the following timing:
 
 1. **All `[Inject]` dependencies have been attempted to resolve** (success or failure)
-2. **After the node's `_Notification(NotificationEnterTree)`**
+2. **After the node's `_Notification(NotificationReady)`**
 3. **Before async `[Provide]` services have necessarily completed initialization** (async providers may still be running when this is called)
 
 #### Best Practices
@@ -1840,20 +1882,32 @@ All generated code is in `*.DI.g.cs` files.
 The framework integrates with Godot's lifecycle through `_Notification`:
 
 ```csharp
+// Generated _Notification for Host/User types:
 public override partial void _Notification(int what)
 {
     base._Notification(what);
     switch ((long)what)
     {
         case NotificationEnterTree:
-            AttachToScope();
+            __parentScope = null;
+            ResetInjectionState();
+            break;
+        case NotificationReady:
+            // Host: ProvideServices() + ResolveDependencies()
+            // User: ResolveDependencies()
             break;
         case NotificationExitTree:
-            DetachFromScope();
+            __parentScope = null;
+            ResetInjectionState();
             break;
     }
 }
 ```
+
+**Lifecycle Phases**:
+- **EnterTree**: Reset injection state — cancel in-flight async providers, clear callback lists, reset ready flags
+- **Ready**: Provide services and resolve dependencies (Host provides first, then both resolve)
+- **ExitTree**: Reset injection state again to abort any pending operations
 
 ---
 
@@ -2090,7 +2144,7 @@ public class EnemyFactory : IEnemyFactory
 
 ## Diagnostic Codes
 
-The framework provides comprehensive compile-time error checking. For a complete list of diagnostic codes, please refer to [AnalyzerReleases.Shipped.md](./GodotSharpDI.SourceGenerator/AnalyzerReleases.Shipped.md).
+The framework provides comprehensive compile-time error checking.
 
 **Diagnostic Code Categories**:
 
@@ -2145,7 +2199,7 @@ public partial class GameManager : Node
     public IGameState Self => this;
 }
 
-// Generated file: GameManager.DI.g.cs (not scanned by Godot)
+// Generated file: GameManager.DI.Lifecycle.g.cs (not scanned by Godot)
 partial class GameManager
 {
     // Framework provides the implementation
@@ -2155,10 +2209,16 @@ partial class GameManager
         switch ((long)what)
         {
             case NotificationEnterTree:
-                AttachToScope();
+                __parentScope = null;
+                ResetInjectionState();
+                break;
+            case NotificationReady:
+                ProvideServices();
+                ResolveDependencies();
                 break;
             case NotificationExitTree:
-                UnattachToScope();
+                __parentScope = null;
+                ResetInjectionState();
                 break;
         }
     }

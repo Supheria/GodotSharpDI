@@ -12,24 +12,10 @@ namespace GodotSharpDI.SourceGenerator.Tests.E2E;
 /// </summary>
 public class CallbackTests
 {
-    private static (List<string> errors, List<string> warnings, Action restore) CaptureErrorReporter()
-    {
-        var errors = new List<string>();
-        var warnings = new List<string>();
-        var prevError = ErrorReporter.ErrorOutput;
-        var prevOutput = ErrorReporter.Output;
-        ErrorReporter.ErrorOutput = msg => errors.Add(msg);
-        ErrorReporter.Output = msg => warnings.Add(msg);
-        return (errors, warnings, () => { ErrorReporter.ErrorOutput = prevError; ErrorReporter.Output = prevOutput; });
-    }
-
     [Fact]
     public void ReadyCallback_FiresOnSuccessfulInjection()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -68,39 +54,34 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.MyHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.MyHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(host, 10);
-            E2ETestHelper.Notify(host, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(host, 10);
+        E2ETestHelper.Notify(host, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            // Verify injection succeeded
-            var service = E2ETestHelper.GetFieldValue(user, "_service");
-            Assert.NotNull(service);
+        // Verify injection succeeded
+        var service = E2ETestHelper.GetFieldValue(user, "_service");
+        Assert.NotNull(service);
 
-            // Verify ReadyCallback fired with the correct value
-            var lastReady = E2ETestHelper.GetPropertyValue(user, "LastReadyValue");
-            Assert.NotNull(lastReady);
-            Assert.Same(service, lastReady);
-        }
-        finally { restore(); }
+        // Verify ReadyCallback fired with the correct value
+        var lastReady = E2ETestHelper.GetPropertyValue(user, "LastReadyValue");
+        Assert.NotNull(lastReady);
+        Assert.Same(service, lastReady);
     }
 
     [Fact]
     public void FailureCallback_FiresWhenProviderFails()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -139,38 +120,33 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.FailingHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.FailingHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(host, 10);
-            E2ETestHelper.Notify(host, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(host, 10);
+        E2ETestHelper.Notify(host, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            // Verify injection failed (provider threw)
-            var service = E2ETestHelper.GetFieldValue(user, "_service");
-            Assert.Null(service);
+        // Verify injection failed (provider threw)
+        var service = E2ETestHelper.GetFieldValue(user, "_service");
+        Assert.Null(service);
 
-            // Verify FailureCallback fired
-            var fired = E2ETestHelper.GetPropertyValue(user, "FailureCallbackFired");
-            Assert.Equal(true, fired);
-        }
-        finally { restore(); }
+        // Verify FailureCallback fired
+        var fired = E2ETestHelper.GetPropertyValue(user, "FailureCallbackFired");
+        Assert.Equal(true, fired);
     }
 
     [Fact]
     public void IDependenciesResolved_CalledAfterAllInjections()
     {
-        var (_, _, restore) = CaptureErrorReporter();
-        try
-        {
-            var source = @"
+        var source = @"
 using GodotSharpDI.Abstractions;
 using Godot;
 
@@ -215,28 +191,26 @@ namespace Test
     }
 }";
 
-            var asm = E2ETestHelper.GenerateAndCompile(source);
+        var asm = E2ETestHelper.GenerateAndCompile(source);
 
-            var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
-            var host = E2ETestHelper.Instantiate(asm, "Test.MyHost");
-            var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
+        var scope = E2ETestHelper.Instantiate(asm, "Test.MyScope");
+        var host = E2ETestHelper.Instantiate(asm, "Test.MyHost");
+        var user = E2ETestHelper.Instantiate(asm, "Test.MyUser");
 
-            E2ETestHelper.WireParent(host, scope);
-            E2ETestHelper.WireParent(user, scope);
+        E2ETestHelper.WireParent(host, scope);
+        E2ETestHelper.WireParent(user, scope);
 
-            E2ETestHelper.Notify(host, 10);
-            E2ETestHelper.Notify(host, 13);
-            E2ETestHelper.Notify(user, 10);
-            E2ETestHelper.Notify(user, 13);
+        E2ETestHelper.Notify(host, 10);
+        E2ETestHelper.Notify(host, 13);
+        E2ETestHelper.Notify(user, 10);
+        E2ETestHelper.Notify(user, 13);
 
-            // Verify both injections succeeded
-            Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_a"));
-            Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_b"));
+        // Verify both injections succeeded
+        Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_a"));
+        Assert.NotNull(E2ETestHelper.GetFieldValue(user, "_b"));
 
-            // Verify OnDependenciesResolved was called exactly once
-            var count = E2ETestHelper.GetPropertyValue(user, "ResolvedCallCount");
-            Assert.Equal(1, count);
-        }
-        finally { restore(); }
+        // Verify OnDependenciesResolved was called exactly once
+        var count = E2ETestHelper.GetPropertyValue(user, "ResolvedCallCount");
+        Assert.Equal(1, count);
     }
 }

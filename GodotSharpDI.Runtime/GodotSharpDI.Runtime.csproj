@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="GodotSharpDI.Runtime.Tests" />
+    <InternalsVisibleTo Include="GodotSharpDI.SourceGenerator.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GodotSharpDI.Abstractions\GodotSharpDI.Abstractions.csproj" />

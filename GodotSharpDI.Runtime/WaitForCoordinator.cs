@@ -43,7 +43,7 @@ public class WaitForCoordinator
     /// </param>
     /// <param name="depName">The dependency member name, for error reporting.</param>
     /// <param name="memberName">The Provide member name, for error reporting.</param>
-    /// <param name="reportError">
+    /// <param name="errorOutput">
     /// Error reporting callback. Typically <c>msg => GD.PrintErr(msg)</c>.
     /// </param>
     /// <param name="dispatchToMainThread">
@@ -53,15 +53,16 @@ public class WaitForCoordinator
         List<Action<bool>> callbackList,
         string depName,
         string memberName,
-        Action<string> reportError,
+        Action<string> errorOutput,
         Action<Action> dispatchToMainThread)
     {
         callbackList.Add(ok =>
         {
             if (!ok)
             {
-                reportError(
-                    $"[GodotSharpDI] WaitFor: dependency '{depName}' for '{memberName}' failed");
+                ErrorReporter.ReportError(
+                    $"[GodotSharpDI] WaitFor: dependency '{depName}' for '{memberName}' failed",
+                    errorOutput);
             }
 
             if (Interlocked.Decrement(ref _remaining) == 0)
@@ -70,10 +71,11 @@ public class WaitForCoordinator
                 {
                     if (t.IsFaulted)
                     {
-                        var errMsg = t.Exception?.GetBaseException().Message;
+                        var ex = t.Exception?.GetBaseException();
                         dispatchToMainThread(() =>
-                            reportError(
-                                $"[GodotSharpDI] WaitFor callback threw: {errMsg}"));
+                            ErrorReporter.ReportError(
+                                $"[GodotSharpDI] WaitFor callback threw: {ex}",
+                                errorOutput));
                     }
                 }, TaskScheduler.Default);
             }

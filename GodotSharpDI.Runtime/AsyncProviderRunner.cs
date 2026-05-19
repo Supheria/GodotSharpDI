@@ -28,7 +28,7 @@ public static class AsyncProviderRunner
     /// Cancellation token (typically __lifetime_cancellation_tokens.Token).
     /// Cancelled when the node exits the scene tree.
     /// </param>
-    /// <param name="reportError">
+    /// <param name="errorOutput">
     /// Error reporting callback. Typically <c>msg => GD.PrintErr(msg)</c>.
     /// </param>
     /// <param name="dispatchToMainThread">
@@ -39,7 +39,7 @@ public static class AsyncProviderRunner
         Action<T?, string> provide,
         string providerType,
         CancellationToken ct,
-        Action<string> reportError,
+        Action<string> errorOutput,
         Action<Action> dispatchToMainThread) where T : class
     {
         try
@@ -61,7 +61,7 @@ public static class AsyncProviderRunner
         {
             if (ct.IsCancellationRequested) return;
 
-            reportError($"[GodotSharpDI] Async provider for {typeof(T).Name} threw: {ex.Message}");
+            ErrorReporter.ReportAsyncProviderThrew(typeof(T).Name, ex, errorOutput);
 
             dispatchToMainThread(() =>
             {

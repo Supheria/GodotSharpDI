@@ -20,42 +20,46 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
     /// List of method names that are forbidden to call manually
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenMethodNames = ImmutableHashSet.Create(
-        // Service factory methods
-        "CreateService",
-        // Node DI generated private methods
-        "GetServiceScope",
-        "AttachToScope",
-        "UnattachToScope",
-        // User generated private methods
-        "ResolveUserDependencies",
-        "OnDependencyResolved",
-        // Host generated private methods
-        "AttachHostServices",
-        "UnattachHostServices",
-        // Scope generated private methods
+        // Node lifecycle (all roles)
         "GetParentScope",
-        "InstantiateScopeSingletons",
-        "DisposeScopeSingletons",
-        "CheckWaitList",
-        // Scope implemented IScope methods
-        "ResolveDependency",
-        "RegisterService",
-        "UnregisterService"
+        "ResetInjectionState",
+        // Host lifecycle
+        "ProvideServices",
+        "ResolveDependencies",
+        // User lifecycle
+        // (ResolveDependencies shared with Host)
+        // Scope lifecycle
+        "StartDependencyMonitoring",
+        "StopDependencyMonitoring",
+        "CheckPendingDependencies",
+        "ReportUnresolvedDependencies",
+        // Injection callback
+        "OnDependencyResolved",
+        // Scope static initializers
+        "CreateServiceCache",
+        "CreateServiceImplementationMap",
+        "CreateDeadlockDetector",
+        // Scope IScope interface methods
+        "ProvideService",
+        "ResolveDependency"
     );
 
     /// <summary>
     /// List of field names that are forbidden to access manually
     /// </summary>
     private static readonly ImmutableHashSet<string> ForbiddenFieldNames = ImmutableHashSet.Create(
-        // Node DI generated fields
+        // Node lifecycle (Host/User)
         "__parentScope",
-        // Scope generated fields
-        "ServiceTypes",
-        "_services",
+        // Async provider cancellation (Host/User)
+        "__lifetime_cancellation_tokens",
+        // Injection dependency tracking (Host/User with IDependenciesResolved)
+        "__unresolvedDependencies",
+        // Scope service container
+        "ServiceImplementationMap",
+        "ServiceCache",
         "_waiters",
-        "_disposableSingletons",
-        // User IDependenciesResolved generated fields
-        "__unresolvedDependencies"
+        "_deadlockDetector",
+        "_dependencyCheckTimer"
     );
 
     /// <summary>
@@ -525,9 +529,8 @@ public sealed class GeneratedMemberAccessAnalyzer : DiagnosticAnalyzer
             if (!SymbolEqualityComparer.Default.Equals(interfaceType, cachedSymbols.IScope))
                 return false;
 
-            return methodName == "ResolveDependency"
-                || methodName == "RegisterService"
-                || methodName == "UnregisterService";
+            return methodName == "ProvideService"
+                || methodName == "ResolveDependency";
         }
         catch
         {
